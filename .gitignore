@@ -282,3 +282,4 @@ Menus.Web/spreadsheet-api.json
 .env.local
 .env.*.local
 *.secrets.json
+.DS_Store
