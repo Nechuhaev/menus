@@ -1,0 +1,48 @@
+﻿.menu-service-buttons {
+    display: flex;
+    justify-content: space-between;
+
+    &__button {
+        height: 2vw;
+        width: 9vw;
+        border-radius: 5px;
+        background-repeat: no-repeat;
+        background-position: 50% 50%;
+        border: solid 1px #ececec;
+        padding: 0 10px;
+        cursor: pointer;
+        background-size: contain;
+
+        &:hover {
+            border: solid 1px #ffb80e;
+        }
+
+        &--glovo {
+            background-image: url(/images/serviceButtons/glovo_btn.png);
+        }
+
+        &--raketa {
+            background-image: url(/images/serviceButtons/raketa_btn.png);
+        }
+
+        &--reserv {
+            display: flex;
+            width: 12vw;
+        }
+
+        &__calendar {
+            background-image: url(/images/serviceButtons/calendar_btn.png);
+            background-repeat: no-repeat;
+            background-position: 50% 50%;
+            width: 2vw;
+            height: 3vh;
+            background-size: cover;
+            margin-top: 0.60vh;
+            margin-right: 0.5vw;
+        }
+
+        &__label {
+            color: #e32929;
+        }
+    }
+}

@@ -1,0 +1,327 @@
+﻿.page_404 {
+    display: flex;
+    flex-direction: column-reverse;
+    margin: 0 0 mvw(44) 0;
+    padding: mvw(30) 0 mvw(95) 0;
+    border-bottom: 1px solid #ededed;
+
+    .page_404_left {
+        width: 100%;
+    }
+
+    .page_404_right {
+        margin: 0 0 mvw(28) 0;
+    }
+
+    h2 {
+        margin: 0 0 mvw(38) 0;
+        padding: 0;
+        line-height: mvw(40);
+        font-size: mvw(30);
+        text-transform: none;
+        color: #000;
+
+        span {
+            display: block;
+        }
+    }
+
+    h3 {
+        margin: 0 0 mvw(4) 0;
+        padding: 0;
+        line-height: mvw(40);
+        font-size: mvw(26);
+        color: #000;
+    }
+
+    ul {
+        margin: 0;
+        padding: 0 0 mvw(44) 0;
+
+        li {
+            position: relative;
+            margin: 0;
+            padding: 0 0 0 mvw(19);
+            list-style: none;
+            line-height: mvw(40);
+            font-size: mvw(26);
+
+            &:before {
+                background: #000;
+                display: block;
+                width: mvw(6);
+                height: mvw(6);
+                overflow: hidden;
+                position: absolute;
+                top: mvw(18);
+                left: 0;
+                border-radius: mvw(4);
+                content: '';
+            }
+        }
+    }
+
+    .page_404_btns {
+        text-align: center;
+
+        .btn-default {
+            display: block;
+            margin: 0 0 mvw(16) 0;
+            padding: mvw(25) mvw(30) mvw(25) mvw(30);
+            border-radius: mvw(36);
+            line-height: mvw(30);
+            font-size: mvw(28);
+            text-align: center;
+            text-transform: lowercase;
+            color: #333333;
+        }
+    }
+
+    .img_404 {
+        margin: 0;
+        text-align: center;
+
+        img {
+            width: mvw(450);
+            margin: mvw(-75) 0 0 0;
+
+            &.desktop_404_image {
+                display: none;
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+.page_oops {
+    display: flex;
+    flex-direction: column-reverse;
+    margin: 0 0 mvw(44) 0;
+    padding: 0 0 mvw(61) 0;
+    border-bottom: 1px solid #ededed;
+
+    .page_oops_left {
+        width: 100%;
+    }
+
+    .page_oops_right {
+        margin: 0 0 mvw(27) 0;
+    }
+
+    p {
+        margin: 0 0 mvw(58) 0;
+        padding: 0;
+        letter-spacing: mvw(-0.5);
+        line-height: mvw(40);
+        font-size: mvw(30);
+
+        strong {
+            color: #000;
+        }
+    }
+
+    .page_oops_btns {
+        text-align: center;
+
+        .btn-default {
+            display: block;
+            margin: 0 0 mvw(16) 0;
+            padding: mvw(25) mvw(30) mvw(25) mvw(30);
+            border-radius: mvw(36);
+            line-height: mvw(30);
+            font-size: mvw(28);
+            text-align: center;
+            text-transform: lowercase;
+            color: #333333;
+        }
+    }
+
+    figure {
+        margin: 0;
+        text-align: center;
+
+        img {
+            width: mvw(292);
+        }
+    }
+}
+
+.btn-default {
+    background: #ffb80e;
+    display: inline-block;
+    margin: 0;
+    padding: mvw(15) mvw(28) mvw(15) mvw(28);
+    border-radius: mvw(24);
+    vertical-align: top;
+    line-height: mvw(21);
+    font-size: mvw(18);
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #000;
+}
+
+.btn-link {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+    vertical-align: top;
+    line-height: mvw(28);
+    font-size: mvw(26);
+    text-decoration: underline;
+    color: #000;
+}
+
+
+
+
+
+
+
+
+
+/*.error-page {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column-reverse;
+
+    .error-page--left {
+        width: 100%;
+        padding: 0;
+    }
+
+    .error-page--right {
+        width: 100%;
+        text-align: center;
+    }
+
+    h2 {
+        margin: 0 0 mvw(42) 0;
+        padding: 0;
+        letter-spacing: normal;
+        line-height: mvw(40);
+        font-size: mvw(30);
+        text-transform: none;
+
+        span {
+            display: block;
+        }
+    }
+
+    h3 {
+        margin: 0 0 mvw(13) 0;
+        padding: 0;
+        line-height: mvw(24);
+        font-size: mvw(22);
+        color: #000;
+    }
+
+    ul {
+        margin: 0 0 mvw(40) 0;
+        padding: 0;
+
+        li {
+            position: relative;
+            margin: 0 0 mvw(10) 0;
+            padding: 0 0 0 mvw(12);
+            list-style: none;
+            line-height: mvw(30);
+            font-size: mvw(22);
+
+            &:before {
+                background: #000;
+                display: block;
+                width: mvw(5);
+                height: mvw(5);
+                overflow: hidden;
+                border-radius: 50%;
+                position: absolute;
+                top: mvw(13);
+                left: 0;
+                content: '';
+            }
+        }
+    }
+
+    figure {
+        margin: mvw(4) 0 mvw(60) 0;
+
+        img {
+            width: mvw(591);
+        }
+    }
+
+    .error-text {
+        margin: 0 0 mvw(50) 0;
+        line-height: mvw(60);
+        font-size: mvw(60);
+        font-weight: 900;
+    }
+}
+
+
+
+.btn-default {
+    background: #ffb80e;
+    display: inline-block;
+    margin: 0;
+    padding: mvw(15) mvw(28) mvw(15) mvw(28);
+    border-radius: mvw(24);
+    vertical-align: top;
+    line-height: mvw(21);
+    font-size: mvw(18);
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #000;
+}
+
+.error-page.not-found-restaurant {
+    figure img {
+        width: vwm(250);
+    }
+
+    p {
+        margin: 0 0 vwm(50);
+        font-size: mvw(31);
+        line-height: mvw(40);
+        text-align: justify;
+
+        br {
+            display: none;
+        }
+    }
+
+    a {
+        display: block;
+        width: 100%;
+        text-align: center;
+
+        &.btn-default {
+            background: #ffb80e;
+            margin: 0 0 vwm(20);
+            border: none;
+            transition: all 0.4s;
+            font-family: GT Walsheim Pro, sans-serif;
+            text-transform: uppercase;
+            color: #000;
+            cursor: pointer;
+            height: vwm(60);
+            line-height: vwm(60);
+            padding: 0 vwm(62) 0 vwm(62);
+            border-radius: 0;
+            font-size: vwm(20);
+            font-weight: bold;
+        }
+
+        &:not(.btn-default) {
+            text-decoration: underline;
+            font-size: vwm(22);
+        }
+    }
+}*/

@@ -1,0 +1,70 @@
+﻿@using Menus.Abstract.Models
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@model IEnumerable<Menus.Abstract.Models.ISearchDish>
+@{
+    Layout = null;
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+}
+
+@foreach (var dish in Model)
+{
+    <li>
+        <div class="caption">
+
+            <div class="caption_image">
+                <figure>
+                    @if (dish.Photos.Any())
+                    {
+                        <a href="@Url.Action("Dish", "Home", new { id = dish.RestaurantUrl, dishUrl = dish.DishUrl })" style="background-image: url(@Img.Url(dish.Photos.First(), Quality.Medium))"></a>
+                        @*<figcaption>@Localizer["Advertisment"]</figcaption>*@
+                    }
+                </figure>
+            </div>
+
+            <div class="caption_content">
+                <h3><a href="@Url.Action("Dish", "Home", new { id = dish.RestaurantUrl, dishUrl = dish.DishUrl })">@dish.Name.Get()</a></h3>
+                <p class="excerpt">@dish.ShortDescription.Get(culture)</p>
+                <p class="dish_info">
+                    <strong>@dish.RatingFloat.ToString("F1")</strong>
+                    @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                    <em>(@dish.RatingsCount)</em>
+                </p>
+                <p class="location">@dish.RestaurantName, @dish.RestaurantAddress</p>
+            </div>
+
+            <div class="caption_info">
+                <span class="price">@dish.RestaurantCurrency @dish.Price.ToString("F2")</span>
+                <span class="weight">@dish.Weight @dish.WeightType</span>
+            </div>
+
+        </div>
+    </li>
+}
+
+@foreach (var dish in Model.Where(x => !string.IsNullOrEmpty(x.RestaurantGpsLatitude)))
+{
+    var photo = dish.Photos.Any() ? Img.Url(dish.Photos.FirstOrDefault(), Quality.Low) : "/images/rest_01.jpg";
+    <script>
+        (function() {
+            var marker = new google.maps.Marker({
+                position: new google.maps.LatLng(@dish.RestaurantGpsLatitude.ToString(new System.Globalization.CultureInfo("en-US")), @dish.RestaurantGpsLongitude.ToString(new System.Globalization.CultureInfo("en-US"))),
+                map: map,
+                icon: '/images/star_for_map.png'
+            });
+            marker.description = '<div class="restaurant_caption"><figure><img src="@photo" alt="Alternate Text" /></figure><h3><a href="@Url.Action("Restaurant", "Home", new {id = dish.DishUrl})">@dish.RestaurantName</a></h3><span class="item_location">@dish.RestaurantAddress</span></div>';
+            google.maps.event.addListener(marker,
+                'click',
+                function() {
+                    //this.description.setPosition(this.getPosition());
+                    //this.description.open(map); //map to display on
+                    showInfoWindow(this);
+                });
+
+            return marker;
+        })();
+    </script>
+}

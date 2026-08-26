@@ -1,0 +1,340 @@
+﻿@using Menus.Abstract.Models
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@model IEnumerable<Menus.Abstract.Models.ISearchDish>
+@inject Menus.Web.Services.UserService  UserService
+@inject Menus.Domain.Core Core
+@{
+    ViewData["Title"] = Localizer["MetaTitle"];
+    ViewData["Description"] = Localizer["MetaDescription"];
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+    var featuredRestaurants = (ViewData["featuredRestaurants"] as List<ICompleteRestaurant>) ?? new List<ICompleteRestaurant>();
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    var sortOptions = new Dictionary<string, string>
+        {
+            { "rating", Localizer["ByRating"].Value },
+            { "rating-count", Localizer["NumberOfRates"].Value }
+        };
+
+    var sort = Context.Request.Query["sort"].FirstOrDefault();
+    sort = string.IsNullOrEmpty(sort) ? "rating" : sort;
+}
+
+
+
+@await Html.PartialAsync("_Header")
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs breadcrumbs-content">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["BestDishes"]</breadcrumb></li>
+            </ul>
+        </div>
+
+        <div class="site-content-align">
+            <div class="our_recommendation">
+                <div class="recommendation_left">
+
+                    @if (!UserService.IsMobileUser(Context.Request))
+                    {
+                        <div class="recommendation_top">
+                            <div class="left_area">
+                                <h1>@Localizer["BestDishes"]</h1>
+                            </div>
+                            @*<div class="right_area">
+                                    <form method="get" class="form_sort">
+                                        <label>@Localizer["SortBy"]:</label>
+                                        <select name="sort" asp-items='sortOptions.Select(x => new SelectListItem {Text = x.Value, Value = x.Key, Selected = x.Key == sort})'></select>
+                                    </form>
+                                </div>*@
+                        </div>
+                        @await Html.PartialAsync("_GoogleSence",
+                        new Menus.Web.Models.Internal.GoogleSence() {
+                            GoogleSenceType = Menus.Web.Models.Internal.GoogleSenceTypes.Wide
+                        })
+                    }
+                    else
+                    {
+                        @await Html.PartialAsync("_GoogleSence",
+                        new Menus.Web.Models.Internal.GoogleSence() {
+                            GoogleSenceType = Menus.Web.Models.Internal.GoogleSenceTypes.Wide
+                        })
+                        <div class="recommendation_top">
+                            <div class="left_area">
+                                <h2>@Localizer["BestDishes"] @*<span>@Localizer["Sort"]</span>*@</h2>
+                            </div>
+                        </div>
+                    }
+
+                    <ul class="list_of_dishes" data-load-more-container>
+                        @foreach (var dish in Model)
+                        {
+                            <li>
+                                <div class="caption">
+
+                                    <div class="caption_image">
+                                        <figure>
+                                            @if (dish.Photos.Any())
+                                            {
+                                                <a href="@Url.Action("Dish", "Home", new {id = dish.RestaurantUrl, dishUrl = dish.DishUrl})" style="background-image: url(@Img.Url(dish.Photos.First(), Quality.Medium))"></a>
+                                                @*<figcaption>@Localizer["Advertisment"]</figcaption>*@
+                                            }
+                                        </figure>
+                                    </div>
+
+                                    <div class="caption_content">
+                                        <h3><a href="@Url.Action("Dish", "Home", new {id = dish.RestaurantUrl, dishUrl = dish.DishUrl})">@dish.Name.Get()</a></h3>
+                                        <p class="excerpt">@dish.ShortDescription.Get(culture)</p>
+                                        <p class="dish_info">
+                                            <strong>@dish.RatingFloat.ToString("F1")</strong>
+                                            @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                            <em>(@dish.RatingsCount)</em>
+                                        </p>
+                                        <p class="location">@dish.RestaurantName, @dish.RestaurantAddress</p>
+                                    </div>
+
+                                    <div class="caption_info">
+                                        <span class="price">@dish.RestaurantCurrency @dish.Price.ToString("F2")</span>
+                                        <span class="weight">@dish.Weight @dish.WeightType</span>
+                                    </div>
+
+                                </div>
+                            </li>
+                        }
+                    </ul>
+
+                    @if (!UserService.IsMobileUser(Context.Request) && Model.Count() == 12)
+                    {
+                        <div class="recommendation_nav">
+                            <p>
+                                <a data-load-more href="#">@Localizer["LoadMore"] </a>
+                            </p>
+                        </div>
+                    }
+                    else if (Model.Count() == 12)
+                    {
+                        <div class="recommendation_nav">
+                            <p>
+                                <a data-load-more href="#">@Localizer["LoadMore"] </a>
+                            </p>
+                        </div>
+                    }
+
+                </div>
+
+
+
+                <div class="recommendation_right">
+                    @if (!UserService.IsMobileUser(Context.Request))
+                    {
+                        <div class="show_on_map">
+                            <span data-open-map>@Localizer["ShowOnMap"]</span>
+                        </div>
+                        @await Html.PartialAsync("_GoogleSenceSticky")
+                    }
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+
+
+@await Html.PartialAsync("_Footer")
+
+<div class="popUpBlock">
+    <div class="popUpCloser"></div>
+    <div class="popUpBlock_inner">
+
+        <!-- PopUp map -->
+
+        <div class="popUpWindow popUpMap">
+            <span class="popUp_close"></span>
+            <div id="gmaps" style="width: 100%; height: 100%;"></div>
+            <div class="direction-link-position" style="display: none;">
+                <a href="#1" target="_blank" class="direction-link">@Localizer["Directions"]</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts
+    {
+    <script src="~/js/jquery.js"></script>
+
+    <script>
+        var boundsTuned = false;
+
+        jQuery(function() {
+            jQuery('.searchTopMobile h2 span, .recommendation_top h2 span').on('click',
+                function() {
+                    jQuery('.sortPopup').fadeIn();
+                });
+
+            jQuery('.sortPopupCaption ul li').on('click',
+                function() {
+                    jQuery('.sortPopupCaption ul li').removeClass('current');
+                    jQuery(this).addClass('current');
+                    var sort = $(this).attr("data-sort");
+                    $("[name=sort]").val(sort);
+                    $(".sortPopup form").submit();
+                });
+
+            jQuery('.sortPopupClose, .sortPopUpBlackout').on('click',
+                function() {
+                    jQuery('.sortPopup').fadeOut();
+                });
+
+            $("[data-sort=@sort]").addClass("current");
+
+            jQuery('[data-open-map]').on('click',
+                function(e) {
+                    e.preventDefault();
+                    jQuery('.popUpBlock').addClass('visible visible_map');
+                    jQuery('.popUpCarousel').addClass('hidden');
+                    jQuery('.popUpMap').fadeIn();
+
+                    if(!boundsTuned){
+                        boundsTuned = fitBoundsForMap();
+                    }
+                });
+
+            var dataLoadMorePage = 0;
+            $("[data-load-more]").click(function(e) {
+                e.preventDefault();
+                dataLoadMorePage++;
+                $("[data-load-more]").addClass("hidden");
+
+                $.ajax({
+                    url: location.url,
+                    type: "GET",
+                    data: {
+                        page: dataLoadMorePage
+                    },
+                    success: function(data) {
+                        if (data.length > 20) {
+                            $("[data-load-more-container]").append(data);
+                            $("[data-load-more]").removeClass("hidden");
+                        }
+                    }
+                });
+            });
+        });
+
+        $("select[name=sort]").change(function() {
+            $(".form_sort").submit();
+        });
+
+        window.initMap = function() {
+            window.map = new google.maps.Map(document.getElementById('gmaps'),
+                {
+                    center: { lat: 50.442227, lng: 30.523312 },
+                    zoom: 10
+                });
+
+
+        };
+
+        function fitBoundsForMap(){
+            let bounds = new google.maps.LatLngBounds();
+            initFuncs.forEach(function(f) {
+                let marker = f();
+                markers.push(marker);
+
+                //let loc = new google.maps.LatLng(marker.position.lat(), marker.position.lng());
+                //bounds.extend(loc);
+
+                //console.log('loc', marker.position.lat(), marker.position.lng());
+                bounds.extend(marker.getPosition());
+            });
+
+            //console.log('bounds', bounds);
+            map.fitBounds(bounds);
+            map.panToBounds(bounds);
+
+            return true;
+        }
+        window.initFuncs = [];
+        window.markers = [];
+    </script>
+
+    @foreach (var dish in Model.Where(x => !string.IsNullOrEmpty(x.RestaurantGpsLatitude)))
+    {
+        var photo = dish.Photos.Any() ? Img.Url(dish.Photos.FirstOrDefault(), Quality.Low) : "/images/rest_01.jpg";
+        <script>
+            initFuncs.push(function () {
+                var marker = new google.maps.Marker({
+                    position: new google.maps.LatLng(@dish.RestaurantGpsLatitude.ToString(new System.Globalization.CultureInfo("en-US")), @dish.RestaurantGpsLongitude.ToString(new System.Globalization.CultureInfo("en-US"))),
+                    map: map,
+                    icon: '/images/star_for_map.png'
+                });
+                marker.directionUrl = `https://www.google.com/maps/dir/?api=1&destination=${marker.position.lat()},${marker.position.lng()}`;
+                marker.description = `
+                        <div class="restaurant_caption">
+                            <figure>
+                                <img src="@photo" alt="Alternate Text" />
+                            </figure >
+                            <div class="info-window-content">
+                                <h3><a href="@Url.Action("Restaurant", "Home", new {id = dish.DishUrl})">@dish.RestaurantName</a></h3><span class="item_location">@dish.RestaurantAddress</span>
+                            </div>
+                        </div>
+                       `;
+                google.maps.event.addListener(marker,
+                    'click',
+                    function () {
+                        //this.description.setPosition(this.getPosition());
+                        //this.description.open(map); //map to display on
+                        showInfoWindow(this);
+                    });
+
+                return marker;
+            });
+        </script>
+    }
+
+    <script>
+    var infoInfoWindow = null;
+
+        function showInfoWindow(marker) {
+            markers.forEach((tmpMarker) => {
+                tmpMarker.setIcon('/images/star_for_map.png');
+            })
+
+            marker.setIcon('/images/star_red.png');
+
+            var contentString = marker.description
+            if (infoInfoWindow) {
+                infoInfoWindow.close()
+            }
+
+            infoInfoWindow = new google.maps.InfoWindow({
+                content: contentString,
+                position: marker.getPosition(),
+                pixelOffset: new google.maps.Size(0, -25)
+            })
+            infoInfoWindow.open(map);
+
+            google.maps.event.addListener(infoInfoWindow,
+                'closeclick',
+                function () {
+                    $('.direction-link-position').hide();
+                });
+            $('.direction-link-position a').attr('href', marker.directionUrl);
+            $('.direction-link-position').show();
+            //console.log('marker', marker, marker.position.lat(), marker.position.lng());
+            //console.log('infowindow', infoInfoWindow, infoInfoWindow.position.lat(), infoInfoWindow.position.lng());
+        }</script>
+    <script src="~/js/typeahead-inner.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=@ViewData["googleMapsKey"]&callback=initMap" async defer></script>
+}

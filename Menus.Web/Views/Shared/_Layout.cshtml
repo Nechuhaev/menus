@@ -1,0 +1,157 @@
+﻿@using System.Text.RegularExpressions
+@using Microsoft.Extensions.Configuration
+@inject Menus.Web.Services.UserService  UserService;
+@inject IConfiguration Configuration;
+@{
+    var crq = Context.Request;
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+    bool isIphone = @UserService.IsIphone(Context.Request);
+    string additionalBodyClass = isIphone ? "iphone-in-use" : "";
+    var robots = ViewData["Robots"] ?? Configuration["Meta:Robots"];
+    var isTestMode = Convert.ToBoolean(Configuration[$"GoogleSenceTestModeOn"] != null ? Configuration[$"GoogleSenceTestModeOn"] : "false");
+    var testModeValue = isTestMode ? "on" : "off";
+}
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="@culture" lang="@culture">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"
+          data-content-zoomable="width=device-width, initial-scale=1.0"
+          data-content-non-zoomable="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="format-detection" content="address=no">
+    <meta name="description" content="@ViewData["Description"]" />
+    <title>@ViewData["Title"]</title>
+
+    <meta name="robots" content="@robots" />
+    <link rel="canonical" href="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{crq.Path}{crq.QueryString}")" />
+    @await Html.PartialAsync("_AlternativeLinks")
+    <meta property="og:title" content="@ViewData["Title"]" />
+    <meta property="og:description" content="@ViewData["Description"]" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="@(culture)_UA" />
+    <meta property="og:url" content="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{crq.Path}{crq.QueryString}")" />
+    <meta property="og:image" content="@(ViewData["MainImage"] ?? $"http{(crq.IsHttps ? "s" : "")}://{crq.Host}/images/site_logo_dark.svg")" />
+    <meta name="yandex-verification" content="279a6808640a1bd4" />
+    <environment include="Development">
+
+    </environment>
+    <environment exclude="Development">
+        @*<link rel="stylesheet" href="https://ajax.aspnetcdn.com/ajax/bootstrap/3.3.7/css/bootstrap.min.css"
+            asp-fallback-href="~/lib/bootstrap/dist/css/bootstrap.min.css"
+            asp-fallback-test-class="sr-only" asp-fallback-test-property="position" asp-fallback-test-value="absolute" />*@
+    </environment>
+    <link rel="manifest" href="~/manifest.json">
+
+    <!-- Google Tag Manager -->
+    <script>
+        (function (w, d, s, l, i) {
+            w[l] = w[l] || []; w[l].push({
+                'gtm.start':
+                    new Date().getTime(), event: 'gtm.js'
+            }); var f = d.getElementsByTagName(s)[0],
+                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
+                    'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+        })(window, document, 'script', 'dataLayer', 'GTM-P5WP82B');
+    </script>
+    <!-- End Google Tag Manager -->
+    <!-- Google Sence Manager -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1409649052535600"
+     crossorigin="anonymous"></script>
+    <!-- End Google Sence Manager -->
+
+    <script>
+        window.isMobile = @UserService.IsMobileUser(Context.Request).ToString().ToLowerInvariant();
+        window.culture = '@culture';
+    </script>
+</head>
+
+
+
+<body style="opacity: 0;" class="@ViewData["BodyClass"] @additionalBodyClass">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript>
+        <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-P5WP82B"
+                height="0" width="0" style="display:none;visibility:hidden"></iframe>
+    </noscript>
+    <!-- End Google Tag Manager (noscript) -->
+
+
+    @RenderBody()
+
+    @*<script>
+            var afToken = '@Html.AntiForgeryToken()';
+        </script>*@
+
+    <environment include="Development">
+    </environment>
+    <environment exclude="Development">
+        @*<script src="https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.3.1.min.js"
+                    asp-fallback-src="~/lib/jquery/dist/jquery.min.js"
+                    asp-fallback-test="window.jQuery"
+                    crossorigin="anonymous"
+                    integrity="sha384-tsQFqpEReu7ZLhBV2VZlAu7zcOV+rXbYlF2cqB8txI/8aZajjp4Bqd+V6D5IgvKT">
+            </script>*@
+        <script src="~/lib/sentry.min.js" asp-append-version="true"></script>
+        <script src="~/js/raveninit.js" asp-append-version="true"></script>
+    </environment>
+
+    <script src="~/js/jquery.js" asp-append-version="true"></script>
+
+    @RenderSection("Scripts", required: false)
+    @await Html.PartialAsync("_SignInPopup")
+
+    @if (UserService.IsMobileUser(Context.Request))
+    {
+        <link href="~/css/main-mobile.css" rel="stylesheet" asp-append-version="true" />
+    }
+    else
+    {
+        <link href="~/css/main-pc.css" rel="stylesheet" asp-append-version="true" />
+    }
+    <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />
+    <link href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" rel="stylesheet" />
+
+    <script src="~/js/promise.min.js" async></script>
+    <script src="~/js/fetch.min.js" async></script>
+    <script src="~/js/index.js" async></script>
+    <environment include="Development">
+        <script src="~/js/common.js"></script>
+        <script src="~/js/googleSence.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/js/common.js" asp-append-version="true"></script>
+        <script src="~/js/googleSence.js" asp-append-version="true"></script>
+    </environment>    
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelector("body").style.opacity = "1";
+
+            setTimeout(() => {   
+                if (typeof (initSence) !== 'undefined') {
+                  initSence("@testModeValue");
+                }
+                if (typeof (initSenceSticky) !== 'undefined') {
+                    initSenceSticky();
+                }
+                if (typeof (initClosePopup) !== 'undefined') {
+                    initClosePopup();
+                }
+
+                if (typeof (initSearchRadioButton) !== 'undefined') {
+                    initSearchRadioButton("@Url.Action("FindRestaurant", "Home")", "@Url.Action("SearchDish", "Home")");
+                }
+
+                if (typeof (initServiceButtons) !== 'undefined') {
+                    initServiceButtons();
+                }
+            }, 500);
+        }, false);
+
+
+    </script>
+
+    <mini-profiler />
+</body>
+</html>

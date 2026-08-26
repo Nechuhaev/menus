@@ -1,0 +1,191 @@
+﻿@inject Menus.Web.Services.UserService UserService
+@{
+    var user = await UserService.GetUserById(User.Identity.Name);
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="@ViewData["Description"]" />
+    <title>@ViewData["Title"]</title>
+
+    <link href="~/css/areas/admin/main.css" rel="stylesheet" asp-append-version="true" />
+
+    <environment include="Development">
+        <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />
+    </environment>
+    <environment exclude="Development">
+        @*<link rel="stylesheet" href="https://ajax.aspnetcdn.com/ajax/bootstrap/3.3.7/css/bootstrap.min.css"
+            asp-fallback-href="~/lib/bootstrap/dist/css/bootstrap.min.css"
+            asp-fallback-test-class="sr-only" asp-fallback-test-property="position" asp-fallback-test-value="absolute" />*@
+        <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />
+    </environment>
+</head>
+<body>
+
+    <header class="site-header site-header--center">
+
+        <div class="site-header--left">
+            <div class="site-logo">
+                <a asp-area="" asp-controller="Home" asp-action="Index">
+                    <img src="~/images/site_logo.svg" alt="Site Logo" />
+                </a>
+            </div>
+        </div>
+
+        <div class="site-header--middle">
+            <ul class="header-nav">
+                <li asp-is-active-route asp-controller="Pages" asp-action="Content">
+                    <a asp-controller="Pages" asp-action="Content">Страницы</a>
+                </li>
+                <li asp-is-active-route asp-controller="Pages" asp-action="Blog">
+                    <a asp-controller="Pages" asp-action="Blog">Блог</a>
+                </li>
+                <li asp-is-active-route asp-controller="Restaurants" asp-action="Index">
+                    <a asp-controller="Restaurants" asp-action="Index">Рестораны</a>
+                </li>
+                <li asp-is-active-route asp-controller="Users" asp-action="Managers">
+                    <a asp-controller="Users" asp-action="Managers">Владельцы ресторанов</a>
+                </li>
+                <li asp-is-active-route asp-controller="CustomerRequests" asp-action="Index">
+                    <a asp-controller="CustomerRequests" asp-action="Index">Запросы</a>
+                </li>
+                @if (User.IsInRole("admin"))
+                {
+                    <li asp-is-active-route asp-controller="Users" asp-action="Index">
+                        <a asp-controller="Users" asp-action="Index">Пользователи</a>
+                    </li>
+                }
+                @if (User.IsInRole("admin"))
+                {
+                    <li asp-is-active-route asp-controller="Ratings" asp-action="Index">
+                        <a asp-controller="Ratings" asp-action="Index">Отзывы</a>
+                    </li>
+                }
+                @if (User.IsInRole("admin"))
+                {
+                    <li asp-is-active-route asp-controller="DishPhotos" asp-action="Index">
+                        <a asp-controller="DishPhotos" asp-action="Index">Фото</a>
+                    </li>
+                }
+                @if (User.IsInRole("admin"))
+                {
+                    <li asp-is-active-route asp-controller="Feedbacks" asp-action="Index">
+                        <a asp-controller="Feedbacks" asp-action="Index">Ошибки</a>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <div class="site-header--right">
+            @if (!UserService.IsMobileUser(Context.Request))
+            {
+                <div class="user header-user-controls-box">
+                    <a href="javascript:;" onclick="this.classList.toggle('active')" class="js-desctop-profile">@user.FirstName @user.LastName</a>
+                    <div class="user-controls-container">
+                        <div class="user-controls-header">
+                            <div class="user-avatar-box" style="background-image: url(@(!string.IsNullOrEmpty(user.ImageUrl) ? Img.Url(user.ImageUrl, Quality.Low) : "/images/no-avatar.jpg")"></div>
+                            <div class="user-controls-info">
+                                <div>@user.FirstName</div>
+                                <div>@user.LastName</div>
+                                <div>
+                                    <a class="go-to-profile-button" asp-controller="Account" asp-action="Index">Профиль</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="user-controls-route">
+                            <a asp-area="" asp-controller="Account" asp-action="Activity">Моя активность</a>
+                        </div>
+                        <div class="user-controls-route">
+                            <a asp-area="" asp-controller="Account" asp-action="Password">Пароль</a>
+                        </div>
+
+                        <div class="user-controls-route">
+                            <a asp-area="" asp-controller="Home" asp-action="Index">Главная</a>
+                        </div>
+
+                        <div class="user-logout">
+                            <a asp-area="" asp-controller="Account" asp-action="Logout">Выйти</a>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                var crq = Context.Request;
+                <div class="user header-user-controls-box">
+                    <a href="javascript:;" onclick="this.classList.toggle('active')" class="js-mobile-profile">@user.Email</a>
+                    <div class="user-controls-container">
+                        <span class="profile_close"></span>
+                        <div class="user-controls-header">
+                            <div class="user-avatar-box" style="background-image: url(@(!string.IsNullOrEmpty(user.ImageUrl) ? Img.Url(user.ImageUrl, Quality.Low) : "/images/no-avatar.jpg")"></div>
+                            <div class="user-controls-info">
+                                <div>
+                                    <a class="go-to-profile-button" asp-controller="Account" asp-action="Index">Профиль</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="user-controls-route">
+                            <a asp-area="" asp-controller="Account" asp-action="Activity">Моя активность</a>
+                        </div>
+                        <div class="user-controls-route">
+                            <a asp-area="" asp-controller="Account" asp-action="Password">Пароль</a>
+                        </div>
+
+                        <div class="user-controls-route">
+                            <a asp-area="" asp-controller="Home" asp-action="Index">Главная</a>
+                        </div>
+
+                        <div class="user-logout">
+                            <a asp-area="" asp-controller="Account" asp-action="Logout">Выйти</a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+    </header>
+
+    @RenderBody()
+
+
+
+
+    <footer class="site-footer">
+        <div class="footer_bottom">
+            <div class="wrapper">
+                &copy; @DateTime.Now.Year.ToString() Tipmymenu. Все права защищены
+            </div>
+        </div>
+    </footer>
+
+
+    <environment include="Development">
+        <script src="~/js/raveninit.js" asp-append-version="true"></script>
+    </environment>
+    <environment exclude="Development">
+        @*<script src="https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.3.1.min.js"
+                    asp-fallback-src="~/lib/jquery/dist/jquery.min.js"
+                    asp-fallback-test="window.jQuery"
+                    crossorigin="anonymous"
+                    integrity="sha384-tsQFqpEReu7ZLhBV2VZlAu7zcOV+rXbYlF2cqB8txI/8aZajjp4Bqd+V6D5IgvKT">
+            </script>*@
+        <script src="~/lib/sentry.min.js" asp-append-version="true"></script>
+        <script src="~/js/raveninit.js" asp-append-version="true"></script>
+    </environment>
+
+    @RenderSection("Scripts", required: false)
+
+    <script src="~/js/promise.min.js" async></script>
+    <script src="~/js/fetch.min.js" async></script>
+    <script>
+        jQuery('.profile_close').on('click', function () {
+            jQuery('.js-mobile-profile').removeClass('active');
+        });
+    </script>
+    
+    <mini-profiler />
+</body>
+</html>

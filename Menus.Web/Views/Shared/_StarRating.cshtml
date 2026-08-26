@@ -1,0 +1,17 @@
+﻿@inject Menus.Web.Services.UserService  UserService;
+@model float
+
+<span class="star-rating-container">
+    @for (var i = 1; i <= 5; i++)
+    {
+        var ratingFaction = -(Model - i);
+        if (i <= Math.Round(Model, MidpointRounding.AwayFromZero))
+        {
+            <span class="stars star_yellow @(ratingFaction > 0 && ratingFaction < 1 ? "star_50" : "")"></span>
+        }
+        else
+        {
+            <span class="stars star_grey"></span>
+        }
+    }
+</span>

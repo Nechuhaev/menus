@@ -1,0 +1,92 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+
+@{
+    ViewData["Title"] = "RatingRecommendations";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@await Html.PartialAsync("_Header")
+
+
+
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs breadcrumbs-content breadcrumbs-content-position">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["RecomendationsForDishRatings"]</breadcrumb></li>
+            </ul>
+        </div>
+
+
+
+        <div class="site-content-align">
+            <div class="rating_recommendations">
+                <h2>@Localizer["RecomendationsForDishRatings"] :)</h2>
+                <ul>
+                    <li>
+                        <strong>
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                        </strong>
+                        @Localizer["TopOne"]
+                    </li>
+                    <li>
+                        <strong>
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_grey_rec.png" alt="Alternate Text" />
+                        </strong>
+                        @Localizer["TopTwo"]
+                    </li>
+                    <li>
+                        <strong>
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_grey_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_grey_rec.png" alt="Alternate Text" />
+                        </strong>
+                        @Localizer["TopThree"]
+                    </li>
+                    <li>
+                        <strong>
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_grey_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_grey_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_grey_rec.png" alt="Alternate Text" />
+                        </strong>
+                        @Localizer["TopFour"]
+                    </li>
+                    <li>
+                        <strong>
+                            <img src="~/images/icon_star_yellow_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_grey_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_grey_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_grey_rec.png" alt="Alternate Text" />
+                            <img src="~/images/icon_star_grey_rec.png" alt="Alternate Text" />
+                        </strong>
+                        @Localizer["TopFive"]
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+
+
+    </main>
+</div>
+
+<script src="~/js/typeahead-inner.js"></script>
+
+@await Html.PartialAsync("_Footer")

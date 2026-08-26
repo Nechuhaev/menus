@@ -1,0 +1,27 @@
+version: '2'
+services:
+  mariadb:
+    image: mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=menus
+    ports:
+      - '3306:3306'
+  adminer:
+    image: adminer
+    ports:
+      - '3333:8080'
+  grafana-xxl:
+    image: monitoringartist/grafana-xxl
+    ports:
+      - '3000:3000'
+  postfix:
+    image: gitlab.vvertigoo.pp.ua:1212/juzzzt-team/menus/postfix  # приватний registry, лишити для довідки
+    environment:
+      - maildomain=tipmymenu.com
+      - 'smtp_user=${POSTFIX_SMTP_USER}'
+    ports:
+      - '25:25'
+      - '25:25/udp'
+    volumes:
+      - 'E:\Temp\DKIM:/etc/opendkim/domainkeys'

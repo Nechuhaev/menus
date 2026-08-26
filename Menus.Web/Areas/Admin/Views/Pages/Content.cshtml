@@ -1,0 +1,130 @@
+﻿@model IEnumerable<Menus.Abstract.Models.IPage>
+
+@inject Menus.Web.Services.UserService UserService
+@{
+    var CurrentUser = await UserService.GetUserById(User.Identity.Name);
+}
+
+<div class="site-content">
+    <main>
+
+        <div class="site-content-center">
+
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li>Страницы</li>
+                </ul>
+            </div>
+
+            <form class="search-bar">
+                <input type="text" name="q" value="@ViewData["q"]" />
+                <input type="hidden" name="status" value="@ViewData["status"]" />
+                <input type="hidden" name="category" value="@ViewData["category"]" />
+                <button type="submit">Поиск</button>
+            </form>
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Страницы</h2>
+                    <a asp-action="Create" asp-route-type="Content" class="create_plus"><span>+</span></a>
+                </div>
+                <div class="title-section--right">
+                    <form method="post" class="filter-form">
+                        <div class="filter-form--title">Фильтр:</div>
+                        <p>
+                            <select class="form-control" asp-for="@ViewData["status"]"
+                                    asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.PageStatus>()">
+                                <option value="">Все статусы</option>
+                            </select>
+                        </p>
+                    </form>
+                </div>
+            </div>
+
+
+            <table class="mainTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>
+                            Заголовок
+                        </th>
+                        <th>
+                            Статус
+                        </th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr data-id="@item.Id">
+                            <td class="tableStatusIcon
+                            @(item.Status == Menus.Abstract.Models.PageStatus.Hidden ? "StatusIconOnApproval" : "" )">
+                                <span>+</span>
+                            </td>
+                            <td>
+                                <span>@item.Title.Get()</span>
+                            </td>
+                            <td>
+                                <span>@item.Status.ToString()</span>
+                            </td>
+                            <td class="tableEdit">
+                                <a class="tableEditBtn" href="@Url.Action("Edit", new { id = item.Id })">Edit</a>
+                                <a class="tableDeleteBtn" href="#" data-delete data-id="@item.Id">Delete</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </div>
+
+    </main>
+</div>
+
+
+
+@section Scripts {
+    <script src="~/js/jquery.js"></script>
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        $(document).on("change", '[name="ViewData[status]"]', function () {
+            $("[name=status]").val($(this).val());
+            $(".search-bar").submit();
+        });
+
+        $(document).on("change", '[name="ViewData[category]"]', function () {
+            $("[name=category]").val($(this).val());
+            $(".search-bar").submit();
+        });
+
+        $(document).on("click", "[data-delete]", function (e) {
+            e.preventDefault();
+            var id = $(this).attr("data-id");
+
+            if (!confirm("Are you sure?")) return;
+
+            $.ajax({
+                url: "@Url.Action("Delete")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id
+                }
+            })
+                .done(function () {
+                    $("tr[data-id=" + id + "]").remove();
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("DELETE Page action failed, id = " + id);
+                 });
+        });
+    </script>
+}

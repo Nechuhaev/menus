@@ -1,0 +1,67 @@
+﻿/*.page-content-caption {
+    padding: mvw(16) 0 mvw(16) 0;
+    line-height: mvw(44);
+    font-size: mvw(26);
+
+    h1 {
+        margin: 0 0 mvw(25) 0;
+        padding: 0;
+        letter-spacing: normal;
+        line-height: mvw(42);
+        font-size: mvw(40);
+        font-weight: 500;
+        text-transform: none;
+        color: #000;
+    }
+
+    h2 {
+        margin: 0;
+        padding: 0;
+        line-height: mvw(44);
+        font-size: mvw(30);
+        font-weight: 700;
+        text-transform: none;
+        color: #000;
+    }
+
+    p {
+        margin: 0;
+        padding: 0;
+        line-height: mvw(44);
+        font-size: mvw(26);
+        color: #000;
+
+        & + h1,
+        & + h2 {
+            margin-top: mvw(44);
+        }
+
+        strong {
+            font-weight: normal;
+            color: #ff0000;
+        }
+
+        em {
+            font-family: 'GT Walsheim Pro';
+            font-weight: 500;
+            font-style: italic;
+        }
+
+        a {
+            text-decoration: underline;
+            color: inherit;
+        }
+    }
+}*/
+
+
+
+.page-content-caption {
+    padding: mvw(16) 0 mvw(16) 0;
+    line-height: mvw(44);
+    font-size: mvw(26);
+
+    p {
+        margin: 0 0 mvw(44) 0;
+    }
+}

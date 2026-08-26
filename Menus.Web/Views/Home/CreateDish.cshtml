@@ -1,0 +1,274 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+
+@model Menus.Web.Models.ViewModels.UserCreateDishViewModel
+@inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Domain.Core Core
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var restaurant = ViewData["restaurant"] as Menus.Abstract.Models.IRestaurant;
+    var restaurantInfo = ViewData["restaurantInfo"] as Menus.Abstract.Models.IRestaurantInfo;
+    var menu = ViewData["menu"] as Menus.Web.Models.ViewModels.DishesListViewModel;
+
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+    ViewData["photoUploadCallbackName"] = "photoUploadCallback";
+}
+
+@await Html.PartialAsync("_Header")
+
+<style>
+    .article_top .article_top_right {
+        display: block !important;
+    }
+
+        .article_top .article_top_right p {
+            margin: 0 0 0.8vw;
+        }
+
+    .article_photos li {
+        width: 11.71875vw;
+        min-width: 11.71875vw;
+    }
+
+    .article_photos ul, .article_photos ul li {
+        display: block !important;
+    }
+
+        .article_photos ul li:last-child a:after {
+            display: none !important;
+        }
+
+    .add_photo_dishes {
+        display: block;
+    }
+</style>
+
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs breadcrumbs-content breadcrumbs-content-position">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@ViewData["restaurantId"]">@restaurant.Name</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["AddDish"]</breadcrumb></li>
+            </ul>
+        </div>
+
+
+
+        <form class="site-content-align" method="post">
+
+            @Html.AntiForgeryToken()
+            <input type="hidden" id="photo-data-url" name="Photo" value="" />
+            <input type="hidden" name="Locale" value="@culture" />
+            <input type="hidden" name="RestaurantId" value="@restaurantInfo.RestaurantId" />
+            <input type="hidden" name="Rating" value="0" />
+
+            @if (!UserService.IsMobileUser(Context.Request))
+            {
+                <article class="registerRestaurant">
+                    <div class="input-group">
+                        <label>@Localizer["DishName"] <span>*</span></label>
+                        <input required asp-for="Name" placeholder="@Localizer["ForExampleScrambleEggs"]" />
+                    </div>
+                    <div class="input-group">
+                        <label>@Localizer["Price"] <span>*</span></label>
+                        <input required asp-for="Price" placeholder="120" />
+                    </div>
+                    <div class="two-columns">
+                        <div>
+                            <label>@Localizer["Unit"]</label>
+                            <select name="Unit">
+                                <option value="g">g</option>
+                                <option value="kg">kg</option>
+                                <option value="ml">ml</option>
+                                <option value="l">l</option>
+                                <option value="sv">serving</option>
+                                <option value="cm">cm</option>
+                                <option selected="" value=" ">item</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>@Localizer["Quantity"]</label>
+                            <input required type="number" name="Weight" value="1" />
+                        </div>
+                    </div>
+                    <div class="article_top">
+                        <div class="article_top_left">
+                            <div class="article_photos create_dish_article_photos">
+                                <ul>
+                                    <li>
+                                        <label data-upload-photo for="photo-upload-input" class="add_photo_dishes">
+                                            <img data-photo-data-url class="hidden" src="~/images/image_add_img_mobile.png" alt="Alternate Text" />
+                                        </label>
+                                        <div class="file_data">
+                                            <em>
+                                                <label data-upload-photo for="photo-upload-input">@Localizer["UploadNew"]</label>
+                                            </em>
+                                            <em>
+                                                <a id="clear-photo" href="#">
+                                                    <span class="fa-fw select-all fas"></span>
+                                                </a>
+                                            </em>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="article_top_right">
+                            <p>@Localizer["Rating"]</p>
+                            <div class="article_data">
+                                <div class="article_rating">
+                                    <span class="stars star_grey"></span>
+                                    <span class="stars star_grey"></span>
+                                    <span class="stars star_grey"></span>
+                                    <span class="stars star_grey"></span>
+                                    <span class="stars star_grey"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </article>
+            }
+            else
+            {
+                <input type="hidden" name="Weight" value="1" />
+                <article class="mobileDish">
+                    <div class="mobileDishTop mobileDishTopCreateDish">
+                        <div class="input-group">
+                            <label>@Localizer["DishName"] <span>*</span></label>
+                            <input required asp-for="Name" placeholder="@Localizer["ForExampleScrambleEggs"]" />
+                        </div>
+                        <div class="input-group">
+                            <label>@Localizer["Price"] <span>*</span></label>
+                            <input required asp-for="Price" placeholder="120" />
+                        </div>
+                    </div>
+                    <div class="mobileDishPicture">
+                        <label data-upload-photo for="photo-upload-input" href="#">
+                            <img data-photo-data-url src="~/images/image_add_img_mobile.png" alt="Alternate Text" />
+                        </label>
+                    </div>
+                    <div class="mobileDishRate">
+                        <em>@Localizer["RateDish"]!</em>
+                        <span class="mobileStarsRate">
+                            <span class="stars star_grey"></span>
+                            <span class="stars star_grey"></span>
+                            <span class="stars star_grey"></span>
+                            <span class="stars star_grey"></span>
+                            <span class="stars star_grey"></span>
+                        </span>
+                    </div>
+                </article>
+            }
+
+            <input type="file" class="hidden" id="photo-upload-input" />
+            <div class="create-dish-buttons">
+                <a asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@ViewData["restaurantId"]">@Localizer["Cancel"]</a>
+                <button type="submit">@Localizer["Add"]</button>
+            </div>
+
+        </form>
+
+
+
+    </main>
+</div>
+
+
+
+@await Html.PartialAsync("_Footer")
+@await Html.PartialAsync("_PcPhotoUpload", ViewData)
+
+@section Scripts
+    {
+    <script>
+        window.customViewMode = 3;
+        var cityId = "@ViewData["selectedCity"]";
+    </script>
+    <script src="~/js/typeahead-inner.js"></script>
+
+    <script>
+        $(function () {
+            $('.restaurant-menu-category .header').on('click', function () {
+                $(this).closest('.restaurant-menu-category').toggleClass('opened');
+                $(this).closest('.restaurant-menu-category').find('.items').slideToggle();
+            });
+        });
+    </script>
+
+
+
+
+    <!-- Custom JS -->
+
+    <script>
+    function getToken() {
+        var token = '@Html.AntiForgeryToken()';
+        token = $(token).val();
+        return token;
+        }
+
+    function photoUploadCallback(data, popupCloseFn) {
+        $("#photo-data-url").val(data);
+        $("[data-photo-data-url]").attr("src", data).removeClass("hidden");
+        popupCloseFn();
+    }
+
+    var loggedIn = @User.Identity.IsAuthenticated.ToString().ToLower();
+    var restaurantId = "@restaurantInfo.RestaurantId";
+    jQuery(document).ready(function () {
+        $(".article_rating .stars, .mobileStarsRate .stars").click(function (e) {
+            var index = $(this).parent().find(".stars").index(this) + 1;
+            $("[name=Rating]").val(index);
+
+            $(this).addClass("star_yellow").removeClass("star_grey");
+            $(this).prevAll().addClass("star_yellow").removeClass("star_grey");
+            $(this).nextAll().addClass("star_grey").removeClass("star_yellow");
+        });
+
+        $(document).on("mouseover", ".article_rating .stars", function () {
+            $(this).addClass("star_hover");
+            $(this).prevAll().addClass("star_hover");
+            $(this).nextAll().addClass("star_not_hover");
+        });
+
+        $(".article_rating").mouseout(function() {
+            $(".article_rating .stars").removeClass("star_hover").removeClass("star_not_hover");
+        });
+
+        //// Upload photos
+        $("[data-upload-photo]").click(function (e) {
+            if (!loggedIn) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpCarousel').addClass('hidden');
+                jQuery('.popUpReg').fadeIn();
+
+                return;
+            }
+
+            @*if (isMobile) {
+                e.preventDefault();
+                location.href = "@Url.Action("MobilePhoto", "Home", new { dishId = Model.Id })";
+                return;
+            }*@
+        });
+
+        $("#clear-photo").click(function(e) {
+            e.preventDefault();
+
+            $(".add_photo_dishes img").addClass("hidden");
+            $("#photo-data-url").val("");
+        });
+
+    });
+    </script>
+}

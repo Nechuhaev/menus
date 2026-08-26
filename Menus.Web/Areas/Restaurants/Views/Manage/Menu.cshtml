@@ -1,0 +1,315 @@
+﻿@inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@model IEnumerable<Menus.Abstract.Models.IMenuCategory>
+@{
+    ViewData["Title"] = "Menu";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture;
+    var selectedRestaurant = await UserService.GetSelecedRestaurant(User, Context.Request);
+    var Locales = LocaleSrvc.GetLocales();
+}
+
+
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                <li>Мое меню</li>
+            </ul>
+        </div>
+
+
+
+        <div class="tabs_area">
+
+            @if (User.IsInRole("restaurant") || User.IsInRole("restaurant-manager"))
+            {
+                <ul class="list_tabs">
+                    @{
+                        var restaurants = ViewData["restaurants"] as IEnumerable<Menus.Abstract.Models.IRestaurant>;
+                    }
+                    @foreach (var restaurant in restaurants)
+                    {
+                        <li class="@(selectedRestaurant != null && selectedRestaurant.Id == restaurant.Id ? "active" : "")"><a asp-action="SelectRestaurant" asp-route-id="@restaurant.Id" asp-route-redirect="Menu">@restaurant.Name</a></li>
+                    }
+                </ul>
+            }
+
+                <div class="content_tabs">
+                    <div class="add-item">
+                        <p><a asp-action="CreateMenuCategory">создать раздел меню</a></p>
+                        <p><a asp-action="CreateDish" class="extra">добавить блюдо</a></p>
+                        <p><a asp-action="DishesList" class="extra btnArrow">все блюда</a></p>
+                        <p><a id="show-additionalOptions" href="#" class="extra btnArrow">доп. опции</a></p>
+                    </div>
+                    <div class="additionalOptions hidden">
+                        <h3>Копировать язык</h3>
+                        <div>
+                            <span>из</span>
+                            <select name="from">
+                                @foreach (var lang in Locales)
+                                {
+                                    <option value="@lang.Id">@lang.Name</option>
+                                }
+                            </select>
+                            <span>&nbsp;--->&nbsp;в&nbsp;</span>
+                            <select name="to">
+                                @foreach (var lang in Locales)
+                                {
+                                    <option value="@lang.Id">@lang.Name</option>
+                                }
+                            </select>
+                            <button id="copy-lang" type="button">применить</button>
+                        </div>
+                        <hr />
+                        <h3>Очистить язык</h3>
+                        <div>
+                            <select name="lang">
+                                @foreach (var lang in Locales)
+                                {
+                                    <option value="@lang.Id">@lang.Name</option>
+                                }
+                            </select>
+                            <button id="delete-lang" type="button">применить</button>
+                        </div>
+                        <div style="height: 10vw;"></div>
+                    </div>
+                    <ul class="list_menu clearfix" id="default-categories">
+                        @foreach (var menuCategory in Model.Where(x => !x.IsTopLevelCategory).OrderBy(x => x.Index))
+                        {
+                            <li data-id="@menuCategory.Id" class="@(menuCategory.Active ? "" : "disabled")">
+                                <a asp-action="DishesList" asp-route-dishCategoryId="@menuCategory.Id">@menuCategory.Name.Get(culture.TwoLetterISOLanguageName)</a>
+                                <a asp-action="EditMenuCategory" asp-route-id="@menuCategory.Id" class="btn_edit"></a>
+                                <a data-delete data-id="@menuCategory.Id" href="javascript:;" class="btn_delete"></a>
+                                <a data-toggle data-id="@menuCategory.Id" href="javascript:;" class="btn_ban"></a>
+                                <a data-copy data-id="@menuCategory.Id" href="javascript:;" class="btn_copy"></a>
+                            </li>
+                        }
+                    </ul>
+                    <div class="add-item theard-level-category">
+                        <p><a asp-action="CreateMenuCategory" asp-route-topLevel="true">создать раздел меню верхнего уровня</a></p>
+                    </div>
+                    <ul class="list_menu clearfix" id="top-categories">
+                        @foreach (var menuCategory in Model.Where(x => x.IsTopLevelCategory).OrderBy(x => x.Index))
+                        {
+                            <li data-id="@menuCategory.Id" class="@(menuCategory.Active ? "" : "disabled")">
+                                <a asp-action="CategoriesList" asp-route-restaurantId="@selectedRestaurant.Id" asp-route-categoryId="@menuCategory.Id">@menuCategory.Name.Get(culture.TwoLetterISOLanguageName)</a>
+                                <a asp-action="EditMenuCategory" asp-route-id="@menuCategory.Id" class="btn_edit"></a>
+                                <a data-delete data-id="@menuCategory.Id" href="javascript:;" class="btn_delete"></a>
+                                <a data-toggle data-id="@menuCategory.Id" href="javascript:;" class="btn_ban"></a>
+                                <a data-copy data-id="@menuCategory.Id" href="javascript:;" class="btn_copy"></a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+@section Scripts {
+    <script src="~/js/jquery.js"></script>
+    <script src="~/js/jquery-ui.min.js"></script>
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        $(document).on("click", "[data-delete]", function () {
+            var id = $(this).attr("data-id");
+
+            if (!confirm("Are you sure?")) return;
+
+            $.ajax({
+                url: "@Url.Action("DeleteMenuCategory")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id
+                }
+            })
+                .done(function () {
+                    $("li[data-id=" + id + "]").remove();
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("DELETE Menu category action failed, id = " + id);
+                 });
+        });
+
+        $(document).on("click", "[data-toggle]", function () {
+            var id = $(this).attr("data-id");
+
+            //if (!confirm("Are you sure?")) return;
+
+            $.ajax({
+                url: "@Url.Action("ToggleMenuCategory")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id
+                }
+            })
+                .done(function () {
+                    $("li[data-id=" + id + "]").toggleClass("disabled");
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("TOGGLE Menu category action failed, id = " + id);
+                 });
+        });
+
+        $(document).on("click", "[data-copy]", function () {
+            var id = $(this).attr("data-id");
+
+            //if (!confirm("Are you sure?")) return;
+
+            $.ajax({
+                url: "@Url.Action("CopyCategory")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id
+                }
+            })
+                .done(function () {
+                    location.reload();
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("Copy Menu category action failed, id = " + id);
+                 });
+        });
+
+        $("#show-additionalOptions").click(function(e) {
+            e.preventDefault();
+
+            $(".additionalOptions").toggleClass("hidden");
+        });
+
+        function toggleLangButtons() {
+            $("#copy-lang, #delete-lang").toggleClass("hidden");
+        }
+
+        $("#copy-lang").click(function(e) {
+            e.preventDefault();
+
+            if (!confirm("Вы уверены?")) return;
+
+            var from = $("select[name=from]").val();
+            var to = $("select[name=to]").val();
+
+            toggleLangButtons()
+
+            $.ajax({
+                url: '@Url.Action("CopyLang")',
+                type: 'POST',
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    from: from,
+                    to: to
+                }
+            })
+                .done(function () {
+                    toggleLangButtons()
+                })
+                .fail(function () {
+                    window.Logger.logTextError("COPY lang action failed, id = @selectedRestaurant.Id");
+                    toggleLangButtons()
+                });
+        });
+
+        $("#delete-lang").click(function(e) {
+            e.preventDefault();
+
+            if (!confirm("Вы уверены?")) return;
+
+            var lang = $("select[name=lang]").val();
+
+            $(".additionalOptions").toggleClass("hidden");
+
+            $.ajax({
+                    url: '@Url.Action("DeleteLang")',
+                    type: 'POST',
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        lang: lang
+                    }
+                })
+                .done(function () {
+                    toggleLangButtons()
+                })
+                .fail(function () {
+                    window.Logger.logTextError("DELETE lang action failed, id = @selectedRestaurant.Id");
+                    toggleLangButtons()
+                });
+        });
+
+        $("#default-categories").sortable({
+            update: function (e, ui) {
+                var data = [];
+                var index = 0;
+                $("#default-categories li").each(function () {
+                    var id = $(this).attr("data-id");
+                    data.push({
+                        Id: id,
+                        Index: index
+                    });
+                    index++;
+                });
+
+                $.ajax({
+                    url: '@Url.Action("ChangeMenuCategoriesOrder")',
+                    type: 'POST',
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        menuCategories: data
+                    }
+                })
+                    .done(function () {
+
+                    })
+                    .fail(function () {
+                        window.Logger.logTextError("UPDATE Menu categories order failed, id = @selectedRestaurant.Id");
+                    });
+            }
+        }).disableSelection();
+
+        $("#top-categories").sortable({
+            update: function (e, ui) {
+                var data = [];
+                var index = 0;
+                $("#top-categories li").each(function () {
+                    var id = $(this).attr("data-id");
+                    data.push({
+                        Id: id,
+                        Index: index
+                    });
+                    index++;
+                });
+
+                $.ajax({
+                        url: '@Url.Action("ChangeMenuCategoriesOrder")',
+                        type: 'POST',
+                        data: {
+                            "__RequestVerificationToken": getToken(),
+                            menuCategories: data
+                        }
+                    })
+                    .done(function () {
+
+                    })
+                    .fail(function () {
+                        window.Logger.logTextError("UPDATE Menu categories order failed, id = @selectedRestaurant.Id");
+                    });
+            }
+        }).disableSelection();
+    </script>
+}

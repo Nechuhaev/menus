@@ -1,0 +1,19 @@
+﻿@import "normalize";
+@import "functions";
+@import "sections/signin-modals";
+
+body {
+    font-family: 'GT Walsheim Pro', sans-serif;
+}
+
+input:focus, button:focus {
+    outline: none;
+}
+
+.hidden {
+    display: none;
+}
+
+.clearfix {
+    clear: both;
+}

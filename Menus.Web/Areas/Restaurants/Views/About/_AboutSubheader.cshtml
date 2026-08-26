@@ -1,0 +1,12 @@
+﻿<ul class="content_nav">
+    <li asp-is-active-route asp-controller="About" asp-action="Index"><a asp-controller="About" asp-action="Index">Общая информация</a></li>
+    @if (User.IsInRole("admin") || User.IsInRole("manager"))
+    {
+        <li asp-is-active-route asp-controller="About" asp-action="Seo"><a asp-controller="About" asp-action="Seo">SEO</a></li>
+    }
+    <li asp-is-active-route asp-controller="About" asp-action="RegisrationInfo"><a asp-controller="About" asp-action="RegisrationInfo">Регистрационные данные</a></li>
+    @if (User.IsInRole("admin") || User.IsInRole("manager"))
+    {
+        <li asp-is-active-route asp-controller="About" asp-action="PromoList"><a asp-controller="About" asp-action="PromoList">Промо</a></li>
+    }
+</ul>

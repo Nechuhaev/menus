@@ -1,0 +1,101 @@
+﻿@model IEnumerable<Menus.Abstract.Models.IPromo>
+
+@{
+    ViewBag.Title = "Promo";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+}
+<div class="site-content">
+    <main>
+
+        <partial name="_AboutBreadcrumbs" model="@("Промо")" />
+
+        <div class="site-content-wrapper">
+
+            <partial name="_AboutSubheader" />
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Список промо-акций</h2>
+                </div>
+                <div class="title-section--right">
+                    <div class="filter-form">
+                        <div class="create_dish">
+                            <a asp-action="CreatePromo"><span>+</span> Добавить промо</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <table class="mainTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>
+                            Название
+                        </th>
+                        <th>
+                            Время работы
+                        </th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        var itemActive = DateTime.Now > item.StartDate && DateTime.Now < item.EndDate;
+                        <tr data-id="@item.Id">
+                            <td class="tableStatusIcon
+                            @(itemActive ? "" : "StatusIconOnApproval" )">
+                                <span>+</span>
+                            </td>
+                            <td>
+                                <span>@item.Name</span>
+                            </td>
+                            <td>
+                                с @item.StartDate.ToString("g") до @item.EndDate.ToString("g")
+                            </td>
+                            <td>
+                                <a class="tableEditBtn" href="@Url.Action("EditPromo", new { id = item.Id })">Edit</a>
+                                <a class="tableDeleteBtn" href="#" data-delete data-id="@item.Id">Delete</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </div>
+
+    </main>
+</div>
+
+@section Scripts {
+    <script src="~/js/jquery.js"></script>
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        $(document).on("click", "[data-delete]", function () {
+            var id = $(this).attr("data-id");
+
+            if (!confirm("Are you sure?")) return;
+
+            $.ajax({
+                url: "@Url.Action("DeletePromo")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id
+                }
+            })
+                .done(function () {
+                    $("tr[data-id=" + id + "]").remove();
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("DELETE Promo action failed, id = " + id);
+                 });
+        });
+    </script>
+}

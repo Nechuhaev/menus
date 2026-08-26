@@ -1,0 +1,561 @@
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+
+@inject Menus.Web.Services.UserService  UserService;
+
+@{
+    ViewData["Title"] = Localizer["MetaTitle"];
+    ViewData["Description"] = Localizer["MetaDescription"];
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var isInternalView = Context.Request.Query["viewMode"] == "internal";
+    var additionalClass = isInternalView ? "is-internal" : "";
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+    var postUrl = @Url.Action("SendFormdata", "Home");
+
+    if (!isInternalView)
+    {
+        postUrl = "https://tipmymenu.com/ru/home/sendformdata";
+    }
+}
+
+@if (isInternalView)
+{
+    @await Html.PartialAsync("_Header")
+}
+
+<header class="for-business-header @additionalClass">
+    <div class="container">
+        <div id="logo">
+            <a href="https://tipmymenu.com/">
+                <img src="~/images/forOwners/logo.png" alt="" />
+            </a>
+        </div>
+        <div class="container-column">
+            <div class="left_column">
+                <h1>
+                    @Localizer["WhatMatters"]
+                </h1>
+                <p>
+                    @Localizer["WePlaceYourMenu"]
+                </p>
+                <a href="#section5" class="button_link">@Localizer["WantToTry"]</a>
+            </div>
+            <div class="right_column">
+                <img src="~/images/forOwners/tablet.png" alt="" class="tablet desktop" />
+                <img src="~/images/forOwners/tablet-mob.png" alt="" class="mobile" />
+                <div class="soc_icon">
+                    <div class="trip_advisor">
+                        <img src="~/images/forOwners/tripadvisor.png" alt="" />
+                    </div>
+                    <div class="facebook">
+                        <img src="~/images/forOwners/facebook.png" alt="" />
+                    </div>
+                    <div class="instagramm">
+                        <img src="~/images/forOwners/instagram.png" alt="" />
+                    </div>
+                    <div class="personal-site">
+                        <img src="~/images/forOwners/mysite.png" alt="" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+@*<div class="section1">
+    <div class="container">
+        <div class="our-clients">
+            <h4>@Localizer["OurClients"]</h4>
+            <div class="our-clients_container">
+                <a href="http://www.praha-restaurant.com/menu/main_menu" target="_blank">
+                    <img src="~/images/forOwners/logo_praga.png" alt="" />
+                </a>
+                <a href="https://lancelot.com.ua/ru/menu-ru/" target="_blank">
+                    <img src="~/images/forOwners/logo_lancelot.png" alt="" />
+                </a>
+                <a class="whale" href="https://greenwhale.com.ua/menu/" target="_blank">
+                    <img src="~/images/forOwners/logo_zeleniy_kit.png" alt="" />
+                </a>
+                <a href="https://smartass.com.ua/kitchen" target="_blank">
+                    <img src="~/images/forOwners/logo_smartass.png" alt="" />
+                </a>
+            </div>
+        </div>
+        <h3 class="underline">
+            @Localizer["Section1Container1"]
+        </h3>
+        <p>
+            @Localizer["Section1Container2"]
+        </p>
+        <div class="soc-icon">
+            <div class="soc-icon_container">
+                <div class="trip_advisor">
+                    <img src="~/images/forOwners/tripadvisor.png" alt="" />
+                </div>
+                <span>TripAdvisor</span>
+            </div>
+            <div class="soc-icon_container">
+                <div class="facebook">
+                    <img src="~/images/forOwners/facebook.png" alt="" />
+                </div>
+                <span>Facebook</span>
+            </div>
+            <div class="soc-icon_container">
+                <div class="instagramm">
+                    <img src="~/images/forOwners/instagram.png" alt="" />
+                </div>
+                <span>Instagram</span>
+            </div>
+            <div class="soc-icon_container">
+                <div class="personal-site">
+                    <img src="~/images/forOwners/mysite.png" alt="" />
+                </div>
+                <span>@Localizer["PersonalSite"]</span>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="section2">
+    <div class="container">
+        <div class="phone-one">
+            <img src="~/images/forOwners/phone11.png" alt="" />
+        </div>
+        <div class="right-column-info">
+            <h3 class="underline">All-in-One</h3>
+            <p>
+                @Localizer["Section2Container1"]
+            </p>
+            <ul class="right-column_text">
+                <li>
+                    @Localizer["ManagingMenu"]
+                </li>
+                <li>
+                    @Localizer["MultilingualMenu"]
+                </li>
+                <li>
+                    <span class="bold">Do it for me</span> (@Localizer["DoItForMe"])
+                </li>
+                <li>
+                    @Localizer["CustomizeYourMenu"]
+                </li>
+            </ul>
+            <a href="#section5" class="button_link">@Localizer["WantToTry"]</a>
+        </div>
+    </div>
+</div>
+<div class="section3">
+    <div class="container">
+        <div class="left_column">
+            <h3 class="underline">@Localizer["Section3Header"]</h3>
+            <p>
+                @Localizer["Section3Text"]
+            </p>
+
+            <a href="#section5" class="button_link">@Localizer["WantToTry"]</a>
+        </div>
+        <div class="right_column">
+            <span>x</span>
+        </div>
+    </div>
+</div>
+<div class="section4">
+    <div class="container">
+        <h3>FAQ</h3>
+        <div class="container-faq">
+            <div class="column-left">
+                <div class="list">
+                    <h4>@Localizer["Section4Header1"]</h4>
+                    <ul>
+                        <li>
+                            @Localizer["Section4Text1"]
+                        </li>
+                        <li>
+                            @Localizer["Section4Text2"]
+                            <div class="phone-container">
+
+                                <figure class="cd-image-container is-visible">
+                                    <img src="~/images/forOwners/bg_grey2.png" alt="Original Image">
+                                    <span class="cd-image-label" data-type="original"></span>
+                                    <div class="cd-resize-img">
+                                        <span class="cd-image-label" data-type="modified"></span>
+                                    </div>
+                                    <span class="cd-handle"></span>
+                                </figure>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="list">
+                    <h4>@Localizer["Section4Header2"]</h4>
+                    <ul>
+                        <li>
+                            @Localizer["HowDoWeWork1"]
+                        </li>
+                        <li>
+                            @Localizer["HowDoWeWork2"]
+                        </li>
+                        <li>
+                            @Localizer["HowDoWeWork3"]
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="column-right">
+                <div class="list">
+                    <h4>@Localizer["Section4Header3"]</h4>
+                    <ul>
+                        <li>
+                            @Localizer["AccessToAnalytics"]
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>*@
+<div id="section5" class="section5">
+    <div class="container">
+        <div class="form-container">
+            <h3>@Localizer["Section5Header"]</h3>
+            <p>
+                @Localizer["Call"]
+                <a href="tel:380505562653" class="red"><img src="~/images/forOwners/tel.png" class="tel-mob mobile" alt="">+380505562653</a> @Localizer["LeaveYourContacts"]
+            </p>
+            <form action="" method="POST" id="requestForm">
+                <input type="hidden" name="Package" value="@Localizer["Free"]" />
+                <input type="hidden" name="Restaurant" value="NewPage" />
+                <input type="text" required placeholder="@Localizer["PlaceholderName"]" name="Email" />
+                <input type="tel" required placeholder="@Localizer["PlaceholderPhone"]" name="Phone" />
+                <button type="submit"><i class="fa fa-2x fa-paper-plane"></i> @Localizer["Send"]</button>
+            </form>
+
+            <div class="form-loading hidden">
+                <img src="~/images/loading.svg" alt="loading" />
+            </div>
+            <div class="form-thank-you hidden">
+                @Localizer["ThankYouForm"]
+            </div>
+        </div>
+    </div>
+</div>
+<footer class="@additionalClass">
+    <div class="container">
+        <span>© @DateTime.Now.Year.ToString() Tipmymenu. @Localizer["AllRightsReserved"]</span>
+        <a href="/@culture/content/privacy">@Localizer["PrivacyPolicy"]</a>
+    </div>
+</footer>
+<a href="#section5" id="scrollToTop" class="button_link_mobile mobile">хочу попробовать</a>
+
+@if (isInternalView)
+{
+    @await Html.PartialAsync("_Footer")
+}
+
+
+@if (UserService.IsMobileUser(Context.Request))
+{
+    <link href="~/css/for-owners-mobile.css" rel="stylesheet" asp-append-version="true" />
+}
+else
+{
+    <link href="~/css/for-owners.css" rel="stylesheet" asp-append-version="true" />
+}
+
+@section Scripts
+    {
+
+
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/jquery-ui.css">
+
+    <script type="text/javascript" src="https://code.jquery.com/jquery-latest.js"></script>
+    <script src="https://codyhouse.co/demo/image-comparison-slider/js/jquery.mobile.custom.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
+    <script src="https://use.fontawesome.com/f4b399e4cc.js"></script>
+
+    <script>
+$(function () {
+
+        });
+        //slider before after
+        var dragging = false;
+        var scrolling = false;
+        var resizing = false;
+        var imageComparisonContainers = $(".cd-image-container");
+
+        jQuery(document).ready(function ($) {
+            _adjustSections();
+            _initEvents();
+            _initAccordeon();
+
+            checkPosition(imageComparisonContainers);
+            imageComparisonContainers.each(function () {
+                var actual = $(this);
+                drags(
+                    actual.find(".cd-handle"),
+                    actual.find(".cd-resize-img"),
+                    actual,
+                    actual.find('.cd-image-label[data-type="original"]'),
+                    actual.find('.cd-image-label[data-type="modified"]')
+                );
+            });
+        });
+
+        function _initAccordeon() {
+            $(".container-faq").accordion({
+                active: false,
+                collapsible: true,
+                header: "h4",
+                heightStyle: "content"
+            });
+        }
+
+        function _adjustSections() {
+            if ($(window).width() > 992) {
+                $(function () {
+                    let hieghtThreshold = $(".section3").offset().top - 200;
+                    let hieghtThreshold_end =
+                        $(".section3").offset().top + $(".section3").height() - 200;
+                    $(window).scroll(function () {
+                        let scroll = $(window).scrollTop();
+
+                        if (scroll >= hieghtThreshold && scroll <= hieghtThreshold_end) {
+                            setTimeout(function () {
+                                $(".right_column").addClass("scroll");
+                            }, 2000);
+                        } else {
+                            $(".right_column").removeClass("scroll");
+                        }
+                    });
+                });
+            } else {
+                let hieghtThreshold = $(".section3").offset().top;
+                let hieghtThreshold_end =
+                    $(".section3").offset().top + $(".section3").height();
+                let img = $(".right_column");
+                $(window).scroll(function () {
+                    let scroll = $(window).scrollTop();
+                    if (scroll >= hieghtThreshold && scroll <= hieghtThreshold_end) {
+                        setTimeout(function () {
+                            img.addClass("scroll");
+                        }, 3000);
+                    }
+                });
+            }
+        }
+
+        function checkPosition(container) {
+            container.each(function () {
+                var actualContainer = $(this);
+                if (
+                    $(window).scrollTop() + $(window).height() * 0.5 >
+                    actualContainer.offset().top
+                ) {
+                    actualContainer.addClass("is-visible");
+                }
+            });
+            scrolling = false;
+        }
+
+        function checkLabel(container) {
+            container.each(function () {
+                var actual = $(this);
+                updateLabel(
+                    actual.find('.cd-image-label[data-type="modified"]'),
+                    actual.find(".cd-resize-img"),
+                    "left"
+                );
+                updateLabel(
+                    actual.find('.cd-image-label[data-type="original"]'),
+                    actual.find(".cd-resize-img"),
+                    "right"
+                );
+            });
+            resizing = false;
+        }
+
+        function drags(
+            dragElement,
+            resizeElement,
+            container,
+            labelContainer,
+            labelResizeElement
+        ) {
+            dragElement
+                .on("mousedown vmousedown", function (e) {
+                    dragElement.addClass("draggable");
+                    resizeElement.addClass("resizable");
+                    var dragWidth = dragElement.outerWidth(),
+                        xPosition = dragElement.offset().left + dragWidth - e.pageX,
+                        containerOffset = container.offset().left,
+                        containerWidth = container.outerWidth();
+                    if ($(window).width() > 991) {
+                        var minLeft = containerOffset + 15,
+                            maxLeft = containerOffset + containerWidth - dragWidth + 50;
+                    } else {
+                        var minLeft = containerOffset + 0,
+                            maxLeft = containerOffset + containerWidth - dragWidth + 38;
+                    }
+                    dragElement
+                        .parents()
+                        .on("mousemove vmousemove", function (e) {
+                            if (!dragging) {
+                                dragging = true;
+                                !window.requestAnimationFrame
+                                    ? setTimeout(function () {
+                                        animateDraggedHandle(
+                                            e,
+                                            xPosition,
+                                            dragWidth,
+                                            minLeft,
+                                            maxLeft,
+                                            containerOffset,
+                                            containerWidth,
+                                            resizeElement,
+                                            labelContainer,
+                                            labelResizeElement
+                                        );
+                                    }, 100)
+                                    : requestAnimationFrame(function () {
+                                        animateDraggedHandle(
+                                            e,
+                                            xPosition,
+                                            dragWidth,
+                                            minLeft,
+                                            maxLeft,
+                                            containerOffset,
+                                            containerWidth,
+                                            resizeElement,
+                                            labelContainer,
+                                            labelResizeElement
+                                        );
+                                    });
+                            }
+                        })
+                        .on("mouseup vmouseup", function (e) {
+                            dragElement.removeClass("draggable");
+                            resizeElement.removeClass("resizable");
+                        });
+                    e.preventDefault();
+                })
+                .on("mouseup vmouseup", function (e) {
+                    dragElement.removeClass("draggable");
+                    resizeElement.removeClass("resizable");
+                });
+        }
+
+        function animateDraggedHandle(
+            e,
+            xPosition,
+            dragWidth,
+            minLeft,
+            maxLeft,
+            containerOffset,
+            containerWidth,
+            resizeElement,
+            labelContainer,
+            labelResizeElement
+        ) {
+            var leftValue = e.pageX + xPosition - dragWidth;
+            if (leftValue < minLeft) {
+                leftValue = minLeft;
+            } else if (leftValue > maxLeft) {
+                leftValue = maxLeft;
+            }
+            var widthValue =
+                ((leftValue + dragWidth / 2 - containerOffset) * 100) / containerWidth -
+                10 +
+                "%";
+            $(".draggable")
+                .css("left", widthValue)
+                .on("mouseup vmouseup", function () {
+                    $(this).removeClass("draggable");
+                    resizeElement.removeClass("resizable");
+                });
+            $(".resizable").css("width", widthValue);
+            updateLabel(labelResizeElement, resizeElement, "left");
+            updateLabel(labelContainer, resizeElement, "right");
+            dragging = false;
+        }
+
+        function updateLabel(label, resizeElement, position) {
+            if (position == "left") {
+                label.offset().left + label.outerWidth() <
+                    resizeElement.offset().left + resizeElement.outerWidth()
+                    ? label.removeClass("is-hidden")
+                    : label.addClass("is-hidden");
+            } else {
+                label.offset().left >
+                    resizeElement.offset().left + resizeElement.outerWidth()
+                    ? label.removeClass("is-hidden")
+                    : label.addClass("is-hidden");
+            }
+        }
+
+        function _initEvents() {
+            $(".right_column span").click(function () {
+                $(".right_column").addClass("closebanner");
+                $(".right_column").removeClass("scroll");
+            });
+
+            $(window).on("resize", function () {
+                if (!resizing) {
+                    resizing = true;
+                    !window.requestAnimationFrame
+                        ? setTimeout(function () {
+                            checkLabel(imageComparisonContainers);
+                        }, 100)
+                        : requestAnimationFrame(function () {
+                            checkLabel(imageComparisonContainers);
+                        });
+                }
+            });
+
+            $(window).on("scroll", function () {
+                if (!scrolling) {
+                    scrolling = true;
+                    !window.requestAnimationFrame
+                        ? setTimeout(function () {
+                            checkPosition(imageComparisonContainers);
+                        }, 100)
+                        : requestAnimationFrame(function () {
+                            checkPosition(imageComparisonContainers);
+                        });
+                }
+            });
+
+            $("#scrollToTop").click(function () {
+                $([document.documentElement, document.body]).animate(
+                    {
+                        scrollTop: $("#section5").offset().top
+                    },
+                    1000
+                );
+            });
+
+            $(document).on("submit", ".section5 form", function (e) {
+                e.preventDefault();
+                var $loading = $('.form-container .form-loading');
+                var $thankYou = $('.form-container .form-thank-you');
+                var $form = $('.form-container form');
+
+                $.ajax({
+                    url: "@postUrl",
+                    type: "POST",
+                    data: $(this).serialize(),
+                    beforeSend: function () {
+                        console.log('[beforeSend]');
+                        $form.toggleClass('hidden', true);
+                        $loading.toggleClass('hidden', false);
+                    },
+                    complete: function () {
+                        console.log('[complete]');
+                        $loading.toggleClass('hidden', true);
+                        $thankYou.toggleClass('hidden', false);
+                    },
+                });
+
+            });
+        }</script>
+
+}

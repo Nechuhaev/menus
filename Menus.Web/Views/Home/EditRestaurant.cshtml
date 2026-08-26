@@ -1,0 +1,80 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@inject Menus.Domain.Core Core
+@model Menus.Abstract.Models.IRestaurant
+
+@{
+    ViewBag.Title = "title";
+    Layout = "_Layout";
+}
+
+@await Html.PartialAsync("_Header")
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs breadcrumbs-content">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["EditReataraunt"]</breadcrumb></li>
+            </ul>
+        </div>
+
+
+
+        <div class="site-content-align">
+
+            <form method="post" class="registerRestaurant" enctype="multipart/form-data">
+                <div class="input-group">
+                    <label>@Localizer["RestarauntName"] <span>*</span></label>
+                    <input asp-for="Name" placeholder="@Localizer["EnterRestaurantName"]" />
+                </div>
+                <div class="input-group">
+                    <label>@Localizer["City"] <span>*</span></label>
+                    <select class="form-control" asp-for="City"
+                            asp-items="(await Core.Restaurants.GetCities()).OrderBy(x => x.Name.Get()).Select(x => new SelectListItem { Text = x.Name.Get(), Value = x.Id })"></select>
+                </div>
+                <div class="additionalOptions">
+                    <div class="input-group">
+                        <label>@Localizer["Address"]</label>
+                        <input asp-for="Address" placeholder="@Localizer["EnterRestaurantAddress"]" />
+                    </div>
+                    <div class="input-group">
+                        <label>@Localizer["Phone"]</label>
+                        <input asp-for="Phone" placeholder="@Localizer["EnterRestaurantPhone"]" />
+                    </div>
+                    <div class="input-group">
+                        <label>@Localizer["RestaurantKitchen"]</label>
+                        <input asp-for="Email" type="text" placeholder="@Localizer["ForExampleSeafood"]" />
+                    </div>
+                </div>
+                <div class="input-group input-group--submit">
+                    <input type="submit" data-cancel value="@Localizer["Cancel"]" />
+                    <input type="submit" value="@Localizer["Continue"]" />
+                </div>
+            </form>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+
+
+@await Html.PartialAsync("_Footer")
+
+@section Scripts
+    {
+    <script>
+
+        $("[data-cancel]").click(function (e) {
+            e.preventDefault();
+
+            location.href = document.referrer;
+        });
+    </script>
+    <script src="~/js/typeahead-inner.js"></script>
+}

@@ -1,0 +1,275 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+
+@{
+    ViewData["Title"] = Localizer["MetaTitle"];
+    ViewData["Description"] = Localizer["MetaDescription"];
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@await Html.PartialAsync("_Header")
+
+
+
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs breadcrumbs-content breadcrumbs-content-position">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["AboutUs"]</breadcrumb></li>
+            </ul>
+        </div>
+
+
+
+        <div class="about_us_area">
+            <div class="about_us_left">
+                <div class="about_us_content">
+                    <figure>
+                        <img src="~/images/logo_tip_menu.png" alt="" />
+                    </figure>
+                    @Localizer["EatWriteShare"] ;)
+
+                </div>
+            </div>
+            <div class="about_us_right">
+                <img src="~/images/about_us.jpg" class="disable_on_mobile" alt="" />
+                <img src="~/images/about_us_mobile.jpg" class="disable_on_desktop" alt="" />
+            </div>
+        </div>
+
+
+
+        <div class="about_us_text">
+            @Localizer["AboutUsText"]<span class="fa-fw select-all far"></span>
+        </div>
+
+
+
+        <div class="about_us_services">
+
+            <h1>@Localizer["YouCan"]</h1>
+
+            <ul class="disable_on_mobile">
+                <li>
+                    <em>
+                        <span class="fa-fw select-all fas"></span>
+                    </em>
+                    <strong>@Localizer["Find"]</strong>
+                    @Localizer["InWhichRestaurant"]<span>@Localizer["ToEat"]</span>@Localizer["WhatYouWant"]
+                </li>
+                <li>
+                    <em>
+                        <span class="fa-fw select-all fas"></span>
+                    </em>
+                    <strong>@Localizer["ChooseDish"]</strong>
+                    @Localizer["ByRating"]<span>@Localizer["FromGuests"]</span>@Localizer["AlreadyVisited"]<span>@Localizer["ThisInstitution"]</span>
+                </li>
+                <li>
+                    <em>
+                        <span class="fa-fw select-all fas"></span>
+                    </em>
+                    <strong>@Localizer["Familiarize"]</strong>
+                    @Localizer["RestaurantMenu"]<span>@Localizer["WhereAreYou"]</span> @Localizer["Going"]
+                </li>
+                <li>
+                    <em>
+                        <span class="fa-fw select-all fas"></span>
+                    </em>
+                    <strong>@Localizer["RateTheDish"]</strong>
+                    @Localizer["WhichYouTried"]<span>@Localizer["AddIt"]</span>@Localizer["PhotoAndShare"]<span>@Localizer["OpinionOrComment"]</span>
+                </li>
+                <li>
+                    <em>
+                        <span class="fa-fw select-all fas"></span>
+                    </em>
+                    <strong>@Localizer["AddToService"]</strong>
+                    @Localizer["Institution"]<span>@Localizer["WeMissed"]</span>
+                </li>
+            </ul>
+
+            <!-- Swiper -->
+            <div class="swiper-about-wrapper disable_on_desktop">
+                <div class="swiper-container swiper-about">
+                    <div class="swiper-wrapper">
+                        <div class="swiper-slide">
+                            <div class="swiper-caption">
+                                <em>
+                                    <span class="fa-fw select-all fas"></span>
+                                </em>
+                                <strong>@Localizer["Find"]</strong>
+                                @Localizer["InWhichRestaurant"]<span>@Localizer["ToEat"]</span>@Localizer["WhatYouWant"]
+                            </div>
+                        </div>
+                        <div class="swiper-slide">
+                            <div class="swiper-caption">
+                                <em>
+                                    <span class="fa-fw select-all fas"></span>
+                                </em>
+                                <strong>@Localizer["ChooseDish"]</strong>
+                                @Localizer["ByRating"]<span>@Localizer["FromGuests"]</span>@Localizer["AlreadyVisited"]<span>@Localizer["ThisInstitution"]</span>
+                            </div>
+                        </div>
+                        <div class="swiper-slide">
+                            <div class="swiper-caption">
+                                <em>
+                                    <span class="fa-fw select-all fas"></span>
+                                </em>
+                                <strong>@Localizer["Familiarize"]</strong>
+                                @Localizer["RestaurantMenu"]<span>@Localizer["WhereAreYou"]</span>@Localizer["Going"]
+                            </div>
+                        </div>
+                        <div class="swiper-slide">
+                            <div class="swiper-caption">
+                                <em>
+                                    <span class="fa-fw select-all fas"></span>
+                                </em>
+                                <strong>@Localizer["RateTheDish"]</strong>
+                                @Localizer["WhichYouTried"]<span>@Localizer["AddIt"]</span>@Localizer["PhotoAndShare"]<span>@Localizer["OpinionOrComment"]</span>
+                            </div>
+                        </div>
+                        <div class="swiper-slide">
+                            <div class="swiper-caption">
+                                <em>
+                                    <span class="fa-fw select-all fas"></span>
+                                </em>
+                                <strong>@Localizer["AddToService"]</strong>
+                                @Localizer["Institution"]<span>@Localizer["WeMissed"]</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Add Pagination -->
+                <div class="swiper-about-pagination"></div>
+            </div>
+
+        </div>
+
+
+
+        <div class="about_us_block_1">
+            <div class="wrapper">
+                <p>@Localizer["AboutUsBlock1"]</p>
+                <a href="#" class="btn_more" data-sign-up>@Localizer["Register"]</a>
+            </div>
+        </div>
+
+
+
+        <div class="about_us_info">
+            <h2>@Localizer["AboutUsInfo1"]<span>@Localizer["AboutUsInfo2"]</span>@Localizer["AboutUsInfo3"]</h2>
+            <ul class="about_us_desktop_info disable_on_mobile">
+                <li>
+                    <div class="caption">
+                        <em>01</em>
+                        <strong>@Localizer["FullyControl"]<span>@Localizer["YourReputation"]</span></strong>
+                        @Localizer["OnOurResourse"]<span>@Localizer["YourProfile"]</span>
+                    </div>
+                    <figure>
+                        <img src="~/images/info_img_1.jpg" alt="Alternate Text" />
+                    </figure>
+                </li>
+                <li>
+                    <figure>
+                        <img src="~/images/info_img_2.jpg" alt="Alternate Text" />
+                    </figure>
+                    <div class="caption">
+                        <em>03</em>
+                        <strong>@Localizer["GetRealFeedback"]<span>@Localizer["AboutIndividualPositions"]</span>@Localizer["AndOptimizeIt"]</strong>
+                        @Localizer["DiscoverStarDishes"]<span>@Localizer["ImprovePositions"]</span>@Localizer["NotRemove"]<span>@Localizer["GuestsAreComing"]</span>
+                    </div>
+                </li>
+                <li>
+                    <div class="caption">
+                        <em>02</em>
+                        <strong>@Localizer["GetDirectAccess"]<span>@Localizer["TargetAudiency"]</span></strong>
+                        @Localizer["FirstImpression"]<span>@Localizer["HighlightYour"]</span>@Localizer["GuestWillComeBack"]
+                    </div>
+                    <figure>
+                        <img src="~/images/info_img_3.jpg" alt="Alternate Text" />
+                    </figure>
+                </li>
+            </ul>
+            <ul class="about_us_mobile_info disable_on_desktop">
+                <li>
+                    <figure>
+                        <img src="~/images/info_img_mobile_1.jpg" alt="Alternate Text" />
+                    </figure>
+                    <div class="caption">
+                        <em>01</em>
+                        <strong>@Localizer["FullyControl"] @Localizer["YourReputation"]</strong>
+                        @Localizer["OnOurResourse"]<span>@Localizer["YourProfile"]</span>
+                    </div>
+                </li>
+                <li>
+                    <figure>
+                        <img src="~/images/info_img_mobile_2.jpg" alt="Alternate Text" />
+                    </figure>
+                    <div class="caption">
+                        <em>02</em>
+                        <strong>@Localizer["GetDirectAccessMob"]<span>@Localizer["AudiencyAndTools"]</span>@Localizer["InteractionWithIt"]</strong>
+                        @Localizer["FirstImpressionMob"]<span>@Localizer["HighlightYourMob"]</span>@Localizer["GuestWillComeBackMob"]
+                    </div>
+                </li>
+                <li>
+                    <figure>
+                        <img src="~/images/info_img_mobile_3.jpg" alt="Alternate Text" />
+                    </figure>
+                    <div class="caption">
+                        <em>03</em>
+                        <strong>@Localizer["GetRealFeedback"]<span>@Localizer["AboutIndividualPositions"]</span>@Localizer["AndOptimizeIt"]</strong>
+                        @Localizer["DiscoverStarDishesMob"]<span>@Localizer["ImprovePositionsMob"]</span>@Localizer["NotRemoveMob"]<span>@Localizer["GuestsAreComing"]</span>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+
+
+        <div class="about_us_block_2">
+            <div class="wrapper">
+                <p>@Localizer["AboutUsBlock2"]<span>@Localizer["AboutUsBlock3"]</span> <strong>@Localizer["AboutUsBlock4"]</strong></p>
+                <p>@Localizer["AboutUsBlock5"]<span>@Localizer["AboutUsBlock6"]</span></p>
+                <a asp-area="" asp-controller="Articles" asp-action="ForOwners" class="btn_more">@Localizer["Register"]</a>
+            </div>
+        </div>
+
+
+
+    </main>
+</div>
+
+
+
+
+
+@section Scripts
+    {
+
+    <!-- Initialize Swiper -->
+    <link href="~/css/swiper.min.css" rel="stylesheet" />
+
+    <script src="~/js/jquery.js"></script>
+    <script src="~/js/swiper.min.js"></script>
+    <script src="~/js/typeahead-inner.js"></script>
+
+    <!-- Initialize Swiper -->
+    <script>
+        var swiper = new Swiper('.swiper-about', {
+            slidesPerView: 2,
+            spaceBetween: 30,
+            pagination: {
+                el: '.swiper-about-pagination',
+                clickable: true,
+            },
+        });
+    </script>
+
+}
+
+
+
+@await Html.PartialAsync("_Footer")

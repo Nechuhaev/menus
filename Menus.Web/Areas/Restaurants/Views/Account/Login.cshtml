@@ -1,0 +1,122 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html class="loginArea">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="@ViewData["Description"]" />
+    <title>@ViewData["Title"]</title>
+
+    <link href="~/css/areas/restaurants/main.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />
+
+    <environment include="Development">
+    </environment>
+    <environment exclude="Development">
+        @*<link rel="stylesheet" href="https://ajax.aspnetcdn.com/ajax/bootstrap/3.3.7/css/bootstrap.min.css"
+            asp-fallback-href="~/lib/bootstrap/dist/css/bootstrap.min.css"
+            asp-fallback-test-class="sr-only" asp-fallback-test-property="position" asp-fallback-test-value="absolute" />*@
+    </environment>
+</head>
+<body style="background: none;">
+
+
+    <main>
+
+        <div class="loginSection">
+
+            <div class="loginSection--left">
+                <h1>@Localizer["Header"]</h1>
+                <p>@Localizer["Description"]</p>
+            </div>
+
+            <div class="loginSection--right">
+                <form class="login-form">
+                    <h2>@Localizer["FormHeader"]</h2>
+                    <div class="input-group" data-username-group>
+                        <label for="username">@Localizer["Username"]</label>
+                        <input type="text" name="username" id="username" required value="" />
+                        <span class="error">Username введён неверно</span>
+                    </div>
+                    <div class="input-group" data-password-group>
+                        <label for="password">@Localizer["Password"]</label>
+                        <input type="password" name="password" id="password" required value="" />
+                        <span class="error">Пароль введён неверно</span>
+                    </div>
+                    <div class="remember-me-input-group">
+                        <input id="remember-sign-in" type="checkbox" checked name="remember" />
+                        <span class="checkbox checked"></span>
+                        <label>@Localizer["RememberMe"]</label>
+                    </div>
+                    <a class="forgot-password" href="/">@Localizer["ForgotPassword"]</a>
+                    <button type="submit">@Localizer["SignIn"]</button>
+                    <div class="sign-up-area">
+                        <a class="sign-up" asp-area="Restaurants" asp-controller="Account" asp-action="Register">@Localizer["SignUp"]</a>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+
+    </main>
+
+    <environment include="Development">
+    </environment>
+    <environment exclude="Development">
+        @*<script src="https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.3.1.min.js"
+                    asp-fallback-src="~/lib/jquery/dist/jquery.min.js"
+                    asp-fallback-test="window.jQuery"
+                    crossorigin="anonymous"
+                    integrity="sha384-tsQFqpEReu7ZLhBV2VZlAu7zcOV+rXbYlF2cqB8txI/8aZajjp4Bqd+V6D5IgvKT">
+            </script>*@
+        <script src="~/js/raven.min.js"></script>
+    </environment>
+
+    <script src="~/js/raveninit.js" asp-append-version="true"></script>
+
+    @*<script src="~/js/promise.min.js" async></script>
+        <script src="~/js/fetch.min.js" async></script>*@
+
+    <script src="~/js/jquery.js"></script>
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        $(".login-form").submit(function (e) {
+            e.preventDefault();
+
+            var data = {};
+            data["__RequestVerificationToken"] = getToken();
+            data.username = $("#username").val();
+            data.password = $("#password").val();
+            if ($("#remember-sign-in").is(":checked")) data.remember = "on";
+
+            $.ajax({
+                url: "@Url.Action("Login")",
+                method: "POST",
+                data: data
+            })
+                .done(function () {
+                    location.href = "@Url.Action("Index", "Home")";
+                 })
+                .fail(function (data) {
+                    $(".input-group").removeClass("invalid");
+
+                    if (data.responseJSON.error === "username") $("[data-username-group]").addClass("invalid");
+                    else if (data.responseJSON.error === "password") $("[data-password-group]").addClass("invalid");
+                    else {
+                        window.Logger.logTextError("Login error for username = " + $("#username").val());
+                    }
+                 });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+﻿@inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Domain.Core Core
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@{
+    var user = await UserService.GetUserById(User.Identity.Name);
+
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    var selectedCity = Context.Request.Cookies[".Menus.SelectedCity"];
+    selectedCity = string.IsNullOrEmpty(selectedCity) ? "e2655e24-92dc-4179-abf6-c3908278a4de" : selectedCity;
+
+    var locales = LocaleSrvc.GetLocales();
+
+    //var cultures = UserService.
+}
+
+@if (User.Identity.IsAuthenticated)
+{
+    <div class="logged_in">
+        @if (!UserService.IsMobileUser(Context.Request))
+        {
+            <div class="user header-user-controls-box">
+                <a href="javascript:;" onclick="this.classList.toggle('active')" class="js-desctop-profile">@user.FirstName @user.LastName</a>
+                <div class="user-controls-container">
+                    <div class="user-controls-header">
+                        <div class="user-avatar-box" style="background-image: url(@(!string.IsNullOrEmpty(user.ImageUrl) ? Img.Url(user.ImageUrl, Quality.Low) : "/images/no-avatar.jpg")"></div>
+                        <div class="user-controls-info">
+                            <div>@user.FirstName</div>
+                            <div>@user.LastName</div>
+                            <div>
+                                <a asp-route-culture="@culture" class="go-to-profile-button" asp-controller="Account" asp-action="Index">@Localizer["Account"]</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="user-controls-route">
+                        <a asp-route-culture="@culture" asp-area="" asp-controller="Account" asp-action="Activity">@Localizer["MyActivity"]</a>
+                    </div>
+                    <div class="user-controls-route">
+                        <a asp-route-culture="@culture" asp-area="" asp-controller="Account" asp-action="Password">@Localizer["Password"]</a>
+                    </div>
+
+                    @if (User.IsInRole("restaurant") || User.IsInRole("restaurant-manager"))
+                    {
+                        <div class="user-controls-route">
+                            <a asp-route-culture="@culture" asp-area="" asp-controller="Restaurants" asp-action="Manage">@Localizer["MyRestarauns"]</a>
+                        </div>
+                    }
+                    @if (User.IsInRole("admin") || User.IsInRole("manager"))
+                    {
+                        <div class="user-controls-route">
+                            <a asp-route-culture="@culture" asp-area="Admin" asp-controller="Home" asp-action="Index">@Localizer["Admin"]</a>
+                        </div>
+                    }
+
+                    <div class="user-logout">
+                        <a asp-route-culture="@culture" asp-area="" asp-controller="Account" asp-action="Logout">@Localizer["Exit"]</a>
+                    </div>
+
+                </div>
+            </div>
+        }
+        else
+        {
+            var crq = Context.Request;
+            <div class="user header-user-controls-box">
+                <a href="javascript:;" onclick="this.classList.toggle('active')" class="js-mobile-profile">@user.FirstName @user.LastName</a>
+                <div class="user-controls-container">
+                    <span class="profile_close"></span>
+                    <div class="user-controls-header">
+                        <div class="user-avatar-box" style="background-image: url(@(!string.IsNullOrEmpty(user.ImageUrl) ? Img.Url(user.ImageUrl, Quality.Low) : "/images/no-avatar.jpg")"></div>
+                        <div class="user-controls-info">
+                            <div>@user.FirstName</div>
+                            <div>@user.LastName</div>
+                            <div>
+                                <a class="go-to-profile-button" asp-controller="Account" asp-action="Index">@Localizer["Account"]</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="user-controls-route">
+                        <a asp-route-culture="@culture" asp-area="" asp-controller="Account" asp-action="Activity">@Localizer["MyActivity"]</a>
+                    </div>
+                    <div class="user-controls-route">
+                        <a asp-route-culture="@culture" asp-area="" asp-controller="Account" asp-action="Password">@Localizer["Password"]</a>
+                    </div>
+                    @if (User.IsInRole("restaurant") || User.IsInRole("restaurant-manager"))
+                    {
+                        <div class="user-controls-route">
+                            <a asp-route-culture="@culture" asp-area="" asp-controller="Restaurants" asp-action="Manage">@Localizer["MyRestarauns"]</a>
+                        </div>
+                    }
+                    @if (User.IsInRole("admin") || User.IsInRole("manager"))
+                    {
+                        <div class="user-controls-route">
+                            <a asp-route-culture="@culture" asp-area="Admin" asp-controller="Home" asp-action="Index">@Localizer["Admin"]</a>
+                        </div>
+                    }
+                    <div class="user-logout">
+                        <a asp-route-culture="@culture" asp-area="" asp-controller="Account" asp-action="Logout">@Localizer["Exit"]</a>
+                    </div>
+
+                    @await Html.PartialAsync("_LanguagesForm")
+
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="logged_in">
+        @if (!UserService.IsMobileUser(Context.Request))
+        {
+        <div class="login_btn">
+            @*<button class="register-button" type="button" data-sign-up>@Localizer["Signup"]</button>
+        <button class="signin-button" type="button" data-sign-in>@Localizer["Login"]</button>*@
+            <button class="register-button" type="button" data-user-mode>@Localizer["SignupSignin"]</button>
+        </div>
+        }
+        else
+        {
+            <div class="user header-user-controls-box">
+                <a href="javascript:;" onclick="this.classList.toggle('active')" class="js-mobile-profile">@user.FirstName @user.LastName</a>
+                <div class="user-controls-container">
+                    <span class="profile_close"></span>
+                    <div class="register_btn">
+                        <button class="register-button" type="button" data-user-mode>@Localizer["SignupSignin"]</button>
+                    </div>
+                    @*<div class="login_btn">
+                        <button class="signin-button" type="button" data-sign-in>@Localizer["ToLogin"]</button>
+                    </div>
+                    <div class="register_btn">
+                        <button class="register-button" type="button" data-sign-up>@Localizer["ToSignup"]</button>
+                    </div>*@
+                    @*<div class="user-controls-route extra">
+                        <a href="#">@Localizer["ContactWithUs"]</a>
+                        </div>
+                        <div class="user-controls-route extra">
+                            <a href="#">@Localizer["HowItWorks"]</a>
+                        </div>
+                        <div class="user-controls-route extra">
+                            <a asp-route-culture="@culture" asp-area="" asp-controller="Home" asp-action="RatingRecommendations">@Localizer["Recomendations"]</a>
+                        </div>*@
+
+                    @await Html.PartialAsync("_LanguagesForm")
+
+                </div>
+            </div>
+        }
+    </div>
+}

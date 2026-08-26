@@ -1,0 +1,340 @@
+﻿@model IEnumerable<Menus.Abstract.Models.IRestaurant>
+
+@inject Menus.Web.Services.UserService UserService
+@{
+    var CurrentUser = await UserService.GetUserById(User.Identity.Name);
+    var page = (int)ViewData["page"];
+}
+
+<div class="site-content">
+    <main>
+
+        <div class="site-content-center">
+
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li>Рестораны</li>
+                </ul>
+            </div>
+
+            <form class="search-bar">
+                <input type="text" name="q" value="@ViewData["q"]" />
+                <input type="hidden" name="status" value="@ViewData["status"]" />
+                <input type="hidden" name="createdBy" value="@ViewData["createdBy"]" />
+                <button type="submit">Поиск</button>
+            </form>
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Рестораны</h2>
+                    <a asp-area="Restaurants" asp-controller="Manage" asp-action="Register" class="create_plus"><span>+</span></a>
+                </div>
+                <div class="title-section--right">
+                    <form method="post" class="filter-form">
+                        <div class="filter-form--title">Фильтр:</div>
+                        <p>
+                            <select class="form-control" asp-for="@ViewData["createdBy"]"
+                                    asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.RestaurantCreatedBy>()">
+                                <option value="">Создан кем угодно</option>
+                            </select>
+                        </p>
+                        <p>
+                            <select class="form-control" asp-for="@ViewData["status"]"
+                                    asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.RestaurantStatus>()">
+                                <option value="">Все статусы</option>
+                            </select>
+                        </p>
+                        <p>
+                            <select name="multiaction">
+                                <option value="">Действие</option>
+                                <option value="delete">Удалить</option>
+                            </select>
+                        </p>
+                        <input type="submit" name="name" value="Применить" />
+                    </form>
+                </div>
+            </div>
+
+
+            <table class="mainTable">
+                <thead>
+                    <tr>
+                        <th class="tableCheckbox">
+                            <input id="checkAll" type="checkbox" value="" />
+                        </th>
+                        <th></th>
+                        <th>
+                            Название
+                        </th>
+                        <th>
+                            Телефон
+                        </th>
+                        <th>
+                            Адрес
+                        </th>
+                        <th>
+                            Статус
+                        </th>
+                        <th>
+                            Дата создания
+                        </th>
+                        <th>
+                            Мод.
+                        </th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr data-id="@item.Id">
+                            <td class="tableCheckbox">
+                                <input type="checkbox" value="" />
+                            </td>
+                            <td class="tableStatusIcon
+                            @(item.Status == Menus.Abstract.Models.RestaurantStatus.Blocked ? "StatusIconBlock" : "" )
+                            @(item.Status == Menus.Abstract.Models.RestaurantStatus.Pending ? "StatusIconOnApproval" : "" )">
+                                <span>+</span>
+                            </td>
+                            <td>
+                                <span>@item.Name</span>
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.Phone)
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.Address)
+                            </td>
+                            <td>
+                                <select class="form-control" asp-for="@item.Status"
+                                        asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.RestaurantStatus>()"></select>
+                            </td>
+                            <td>
+                                <input type="date" name="item.CreateDate" value="@item.CreateDate.ToString("yyyy-MM-dd")" />
+                            </td>
+                            <td>
+                                @Html.EditorFor(modelItem => item.Moderated)
+                            </td>
+                            <td class="tableEdit">
+                                <a class="tableEditBtn" href="@Url.Action("Edit", new { id = item.Id })">Edit</a>
+                                <a class="" href="#" data-copy data-id="@item.Id">cp</a>
+                                <a class="tableDeleteBtn" href="#" data-delete data-id="@item.Id">Delete</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div style="text-align:center; margin-top: 30px;">
+                @if (page != 0)
+                {
+                    <a asp-route-q="@(ViewData["q"])" asp-route-createdBy="@(ViewData["createdBy"])" asp-route-status="@(ViewData["status"])" asp-route-page="@(page - 1)">&larr;Назад &nbsp;</a>
+                }
+                @if (Model.Count() == Convert.ToInt32(ViewData["pageSize"].ToString()))
+                {
+                    <a asp-route-q="@(ViewData["q"])" asp-route-createdBy="@(ViewData["createdBy"])" asp-route-status="@(ViewData["status"])" asp-route-page="@(page + 1)">Вперёд&rarr;</a>
+                }
+            </div>
+
+        </div>
+
+    </main>
+</div>
+
+
+
+<div class="popUpWindow hidden">
+    <div class="popUpAlign">
+        <div class="popUpContent">
+            <span class="popUpClose"></span>
+            <figure>
+                <img src="~/images/question.png" alt="Alternate Text" />
+            </figure>
+            <p>Вы действительно хотите изменить <span>статус ресторана Maganda?</span></p>
+            <div class="popUpBtns">
+                <a href="#" class="btnChange">Изменить</a>
+                <a href="#" class="btnCancel">Отменить</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script for popUp start -->
+@*<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script>
+        jQuery(document).ready(function () {
+
+            jQuery('.popUpClose').on('click', function () {
+                jQuery('.popUpWindow').fadeOut();
+            });
+
+        });
+    </script>*@
+
+<!-- Script for popUp end -->
+
+
+@section Scripts {
+    <script src="~/js/jquery.js"></script>
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        $(document).on("change", '[name="ViewData[status]"]', function () {
+            $("[name=status]").val($(this).val());
+            $(".search-bar").submit();
+        });
+
+        $(document).on("change", '[name="ViewData[createdBy]"]', function () {
+            $("[name=createdBy]").val($(this).val());
+            $(".search-bar").submit();
+        });
+
+        $(document).on("change", '[name="item.CreateDate"]', function () {
+            $.ajax({
+                    url: "@Url.Action("UpdateCreateDate")",
+                    method: "POST",
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        id: $(this).closest("tr").attr("data-id"),
+                        createDate: $(this).val()
+                    }
+                })
+                .done(function () {
+                    
+                })
+                .fail(function (data) {
+                    window.Logger.logTextError("UPDATE Restaurant CreateDate action failed");
+                });
+        });
+
+        $(document).on("change", '[name="item.Moderated"]', function () {
+            $.ajax({
+                    url: "@Url.Action("ToggleModerated")",
+                    method: "POST",
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        id: $(this).closest("tr").attr("data-id")
+                    }
+                })
+                .done(function () {
+                    
+                })
+                .fail(function (data) {
+                    window.Logger.logTextError("UPDATE Restaurant Moderated action failed");
+                });
+        });
+
+        $(document).on("change", "#checkAll", function () {
+            $("tbody .tableCheckbox input[type=checkbox]").prop('checked', $(this).is(":checked"));
+        });
+
+        $(".filter-form").submit(function (e) {
+            e.preventDefault();
+
+            if ($("[name=multiaction]").val() !== "delete") return;
+            if (!confirm("Are you sure?")) return;
+
+            var ids = [];
+            $("tbody .tableCheckbox input[type=checkbox]").each(function () {
+                if ($(this).is(":checked")) {
+                    ids.push($(this).closest("tr[data-id]").attr("data-id"));
+                }
+            });
+
+
+            $.ajax({
+                url: "@Url.Action("DeleteSeveral")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    ids: ids
+                }
+            })
+                .done(function () {
+                    $("tbody .tableCheckbox input[type=checkbox]").each(function () {
+                        if ($(this).is(":checked")) {
+                            $(this).closest("tr[data-id]").remove();
+                        }
+                    });
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("MULTI DELETE Restaurant action failed");
+                 });
+        });
+
+        $(document).on("change", '[name="item.Status"]', function () {
+            var id = $(this).closest("tr[data-id]").attr("data-id");
+            var status = $(this).val();
+
+            $.ajax({
+                url: "@Url.Action("ChangeStatus")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id,
+                    status: status
+                }
+            })
+                .done(function () {
+                    var tr = $("tr[data-id=" + id + "]");
+                    var icon = tr.find(".tableStatusIcon");
+
+                    icon.removeClass("StatusIconBlock").removeClass("StatusIconOnApproval");
+
+                    if (status === 1) icon.addClass("StatusIconOnApproval");
+                    if (status === 2) icon.addClass("StatusIconBlock");
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("STATUS CHANGE Restaurant action failed, id = " + id);
+                 });
+        });
+
+        $(document).on("click", "[data-delete]", function (e) {
+            e.preventDefault();
+            var id = $(this).attr("data-id");
+
+            if (!confirm("Are you sure?")) return;
+
+            $.ajax({
+                url: "@Url.Action("Delete")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id
+                }
+            })
+                .done(function () {
+                    $("tr[data-id=" + id + "]").remove();
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("DELETE Restaurant action failed, id = " + id);
+                 });
+        });
+
+        $(document).on("click", "[data-copy]", function () {
+            var id = $(this).attr("data-id");
+
+            if (!confirm("Are you sure?")) return;
+
+            $.ajax({
+                url: "@Url.Action("Copy")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id
+                }
+            })
+                .done(function () {
+                    location.reload();
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("COPY Restaurant action failed, id = " + id);
+                 });
+        });
+    </script>
+}

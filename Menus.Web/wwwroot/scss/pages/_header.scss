@@ -1,0 +1,174 @@
+﻿@import "../_variables.scss";
+
+.header-user-controls-box {
+    > a.active {
+        & + .user-controls-container {
+            @media (min-width: 500px) {
+                display: block;
+            }
+        }
+    }
+
+    .user-controls-container {
+        display: none;
+        box-shadow: 0 0 1.8229166667vw rgba(0,0,0,.1);
+        position: fixed;
+        background-color: #fff;
+        top: 100px;
+        padding: 1rem;
+        right: 1rem;
+
+        .user-controls-header {
+            display: flex;
+            justify-content: space-between;
+
+            .user-avatar-box {
+                height: 80px;
+                width: 80px;
+                border-radius: 50%;
+                background-image: url(../../images/add_photo_dishes.jpg);
+                background-position: 50% 50%;
+                background-repeat: no-repeat;
+                background-size: cover;
+                margin-right: 1rem;
+                flex-basis: 50%;
+            }
+
+            .user-controls-info {
+                flex-basis: 50%;
+
+                div {
+                    font-size: 1.5rem;
+                    color: $text;
+                }
+
+                a {
+                    background-color: $button;
+                    border-radius: 4px;
+                    padding: 5px 2rem;
+                    font-weight: bold;
+                    color: $black;
+                    font-size: 0.8rem;
+                    border: none;
+                    text-decoration: none;
+                    cursor: pointer;
+                }
+            }
+        }
+
+        .user-controls-route {
+            color: $palete1;
+            cursor: pointer;
+            transition: all 3ms ease;
+
+            &:hover {
+                color: darken($palete1, 10%);
+            }
+
+            &:first-of-type {
+                margin-top: 0.5rem;
+            }
+        }
+
+        .user-logout {
+            color: darken($grey, 20%);
+        }
+    }
+}
+
+body {
+    .profile-header {
+        background-color: $grey;
+        min-height: initial;
+
+        @media (max-width: 500px) {
+            font-size: 14px;
+            padding: 1rem 5vw;
+        }
+
+        .avatar-box {
+            position: relative;
+            margin-top: 3rem;
+            max-width: none !important;
+
+            @media (max-width: 991px) {
+                text-align: center;
+            }
+
+            label[data-upload-photo] {
+
+                @media (max-width: 991px) {
+                    margin-right: 0;
+                }
+            }
+
+            .sidebar-container {
+                position: absolute;
+                left: 0;
+                top: 320px;
+
+                @media (max-width: 500px) {
+                    display: none;
+                }
+
+                .sidebar-container-header {
+                    font-weight: bold;
+                    margin-bottom: 2rem;
+                }
+
+                .sidebar-menu-container {
+                    .sidebar-menu-item {
+                        padding: 1rem;
+                        border-left: 4px solid #fff;
+
+                        &.active {
+                            background-color: $grey;
+                            border-left: 4px solid $palete1;
+                        }
+
+                        i {
+                            margin-right: 1rem;
+                            font-weight: bold;
+                        }
+                    }
+                }
+            }
+
+            .avatar {
+                margin: 0 !important;
+                position: absolute;
+                top: 0;
+                left: 0;
+
+                @media (max-width: 500px) {
+                    height: 200px;
+                    width: 200px;
+                    left: calc((90vw - 200px) / 2);
+                    margin: auto;
+                }
+            }
+
+            .user-short-info {
+                padding: 80px 0 40px calc(350px + 3rem);
+
+                @media (max-width: 500px) {
+                    padding: 200px 0 0 0;
+                    text-align: center;
+
+                    h1 {
+                        font-size: 25px;
+                        line-height: 25px;
+                    }
+                }
+
+                i {
+                    color: $button;
+
+                    &.fa-comment {
+                        margin-left: 2rem;
+                    }
+                }
+            }
+        }
+    }
+}

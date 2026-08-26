@@ -1,0 +1,164 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Domain.Core Core
+@{
+    var user = await UserService.GetUserById(User.Identity.Name);
+    var userStats = await UserService.GetUserStats(User.Identity.Name);
+
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    ViewData["controller"] = "Account";
+    ViewData["action"] = "UploadUserPhoto";
+    ViewData["valueName"] = "userId";
+    ViewData["value"] = user.Id;
+}
+
+@await Html.PartialAsync("_Header")
+
+<div class="profile-header account-container">
+    <div class="wrapper">
+        <div class="breadcrumbs-container">
+            <a class="breadcrumbs-prefix" asp-controller="Home" asp-action="Index">@Localizer["Home"] /</a>
+            <span class="breadcrumbs-main" id="breadcrumbs-main"></span>
+        </div>
+        <div class="user-info avatar-box">
+            <label data-upload-photo for="photo-upload-input">
+                <div class="avatar" id="avatar-box" data-has-value='@(user.ImageUrl == null ? "false" : "true")'
+                     style='background-image: url(@((IsImageUrlExist(user) == "true") ? Img.Url(user.ImageUrl, Quality.Low) : IsImageUrlExist(user)))'>
+                    <span class="edit-photo-btn" id="edit-photo-btn">
+                        <span class="fa fa-edit"></span>
+                    </span>
+                    <span class="remove-btn-trash-container" id="remove-btn-trash-container" style='display: @(user.ImageUrl == null ? "none" : "initial")'>
+                        <span class="fa fa-trash"></span>
+                    </span>
+                </div>
+            </label>
+            <div class="user-short-info">
+                <div class="profile-name">
+                    <h1>@user.FirstName @user.LastName</h1>
+                </div>
+                <div class="profile-data">
+                    <i class="fa fa-star"></i> <span>@userStats.FeedbacksAmount</span>
+                    @if (userStats.FeedbacksAmount == 1)
+                    {
+                        <span>@Localizer["Rating"]</span>
+                    }
+                    else
+                    {
+                        <span>@Localizer["Ratings"]</span>
+                    }
+                    <i class="fa fa-comment"></i> <span>@userStats.RatingsAmount</span>
+                    @if (userStats.RatingsAmount == 1)
+                    {
+                        <span>@Localizer["Review"]</span>
+                    }
+                    else
+                    {
+                        <span>@Localizer["Reviews"]</span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+public static string IsImageUrlExist(ApplicationUser user)
+{
+    return user.ImageUrl != null && user.ImageUrl != "" ? "true" : "/images/no-avatar.jpg";
+}
+}
+
+<link href="~/css/swiper.min.css" rel="stylesheet" />
+<script src="~/js/jquery.js"></script>
+<script src="~/js/swiper.min.js"></script>
+<script>
+    jQuery(function () {
+
+        jQuery('.profile_close').on('click', function () {
+            jQuery('.js-mobile-profile').removeClass('active');
+        });
+
+    });
+</script>
+
+@await Html.PartialAsync("_PcPhotoUpload", ViewData)
+
+<script>
+    let TRANSLATION_ACTIVITY = `@Localizer["MyActivity"]`;
+    let TRANSLATION_PROFILE = `@Localizer["MyProfile"]`;
+    let TRANSLATION_PASSWORD = `@Localizer["Password"]`;
+
+    window.loggedIn = true;
+    window.uploadPhotoCallback = function (data) {
+        var avatarElement = document.getElementById("avatar-box");
+        var removeControl = document.getElementById("remove-btn-trash-container");
+        var $photoUploadContainer = $('.photoUploadContainer');
+        $photoUploadContainer.toggleClass('hidden', true);
+        avatarElement.style.backgroundImage = 'url(@Img.BaseUrl/' + data.name + ')';
+        removeControl.style.display = "block";
+    }
+    var locationPath = location.href.split("/");
+    var page = locationPath[locationPath.length - 1];
+    var breadcrumbsAccordance = {
+        activity: { breadcrumbs: TRANSLATION_ACTIVITY, id: "activity" },
+        password: { breadcrumbs: TRANSLATION_PASSWORD, id: "password" },
+        account: { breadcrumbs: TRANSLATION_PROFILE, id: "profile" }
+    };
+    if (page === "Account") {
+        var editControl = document.getElementById("edit-photo-btn");
+        var removeControl = document.getElementById("remove-btn-trash-container");
+        var avatarElement = document.getElementById("avatar-box");
+        if (editControl && removeControl) {
+            editControl.style.display = "block";
+            if (avatarElement && avatarElement.getAttribute("data-has-value") === "true") {
+                removeControl.style.display = "block";
+            }
+        }
+    }
+    var breadcrumbsElement = document.getElementById("breadcrumbs-main");
+    var breadcrumbsAccordancePage = breadcrumbsAccordance[page];
+    var hasBreadCrumbElementAndPage = breadcrumbsElement && breadcrumbsAccordancePage;
+    if (hasBreadCrumbElementAndPage) {
+        breadcrumbsElement.innerHTML = breadcrumbsAccordance[page].breadcrumbs;
+    }
+
+    if (breadcrumbsAccordancePage) {
+        var menuElement = document.getElementById(breadcrumbsAccordance[page].id);
+        if (menuElement) {
+            menuElement.classList.add("active");
+        }
+    }
+</script>
+
+<script>
+    var avatarElement = document.getElementById("avatar-box");
+    var imageInputElement = document.getElementById("image-url-input");
+    var removeAvatar = document.getElementById("remove-btn-trash-container");
+    var inputFileElement = document.getElementById("avatar-file-input-reset");
+
+    $("#remove-btn-trash-container").click(function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        resetAvatar();
+    });
+
+    function resetAvatar() {
+        avatarElement.style.backgroundImage = 'url(/images/no-avatar.jpg)';
+        removeAvatar.style.display = "none";
+        $.ajax({
+            url: '@Url.Action("RemoveUserPhoto", "Account")',
+            type: "POST",
+            data: {
+                userId: '@user.Id'
+            }
+        });
+    }
+
+</script>

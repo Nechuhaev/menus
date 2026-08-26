@@ -1,0 +1,55 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@model Menus.Web.Controllers.MyActivityPageModel;
+@inject Menus.Web.Services.UserService  UserService;
+
+@{
+    Layout = null;
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+}
+
+@foreach (UserRating rate in Model.Ratings)
+{
+    <li>
+        <figure>
+            <img src="@(!string.IsNullOrEmpty(rate.DishImageUrl) ? Img.Url(rate.DishImageUrl, Quality.Low) : "/images/question.png")" alt="Alternate Text" />
+        </figure>
+        <div class="caption">
+            <div class="review_name">@(((Menus.Abstract.Models.IUserRating)rate).DishName.Get(culture))<span>@rate.UpdateDate.ToString("dd/MM/yyyy")</span></div>
+            <div class="review_numbers">
+                <span>@rate.RestaurantName - @rate.RestaurantAddress</span>
+            </div>
+            <div class="review_rating">
+                @for (int i = 0; i < rate.Rate; i++)
+                {
+                    <img src="~/images/star_red.png" alt="Alternate Text" />
+                }
+                @for (int i = 0; i < 5 - rate.Rate; i++)
+                {
+                    <img src="~/images/star_grey.png" alt="Alternate Text" />
+                }
+            </div>
+            <p id="@rate.Id text">@rate.Text</p>
+            <a href="javascript:;" class="write-review-btn" onclick="showModal('@rate.Id')">
+
+                @if (string.IsNullOrEmpty(rate.Text))
+                {
+                    <span>@Localizer["Write"]</span>
+                }
+                else
+                {
+                    <span>@Localizer["Edit"]</span>
+                }
+                <span>@Localizer["Review"]</span>
+            </a>
+            <span class="remove-btn-trash-container" onclick="removeRate('@rate.Id')">
+                <form method="post" id="@rate.Id" asp-action="DeleteRate" style="display: none;">
+                    <input asp-for="DeleteModel.Id" class="form-control" value="@rate.Id" id="input @rate.Id" />
+                </form>
+                <a class="fa fa-trash-alt"></a>
+            </span>
+        </div>
+    </li>
+}

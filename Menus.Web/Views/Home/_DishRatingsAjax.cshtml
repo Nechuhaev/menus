@@ -1,0 +1,57 @@
+@using Menus.Abstract.Models
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@model Menus.Abstract.Models.IDishWithSeoAndRatings
+@{
+    Layout = null;
+    var restaurant = ViewData["restaurant"] as Menus.Abstract.Models.IRestaurant;
+    var ratings = ViewData["ratings"] as IEnumerable<IDishRatingWithUser>;
+    var page = (int)ViewData["page"];
+    page = page == -1 ? 0 : page;
+    ratings = ratings.Where(x => !string.IsNullOrEmpty(x.Text)).Skip(page * 12).Take(12);
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    var imgAlt = $"{Localizer["Photo"].Value} {Model.Name.Get(culture)} в {restaurant.Name}";
+}
+
+@foreach (var rating in ratings.OrderByDescending(x => x.UpdateDate))
+{
+    <li itemprop="review" itemscope itemtype="http://schema.org/Review" @(rating.UserId == User.Identity.Name ? Html.Raw("data-current-user-comment") : Html.Raw(""))>
+        <span class="hidden" itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating">
+            <span itemprop="ratingValue">@rating.Rate</span> -
+        </span>
+        <figure>
+            @if (string.IsNullOrEmpty(rating.UserPhoto))
+            {
+                <img src="~/images/no-avatar.jpg" alt="@imgAlt" title="@imgAlt" />
+            }
+            else
+            {
+                <img src="@Img.Url(rating.UserPhoto, Quality.Low)" alt="@imgAlt" title="@imgAlt" />
+            }
+        </figure>
+        <div class="caption">
+            <div class="review_name"><em itemprop="author" style="font-style: normal;">@rating.UserFirstName @rating.UserLastName</em> <span itemprop="datePublished" content="@rating.UpdateDate.ToString("yyyy-MM-dd")">@rating.UpdateDate.ToString("d")</span></div>
+            <div class="review_numbers">
+                <img src="~/images/star_yellow.png" alt="@imgAlt" title="@imgAlt" /> @rating.UserRatingsCount @Localizer["RatingCountByDishes"]
+            </div>
+            <div class="review_rating">
+                @for (var i = 1; i <= 5; i++)
+                {
+                    if (rating.Rate >= i)
+                    {
+                        <img src="~/images/star_yellow.png" alt="@imgAlt" title="@imgAlt" />
+                    }
+                    else
+                    {
+                        <img src="~/images/star_grey.png" alt="@imgAlt" title="@imgAlt" />
+                    }
+                }
+            </div>
+            <p itemprop="reviewBody">@rating.Text</p>
+        </div>
+    </li>
+}

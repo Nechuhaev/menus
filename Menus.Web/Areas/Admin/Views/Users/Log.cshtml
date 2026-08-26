@@ -1,0 +1,74 @@
+﻿@model IEnumerable<Menus.Abstract.Models.ILogItem>
+
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var page = (int)ViewData["page"];
+}
+
+<div class="site-content">
+    <main>
+
+        <div class="site-content-center">
+
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-area="Admin" asp-controller="Users" asp-action="Index">Пользователи</a></li>
+                    <li>Лог пользователя</li>
+                </ul>
+            </div>
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Лог пользователя</h2>
+                </div>
+            </div>
+
+            <table class="mainTable">
+                <thead>
+                    <tr>
+                        <th>
+                            Время
+                        </th>
+                        <th>
+                            Действие
+                        </th>
+                        <th>
+                            Детали
+                        </th>
+                        <th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr data-id="@item.Id">
+                            <td>
+                                @Html.DisplayFor(modelItem => item.Timestamp)
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.Event)
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.EventData)
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div style="text-align:center; margin-top: 30px;">
+                @if (page != 0)
+                {
+                    <a asp-route-id="@(ViewData["id"])" asp-route-page="@(page - 1)">&larr;Назад &nbsp;</a>
+                }
+                @if (Model.Count() == 20)
+                {
+                    <a asp-route-id="@(ViewData["id"])" asp-route-page="@(page + 1)">Вперёд&rarr;</a>
+                }
+            </div>
+
+        </div>
+
+    </main>
+</div>

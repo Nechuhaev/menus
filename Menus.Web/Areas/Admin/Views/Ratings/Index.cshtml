@@ -1,0 +1,204 @@
+﻿@model IEnumerable<Menus.Abstract.Models.IUserRating>
+
+@{
+    ViewData["Title"] = "Index";
+    ViewData["status"] = ViewData["status"] != null ? ViewData["status"].ToString() : "";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var page = (int)ViewData["page"];
+}
+
+<div class="site-content">
+    <main>
+
+        <div class="site-content-center">
+
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li>Отзывы</li>
+                </ul>
+            </div>
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Отзывы</h2>
+                </div>
+                <div class="title-section--right">
+                    <form method="get" class="filter-form">
+                        <div class="filter-form--title">Фильтр:</div>
+                        <p>
+                            <select class="form-control"
+                                    name="status"
+                                    asp-items='Html.GetEnumSelectList<Menus.Abstract.Models.RatingStatus>().Select(x => new SelectListItem { Text = x.Text, Value = x.Value, Selected = x.Value.ToString() == ViewData["status"].ToString()})'>
+                                <option value="">Все статусы</option>
+                            </select>
+                        </p>
+                        <input type="submit" value="Применить" id="submit" />
+                    </form>
+                </div>
+            </div>
+
+            <table class="mainTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>
+                            Оценка
+                        </th>
+                        <th>
+                            Имя Пользователя
+                        </th>
+                        <th>
+                            Дата
+                        </th>
+                        <th>
+                            Текст
+                        </th>
+                        <th>
+                            Ресторан
+                        </th>
+                        <th>
+                            Блюдо
+                        </th>
+                        <th>
+                            Статус
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr data-id="@item.Id">
+                            <td class="tableStatusIcon
+                            @(item.Status == Menus.Abstract.Models.RatingStatus.Approved ? "StatusIconOnApproval" : "" )
+                            @(item.Status == Menus.Abstract.Models.RatingStatus.Declined ? "StatusIconBlock" : "" )
+                            @(item.Status == Menus.Abstract.Models.RatingStatus.NotApproved ? "StatusIconBlock" : "" )">
+                                <span>+</span>
+                            </td>
+                            <td>
+                                <span>@item.Rate</span>
+                            </td>
+                            <td>
+                                @item.UserFirstName @item.UserLastName
+                            </td>
+                            <td>
+                                @item.UpdateDate.ToString("dd/MM/yyyy")
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.Text)
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.RestaurantName)
+                            </td>
+                            <td>
+                                @item.DishName.Get()
+                            </td>
+                            <td class="td-status">
+                                <select class="form-control" asp-for="@item.Status"
+                                        onchange="saveStatus('@item.Id', this)"
+                                        asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.RatingStatus>()"></select>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div style="text-align:center; margin-top: 30px;">
+                @if (page != 0)
+                {
+                    <a asp-route-status="@(ViewData["status"])" asp-route-page="@(page - 1)">&larr;Назад &nbsp;</a>
+                }
+                @if (Model.Count() == 10)
+                {
+                    <a asp-route-status="@(ViewData["status"])" asp-route-page="@(page + 1)">Вперёд&rarr;</a>
+                }
+            </div>
+
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Анонимные Отзывы</h2>
+                </div>
+
+            </div>
+
+            <table class="mainTable">
+                <thead>
+                    <tr>
+                        <th>
+                            Оценка
+                        </th>
+                        <th>
+                            Имя Пользователя
+                        </th>
+                        <th>
+                            Дата
+                        </th>
+                        <th>
+                            Ресторан
+                        </th>
+                        <th>
+                            Блюдо
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in (List<UserRating>)ViewData["anonymousRatings"])
+                    {
+                        <tr data-id="@item.Id">
+                            <td>
+                                <span>@item.Rate</span>
+                            </td>
+                            <td>
+                                @item.UserFirstName
+                            </td>
+                            <td>
+                                @item.UpdateDate.ToString("dd/MM/yyyy")
+                            </td>
+                            <td>
+                                @item.RestaurantName
+                            </td>
+                            <td>
+                                @item.DishName
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </div>
+
+    </main>
+</div>
+
+<script src="~/js/jquery.js"></script>
+
+<script>
+
+     function getToken() {
+        var token = '@Html.AntiForgeryToken()';
+        token = $(token).val();
+        return token;
+    }
+
+    function saveStatus(id, context) {
+        const status = $(context).val();
+         $.ajax({
+                url: "@Url.Action("ChangeRatingStatus")",
+                type: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id,
+                    status: status
+                },
+             success: () => {
+                 const iconElement = $($($(context).parent()).siblings(".tableStatusIcon"));
+                 if (iconElement) {
+                     iconElement.removeClass();
+                     iconElement.addClass("tableStatusIcon");
+                     iconElement.addClass(status === "1" ? "StatusIconOnApproval" : "StatusIconBlock");
+                 }
+             }
+            });
+    }
+</script>

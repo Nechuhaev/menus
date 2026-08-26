@@ -1,0 +1,345 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="DishSearch" xml:space="preserve">
+    <value>dish search</value>
+  </data>
+  <data name="RestarauntMenu" xml:space="preserve">
+    <value>Restaurant menu</value>
+  </data>
+  <data name="InCity" xml:space="preserve">
+    <value>of city</value>
+  </data>
+  <data name="Photo" xml:space="preserve">
+    <value>Photo</value>
+  </data>
+  <data name="Address" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="Phone" xml:space="preserve">
+    <value>Phone</value>
+  </data>
+  <data name="Kitchen" xml:space="preserve">
+    <value>Kitchen</value>
+  </data>
+  <data name="WorkHours" xml:space="preserve">
+    <value>Work hours</value>
+  </data>
+  <data name="Today" xml:space="preserve">
+    <value>Today</value>
+  </data>
+  <data name="Closed" xml:space="preserve">
+    <value>closed</value>
+  </data>
+  <data name="Mon" xml:space="preserve">
+    <value>Mon</value>
+  </data>
+  <data name="Tue" xml:space="preserve">
+    <value>Tue</value>
+  </data>
+  <data name="Wed" xml:space="preserve">
+    <value>Wed</value>
+  </data>
+  <data name="Thr" xml:space="preserve">
+    <value>Thr</value>
+  </data>
+  <data name="Fri" xml:space="preserve">
+    <value>Fri</value>
+  </data>
+  <data name="Sat" xml:space="preserve">
+    <value>Sat</value>
+  </data>
+  <data name="Sun" xml:space="preserve">
+    <value>Sun</value>
+  </data>
+  <data name="Website" xml:space="preserve">
+    <value>Website</value>
+  </data>
+  <data name="Gallery" xml:space="preserve">
+    <value>Gallery</value>
+  </data>
+  <data name="Map" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="Home" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="AddMenu" xml:space="preserve">
+    <value>add menu</value>
+  </data>
+  <data name="ViewMenu" xml:space="preserve">
+    <value>view menu</value>
+  </data>
+  <data name="AddDish" xml:space="preserve">
+    <value>add dish</value>
+  </data>
+  <data name="TopDishes" xml:space="preserve">
+    <value>Top dishes</value>
+  </data>
+  <data name="Price" xml:space="preserve">
+    <value>Price</value>
+  </data>
+  <data name="Weight" xml:space="preserve">
+    <value>Weight</value>
+  </data>
+  <data name="Rating" xml:space="preserve">
+    <value>Rating</value>
+  </data>
+  <data name="YourRate" xml:space="preserve">
+    <value>Your rate</value>
+  </data>
+  <data name="RateDish" xml:space="preserve">
+    <value>Rate dish</value>
+  </data>
+  <data name="Ratings" xml:space="preserve">
+    <value>ratings</value>
+  </data>
+  <data name="FoundError" xml:space="preserve">
+    <value>Found error</value>
+  </data>
+  <data name="HelpUsToImproveData" xml:space="preserve">
+    <value>please help us to make data accurate</value>
+  </data>
+  <data name="From" xml:space="preserve">
+    <value>from</value>
+  </data>
+  <data name="BecomeFirstWhoWillAddDish" xml:space="preserve">
+    <value>Become first one who will add dish</value>
+  </data>
+  <data name="LastMenuUpdate" xml:space="preserve">
+    <value>Last menu update</value>
+  </data>
+  <data name="AreYouAnOwner" xml:space="preserve">
+    <value>Are you an owner</value>
+  </data>
+  <data name="RegisterInOrderToHaveAccess" xml:space="preserve">
+    <value>Please register in order to have an ability to control page</value>
+  </data>
+  <data name="ShareWithFriends" xml:space="preserve">
+    <value>Share with friends</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="AllPhotos" xml:space="preserve">
+    <value>All photos</value>
+  </data>
+  <data name="MbYouWillBeIntrestedIn" xml:space="preserve">
+    <value>May be you intersting for you</value>
+  </data>
+  <data name="RatingsCount" xml:space="preserve">
+    <value>Ratings count</value>
+  </data>
+  <data name="PleaseInformUsAboutIncorrectInfo" xml:space="preserve">
+    <value>Please inform us about incorrect info</value>
+  </data>
+  <data name="IncorrectInfo" xml:space="preserve">
+    <value>Incorrect info</value>
+  </data>
+  <data name="EnterEmail" xml:space="preserve">
+    <value>Enter Email</value>
+  </data>
+  <data name="Send" xml:space="preserve">
+    <value>Send</value>
+  </data>
+  <data name="OnlyRegisteredUser" xml:space="preserve">
+    <value>Olny registered user</value>
+  </data>
+  <data name="CanApplyThisAction" xml:space="preserve">
+    <value>Can apply this action</value>
+  </data>
+  <data name="Login" xml:space="preserve">
+    <value>Log in</value>
+  </data>
+  <data name="Signup" xml:space="preserve">
+    <value>Sign up</value>
+  </data>
+  <data name="AddReview" xml:space="preserve">
+    <value>Add review</value>
+  </data>
+  <data name="ThankYouForYourRate" xml:space="preserve">
+    <value>Thank you for your rate</value>
+  </data>
+  <data name="YouHelpedOtherUsers" xml:space="preserve">
+    <value>You helped other users</value>
+  </data>
+  <data name="ToMakeRightChoice" xml:space="preserve">
+    <value>to make right choice</value>
+  </data>
+  <data name="Continue" xml:space="preserve">
+    <value>continue</value>
+  </data>
+  <data name="ThankYou" xml:space="preserve">
+    <value>thank you</value>
+  </data>
+  <data name="WeWillContactYou" xml:space="preserve">
+    <value>we'll contact you</value>
+  </data>
+  <data name="NearestTime" xml:space="preserve">
+    <value>nearest time</value>
+  </data>
+  <data name="Directions" xml:space="preserve">
+    <value>directions</value>
+  </data>
+  <data name="AreYouSure" xml:space="preserve">
+    <value>Are you sure</value>
+  </data>
+  <data name="YouWantToDeleteReview" xml:space="preserve">
+    <value>you want to delete review</value>
+  </data>
+  <data name="Yes" xml:space="preserve">
+    <value>yes</value>
+  </data>
+  <data name="No" xml:space="preserve">
+    <value>no</value>
+  </data>
+  <data name="AddMore" xml:space="preserve">
+    <value>add one more</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>delete</value>
+  </data>
+  <data name="NoItems" xml:space="preserve">
+    <value>Not items found</value>
+  </data>
+  <data name="MenuSearch" xml:space="preserve">
+    <value>search by dishes in menu</value>
+  </data>
+  <data name="MetaTitle" xml:space="preserve">
+    <value>Restaurant menu {0} in the city {1}, customer reviews ⭐ TipMyMenu</value>
+  </data>
+  <data name="MetaDescription" xml:space="preserve">
+    <value>Customer reviews about the restaurant {0}, it’s menu and dishes, address in {1} city, phone number, prices 🍽️ TipMyMenu Ukraine ✅ Unique electronic menu</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="AdditionalServices" xml:space="preserve">
+    <value>Additional Services</value>
+  </data>
+  <data name="Reserv" xml:space="preserve">
+    <value>Reserv</value>
+  </data>
+  <data name="RClosed" xml:space="preserve">
+    <value>closed</value>
+  </data>
+  <data name="RestaurantClosed" xml:space="preserve">
+    <value>Restaurant</value>
+  </data>
+</root>

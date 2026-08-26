@@ -1,0 +1,265 @@
+﻿
+@{
+    //ViewData["Title"] = "Register";
+    //Layout = "~/Areas/Restaurants/Views/Shared/_Layout.cshtml";
+}
+
+
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a href="#">Главная</a></li>
+                <li>Регистрация</li>
+            </ul>
+        </div>
+
+        <div class="site-content-wrapper">
+
+            <h1>Регистрация</h1>
+            <p class="text_01"><span>*</span> поля обязательные к заполнению</p>
+
+            <div class="site-content-columns">
+                <div class="site-content-left">
+                    <h2>личные данные</h2>
+                    <form class="personal_data">
+                        <p>
+                            <label for="name">Имя <span>*</span></label>
+                            <input type="text" id="name" />
+                        </p>
+                        <p>
+                            <label for="lastName">Фамилия <span>*</span></label>
+                            <input type="text" id="lastName" />
+                        </p>
+                        <p>
+                            <label for="phone">Телефон <span>*</span></label>
+                            <input type="tel" id="phone" />
+                        </p>
+                        <p>
+                            <label for="email">E-mail <span>*</span></label>
+                            <input type="email" id="email" />
+                        </p>
+                        <p>
+                            <label for="password">Пароль <span>*</span></label>
+                            <input type="password" id="password" />
+                        </p>
+                        <p class="submit hidden">
+                            <input type="submit" value="подтвердить" />
+                        </p>
+                    </form>
+                </div>
+
+                <div class="site-content-right">
+                    <div class="sms_confirm sms_confirm_send">
+                        <h2>SMS - подтверждение</h2>
+                        <p>
+                            Для того, чтобы убедиться, что все работает, мы отправим Вам SMS
+                            с кодом подтверждения
+                        </p>
+                        <a href="#" class="btnDefault" id="get-sms-code">Получить код</a>
+                    </div>
+                    <div class="sms_confirm sms_confirm_input hidden">
+                        <h2>SMS - подтверждение</h2>
+                        <p>
+                            Вставьте код, который мы только что отправили Bам через SMS
+                        </p>
+                        <form class="sms_form_confirm">
+                            <div class="sms_form_confirm--columns">
+                                <p>
+                                    <input type="number" data-id="0" />
+                                    <input type="number" data-id="1" />
+                                </p>
+                                <p>
+                                    <input type="number" data-id="2" />
+                                    <input type="number" data-id="3" />
+                                </p>
+                                <p>
+                                    <a href="#" class="resend">Отправить еще раз</a>
+                                </p>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="sms_confirm sms_confirm_done hidden">
+                        <h2>SMS - подтверждение</h2>
+                        <p>
+                            Телефон подтверждён
+                        </p>
+                        <form class="sms_form_confirm">
+                            <p>
+                                <input type="checkbox" name="sms_form_confirm_checkbox" value="" id="sms_form_confirm_checkbox" />
+                                <label for="sms_form_confirm_checkbox">Я принимаю <a href="#">условия</a></label>
+                            </p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+</div>
+
+@section Scripts {
+    <script src="~/js/jquery.js"></script>
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        $("#phone").change(function () {
+            var val = $(this).val();
+            if (val[0] === "0") {
+                val = "+38" + val;
+                $(this).val(val);
+            }
+
+            if (val[0] !== "+") {
+                val = "+" + val;
+                $(this).val(val);
+            }
+        });
+
+        window.userId = "";
+
+        $("#get-sms-code").click(function (e) {
+            e.preventDefault();
+
+            var data = {};
+            data["__RequestVerificationToken"] = getToken();
+            data.name = $("#name").val();
+            data.lastName = $("#lastName").val();
+            data.email = $("#email").val();
+            data.phone = $("#phone").val();
+            //data.password = $("#password").val();
+            //if ($("#remember-sign-in").is(":checked")) data.remember = "on";
+
+            $.ajax({
+                url: "@Url.Action("Register")",
+                method: "POST",
+                data: data
+            })
+                .done(function (data) {
+                    window.userId = data.id;
+                    // a186f719-a1ad-44cb-aa4d-d5c81d33fa23
+                    $(".sms_confirm_send").addClass("hidden");
+                    $(".sms_confirm_input").removeClass("hidden");
+                 })
+                .fail(function (data) {
+                    if (data.responseJSON.error === "username") alert("Bad email or phone");
+                    else if (data.responseJSON.error === "in_use") alert("Already registered");
+                    else if (data.responseJSON.error === "exist")
+                    {
+                        window.userId = data.responseJSON.id;
+                        $(".sms_confirm_send").addClass("hidden");
+                        $(".sms_confirm_input").removeClass("hidden");
+                        $($(".sms_form_confirm input[type=number]").get(0)).focus();
+                    }
+                    else {
+                        window.Logger.logTextError("Register error for email = " + $("#username").val() + ", phone = " + $("#phone").val());
+                    }
+                 });
+        });
+
+        $(".resend").click(function (e) {
+            e.preventDefault();
+
+            $.ajax({
+                url: "@Url.Action("ResendCode")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    userId: window.userId
+                }
+                })
+                .done(function (data) {
+                    $(".sms_form_confirm input[type=number]").each(function () {
+                        $(this).val("");
+                    });
+                 })
+                .fail(function (data) {
+                    if (data.responseJSON.error === "in_use") alert("Already registered");
+                    else {
+                        window.Logger.logTextError("Resend code error for email = " + $("#username").val() + ", phone = " + $("#phone").val());
+                    }
+                 });
+        });
+
+        $(".sms_form_confirm input[type=number]").keyup(function () {
+            console.log(this);
+            var id = parseInt($(this).attr("data-id"));
+            console.log(id);
+
+            if (id < 3) { 
+                var input = $($(".sms_form_confirm input[type=number]").get(id + 1));
+                input.val("");
+                input.focus();
+            }
+            else {
+                var code = "";
+                $(".sms_form_confirm input[type=number]").each(function () {
+                    code += $(this).val();
+                });
+
+                $.ajax({
+                    url: "@Url.Action("CheckCode")",
+                    method: "POST",
+                    data: {
+                        userId: window.userId,
+                        code: code,
+                        "__RequestVerificationToken": getToken()
+                    }
+                })
+                .done(function (data) {
+                    $(".sms_confirm_input").addClass("hidden");
+                    $(".sms_confirm_done").removeClass("hidden");
+                    $(".personal_data .submit").removeClass("hidden");
+                 })
+                .fail(function (data) {
+                    if (data.responseJSON.error === "wrong_code") {
+                        alert("Wrong code");
+                        $(".sms_form_confirm input[type=number]").each(function () {
+                            $(this).val("");
+                        });
+                    }
+                    else if (data.responseJSON.error === "in_use") alert("Already registered");
+                    else {
+                        window.Logger.logTextError("Phone confirmation error for email = " + $("#username").val() + ", phone = " + $("#phone").val());
+                    }
+                 });
+            }
+        });
+
+        $(".personal_data").submit(function (e) {
+            e.preventDefault();
+
+            if (!$("#sms_form_confirm_checkbox").is(":checked"))
+            {
+                alert("Accept terms&conditions first");
+                return;
+            }
+
+            $.ajax({
+                    url: "@Url.Action("FinishRegister")",
+                    method: "POST",
+                    data: {
+                        userId: window.userId,
+                        password: $("#password").val(),
+                        "__RequestVerificationToken": getToken()
+                    }
+                })
+                .done(function (data) {
+                    location.href = "/";
+                 })
+                .fail(function (data) {
+                    if (data.responseJSON.error === "in_use") alert("Already registered");
+                    else {
+                        window.Logger.logTextError("Finish register error for email = " + $("#username").val() + ", phone = " + $("#phone").val());
+                    }
+                 });
+        });
+    </script>
+}

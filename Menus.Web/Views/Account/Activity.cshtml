@@ -1,0 +1,233 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@model Menus.Web.Controllers.MyActivityPageModel;
+@inject Menus.Web.Services.UserService  UserService;
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+}
+
+@await Html.PartialAsync("_ProfileHeader")
+
+<div class="profile_content">
+    <div class="wrapper">
+
+        @if (!UserService.IsMobileUser(Context.Request))
+        {
+            <div class="sidebar-container">
+                <div class="sidebar-container-header">@Localizer["MyProfile"]</div>
+                <div class="sidebar-menu-container">
+                    <div class="sidebar-menu-item" id="profile">
+                        <a asp-action="Index" asp-controller="Account"><i class="fa fa-user"></i><span>@Localizer["MyProfile"]</span></a>
+                    </div>
+                    <div class="sidebar-menu-item current" id="activity">
+                        <a asp-action="Activity" asp-controller="Account"><i class="fa fa-star"></i><span>@Localizer["MyActivity"]</span></a>
+                    </div>
+                    <div class="sidebar-menu-item" id="password">
+                        <a asp-action="Password" asp-controller="Account"><i class="fa fa-unlock-alt"></i><span>@Localizer["Password"]</span></a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="activity-container account-container">
+            <h3>@Localizer["MyActivity"]</h3>
+            <div class="reviews_content">
+                <ul class="reviews_list" data-load-more-container>
+                    @foreach (UserRating rate in Model.Ratings)
+                    {
+                        <li>
+                            <figure>
+                                <img src="@(!string.IsNullOrEmpty(rate.DishImageUrl) ? Img.Url(rate.DishImageUrl, Quality.Low) : "/images/question.png")" alt="Alternate Text" />
+                            </figure>
+                            <div class="caption">
+                                <div class="review_name">@(((Menus.Abstract.Models.IUserRating)rate).DishName.Get(culture))<span>@rate.UpdateDate.ToString("dd/MM/yyyy")</span></div>
+                                <div class="review_numbers">
+                                    <span>@rate.RestaurantName - @rate.RestaurantAddress</span>
+                                </div>
+                                <div class="review_rating">
+                                    @for (int i = 0; i < rate.Rate; i++)
+                                    {
+                                        <img src="~/images/star_red.png" alt="Alternate Text" />
+                                    }
+                                    @for (int i = 0; i < 5 - rate.Rate; i++)
+                                    {
+                                        <img src="~/images/star_grey.png" alt="Alternate Text" />
+                                    }
+                                </div>
+                                <p id="@rate.Id text">@rate.Text</p>
+                                <a href="javascript:;" class="write-review-btn" onclick="showModal('@rate.Id')">
+
+                                    @if (rate.Text == null || rate.Text == "")
+                                    {
+                                        <span>@Localizer["Write"]</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@Localizer["Edit"]</span>
+                                    }
+                                    <span>@Localizer["Review"]</span>
+                                </a>
+                                <span class="remove-btn-trash-container" onclick="removeRate('@rate.Id')">
+                                    <form method="post" id="@rate.Id" asp-action="DeleteRate" style="display: none;">
+                                        <input asp-for="DeleteModel.Id" class="form-control" value="@rate.Id" id="input @rate.Id" />
+                                    </form>
+                                    <a class="fa fa-trash-alt"></a>
+                                </span>
+                            </div>
+                        </li>
+                    }
+                </ul>
+                @if (Model.Ratings.Count() == 12)
+                {
+                    <div class="review_link_all">
+                        <a href="#" data-load-more>@Localizer["LoadMore"]</a>
+                    </div>
+                }
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="modal-backdrop" id="editRatingModal">
+    <div class="modal-blackout"></div>
+    <div class="modal-content">
+        <div class="modal-inner">
+            <span class="modal-backdrop-close" onclick="closeModal()"></span>
+            <div class="modal-header">
+                <h3>@Localizer["EditReview"]</h3>
+            </div>
+            <div class="modal-body">
+                <form asp-action="EditRatingTextAsync" method="post" id="editableRatingForm">
+                    <textarea asp-for="EditableRate.Text" rows="10" class="form-control" id="editableRatingText"></textarea>
+                    <input asp-for="EditableRate.Id" class="form-control" type="hidden" value="" id="editableRatingId" />
+                </form>
+            </div>
+            <div class="modal-footer content-space-between">
+                <button class="classic-btn" type="button" onclick="submitFormClicked()">@Localizer["Save"]</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="popUpBlock accountActivity">
+    <div class="popUpCloser"></div>
+    <div class="popUpBlock_inner">
+        <!-- PopUp delete -->
+
+        <div class="popUpWindow popUpConfirmationWindow">
+            <span class="popUp_close"></span>
+            <div class="popUpTitle">@Localizer["AreYouSure"]<br />@Localizer["YouWantToDeleteReview"]?</div>
+
+            <div class="are_you_sure">
+                <a href="#" class="btn_yes">@Localizer["Yes"]</a>
+                <a href="#" class="btn_no">@Localizer["No"]</a>
+            </div>
+
+            <input type="hidden" name="deleteRateId" value="" />
+        </div>
+    </div>
+</div>
+
+@await Html.PartialAsync("_Footer")
+
+@section Scripts
+    {
+    <script>
+
+        const $activityPopup = jQuery('.popUpBlock.accountActivity');
+        const $activityPopupWindow = jQuery('.popUpBlock .popUpConfirmationWindow');
+        const modalElement = document.getElementById("editRatingModal");
+        const textArea = document.querySelector("#editRatingModal textarea");
+
+        function removeRate(rateId) {
+            $activityPopup.addClass('visible');
+            $activityPopupWindow.fadeIn();
+            $("[name=deleteRateId]").val(rateId);
+        }
+
+        $(".are_you_sure .btn_no, .popUpCloser, .popUp_close").click(function (e) {
+            e.preventDefault();
+
+            $activityPopup.removeClass('visible');
+            $activityPopupWindow.hide();
+        });
+
+        $(".are_you_sure .btn_yes").click(function (e) {
+            e.preventDefault();
+
+            var rateId = $("[name=deleteRateId]").val();
+
+            $activityPopup.removeClass('visible');
+            $activityPopupWindow.hide();
+
+            var removeForm = document.getElementById(rateId);
+            if (removeForm) {
+                removeForm.submit();
+            }
+        });
+
+        var dataLoadMorePage = 0;
+        $("[data-load-more]").click(function (e) {
+            e.preventDefault();
+            dataLoadMorePage++;
+            $("[data-load-more]").addClass("hidden");
+
+            $.ajax({
+                url: location.url,
+                type: "GET",
+                data: {
+                    page: dataLoadMorePage
+                },
+                success: function (data) {
+                    if (data.length > 20) {
+                        $("[data-load-more-container]").append(data);
+                        $("[data-load-more]").removeClass("hidden");
+                    }
+                }
+            });
+        });
+
+        function submitFormClicked() {
+            if (modalElement) {
+                var editableRatingForm = document.getElementById("editableRatingForm");
+                modalElement.style.display = "none";
+                if (editableRatingForm) {
+                    editableRatingForm.submit();
+                }
+            }
+        }
+
+        function closeModal() {
+            if (modalElement) {
+                modalElement.style.display = "none";
+            }
+        }
+
+        function showModal(id) {
+            if (modalElement) {
+                var editableRatingText = document.getElementById("editableRatingText");
+                var editableRatingTextSource = document.getElementById(`${id} text`);
+                var editableRatingId = document.getElementById("editableRatingId");
+                if (editableRatingText) {
+                    editableRatingText.value = editableRatingTextSource.innerHTML;
+                }
+                if (editableRatingId) {
+                    editableRatingId.value = id;
+                }
+                modalElement.style.display = "block";
+                textArea.focus();
+            }
+        }
+
+    </script>
+}
+
+<script>
+        var cityId = "@ViewData["selectedCity"]";
+</script>
+<script src="~/js/typeahead-inner.js"></script>

@@ -1,0 +1,48 @@
+@font-face {
+    font-family: 'Avanti';
+    src: url('AvantiBold.eot');
+    src: url('AvantiBold.eot?#iefix') format('embedded-opentype'),
+        url('AvantiBold.woff2') format('woff2'),
+        url('AvantiBold.woff') format('woff'),
+        url('AvantiBold.ttf') format('truetype'),
+        url('AvantiBold.svg#AvantiBold') format('svg');
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Avanti';
+    src: url('Avanti.eot');
+    src: url('Avanti.eot?#iefix') format('embedded-opentype'),
+        url('Avanti.woff2') format('woff2'),
+        url('Avanti.woff') format('woff'),
+        url('Avanti.ttf') format('truetype'),
+        url('Avanti.svg#Avanti') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Avanti';
+    src: url('AvantiItalic.eot');
+    src: url('AvantiItalic.eot?#iefix') format('embedded-opentype'),
+        url('AvantiItalic.woff2') format('woff2'),
+        url('AvantiItalic.woff') format('woff'),
+        url('AvantiItalic.ttf') format('truetype'),
+        url('AvantiItalic.svg#AvantiItalic') format('svg');
+    font-weight: normal;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Avanti';
+    src: url('AvantiBoldItalic.eot');
+    src: url('AvantiBoldItalic.eot?#iefix') format('embedded-opentype'),
+        url('AvantiBoldItalic.woff2') format('woff2'),
+        url('AvantiBoldItalic.woff') format('woff'),
+        url('AvantiBoldItalic.ttf') format('truetype'),
+        url('AvantiBoldItalic.svg#AvantiBoldItalic') format('svg');
+    font-weight: bold;
+    font-style: italic;
+}
+

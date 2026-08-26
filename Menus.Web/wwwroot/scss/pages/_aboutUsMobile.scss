@@ -1,0 +1,336 @@
+﻿@import "https://use.fontawesome.com/releases/v5.6.3/css/all.css";
+
+.disable_on_desktop {
+
+    @media (min-width: 992px) {
+        display: none !important;
+    }
+}
+
+.disable_on_mobile {
+
+    @media (max-width: 991px) {
+        display: none !important;
+    }
+}
+
+.about_us_area {
+    display: flex;
+    flex-direction: column-reverse;
+    text-align: center;
+    margin: 0 0 mvw(10) 0;
+
+    .about_us_left {
+        width: 100%;
+    }
+
+    .about_us_right {
+        margin: mvw(-22) mvw(-40) 0 mvw(-40);
+
+        img {
+            width: 100%;
+            vertical-align: top;
+        }
+    }
+
+    .about_us_content {
+        background: #fff;
+        position: relative;
+        width: mvw(610);
+        margin: mvw(-40) auto 0 auto;
+        padding: mvw(36) mvw(80) mvw(27) mvw(80);
+        box-sizing: border-box;
+        line-height: mvw(30);
+        font-size: mvw(26);
+
+        figure {
+            margin: 0 0 mvw(9) 0;
+
+            img {
+                width: mvw(350);
+            }
+        }
+
+        span {
+            display: block;
+        }
+    }
+}
+
+
+
+.about_us_text {
+    position: relative;
+    width: auto;
+    margin: 0 auto mvw(79) auto;
+    padding: mvw(61) mvw(25) 0 mvw(25);
+    letter-spacing: mvw(-0.5);
+    line-height: mvw(40);
+    font-size: mvw(26);
+    text-align: justify;
+    color: #000;
+
+    &:before {
+        background: #000;
+        display: block;
+        width: 1px;
+        height: mvw(40);
+        overflow: hidden;
+        position: absolute;
+        top: 0;
+        left: 50%;
+        content: '';
+    }
+}
+
+
+
+.about_us_services {
+
+    h2, h1 {
+        margin: 0 0 mvw(54) 0;
+        text-align: center;
+    }
+}
+
+/*.swiper-container {
+    width: 100%;
+    height: 100%;
+}
+
+.swiper-slide {
+    text-align: center;
+    font-size: 18px;
+    background: #fff;
+    width: 33.3333%;
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    -webkit-justify-content: center;
+    justify-content: center;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+}
+
+.swiper-slide:nth-child(2n) {
+    width: 33.3333%;
+}
+
+.swiper-slide:nth-child(3n) {
+    width: 33.3333%;
+}*/
+
+.swiper-about-wrapper {
+    position: relative;
+    margin: 0 mvw(-40) 0 mvw(-40);
+    padding: 0 0 mvw(78) 0;
+
+    .swiper-about-pagination {
+        position: absolute;
+        right: 0;
+        bottom: mvw(33);
+        left: 0;
+        text-align: center;
+
+        .swiper-pagination-bullet {
+            background: #eaeaea;
+            display: inline-block;
+            width: mvw(20);
+            height: mvw(20);
+            overflow: hidden;
+            margin: 0 mvw(10);
+            padding: 0;
+            opacity: 1;
+            vertical-align: top;
+
+            &.swiper-pagination-bullet-active {
+                background: #ffb80e;
+            }
+        }
+    }
+}
+
+.swiper-about {
+
+    .swiper-wrapper {
+
+        .swiper-slide {
+            display: block;
+            text-align: left;
+
+            .swiper-caption {
+                min-width: mvw(335);
+                padding: 0 0 0 mvw(35);
+                box-sizing: border-box;
+                line-height: mvw(30);
+                font-size: mvw(26);
+                color: #7b7a7a;
+            }
+
+            em {
+                display: block;
+                margin: 0 0 mvw(24) 0;
+                line-height: mvw(50);
+                font-size: mvw(48);
+                color: #ffb80e;
+            }
+
+            strong {
+                display: block;
+                margin: 0 0 mvw(12) 0;
+                line-height: mvw(28);
+                font-size: mvw(26);
+                font-weight: 700;
+                text-transform: uppercase;
+                color: #000;
+            }
+
+            span {
+                display: block;
+            }
+        }
+    }
+}
+
+
+
+.about_us_block_1 {
+    background: url(../../images/about_us_bg_mobile_1.jpg) no-repeat 50% 100%;
+    background-size: cover;
+    margin: 0 mvw(-40) mvw(121) mvw(-40);
+    padding: mvw(62) mvw(125) mvw(77) mvw(125);
+    letter-spacing: vw(-0.5);
+    line-height: mvw(40);
+    font-size: mvw(30);
+    font-weight: 400;
+    text-align: center;
+    color: #fff;
+
+    p {
+        margin: 0 0 mvw(30) 0;
+    }
+}
+
+.btn_more {
+    background: #ffb80e;
+    display: inline-block;
+    margin: 0;
+    padding: mvw(15) mvw(34) mvw(15) mvw(34);
+    border-radius: mvw(26);
+    vertical-align: top;
+    letter-spacing: normal;
+    line-height: mvw(30);
+    font-size: mvw(26);
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #000;
+}
+
+
+
+.about_us_info {
+    text-align: center;
+
+    h2 {
+        margin: 0 0 mvw(46) 0;
+        line-height: mvw(48);
+
+        span {
+            display: block;
+        }
+    }
+}
+
+
+
+.about_us_mobile_info {
+    margin: 0;
+    padding: 0 0 mvw(32) 0;
+
+    li {
+        margin: 0 0 mvw(54) 0;
+        padding: 0;
+        list-style: none;
+        line-height: mvw(30);
+        font-size: mvw(26);
+        text-align: center;
+        color: #7b7a7a;
+
+        figure {
+            position: relative;
+            margin: 0 0 mvw(56) 0;
+            padding: 0;
+
+            &:before {
+                display: block;
+                position: absolute;
+                right: 50%;
+                bottom: 0;
+                margin: 0 mvw(-25) 0 0;
+                width: 0;
+                height: 0;
+                border-style: solid;
+                border-width: 0 mvw(25) mvw(29) mvw(25);
+                border-color: transparent transparent #ffffff transparent;
+                content: '';
+            }
+
+            img {
+                width: 100%;
+                vertical-align: top;
+            }
+        }
+
+        em {
+            display: block;
+            margin: 0 0 mvw(18) 0;
+            line-height: mvw(38);
+            font-size: mvw(36);
+            font-style: normal;
+            color: #ffb80e;
+        }
+
+        strong {
+            display: block;
+            margin: 0 0 mvw(20) 0;
+            line-height: mvw(30);
+            font-size: mvw(26);
+            text-transform: uppercase;
+            color: #000;
+        }
+
+        span {
+            display: block;
+        }
+    }
+}
+
+
+
+.about_us_block_2 {
+    background: url(../../images/about_us_bg_mobile_2.jpg) no-repeat 50% 0%;
+    background-size: cover;
+    margin: 0 mvw(-40) mvw(-50) mvw(-40);
+    padding: mvw(62) mvw(60) mvw(70) mvw(60);
+    letter-spacing: mvw(-0.5);
+    line-height: mvw(40);
+    font-size: mvw(30);
+    font-weight: normal;
+    text-align: center;
+    color: #000;
+
+    p {
+        margin: 0 0 mvw(30) 0;
+
+        strong {
+            display: block;
+            padding: mvw(10) 0 0 0;
+            text-transform: uppercase;
+        }
+    }
+}

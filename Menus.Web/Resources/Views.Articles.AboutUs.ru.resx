@@ -1,0 +1,314 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+	<xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+		<xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+		<xsd:element name="root" msdata:IsDataSet="true">
+			<xsd:complexType>
+				<xsd:choice maxOccurs="unbounded">
+					<xsd:element name="metadata">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" />
+							</xsd:sequence>
+							<xsd:attribute name="name" use="required" type="xsd:string" />
+							<xsd:attribute name="type" type="xsd:string" />
+							<xsd:attribute name="mimetype" type="xsd:string" />
+							<xsd:attribute ref="xml:space" />
+						</xsd:complexType>
+					</xsd:element>
+					<xsd:element name="assembly">
+						<xsd:complexType>
+							<xsd:attribute name="alias" type="xsd:string" />
+							<xsd:attribute name="name" type="xsd:string" />
+						</xsd:complexType>
+					</xsd:element>
+					<xsd:element name="data">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+								<xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+							</xsd:sequence>
+							<xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+							<xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+							<xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+							<xsd:attribute ref="xml:space" />
+						</xsd:complexType>
+					</xsd:element>
+					<xsd:element name="resheader">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+							</xsd:sequence>
+							<xsd:attribute name="name" type="xsd:string" use="required" />
+						</xsd:complexType>
+					</xsd:element>
+				</xsd:choice>
+			</xsd:complexType>
+		</xsd:element>
+	</xsd:schema>
+	<resheader name="resmimetype">
+		<value>text/microsoft-resx</value>
+	</resheader>
+	<resheader name="version">
+		<value>2.0</value>
+	</resheader>
+	<resheader name="reader">
+		<value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<resheader name="writer">
+		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<data name="Home" xml:space="preserve">
+    <value>Главная</value>
+  </data>
+	<data name="MetaTitle" xml:space="preserve">
+		<value>О сервисе Tip My Menu (Тип Май Меню) ⭐ Чем мы можем помочь вам</value>
+	</data>
+	<data name="MetaDescription" xml:space="preserve">
+		<value>Все о ТипМайМеню - как работает сервис, чем может быть полезен посетителям и владельцам ресторанов 🍽️ TipMyMenu (ТипМайМеню) ✅ Поиск по ресторанам, меню, блюдам. Электронное меню с оценкой каждого блюда. Лучшие, ближайшие заведения возле вас!</value>
+	</data>
+	<data name="MetaH1" xml:space="preserve">
+		<value>TipMyMenu</value>
+	</data>
+	<data name="AboutUs" xml:space="preserve">
+		<value>О нас</value>
+	</data>
+	<data name="EatWriteShare" xml:space="preserve">
+		<value>Ешь пиши делись
+Мы ведем диалог с ресторатором и гостем одновременно. 
+Мы на одной волне с тобой</value>
+	</data>
+	<data name="AboutUsText" xml:space="preserve">
+		<value>Что заказать? А будет ли это вкусно? Понравится ли угощение моим партнерам? Наш сервис поможет тебе уверенно делать выбор в ресторане. Рейтинг хитовых позиций меню города составлен на основании предпочтений реальных людей. Они уже пробовали эти блюда и помогли нам составить чарт лучших. Не знаешь, что выбрать? Просто заказывай лучшее</value>
+	</data>
+	<data name="YouCan" xml:space="preserve">
+		<value>с tipmymenu ты можешь</value>
+	</data>
+	<data name="Find" xml:space="preserve">
+		<value>Найти</value>
+	</data>
+	<data name="InWhichRestaurant" xml:space="preserve">
+		<value>в каком ресторане</value>
+	</data>
+	<data name="ToEat" xml:space="preserve">
+		<value>съесть то,</value>
+	</data>
+	<data name="WhatYouWant" xml:space="preserve">
+		<value>что хочется сейчас</value>
+	</data>
+	<data name="ChooseDish" xml:space="preserve">
+		<value>Выбрать блюдо</value>
+	</data>
+	<data name="ByRating" xml:space="preserve">
+		<value>по его рейтингу</value>
+	</data>
+	<data name="FromGuests" xml:space="preserve">
+		<value>от гостей, которые</value>
+	</data>
+	<data name="AlreadyVisited" xml:space="preserve">
+		<value>уже посетили</value>
+	</data>
+	<data name="ThisInstitution" xml:space="preserve">
+		<value>это заведение</value>
+	</data>
+	<data name="Familiarize" xml:space="preserve">
+		<value>Ознакомиться</value>
+	</data>
+	<data name="RestaurantMenu" xml:space="preserve">
+		<value>с меню ресторана,</value>
+	</data>
+	<data name="WhereAreYou" xml:space="preserve">
+		<value>куда ты</value>
+	</data>
+	<data name="Going" xml:space="preserve">
+		<value>собираешься</value>
+	</data>
+	<data name="RateTheDish" xml:space="preserve">
+		<value>Оценить блюдо</value>
+	</data>
+	<data name="WhichYouTried" xml:space="preserve">
+		<value>которое ты попробовал,</value>
+	</data>
+	<data name="AddIt" xml:space="preserve">
+		<value>а также добавить его</value>
+	</data>
+	<data name="PhotoAndShare" xml:space="preserve">
+		<value>фото и поделиться</value>
+	</data>
+	<data name="AddToService" xml:space="preserve">
+		<value>Добавить в сервис</value>
+	</data>
+	<data name="Institution" xml:space="preserve">
+		<value>заведение, которое мы</value>
+	</data>
+	<data name="WeMissed" xml:space="preserve">
+		<value>по досадной случайности упустили</value>
+	</data>
+	<data name="OpinionOrComment" xml:space="preserve">
+		<value>мнением или оставить комментарий</value>
+	</data>
+	<data name="AboutUsBlock1" xml:space="preserve">
+		<value>Если ты устал невкусно есть в ресторанах, просто регистрируйся и наслаждайся вместе с нами</value>
+	</data>
+	<data name="Register" xml:space="preserve">
+		<value>зарегистрироваться</value>
+	</data>
+	<data name="AboutUsInfo1" xml:space="preserve">
+		<value>Наш сервис также будет очень </value>
+	</data>
+	<data name="AboutUsInfo2" xml:space="preserve">
+		<value>полезен владельцам </value>
+	</data>
+	<data name="AboutUsInfo3" xml:space="preserve">
+		<value>и представителям ресторанов </value>
+	</data>
+	<data name="FullyControl" xml:space="preserve">
+		<value>Полностью управлять</value>
+	</data>
+	<data name="YourReputation" xml:space="preserve">
+		<value>своей репутацией</value>
+	</data>
+	<data name="OnOurResourse" xml:space="preserve">
+		<value>на нашем ресурсе, контролируя</value>
+	</data>
+	<data name="GetRealFeedback" xml:space="preserve">
+		<value>Получить реальный фидбек гостей</value>
+	</data>
+	<data name="AboutIndividualPositions" xml:space="preserve">
+		<value>по отдельным позициям меню</value>
+	</data>
+	<data name="AndOptimizeIt" xml:space="preserve">
+		<value>и оптимизировать его</value>
+	</data>
+	<data name="DiscoverStarDishes" xml:space="preserve">
+		<value>узнать свои «звездные» блюда,</value>
+	</data>
+	<data name="ImprovePositions" xml:space="preserve">
+		<value>улучшить позиции, которые требуют доработки, вывести из меню неудачные,</value>
+	</data>
+	<data name="NotRemove" xml:space="preserve">
+		<value>а также не убирать те, на которые</value>
+	</data>
+	<data name="YourProfile" xml:space="preserve">
+		<value>профиль своего заведения</value>
+	</data>
+	<data name="GetDirectAccess" xml:space="preserve">
+		<value>Получить прямой доступ к своей</value>
+	</data>
+	<data name="TargetAudiency" xml:space="preserve">
+		<value>целевой аудитории и инструменты взаимодействия с ней</value>
+	</data>
+	<data name="FirstImpression" xml:space="preserve">
+		<value>Все мы знаем, что первое впечатление</value>
+	</data>
+	<data name="HighlightYour" xml:space="preserve">
+		<value>можно произвести только один раз. Выделяйте свои «звездные»</value>
+	</data>
+	<data name="GuestsAreComing" xml:space="preserve">
+		<value>ходят ваши гости</value>
+	</data>
+	<data name="GetDirectAccessMob" xml:space="preserve">
+		<value>Получить прямой доступ в своей целевой</value>
+	</data>
+	<data name="AudiencyAndTools" xml:space="preserve">
+		<value>аудитории и инструменты</value>
+	</data>
+	<data name="InteractionWithIt" xml:space="preserve">
+		<value>взаимодействия с ней</value>
+	</data>
+	<data name="FirstImpressionMob" xml:space="preserve">
+		<value>Все мы знаем, что первое впечатление можно</value>
+	</data>
+	<data name="HighlightYourMob" xml:space="preserve">
+		<value>произвести только один раз. Выделяйте свои</value>
+	</data>
+	<data name="GuestWillComeBackMob" xml:space="preserve">
+		<value>«звездные» блюда и новый гость всегда вернется!</value>
+	</data>
+	<data name="GuestWillComeBack" xml:space="preserve">
+		<value>блюда и новый гость всегда вернется!</value>
+	</data>
+	<data name="DiscoverStarDishesMob" xml:space="preserve">
+		<value>узнать свои «звездные» блюда, улучшить позиции,</value>
+	</data>
+	<data name="ImprovePositionsMob" xml:space="preserve">
+		<value>которые требуют доработки, вывести из меню</value>
+	</data>
+	<data name="NotRemoveMob" xml:space="preserve">
+		<value>неудачные, а также не убирать те, на которые</value>
+	</data>
+	<data name="AboutUsBlock2" xml:space="preserve">
+		<value>Профиль вашего ресторана будет в нашем сервисе по умолчанию,</value>
+	</data>
+	<data name="AboutUsBlock3" xml:space="preserve">
+		<value>но базовый пакет передает его под управление ресторана</value>
+	</data>
+	<data name="AboutUsBlock4" xml:space="preserve">
+		<value>абсолютно бесплатно.</value>
+	</data>
+	<data name="AboutUsBlock5" xml:space="preserve">
+		<value>Так что, просто регистрируйтесь и сделайте как можно больше</value>
+	</data>
+	<data name="AboutUsBlock6" xml:space="preserve">
+		<value>пользователей нашего сервиса своими постоянными гостями!</value>
+	</data>
+</root>

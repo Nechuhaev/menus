@@ -1,0 +1,57 @@
+﻿@inject Menus.Web.Services.UserService  UserService;
+@{
+    var selectedRestaurant = await UserService.GetSelecedRestaurant(User, Context.Request);
+} 
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="@ViewData["Description"]" />
+    <title>@ViewData["Title"]</title>
+
+    <link href="~/css/areas/restaurants/main.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />
+
+    <environment include="Development">
+    </environment>
+    <environment exclude="Development">
+        @*<link rel="stylesheet" href="https://ajax.aspnetcdn.com/ajax/bootstrap/3.3.7/css/bootstrap.min.css"
+            asp-fallback-href="~/lib/bootstrap/dist/css/bootstrap.min.css"
+            asp-fallback-test-class="sr-only" asp-fallback-test-property="position" asp-fallback-test-value="absolute" />*@
+    </environment>
+</head>
+<body>
+
+    @await Html.PartialAsync("_Header")
+
+    @await Html.PartialAsync("_SubHeader", selectedRestaurant)
+
+    @RenderBody()
+
+    @await Html.PartialAsync("_Footer")
+
+    <environment include="Development">
+    </environment>
+    <environment exclude="Development">
+        @*<script src="https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.3.1.min.js"
+                    asp-fallback-src="~/lib/jquery/dist/jquery.min.js"
+                    asp-fallback-test="window.jQuery"
+                    crossorigin="anonymous"
+                    integrity="sha384-tsQFqpEReu7ZLhBV2VZlAu7zcOV+rXbYlF2cqB8txI/8aZajjp4Bqd+V6D5IgvKT">
+            </script>*@
+        <script src="~/js/raven.min.js"></script>
+    </environment>
+
+    <script src="~/js/raveninit.js" asp-append-version="true"></script>
+
+
+    @RenderSection("Scripts", required: false)
+
+    <script src="~/js/promise.min.js" async></script>
+    <script src="~/js/fetch.min.js" async></script>
+
+    <mini-profiler />
+</body>
+</html>

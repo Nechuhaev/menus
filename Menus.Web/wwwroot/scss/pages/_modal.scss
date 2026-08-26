@@ -1,0 +1,70 @@
+﻿/*@import "../_variables.scss";
+
+.content-space-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-backdrop {
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,.3);
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10;
+
+    .modal-content {
+        margin: 3rem auto;
+        background-color: #fff;
+        max-width: 600px;
+
+        .modal-header {
+            border-bottom: 1px solid $grey;
+            padding: 1rem;
+
+            h3 {
+                color: $text;
+                margin: 0;
+            }
+        }
+
+        .modal-body {
+            border-bottom: 1px solid $grey;
+            padding: 1rem;
+
+            form {
+                text-align: center;
+
+                textarea {
+                    display: block;
+                    width: 100%;
+                    margin-bottom: 1rem;
+                    border: 1px solid $grey;
+                    border-radius: 4px;
+                    padding: 5px 10px;
+                    transition: all 2ms ease;
+                    &:focus {
+                        border: 1px solid $palete1;
+                    }
+                }
+            }
+        }
+
+        .modal-footer {
+            padding: 1rem;
+        }
+    }
+}
+
+div button.btn-secondary {
+    @extend .classic-btn;
+    background-color: $grey !important;
+    padding: 15px 1rem !important;
+
+    &:hover {
+        background-color: darken($grey, 10%) !important;
+    }
+}*/

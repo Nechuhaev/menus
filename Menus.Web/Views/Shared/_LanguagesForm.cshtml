@@ -1,0 +1,57 @@
+﻿@using System.Text.RegularExpressions
+@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@inject Microsoft.Extensions.Configuration.IConfiguration config;
+
+@{
+    var locales = LocaleSrvc.GetLocales();
+    var crq = Context.Request;
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    locales = locales.Where(x => !Convert.ToBoolean(config[$"DisableLanguages:{x.Id}"] != null ? config[$"DisableLanguages:{x.Id}"].ToLower() : "false")).ToList();
+    var is404 = Context.Response.StatusCode >= 400;
+}
+
+
+<form class="profile_form">
+    <select>
+        @foreach (var lang in locales)
+        {
+            if (is404)
+            {
+                @if (lang.Id == culture)
+                {
+                    <option selected value="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}/{lang.Id}")">@lang.Name</option>
+                }
+                else
+                {
+                    <option value="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}/{lang.Id}")">@lang.Name</option>
+                }
+            }
+            else
+            {
+                @if (lang.Id == culture)
+                {
+                    <option selected value="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{Regex.Replace(crq.Path, "/(ru|uk|en)", $"/{lang.Id}")}{crq.QueryString}")">@lang.Name</option>
+                }
+                else
+                {
+                    <option value="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{Regex.Replace(crq.Path, "/(ru|uk|en)", $"/{lang.Id}")}{crq.QueryString}")">@lang.Name</option>
+                }
+            }
+
+        }
+    </select>
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        /* Profile lang
+      =========================================*/
+        $('.profile_form select').on('change', function () {
+            console.log("aaf");
+            location.href = jQuery('.profile_form select').val();
+        });
+    })
+</script>

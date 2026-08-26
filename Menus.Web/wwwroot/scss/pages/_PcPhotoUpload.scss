@@ -1,0 +1,32 @@
+﻿.photoUploadContainer {
+    .image-container {
+        #cropper-img {
+            /*visibility: hidden;*/
+            display:none;
+        }
+
+        .loading-icon {
+            display: none;
+            padding: 10vw;
+            margin: 0 auto;
+        }
+
+        .cropper-container {
+            display: block;
+        }
+
+        &.loading {
+            #cropper-img {
+                /*visibility: hidden;*/
+            }
+
+            .loading-icon {
+                display: block;
+            }
+
+            .cropper-container {
+                display: none;
+            }
+        }
+    }
+}

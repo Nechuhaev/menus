@@ -1,0 +1,134 @@
+﻿@model IEnumerable<Menus.Abstract.Models.ICustomerRequest>
+
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var page = (int)ViewData["page"];
+}
+
+<div class="site-content">
+    <main>
+
+        <div class="site-content-center">
+
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li>Запросы на связь</li>
+                </ul>
+            </div>
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Запросы на связь</h2>
+                </div>
+            </div>
+
+            <table class="mainTable">
+                <thead>
+                    <tr>
+                        <th>
+                            Ресторан
+                        </th>
+                        <th>
+                            Пакет
+                        </th>
+                        <th>
+                            Email
+                        </th>
+                        <th>
+                            Телефон
+                        </th>
+                        <th>
+                            Дата Создания
+                        </th>
+                        <th>
+                            Дата Обновления
+                        </th>
+                        <th>
+                            Статус
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr data-id="@item.Id">
+                        <td>
+                            @if (item.Package.IndexOf("Request for Access") > -1)
+                            {
+                                <a target="_blank" href="@Url.Action("Edit", "Restaurants", new { id = item.RestaurantName })">Перейти в ресторан</a>
+                            }
+                            else
+                            {
+                                @Html.DisplayFor(modelItem => item.RestaurantName)
+                            }
+                        </td>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Package)
+                        </td>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Email)
+                        </td>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Phone)
+                        </td>
+                        <td>
+                            @item.CreateDate.ToString("dd/MM/yyyy")
+                        </td>
+                        <td>
+                            @item.UpdateDate.ToString("dd/MM/yyyy")
+                        </td>
+                        <td>
+                            <select class="form-control" asp-for="@item.Status"
+                                    asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.CustomerRequestStatus>()"></select>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+
+            <div style="text-align:center; margin-top: 30px;">
+                @if (page != 0)
+                {
+                    <a asp-route-status="@(ViewData["status"])" asp-route-page="@(page - 1)">&larr;Назад &nbsp;</a>
+                }
+                @if (Model.Count() == 10)
+                {
+                    <a asp-route-status="@(ViewData["status"])" asp-route-page="@(page + 1)">Вперёд&rarr;</a>
+                }
+            </div>
+
+        </div>
+
+    </main>
+</div>
+
+<script src="~/js/jquery.js"></script>
+<script>
+    function getToken() {
+        var token = '@Html.AntiForgeryToken()';
+        token = $(token).val();
+        return token;
+    }
+
+    $(document).on("change", '[name="item.Status"]', function () {
+        var id = $(this).closest("tr[data-id]").attr("data-id");
+        var status = $(this).val();
+
+        $.ajax({
+                url: "@Url.Action("ChangeStatus")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id,
+                    status: status
+                }
+            })
+            .done(function () {
+            })
+            .fail(function (data) {
+                window.Logger.logTextError("STATUS CHANGE CustomerRequest action failed, id = " + id);
+            });
+    });
+</script>

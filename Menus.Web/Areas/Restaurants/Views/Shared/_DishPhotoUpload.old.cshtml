@@ -1,0 +1,261 @@
+﻿@inject Menus.Web.Services.UserService  UserService;
+
+@if (!UserService.IsMobileUser(Context.Request))
+{
+    <div class="popUpBlock popUpBlockPhotos">
+        <div class="popUpBlock_inner">
+
+            <div class="popUpWindow popUpPhotos">
+                <span class="popUp_close"></span>
+                <div style="height: 25vw">
+                    <img id="cropper-img" alt="Alternate Text" />
+                </div>
+                <div class="popUpLinks" style="margin-top: 3vw;">
+                    <a href="#" class="btnCancel">Отмена</a>
+                    <a href="#" class="btnChange">Загрузить</a>
+                </div>
+            </div>
+
+            <div class="popUpWindow popUpThanksPhoto">
+                <span class="popUp_close"></span>
+                <figure class="extra">
+                    <img src="~/images/popUpImg_02.jpg" alt="Alternate Text" />
+                </figure>
+                <div class="popUpTitle">Спасибо!</div>
+                <div class="popUpText extra">Фото появится после проверки <span>модератором</span></div>
+                <div class="popUpLinks">
+                    <a href="#" class="btn-primary btn-primary--fill">продолжить</a>
+                </div>
+            </div>
+
+            <form action="" method="get" class="hidden" id="photo-upload-form">
+                <input type="file" id="photo-upload-input" />
+            </form>
+
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        $("body").append('<link href="/css/cropper.min.css" rel="stylesheet" \/>');
+        $("body").append('<script src="/js/cropper.min.js"><\/script>');
+        $("body").append('<script src="/js/jquery-cropper.min.js"><\/script>');
+
+
+        var $image = $("#cropper-img");
+        $(document).on("change", "#photo-upload-input", function() {
+
+            var oFReader = new FileReader();
+
+            oFReader.readAsDataURL(this.files[0]);
+
+            oFReader.onload = function () {
+                $(".popUpBlockPhotos").addClass("visible");
+                $(".popUpThanksPhoto").hide();
+                $(".popUpPhotos").show();
+
+                // Destroy the old cropper instance
+                $image.cropper('destroy');
+
+                // Replace url
+                $image.attr('src', this.result);
+
+                // Start cropper
+                $image.cropper({
+                    aspectRatio: 1.333333,
+                    movable: false,
+                    zoomable: false,
+                    rotatable: false,
+                    scalable: true
+                });
+            };
+        });
+
+        $(".popUpPhotos .popUp_close, .popUpPhotos .btnCancel").click(function (e) {
+            e.preventDefault();
+            $(".popUpBlockPhotos").removeClass("visible");
+            $(".popUpPhotos").hide();
+
+            $("#photo-upload-input").remove();
+            $("#photo-upload-form").append('<input type="file" id="photo-upload-input"/>');
+        });
+
+        $(".popUpThanksPhoto .btn-primary").click(function (e) {
+            e.preventDefault();
+            $(".popUpBlockPhotos").removeClass("visible");
+            $(".popUpThanksPhoto").hide();
+        });
+
+        $(".popUpPhotos .btnChange").click(function (e) {
+            e.preventDefault();
+            var dataUrl = $image.cropper('getCroppedCanvas', { maxWidth: 1200, maxHeight: 1200 }).toDataURL();
+
+            $.ajax({
+                url: "@Url.Action("UploadDishPhoto", "Manage", new { area = "Restaurants" })",
+                method: "POST",
+                data: {
+                    base64: dataUrl,
+                    dishId: $("#photo-upload-input").attr("data-dish-id")
+                }
+            })
+            .done(function(x){
+                if (x.approved) location.reload();
+                else {
+                    $(".popUpPhotos").hide();
+                    $(".popUpThanksPhoto").show();
+                }
+            });
+        });
+    }, false);
+    </script>
+}
+else
+{
+    <style>
+        .mobileAddPhotoContainer {
+            width: 100%;
+            height: 100vh;
+            position: absolute;
+            top: 18vh;
+            left: 0;
+            z-index: 99;
+            background: #fff;
+        }
+    </style>
+    <div class="mobileAddPhotoContainer hidden">
+        <div class="addPhoto">
+
+            <div class="addPhotoImage">
+                <figure>
+                    <img id="cropper-img" src="~/images/add_photo_empty.jpg" alt="Alternate Text" />
+                </figure>
+            </div>
+
+            @*<div class="addPhotoContent" id="add-photo">
+                <div class="addPhotoBtn">
+                    <label for="photo-upload-input">Добавить фото</label>
+                </div>
+            </div>*@
+
+            <div class="addPhotoContent" id="confirm-photo">
+                <div class="addPhotoBtn">
+                    <a href="#" data-cancel>Отмена</a>
+                    <a href="#" data-upload>Загрузить</a>
+                </div>
+            </div>
+
+            <div class="addPhotoContent hidden" id="upload-progress">
+                <div class="addPhotoProgress">
+                    <strong>Загрузка</strong>
+                    <p>
+                        <em>
+                            <i></i>
+                        </em>
+                        25%
+                        <b></b>
+                    </p>
+                </div>
+            </div>
+
+            <div class="addPhotoContent hidden" id="success">
+                <div class="addPhotoTnx">
+                    <h2>Спасибо !</h2>
+                    <p>Фото появится после проверки <span>модератора</span></p>
+                    <a data-cancel href="#">Продолжить</a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <form action="/" method="post" class="hidden" id="photo-upload-form">
+        <input type="file" id="photo-upload-input" value="" />
+    </form>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+                $("body").append('<link href="/css/cropper.min.css" rel="stylesheet" \/>');
+                $("body").append('<script src="/js/cropper.min.js"><\/script>');
+                $("body").append('<script src="/js/jquery-cropper.min.js"><\/script>');
+
+
+                var $image = $("#cropper-img");
+                $(document).on("change", "#photo-upload-input", function() {
+
+                    var oFReader = new FileReader();
+
+                    oFReader.readAsDataURL(this.files[0]);
+
+                    oFReader.onload = function () {
+
+                        // Destroy the old cropper instance
+                        $image.cropper('destroy');
+
+                        // Replace url
+                        $image.attr('src', this.result);
+
+                        // Start cropper
+                        $image.cropper({
+                            aspectRatio: 1.333333,
+                            viewMode: 3,
+                            dragMode: 'move',
+                            autoCropArea: 1,
+                            restore: false,
+                            cropBoxMovable: false,
+                            cropBoxResizable: false,
+                            movable: true,
+                            zoomable: true,
+                            guides: false,
+                            center: false
+                        });
+                        
+                        $(".mobileAddPhotoContainer").removeClass("hidden");
+                    };
+                });
+
+                //$(".popUpPhotos .popUp_close, .popUpPhotos .discard").click(function (e) {
+                //    e.preventDefault();
+
+                //    $("#photo-upload-input").remove();
+                //    $("#photo-upload-form").append('<input type="file" id="photo-upload-input"/>');
+                //});
+
+                //$("#confirm-photo").click(function (e) {
+                //    e.preventDefault();
+                //    $(".popUpBlockPhotos").removeClass("visible");
+                //    $(".popUpThanksPhoto").hide();
+                //});
+
+                $("a[data-cancel]").click(function (e) {
+                    e.preventDefault();
+
+                    $(".mobileAddPhotoContainer").addClass("hidden");
+                    $("#photo-upload-input").remove();
+                    $("#photo-upload-form").append('<input type="file" id="photo-upload-input"/>');
+                });
+
+                $("a[data-upload]").click(function (e) {
+                    e.preventDefault();
+                    var dataUrl = $image.cropper('getCroppedCanvas', { maxWidth: 1200, maxHeight: 1200 }).toDataURL();
+
+                    $.ajax({
+                        url: "@Url.Action("UploadDishPhoto", "Manage", new { area = "Restaurants" })",
+                        method: "POST",
+                        data: {
+                            base64: dataUrl,
+                            dishId: $("#photo-upload-input").attr("data-dish-id")
+                        }
+                    })
+                        .done(function (x) {
+                            if (x.approved) location.reload();
+                            else {
+                                $("#confirm-photo").addClass("hidden");
+                                $("#success").removeClass("hidden");
+                            }
+                        });
+                });
+        }, false);
+    </script>
+}

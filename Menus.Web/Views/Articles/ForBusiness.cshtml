@@ -1,0 +1,576 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+
+@inject Menus.Web.Services.UserService  UserService;
+
+@{
+    ViewData["Title"] = Localizer["MetaTitle"];
+    ViewData["Description"] = Localizer["MetaDescription"];
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@await Html.PartialAsync("_Header")
+
+
+<div class="site-content packs">
+    <main>
+        <div class="breadcrumbs breadcrumbs-content breadcrumbs-content-position">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["ForOwners"]</breadcrumb></li>
+            </ul>
+        </div>
+        <div id="top-banner">
+            <div class="site-content-align">
+                <div class="reg-text">
+                    <h1>@Localizer["FirstBlockTitle"]</h1>
+                    <p>
+                        @Localizer["FirstBlockText"]
+                    </p>
+                    <a class="joinus desktop" href="#bottom-form">@Localizer["WantToTry"]</a>
+                    <a data-joinus="" class="mobile" href="#">@Localizer["WantToTry"]</a>
+                    <div class="border mobile"></div>
+                </div>
+            </div>
+            <img class="desktop" src="~/images/pic.png" alt="Pic" />
+            <img class="mobile" src="~/images/pic-mobile.png" alt="Pic" />
+        </div>
+
+        <div id="why">
+            <div class="site-content-align-small">
+                <h2>Tip<span>Mymenu</span> @Localizer["SecondBlockTitle"] @Localizer["Rotator"]</h2>
+                <div>
+                    @Localizer["SecondBlockText"]
+                </div>
+                <ul class="col-3">
+                    <li>
+                        <div class="icon"><img src="~/images/icon1.png" /></div>
+                        <h3>
+                            @Localizer["SecondBlockFirstPointTitle"]
+                        </h3>
+                        <p>
+                            @Localizer["SecondBlockFirstPointText"]
+                        </p>
+                    </li>
+                    <li>
+                        <div class="icon"><img src="~/images/icon2.png" /></div>
+                        <h3>
+                            @Localizer["SecondBlockSecondPointTitle"]
+                        </h3>
+                        <p>
+                            @Localizer["SecondBlockSecondPointText"]
+                        </p>
+                    </li>
+                    <li>
+                        <div class="icon"><img src="~/images/icon3.png" /></div>
+                        <h3>
+                            @Localizer["SecondBlockThirdPointTitle"]
+                        </h3>
+                        <p>
+                            @Localizer["SecondBlockThirdPointText"]
+                        </p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+
+
+        <div class="our-advantages">
+            <div class="wrapper">
+
+                <div class="our-advantages-left">
+                    <h2>@Localizer["WhyUsTitle"]</h2>
+                    <p>@Localizer["WhyUsText"]</p>
+                    <ul>
+                        <li>@Localizer["WhyUsPar1"]</li>
+                        <li>@Localizer["WhyUsPar2"]</li>
+                        <li>@Localizer["WhyUsPar3"]</li>
+                        <li>@Localizer["WhyUsPar4"]</li>
+                        <li>@Localizer["WhyUsPar5"]</li>
+                        <li>@Localizer["WhyUsPar6"]</li>
+                    </ul>
+                    <a href="#bottom-form" class="btn-tmm joinus disable_on_mobile">@Localizer["WantToTry"]</a>
+                </div>
+
+                <div class="our-advantages-right">
+                    <div class="our-advantages-carousel">
+                        <!-- Swiper -->
+                        <div class="swiper-container">
+                            <div class="swiper-wrapper">
+                                <div class="swiper-slide" style="background-image: url(../../images/advantages_image_1.jpg);"></div>
+                                <div class="swiper-slide" style="background-image: url(../../images/advantages_image_2.jpg);"></div>
+                                <div class="swiper-slide" style="background-image: url(../../images/advantages_image_3.jpg);"></div>
+                            </div>
+                        </div>
+                        <!-- Add Arrows -->
+                        <div class="swiper-button-next"></div>
+                        <div class="swiper-button-prev"></div>
+                        <!-- Add Pagination -->
+                        <div class="swiper-pagination"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+
+        <div id="services">
+            <div class="site-content-align-small">
+                <h2>@Localizer["ServicesAndRates"]</h2>
+                <div class="swiper-container">
+                    <ul class="services-list swiper-wrapper">
+                        <li class="swiper-slide">
+                            <h3>@Localizer["Basic"]</h3>
+                            <div>@Localizer["Free"]</div>
+                            <p>@Localizer["GetAccess"]</p>
+                            <p>
+                                @Localizer["CreateElectronicMenu"]<br />
+                                @Localizer["YourClientWillFind"]
+                            </p>
+                            <p>@Localizer["ManageInformation"]</p>
+                            <p class="grey-text">@Localizer["ChooseHowYouWant"]</p>
+                            <p class="grey-text">@Localizer["PlaceTheElectronic"]</p>
+                            <p class="grey-text">@Localizer["SeoPromotion"]</p>
+                            <p class="grey-text">@Localizer["TechSupport"]</p>
+                            <a class="border-button" href="#" data-base-packet="">@Localizer["Activate"]</a>
+                        </li>
+                        <li class="swiper-slide">
+                            <span>@Localizer["Recommended"]</span>
+                            <h3>@Localizer["Premium"]</h3>
+                            <div class="red-text">@Localizer["Price"]</div>
+                            <p>@Localizer["GetAccess"]</p>
+                            <p>
+                                @Localizer["CreateElectronicMenu"]<br />
+                                @Localizer["YourClientWillFind"]
+                            </p>
+                            <p>@Localizer["ManageInformation"]</p>
+                            <p>@Localizer["ChooseHowYouWant"]</p>
+                            <p>@Localizer["PlaceTheElectronic"]</p>
+                            <p>@Localizer["SeoPromotion"]</p>
+                            <p>@Localizer["TechSupport"]</p>
+                            <a class="red-button" href="#" data-premium-packet="">@Localizer["Buy"]</a>
+                        </li>
+                    </ul>
+                    <div class="swiper-pagination"></div>
+                </div>
+                <p>@Localizer["SendRequest"] <a href="mailto:info@tipmymenu.com">info@tipmymenu.com</a></p>
+            </div>
+        </div>
+
+        <div id="more-services">
+            <div class="site-content-align-small">
+                <h2>@Localizer["AdditionalServices"]</h2>
+                <p>@Localizer["AdditionalServices1"]<br />@Localizer["AdditionalServices2"]</p>
+                <div class="swiper-container">
+                    <ul class="col-3 with-shadow swiper-wrapper">
+                        <li class="swiper-slide">
+                            <div class="icon"><img src="~/images/icon4.png" /></div>
+                            <h3>
+                                @Localizer["AddingPage"] tip<span>mymenu</span>
+                            </h3>
+                            <ul>
+                                <li>@Localizer["FillingMenu"]</li>
+                                <li>@Localizer["PhotoGallery"]</li>
+                                <li>@Localizer["TextPreparation"]</li>
+                                <li>@Localizer["EditsAndChanges"]</li>
+                                <li>@Localizer["UserInteractions"]</li>
+                                <li>@Localizer["PersonalManager"]</li>
+                            </ul>
+                            <a class="link-blue spoiler" href="#">@Localizer["ReadMore"]</a>
+                        </li>
+                        <li class="swiper-slide">
+                            <div class="icon"><img src="~/images/icon5.png" /></div>
+                            <h3>
+                                @Localizer["PersonalDesign"]
+                            </h3>
+                            <p>@Localizer["PersonalDesignText"]</p>
+                            <a data-design="" href="#" class="link-blue">@Localizer["WatchAnExample"]</a>
+                        </li>
+                        <li class="swiper-slide">
+                            <div class="icon"><img src="~/images/icon6.png" /></div>
+                            <h3>@Localizer["Placement"]</h3>
+                            <p>@Localizer["PlacementText"]</p>
+                            <a data-top="" class="link-blue" href="#">@Localizer["WatchAnExample"]</a>
+                        </li>
+                        <li class="swiper-slide">
+                            <div class="icon"><img src="~/images/icon7.png" /></div>
+                            <h3>
+                                @Localizer["SMMPromotionPage"]
+                            </h3>
+                            <ul>
+                                <li>@Localizer["StylisticDesign"]</li>
+                                <li>@Localizer["RegularAddition"]</li>
+                                <li>@Localizer["WorkingWithTheAudience"]</li>
+                                <li>@Localizer["MonthlyReport"]</li>
+                            </ul>
+                            <a class="link-blue spoiler" href="#">@Localizer["ReadMore"]</a>
+                        </li>
+                        <li class="swiper-slide">
+                            <div class="icon"><img src="~/images/icon8.png" /></div>
+                            <h3>
+                                @Localizer["SEOPromotionOfPageOrDish"]
+                            </h3>
+                            <ul>
+                                <li>@Localizer["ContentUpdates"]</li>
+                                <li>@Localizer["SEOOptimization"]</li>
+                                <li>@Localizer["GoogleAds"]</li>
+                                <li>@Localizer["IncreaseConversion"]</li>
+                            </ul>
+                            <a class="link-blue spoiler" href="#">@Localizer["ReadMore"]</a>
+                        </li>
+                        <li class="swiper-slide">
+                            <div class="icon"><img src="~/images/icon9.png" /></div>
+                            <h3>@Localizer["PlacingOnAdvertisingPlatforms"]</h3>
+                            <p>@Localizer["ContactOurManagers"]</p>
+                            <a data-advertising="" class="link-blue" href="#">@Localizer["WatchAnExample"]</a>
+                        </li>
+                    </ul>
+                    <div class="swiper-pagination"></div>
+                </div>
+                <a class="yellow-button joinus desktop" href="#bottom-form">@Localizer["Services"]</a>
+                <a data-joinus="" class="yellow-button mobile" href="#">@Localizer["Services"]</a>
+            </div>
+        </div>
+
+        <div id="bottom-form">
+            <div class="site-content-align-small">
+                <div class="form">
+                    <h2>@Localizer["JoinTheService"] Tip<span>mymenu</span></h2>
+                    <p>@Localizer["Call"] <a href="tel:+380505562653">+380505562653</a> @Localizer["LeaveYourContacts"]</p>
+                    <form>
+                        <div>
+                            <label>@Localizer["RestarauntName"]<span>*</span></label>
+                            <input required name="Restaurant" type="text" />
+                        </div>
+                        <div>
+                            <label>E-mail <span>*</span></label>
+                            <input required name="Email" type="email" />
+                        </div>
+                        <div>
+                            <label>@Localizer["Phone"]<span>*</span></label>
+                            <div class="phone"><input type="text" value="+380" readonly /><input required name="Phone" type="tel" /></div>
+                        </div>
+                        <div>
+                            <label>@Localizer["Package"]</label>
+                            <select name="Package" required>
+                                <option value="">@Localizer["ChoosePackage"]</option>
+                                <option>@Localizer["Free"]</option>
+                                <option>@Localizer["Premium"]</option>
+                            </select>
+                        </div>
+                        <input type="submit" value="@Localizer["Send"]" />
+                    </form>
+                </div>
+                <div class="formThanks">
+                    <h2>
+                        @Localizer["Thanks"]<br />
+                        @Localizer["WeWillContact"]<br />
+                        @Localizer["Soon"]
+                    </h2>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+
+<div class="popUpBlock popUpBlockMain packs">
+    <div class="popUpCloser"></div>
+    <div class="popUpBlock_inner">
+        <!-- PopUp base packet -->
+        <div class="popUpWindow popUpBasePacket">
+            <form>
+                <input type="hidden" name="Package" value="@Localizer["Free"]" />
+                <span class="popUp_close"></span>
+                <h2>
+                    @Localizer["Activate"]<br />
+                    @Localizer["Free"] @Localizer["Package"]
+                </h2>
+                <p>
+                    @Localizer["LeaveYourContacts2"]
+                </p>
+                <label>@Localizer["RestarauntName"]<span>*</span></label>
+                <input required name="Restaurant" type="text" />
+                <label>Email <span>*</span></label>
+                <input required name="Email" type="email" />
+                <label>@Localizer["Phone"]<span>*</span></label>
+                <div class="phone">
+                    <input type="text" readonly value="+380" />
+                    <input required name="Phone" type="tel" />
+                </div>
+                <input type="submit" value="@Localizer["SendRequest2"]" />
+            </form>
+        </div>
+
+        <!-- PopUp Premium packet -->
+        <div class="popUpWindow popUpPremiumPacket">
+            <form>
+                <input type="hidden" name="Package" value="@Localizer["Premium"]" />
+                <span class="popUp_close"></span>
+                <h2>
+                    @Localizer["Activate"]<br />
+                    @Localizer["Premium"] @Localizer["Package"]
+                </h2>
+                <p>
+                    @Localizer["LeaveYourContacts2"]
+                </p>
+                <label>@Localizer["RestarauntName"]<span>*</span></label>
+                <input required name="Restaurant" type="text" />
+                <label>Email <span>*</span></label>
+                <input required name="Email" type="email" />
+                <label>@Localizer["Phone"]<span>*</span></label>
+                <div class="phone">
+                    <input type="text" readonly value="+380" />
+                    <input required required name="Phone" type="tel" />
+                </div>
+                <input type="submit" value="@Localizer["SendRequest2"]" />
+            </form>
+        </div>
+
+
+        <!-- PopUp thank you -->
+        <div class="popUpWindow popUpThanks popUpThanksPacket">
+            <span class="popUp_close"></span>
+            <h2>
+                @Localizer["Thanks"]<br />
+                @Localizer["WeWillContact"]<br />
+                @Localizer["Soon"]
+            </h2>
+        </div>
+
+        <div class="popUpWindow popUpImg popUpDesign">
+            <span class="popUp_close"></span>
+            <div class="box" id="box1"><img src="~/images/des1.png" alt="" /></div>
+            <div class="box" id="box2"><img src="~/images/des2.png" alt="" /></div>
+        </div>
+
+        <div class="popUpWindow popUpImg popUpTop">
+            <span class="popUp_close"></span>
+            <img src="~/images/adv1.png" alt="" />
+        </div>
+
+        <div class="popUpWindow popUpImg popUpAdvertising">
+            <span class="popUp_close"></span>
+            <div class="box" id="box3"><img src="~/images/adv2.png" alt="" /></div>
+            <div class="box" id="box4"><img src="~/images/des2.png" alt="" /></div>
+        </div>
+
+        <div class="popUpWindow popUpJoinUs">
+            <form>
+                <span class="popUp_close"></span>
+                <h2>@Localizer["JoinTheService"] Tip<span>mymenu</span></h2>
+                <p>@Localizer["Call"] <a href="tel:+380505562653">+380505562653</a> @Localizer["LeaveYourContacts"]</p>
+                <label>@Localizer["RestarauntName"]<span>*</span></label>
+                <input required name="Restaurant" type="text" />
+                <label>Email <span>*</span></label>
+                <input required name="Email" type="email" />
+                <label>@Localizer["Phone"]<span>*</span></label>
+                <div class="phone">
+                    <input type="text" readonly value="+380" />
+                    <input required name="Phone" type="tel" />
+                </div>
+                <label>@Localizer["Package"]</label>
+                <select required name="Package">
+                    <option value="">@Localizer["ChoosePackage"]</option>
+                    <option>@Localizer["Free"]</option>
+                    <option>@Localizer["Premium"]</option>
+                </select>
+                <input type="submit" value="@Localizer["SendRequest2"]" />
+            </form>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts
+    {
+    <!-- Initialize Swiper -->
+    <link href="~/css/swiper.min.css" rel="stylesheet" />
+    <script src="~/js/swiper.min.js"></script>
+    <script src="~/js/typeahead-inner.js"></script>
+
+    <script src="~/js/jquery.js"></script>
+    <script type="text/javascript">
+
+        jQuery(document).ready(function () {
+
+
+            if ($(window).outerWidth() > 992) {
+                var advantagesSwiper = new Swiper('.our-advantages-carousel .swiper-container', {
+                    spaceBetween: 1,
+                    navigation: {
+                        nextEl: '.our-advantages-carousel .swiper-button-next',
+                        prevEl: '.our-advantages-carousel .swiper-button-prev',
+                    },
+                    pagination: {
+                        el: '.our-advantages-carousel .swiper-pagination',
+                        clickable: true,
+                    },
+                });
+            }
+
+
+
+            $(document).on("submit", ".site-content.packs form, .popUpBlockMain form", function (e) {
+                e.preventDefault();
+
+                $.ajax({
+                    url: "@Url.Action("SendFormdata", "Home")",
+                    type: "POST",
+                    data: $(this).serialize()
+                });
+
+                $('.popUpBlockMain').addClass('visible');
+                $('.popUpWindow').hide();
+                $('.popUpThanksPacket').show();
+            });
+
+            jQuery('[data-base-packet]').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpBasePacket').fadeIn();
+                return false;
+            });
+
+            jQuery('[data-premium-packet]').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpPremiumPacket').fadeIn();
+                return false;
+            });
+
+            jQuery('.popUpWindow .popUp_close').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible');
+                jQuery('.popUpBlockMain').removeClass('joinus');
+                jQuery('.popUpWindow').fadeOut();
+            });
+
+            jQuery('[data-design]').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpDesign').fadeIn();
+
+                let currentIndex = 0;
+                $(".popUpDesign .box").hide();
+                $(".popUpDesign .box").eq(currentIndex).show();
+
+                var totalDiv = $(".popUpDesign .box").length;
+
+                setInterval(function () {
+                    currentIndex = (currentIndex + 1) % totalDiv;
+
+                    $(".popUpDesign .box").hide();
+                    $(".popUpDesign .box").eq(currentIndex).show();
+
+                }, 2000);
+
+                return false;
+            });
+
+            jQuery('[data-top]').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpTop').fadeIn();
+                return false;
+            });
+
+            jQuery('[data-joinus]').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').addClass('visible joinus');
+                jQuery('.popUpJoinUs').fadeIn();
+                return false;
+            });
+
+
+            jQuery('[data-advertising]').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpAdvertising').fadeIn();
+
+                let currentIndex = 0;
+
+                $(".popUpAdvertising .box").hide();
+                $(".popUpAdvertising .box").eq(currentIndex).show();
+
+                var totalDiv = $(".popUpAdvertising .box").length;
+
+                setInterval(function () {
+                    currentIndex = (currentIndex + 1) % totalDiv;
+
+                    $(".popUpAdvertising .box").hide();
+                    $(".popUpAdvertising .box").eq(currentIndex).show();
+
+                }, 2000);
+                return false;
+            });
+
+
+            $('a.joinus').click(function () {
+                $('html, body').animate({
+                    scrollTop: $($.attr(this, 'href')).offset().top
+                }, 500);
+                return false;
+            });
+
+            jQuery('a.spoiler').on('click', function (e) {
+                e.preventDefault();
+                $(this).prev('ul').addClass('show');
+            });
+
+            $("#more-services .col-3 > li")
+                .mouseleave(function () {
+                    $(this).children('ul').removeClass('show');
+                })
+
+
+            if (isMobile) {
+
+                var swiper = new Swiper('.swiper-container', {
+                    spaceBetween: 30,
+                    pagination: {
+                        el: '.swiper-pagination',
+                        clickable: true,
+                    },
+                });
+
+
+            }
+
+            var $obj = $('#why');
+            var $objs = $('#services');
+            var top = $obj.offset().top - 250;
+            var bottom = $objs.offset().top;
+
+            $(window).scroll(function (event) {
+                    // what the y position of the scroll is
+                    var y = $(this).scrollTop();
+
+                    // whether that's below the form
+                    if (y >= top) {
+                        // if so, ad the fixed class
+                        $('#top-banner .reg-text a.mobile').addClass('fixed');
+                    } else {
+                        // otherwise remove it
+                        $('#top-banner .reg-text a.mobile').removeClass('fixed');
+                }
+
+                if (y >= bottom) {
+                    // if so, ad the fixed class
+                    $('#top-banner .reg-text a.mobile').removeClass('fixed');
+                }
+            });
+
+
+        });
+
+
+    </script>
+}
+
+
+@await Html.PartialAsync("_Footer")
+

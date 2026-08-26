@@ -1,0 +1,332 @@
+﻿@model IEnumerable<Menus.Abstract.Models.IUser>
+
+@inject Menus.Web.Services.UserService UserService
+@{
+    var CurrentUser = await UserService.GetUserById(User.Identity.Name);
+}
+
+<div class="site-content">
+    <main>
+
+        <div class="site-content-center">
+
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li>@((bool)ViewData["hideRoles"] ? "Владельцы ресторанов" : "Пользователи")</li>
+                </ul>
+            </div>
+
+            <form class="search-bar">
+                <input type="text" name="q" value="@ViewData["q"]" />
+                <input type="hidden" name="status" value="@ViewData["status"]" />
+                <input type="hidden" name="role" value="@ViewData["role"]" />
+                <button type="submit">Поиск</button>
+            </form>
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>@((bool)ViewData["hideRoles"] ? "Владельцы ресторанов" : "Пользователи")</h2>
+                </div>
+                <div class="title-section--right">
+                    <form method="post" class="filter-form">
+                        <div class="filter-form--title">Фильтр:</div>
+                        <p>
+                            <select class="form-control" asp-for="@ViewData["status"]"
+                                    asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.UserStatus>()">
+                                <option value="">Все статусы</option>
+                            </select>
+                        </p>
+                        @if (!(bool)ViewData["hideRoles"])
+                        {
+                            <p>
+                                <select class="form-control" asp-for="@ViewData["role"]"
+                                        asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.UserRole>()">
+                                    <option value="">Все роли</option>
+                                </select>
+                            </p>
+                        }
+                        <p>
+                            <select name="multiaction">
+                                <option value="">Действие</option>
+                                @if (CurrentUser.Role == Menus.Abstract.Models.UserRole.Admin)
+                                {
+                                    <option value="delete">Удалить</option>
+                                }
+                            </select>
+                        </p>
+                        <input type="submit" name="name" value="Применить" />
+                    </form>
+                </div>
+            </div>
+
+
+            <table class="mainTable">
+                <thead>
+                    <tr>
+                        <th class="tableCheckbox">
+                            <input id="checkAll" type="checkbox" value="" />
+                        </th>
+                        <th></th>
+                        <th>
+                            Имя
+                        </th>
+                        <th>
+                            Телефон
+                        </th>
+                        <th>
+                            Email
+                        </th>
+                        <th>
+                            Статус
+                        </th>
+                        @if (!(bool)ViewData["hideRoles"])
+                        {
+                        <th>
+                            Роль
+                        </th>
+                        <th>
+                            Email conf
+                        </th>
+                        <th>
+                            Лог
+                        </th>
+                        }
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr data-id="@item.Id">
+                            <td class="tableCheckbox">
+                                <input type="checkbox" value="" />
+                            </td>
+                            <td class="tableStatusIcon
+                            @(item.Status == Menus.Abstract.Models.UserStatus.Blocked ? "StatusIconBlock" : "" )
+                            @(item.Status == Menus.Abstract.Models.UserStatus.Pending ? "StatusIconOnApproval" : "" )">
+                                <span>+</span>
+                            </td>
+                            <td>
+                                <span>@(item.FirstName + " " + item.LastName)</span>
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.PhoneNumber)
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.Email)
+                            </td>
+                            <td>
+                                <select class="form-control" asp-for="@item.Status"
+                                        asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.UserStatus>()"></select>
+                            </td>
+                            @if (!(bool)ViewData["hideRoles"])
+                            {
+                                <td>
+                                    <select class="form-control" asp-for="@item.Role"
+                                            asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.UserRole>()"></select>
+                                </td>
+                                <td>
+                                    @Html.EditorFor(modelItem => item.EmailConfirmed)
+                                </td>
+                                <td>
+                                    <a asp-action="Log" asp-route-id="@item.Id"><i class="fa fa-user"></i></a>
+                                </td>
+                            }
+                            <td class="tableEdit">
+                                <a class="tableEditBtn" href="@Url.Action("Edit", new { id = item.Id })">Edit</a>
+                                @if (CurrentUser.Role == Menus.Abstract.Models.UserRole.Admin)
+                                {
+                                    <a class="tableDeleteBtn" href="#" data-delete data-id="@item.Id">Delete</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </div>
+
+    </main>
+</div>
+
+
+
+<div class="popUpWindow hidden">
+    <div class="popUpAlign">
+        <div class="popUpContent">
+            <span class="popUpClose"></span>
+            <figure>
+                <img src="~/images/question.png" alt="Alternate Text" />
+            </figure>
+            <p>Вы действительно хотите изменить <span>статус ресторана Maganda?</span></p>
+            <div class="popUpBtns">
+                <a href="#" class="btnChange">Изменить</a>
+                <a href="#" class="btnCancel">Отменить</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script for popUp start -->
+@*<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script>
+        jQuery(document).ready(function () {
+
+            jQuery('.popUpClose').on('click', function () {
+                jQuery('.popUpWindow').fadeOut();
+            });
+
+        });
+    </script>*@
+
+<!-- Script for popUp end -->
+
+
+@section Scripts {
+    <script src="~/js/jquery.js"></script>
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        $(document).on("change", '[name="ViewData[status]"]', function () {
+            $("[name=status]").val($(this).val());
+            $(".search-bar").submit();
+        });
+
+
+        $(document).on("change", '[name="ViewData[role]"]', function () {
+            $("[name=role]").val($(this).val());
+            $(".search-bar").submit();
+        });
+
+        $(document).on("change", "#checkAll", function () {
+            $("tbody .tableCheckbox input[type=checkbox]").prop('checked', $(this).is(":checked"));
+        });
+
+        $(".filter-form").submit(function (e) {
+            e.preventDefault();
+
+            if ($("[name=multiaction]").val() !== "delete") return;
+            if (!confirm("Are you sure?")) return;
+
+            var ids = [];
+            $("tbody .tableCheckbox input[type=checkbox]").each(function () {
+                if ($(this).is(":checked")) {
+                    ids.push($(this).closest("tr[data-id]").attr("data-id"));
+                }
+            });
+
+
+            $.ajax({
+                url: "@Url.Action("DeleteSeveral")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    ids: ids
+                }
+            })
+                .done(function () {
+                    $("tbody .tableCheckbox input[type=checkbox]").each(function () {
+                        if ($(this).is(":checked")) {
+                            $(this).closest("tr[data-id]").remove();
+                        }
+                    });
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("MULTI DELETE User action failed");
+                 });
+        });
+
+        $(document).on("change", '[name="item.Status"]', function () {
+            var id = $(this).closest("tr[data-id]").attr("data-id");
+            var status = $(this).val();
+
+            $.ajax({
+                url: "@Url.Action("ChangeStatus")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id,
+                    status: status
+                }
+            })
+                .done(function () {
+                    var tr = $("tr[data-id=" + id + "]");
+                    var icon = tr.find(".tableStatusIcon");
+
+                    icon.removeClass("StatusIconBlock").removeClass("StatusIconOnApproval");
+
+                    if (status === 1) icon.addClass("StatusIconOnApproval");
+                    if (status === 2) icon.addClass("StatusIconBlock");
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("STATUS CHANGE User action failed, id = " + id);
+                 });
+        });
+
+        $(document).on("change", '[name="item.EmailConfirmed"]', function () {
+            var id = $(this).closest("tr[data-id]").attr("data-id");
+
+            $.ajax({
+                    url: "@Url.Action("ChangeEmailStatus")",
+                    method: "POST",
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        id: id
+                    }
+                })
+                .done(function () {
+                    
+                })
+                .fail(function (data) {
+                    window.Logger.logTextError("EMAIL STATUS CHANGE User action failed, id = " + id);
+                });
+        });
+
+        $(document).on("change", '[name="item.Role"]', function () {
+            var id = $(this).closest("tr[data-id]").attr("data-id");
+            var role = $(this).val();
+
+            $.ajax({
+                url: "@Url.Action("ChangeRole")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id,
+                    role: role
+                }
+            })
+                .done(function () {
+
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("ROLE CHANGE User action failed, id = " + id);
+                 });
+        });
+
+        $(document).on("click", "[data-delete]", function () {
+            var id = $(this).attr("data-id");
+
+            if (!confirm("Are you sure?")) return;
+
+            $.ajax({
+                url: "@Url.Action("Delete")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id
+                }
+            })
+                .done(function () {
+                    $("tr[data-id=" + id + "]").remove();
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("DELETE User action failed, id = " + id);
+                 });
+        });
+    </script>
+}

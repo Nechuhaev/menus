@@ -1,0 +1,337 @@
+﻿@import "main-general";
+@import "pages/_modal.scss";
+@import "pages/_restaurant";
+@import "pages/_iframe.scss";
+@import "pages/_iframeClean.scss";
+
+
+
+// sections/signin-modals;
+
+.signin-modal-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: vw(10) vw(33) vw(10) vw(33);
+}
+
+.modal {
+    position: relative;
+    width: vw(570);
+    height: auto;
+    border-radius: vw(8);
+    //font-size: 0;
+    @media (min-width: 2000px) {
+        width: 570px;
+        left: 675px;
+        top: 160px;
+        border-radius: 8px;
+    }
+}
+
+.close-modal {
+    height: vw(42);
+    width: vw(42);
+    font-size: vw(17);
+    top: vw(-42);
+    right: vw(-42);
+
+    @media (min-width: 2000px) {
+        height: 42px;
+        width: 42px;
+        font-size: 17px;
+        top: -42px;
+        right: -42px;
+    }
+}
+
+.tab-choose {
+    width: 50%;
+    height: vw(110);
+    font-size: vw(22);
+    letter-spacing: vw(-1);
+    line-height: vw(110);
+
+    @media (min-width: 2000px) {
+        height: 110px;
+        font-size: 22px;
+        letter-spacing: -1px;
+        line-height: 110px;
+    }
+}
+
+.tab-choose-sign-in {
+    border-top-left-radius: vw(8);
+
+    @media (min-width: 2000px) {
+        border-top-left-radius: 8px;
+    }
+}
+
+.tab-choose-sign-up {
+    border-top-right-radius: vw(8);
+
+    @media (min-width: 2000px) {
+        border-top-right-radius: 8px;
+    }
+}
+
+.modal-tab {
+    padding: 1.875vw 1.875vw 1.25vw 1.875vw;
+
+    @media (min-width: 2000px) {
+        padding: 35px !important;
+    }
+}
+
+.external-sign-in {
+    width: vw(240);
+    height: vw(70);
+    border-radius: vw(6);
+    line-height: vw(20);
+    font-size: vw(18);
+    padding-left: vw(50);
+
+    @media (min-width: 2000px) {
+        width: 240px;
+        height: 70px;
+        border-radius: 6px;
+        font-size: 18px;
+        padding-left: 50px;
+    }
+
+    &.sign-in-with-fb {
+        &:after {
+            width: vw(32);
+            height: vw(32);
+
+            @media (min-width: 2000px) {
+                width: 32px;
+                height: 32px;
+            }
+        }
+    }
+
+    &.sign-in-with-google {
+        float: right;
+
+        &:after {
+            width: vw(30);
+            height: vw(32);
+
+            @media (min-width: 2000px) {
+                width: 30px;
+                height: 32px;
+            }
+        }
+    }
+
+    &:after {
+        top: vw(18);
+        left: vw(8);
+
+        @media (min-width: 2000px) {
+            top: 18px;
+            left: 8px;
+        }
+    }
+}
+
+.form-header {
+    width: 100%;
+    height: auto;
+    font-size: vw(22);
+    margin: vw(25) 0;
+    color: #000;
+
+    @media (min-width: 2000px) {
+        font-size: 22px;
+        margin: 25px 0;
+    }
+}
+
+.modal input:not([type=checkbox]) {
+    font-size: vw(22);
+    padding: vw(17);
+    border-radius: vw(6);
+    margin-bottom: vw(10);
+
+    @media (min-width: 2000px) {
+        font-size: 22px;
+        padding: 17px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+
+    &::-webkit-input-placeholder {
+        color: #b0afaf;
+    }
+
+    &:-moz-placeholder {
+        opacity: 1;
+        color: #b0afaf;
+    }
+
+    &::-moz-placeholder {
+        opacity: 1;
+        color: #b0afaf;
+    }
+
+    &:-ms-input-placeholder {
+        color: #b0afaf;
+    }
+}
+
+input[type=checkbox] {
+    width: vw(23);
+    height: vw(24);
+
+    @media (min-width: 2000px) {
+        width: 23px;
+        height: 24px;
+    }
+}
+
+.checkbox {
+    width: vw(22);
+    height: vw(22);
+
+    @media (min-width: 2000px) {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+.remember-me-input-group {
+    label {
+        font-size: vw(18);
+        margin-left: vw(12);
+
+        @media (min-width: 2000px) {
+            font-size: 18px;
+            margin-left: 12px;
+        }
+    }
+}
+
+.forgot-password {
+    height: vw(24);
+    line-height: vw(24);
+    font-size: vw(18);
+
+    @media (min-width: 2000px) {
+        height: 24px;
+        line-height: 24px;
+        font-size: 18px;
+    }
+}
+
+.modal button[type=submit] {
+    height: vw(70);
+    font-size: vw(18);
+    border-radius: vw(6);
+    margin-top: vw(20);
+
+    @media (min-width: 2000px) {
+        height: 70px;
+        font-size: 18px;
+        border-radius: 6px;
+        margin-top: 20px;
+    }
+}
+
+.modal .disclaimer {
+    font-size: vw(18);
+    margin-top: vw(22);
+
+    @media (min-width: 2000px) {
+        font-size: 18px;
+        margin-top: 22px;
+    }
+}
+
+
+
+.modal {
+
+    .disclaimer-error {
+        line-height: vw(22);
+        font-size: vw(18);
+        color: #e32929;
+
+        @media (min-width: 2000px) {
+            line-height: 22px;
+            font-size: 18px;
+        }
+
+        a {
+            text-decoration: underline;
+            color: #0404b8;
+
+            &:hover {
+
+                @media (min-width: 992px) {
+                    text-decoration: none;
+                }
+            }
+        }
+    }
+
+    &.restore-pwd {
+        top: auto;
+        left: auto;
+
+        .disclaimer-top {
+            margin: vw(5) 0 vw(24) 0;
+            line-height: vw(32);
+            font-size: vw(22);
+
+            @media (min-width: 2000px) {
+                margin: 5px 0 24px 0;
+                line-height: 32px;
+                font-size: 22px;
+            }
+        }
+    }
+
+    &.email-pwd, &.webview-error {
+        top: auto;
+        left: auto;
+        line-height: vw(32);
+        font-size: vw(22);
+        color: #000;
+
+        @media (min-width: 2000px) {
+            line-height: 32px;
+            font-size: 22px;
+        }
+
+        figure {
+            margin: 0 0 vw(20) 0;
+            padding: vw(66) 0 vw(20) 0;
+            text-align: center;
+
+            @media (min-width: 2000px) {
+                margin: 0 0 20px 0;
+                padding: 66px 0 20px 0;
+            }
+
+            img {
+                width: vw(147);
+                vertical-align: top;
+
+                @media (min-width: 2000px) {
+                    width: 147px;
+                }
+            }
+        }
+
+        p {
+            padding-bottom: vw(66);
+
+            @media (min-width: 2000px) {
+                padding-bottom: 66px;
+            }
+        }
+    }
+}

@@ -1,0 +1,31 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@model IList<Menus.Abstract.Models.ICompleteRestaurant>
+@{
+    Layout = null;
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+}
+
+@foreach (var restaurant in Model)
+{
+    var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+    <li>
+        <a asp-area="" asp-controller="Home" asp-route-city="@ViewData["selectedCityName"]" asp-action="Restaurant" asp-route-id="@restaurant.Url">
+            <figure>
+                @if (photos.Count > 0)
+                {
+                    <span style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Low))"></span>
+                }
+            </figure>
+            <span class="restaurant-name">@restaurant.Name</span>
+            <span class="restaurant-cuisine">@restaurant.Cuisine.Get(culture)</span>
+            <span class="restaurant-ratings">@Localizer["RatingCountByDishes"]: @restaurant.RatingsCount</span>
+            @if (restaurant.Distance != null)
+            {
+                <span class="recommendation_distasnce">@restaurant.Distance.Value.ToString("F1") km</span>
+            }
+        </a>
+    </li>
+}

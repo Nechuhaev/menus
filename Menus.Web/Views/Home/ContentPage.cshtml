@@ -1,0 +1,54 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Domain.Core Core
+@model Menus.Abstract.Models.IPage
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var user = await UserService.GetUserById(User.Identity.Name);
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    ViewData["Title"] = string.IsNullOrEmpty(Model.SeoTitle.Get(culture)) ? Model.Title.Get(culture) : Model.SeoTitle.Get(culture);
+    ViewData["Description"] = string.IsNullOrEmpty(Model.SeoDescription.Get(culture)) ? Model.Title.Get(culture) : Model.SeoDescription.Get(culture);
+}
+
+
+
+@await Html.PartialAsync("_Header")
+
+
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs breadcrumbs-content breadcrumbs-content-position">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="#">@Model.Title.Get(culture)</breadcrumb></li>
+            </ul>
+        </div>
+
+        <div class="site-content-align">
+            <div class="page-content-caption">
+
+                @if (!string.IsNullOrEmpty(Model.Photo))
+                {
+                    <img style="width: 100%;" src="@Img.Url(Model.Photo, Quality.High)" alt="Alternate Text" />
+                }
+
+                @Html.Raw(Model.Content.Get(culture))
+
+            </div>
+        </div>
+    </main>
+</div>
+
+
+
+@await Html.PartialAsync("_Footer")
+
+<script src="~/js/typeahead-inner.js"></script>

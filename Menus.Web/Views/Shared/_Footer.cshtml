@@ -1,0 +1,166 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@inject Menus.Web.Services.UserService  UserService;
+@{
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+}
+
+@await Html.PartialAsync("_RequestLocationPopup")
+@await Html.PartialAsync("_ServiceButtonsPopup")
+
+
+<div class="google-footer-container">
+    <div class="google-footer-container__block">
+        @await Html.PartialAsync("_GoogleSence",
+        new Menus.Web.Models.Internal.GoogleSence() {
+            GoogleSenceType = Menus.Web.Models.Internal.GoogleSenceTypes.UltraWide
+        })
+    </div>
+</div>
+
+<footer class="site-footer">
+
+    <div class="footer-top">
+        <div class="wrapper">
+
+            <div class="footer-left">
+                <figure class="footer-logo">
+                    <a asp-area="" asp-controller="Home" asp-action="Index" asp-route-culture="@culture">
+                        <img src="~/images/footer_logo.png" alt="Alternate Text" />
+                    </a>
+                </figure>
+                <p>@Localizer["FooterOnlineServiceDescription"]</p>
+                <div class="social-links">
+                    <a href="https://www.facebook.com/tipmymenu/" target="_blank"><span class="fa-fw select-all fab"></span></a>
+                    <a href="https://www.instagram.com/tipmymenu/" target="_blank"><span class="fa-fw select-all fab"></span></a>
+                </div>
+            </div>
+
+            <div class="footer-right">
+                <div class="column_left">
+                    <p>@Localizer["AboutTipMyMenu"]</p>
+                    <ul>
+                        <li><a asp-route-culture="@culture" asp-area="" asp-controller="Articles" asp-action="AboutUs">@Localizer["AboutUs"]</a></li>
+                        <li><a asp-route-culture="@culture" asp-area="" asp-controller="Home" asp-action="Blog">@Localizer["Blog"]</a></li>
+                        @*<li><a href="/@culture/content/media">СМИ</a></li>*@
+                    </ul>
+
+                    <p>@Localizer["WorkWithUs"]</p>
+                    <ul>
+                        <li><a asp-route-culture="@culture" asp-route-viewMode="internal" asp-area="" asp-controller="Articles" asp-action="ForOwners">@Localizer["RestaurantOwners"]</a></li>
+                        @*<li><a href="/@culture/content/marketing">Реклама на нашем сайте</a></li>*@
+                    </ul>
+                </div>
+                <div class="column_right">
+                    <p>@Localizer["Privacy"]</p>
+                    <ul>
+                        <li><a href="/@culture/content/agreement">@Localizer["TermsOfUse"]</a></li>
+                        <li><a href="/@culture/content/privacy">@Localizer["PrivacyPolicy"]</a></li>
+                    </ul>
+
+                    <p>@Localizer["Contacts"]</p>
+                    <ul>
+                        <li>@Localizer["Cooperation"]: <span><a href="mailto:info@tipmymenu.com">info@tipmymenu.com</a></span></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="footer_bottom">
+        <div class="wrapper">
+            &copy; @DateTime.Now.Year @Localizer["AllRightsReserved"]
+        </div>
+    </div>
+
+</footer>
+
+
+
+<a href="#site-header" id="toTop" class="smooth-scroll"></a>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        /* To top
+        =========================================*/
+
+        jQuery(document).on('scroll', function () {
+            var documentPosition = jQuery(document).scrollTop();
+
+            if (documentPosition > 200) {
+                jQuery('#toTop').addClass('visible');
+            }
+            else {
+                jQuery('#toTop').removeClass('visible');
+            }
+        });
+
+
+
+        /* Profile close
+        =========================================*/
+
+        jQuery('.profile_close').on('click', function () {
+            jQuery('.js-mobile-profile').removeClass('active');
+        });
+
+
+        /* Desktop search form
+        =========================================*/
+
+        jQuery('.search_form_btn').on('click', function () {
+            showSearchBar();
+        });
+
+        function showSearchBar() {
+            jQuery('.desktop_search_block').slideDown();
+            $(".desktop_search_block input[type=text]").focus();
+        }
+
+        jQuery('.desktop_search_close').on('click', function () {
+            jQuery('.desktop_search_block').slideUp();
+        });
+
+
+
+        /* Mobile search form and town
+        =========================================*/
+
+        jQuery('.mobile_search_open').on('click', function (e) {
+            e.preventDefault();
+            jQuery('.mobile_search_block').fadeIn();
+            setTimeout(() => {
+                $(".mobile_search_block .inner input[type=text]").focus();
+            })
+        });
+
+        jQuery('.mobile_search_close').on('click', function () {
+            jQuery('.mobile_search_block').fadeOut();
+        });
+
+        jQuery('.choose_city_close').on('click', function () {
+            jQuery('#choose-city-container').addClass('hidden');
+        });
+
+
+
+        /* Smooth scroll
+        =========================================*/
+
+        jQuery('.smooth-scroll').on('click', function (e) {
+            e.preventDefault();
+
+            var
+                href = jQuery(this).attr('href'),
+                top = jQuery(href).offset().top;
+
+            jQuery('html, body').animate({
+                scrollTop: top
+            }, 750);
+
+        });
+    }, false);</script>

@@ -1,0 +1,210 @@
+﻿@inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Domain.Core Core
+@inject IViewLocalizer Localizer
+@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@using Microsoft.AspNetCore.Mvc.Localization
+@model Menus.Abstract.Models.IRestaurant
+@{
+    ViewData["Title"] = "Получить доступ";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+
+    var user = await UserService.GetUserById(User.Identity.Name);
+
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    var selectedCity = Context.Request.Cookies[".Menus.SelectedCity"];
+    selectedCity = string.IsNullOrEmpty(selectedCity) ? "e2655e24-92dc-4179-abf6-c3908278a4de" : selectedCity;
+
+    var locales = LocaleSrvc.GetLocales();
+}
+
+<div class="site-content">
+    <main>
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                <li>Получить доступ</li>
+            </ul>
+        </div>
+        <div class="site-content-wrapper requst-access">
+            <h1>Получить доступ к ресторану</h1>
+            <p class="requiredField">для того чтобы получить доступ, найдите свой ресторан</p>
+
+
+            <div class="restaurant_columns">
+                <div class="restaurant_left">
+                    <h2>Поиск ресторана</h2>
+                    <div class="input-group request-restaurant">
+                        @if (!UserService.IsMobileUser(Context.Request))
+                        {
+                        <form class="search_restaurant locationBlock sub_search" method="get" asp-area="" asp-controller="Home" asp-action="FindRestaurant" asp-route-culture="@culture">
+                            <label>Город <span>*</span></label>
+                            <div id="choose-city-container" class="hidden" onclick="event.stopPropagation()">
+                                <div id="choose-city-container-input" class="autocomplete" style="width: auto;">
+                                    <input type="text" id="search_cities_input" name="search_cities_input" placeholder="Выбрать город" />
+                                </div>
+                            </div>
+                            <button id="chosen-city-button" type="button">@((await Core.Restaurants.GetCityById(selectedCity)).Name.Get(culture))</button>
+                            <span class="search_form_btn"></span>
+
+                            <label>Ресторан <span>*</span></label>
+                            <div class="desktop_search_block">
+                                <span class="desktop_search_close"></span>
+                                <div class="desktop_search_fields desktop_search_restaurant" data-search="restaurant">
+                                    <input type="hidden" name="search_cities_input_id" value="" />
+                                    <input type="text" name="q" autocomplete="off" value="" id="search_restaurants_input" placeholder="Название ресторана" />
+                                    <input type="hidden" name="q_id" value="" data-no-submit="true" />
+                                    <object class="loading-icon hidden" type="image/svg+xml" data="~/images/loading.svg"></object>
+                                </div>
+                            </div>
+                        </form>
+                        }
+                        else
+                        {
+                        <form class="search_restaurant locationBlock sub_search" method="get" asp-area="" asp-controller="Home" asp-action="FindRestaurant" asp-route-culture="@culture">
+                            <label>Город <span>*</span></label>
+                            <button id="chosen-city-button" type="button">@((await Core.Restaurants.GetCityById(selectedCity)).Name.Get())</button>
+                            <div id="choose-city-container" class="hidden" onclick="event.stopPropagation()">
+                                <span class="choose_city_close"></span>
+                                <div id="choose-city-container-input" class="autocomplete" style="width: auto;">
+                                    <input type="text" id="search_cities_input" name="search_cities_input" placeholder="Выбрать город" />
+                                </div>
+                            </div>
+                            <input type="hidden" name="search_cities_input_id" value="" />
+                            <label>Ресторан <span>*</span></label>
+                            <input class="mobile_search_open" type="text" id="choosed_restaurant" name="choosed_restaurant" placeholder="Выбрать ресторан" />
+                            <div class="mobile_search_block">
+                                <span class="mobile_search_close"></span>
+                                <span class="selected-city"><i class="fas fa-map-marker-alt"></i> <em>@((await Core.Restaurants.GetCityById(selectedCity)).Name.Get())</em></span>
+                                <div class="inner inner_restaurant" data-search="restaurant">
+                                    <input type="text" data-additional-input= name="q" autocomplete="off" value="" id="search_restaurants_input" placeholder="Название ресторана" />
+                                    <input type="hidden" name="q_id" value="" data-no-submit="true" />
+                                    <div class="search-icon"></div>
+                                    <object class="loading-icon hidden" type="image/svg+xml" data="~/images/loading.svg"></object>
+                                </div>
+                            </div>
+                        </form>
+                        }
+                    </div>
+                    <div class="restaurant_left__help">
+                        Если вашего ресторана нет на <span class="restaurant_left__tipmymenu">tipmymenu</span>, Вы можете его <a class="restaurant_left__route" asp-action="Register">добавить</a>
+                    </div>
+                </div>
+            </div>
+            <form method="post" class="registerRestaurant" enctype="multipart/form-data" id="requestForm">
+                <div class="input-group input-group--submit">
+                    <input type="hidden" name="Id" />
+                    <input type="hidden" name="City" />
+                    <input type="submit" value="отправить" id="submitRequestForm" />
+                </div>
+            </form>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+
+@section Scripts {
+    <script>
+        window.isMobile = @UserService.IsMobileUser(Context.Request).ToString().ToLowerInvariant();
+        window.culture = '@culture';
+    </script>
+    <script src="~/js/jquery.js"></script>
+    <script src="~/js/promise.min.js" async></script>
+    <script src="~/js/fetch.min.js" async></script>
+    <script src="~/js/index.js" async></script>
+    <environment include="Development">
+        <script src="~/js/common.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/js/common.js" asp-append-version="true"></script>
+    </environment>
+    <script src="~/js/typeahead-inner.js"></script>
+    <script>
+        function readURL(input, img) {
+
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+
+                reader.onload = function (e) {
+                    jQuery(img).attr('src', e.target.result);
+                }
+
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        jQuery(".file_upload input").change(function () {
+            var container = jQuery(this).parent();
+            container.find("label span").html(this.files[0].name);
+            readURL(this, container.parent().find("img")[0]);
+            container.parent().find("img").removeClass("hidden");
+        });
+
+        var cityId = "@selectedCity";
+
+        document.addEventListener("DOMContentLoaded", function () {
+            console.log('DOMContentLoaded');
+            params = {
+                searchSelectRadioButtonDataAttribute: 'data-select-search',
+                searchSelectContainerAttribute: 'data-search',
+                findRestaurantsPath: '@Url.Action("FindRestaurant", "Home", new { culture = culture })',
+                findDishesPath: '@Url.Action("SearchDish", "Home", new { culture = culture })',
+                formSelector: 'form.search_restaurant',
+                dishQueryDataAttribute: 'dish_q',
+                buttonSeachDishSelector: '[data-search-dish]',
+                formContentSelector: '.desktop_search_block, .mobile_search_block',
+                viewAllDishesSelector: '.view-all-dishes-button',
+            }
+
+            initSearchEvents(params);
+
+            /* Mobile search form and town 
+             * =========================================*/
+
+            jQuery('.mobile_search_open').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.mobile_search_block').fadeIn();
+                setTimeout(() => {
+                    jQuery(".mobile_search_block .inner input[type=text]").focus();
+                })
+            });
+
+            jQuery('#submitRequestForm').on('click', function (event) {
+                event.preventDefault();
+                var button = jQuery(this);
+                var form = jQuery('#requestForm');
+                var selectedCityId = jQuery('[name=search_cities_input_id]').val() || cityId;
+                var selectedRestaurantId = jQuery('[name=q_id]').val();
+
+                var idElement = jQuery('[name=Id]');
+                var cityElement = jQuery('[name=City]');
+
+                if (selectedCityId && selectedRestaurantId) {
+                    idElement.val(selectedRestaurantId);
+                    cityElement.val(selectedCityId);
+                    button.attr("disabled", true);
+                    form.submit();
+                } else {
+                    return false;
+                }
+            });
+
+            jQuery('.mobile_search_close').on('click', function () {
+                jQuery('.mobile_search_block').fadeOut();
+            });
+
+            jQuery('.choose_city_close').on('click', function () {
+                jQuery('#choose-city-container').addClass('hidden');
+            });
+
+        })
+    </script>
+}

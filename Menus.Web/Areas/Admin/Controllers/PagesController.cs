@@ -1,0 +1,231 @@
+﻿// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Menus.Abstract.Models;
+using Menus.Domain;
+using Menus.Web.Models;
+using Menus.Web.Models.ViewModels;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Menus.Web.Areas.Admin.Controllers
+{
+    [Area("Admin")]
+    public class PagesController : Controller
+    {
+        private readonly Core _core;
+
+        public PagesController(Core core)
+        {
+            _core = core;
+        }
+
+        [Authorize(Roles = "admin, manager")]
+        public async Task<IActionResult> Index(string q, PageStatus? status, PageCategory? category)
+        {
+            IEnumerable<IPage> pages;
+            if (string.IsNullOrEmpty(q) && status == null && category == null) pages = await _core.Pages.GetAll();
+            else pages = await _core.Pages.Search(q, status, category);
+
+            ViewData["q"] = q;
+            ViewData["status"] = status;
+            ViewData["category"] = category;
+
+            return View(pages.Take(50));
+        }
+
+        [Authorize(Roles = "admin, manager")]
+        public async Task<IActionResult> Content(string q, PageStatus? status)
+        {
+            var category = PageCategory.Content;
+            IEnumerable<IPage> pages;
+            if (string.IsNullOrEmpty(q) && status == null) pages = await _core.Pages.GetPages();
+            else pages = await _core.Pages.Search(q, status, category);
+
+            ViewData["q"] = q;
+            ViewData["status"] = status;
+            ViewData["category"] = category;
+
+            return View(pages.Take(50));
+        }
+
+        [Authorize(Roles = "admin, manager")]
+        public async Task<IActionResult> Blog(string q, PageStatus? status)
+        {
+            var category = PageCategory.News;
+            IEnumerable<IPage> pages;
+            if (string.IsNullOrEmpty(q) && status == null) pages = await _core.Pages.GetBlog();
+            else pages = await _core.Pages.Search(q, status, category);
+
+            ViewData["q"] = q;
+            ViewData["status"] = status;
+            ViewData["category"] = category;
+
+            return View(pages.Take(50));
+        }
+
+        [HttpGet]
+        public IActionResult Create(PageCategory type)
+        {
+            return View(new Page
+            {
+                Id = Guid.NewGuid().ToString(),
+                Category = type
+            });
+        }
+
+        [Authorize(Roles = "admin, manager")]
+        [HttpPost]
+        public async Task<IActionResult> Create(CreatePageModel model)
+        {
+            model.Id = Guid.NewGuid().ToString();
+            var page = model.GetPage() as IPage;
+
+            var title = new LocalizableString() as ILocalizableString;
+            title.Replace(model.Title.Select(x => x as ILocalizableStringValue));
+            page.Title = title;
+
+            var shortContent = new LocalizableString() as ILocalizableString;
+            shortContent.Replace(model.ShortContent.Select(x => x as ILocalizableStringValue));
+            page.ShortContent = shortContent;
+
+            var content = new LocalizableString() as ILocalizableString;
+            content.Replace(model.Content.Select(x => x as ILocalizableStringValue));
+            page.Content = content;
+
+            var seoTitle = new LocalizableString() as ILocalizableString;
+            seoTitle.Replace(model.SeoTitle.Select(x => x as ILocalizableStringValue));
+            page.SeoTitle = seoTitle;
+
+            var seoDescription = new LocalizableString() as ILocalizableString;
+            seoDescription.Replace(model.SeoDescription.Select(x => x as ILocalizableStringValue));
+            page.SeoDescription = seoDescription;
+
+            var seoKeywords = new LocalizableString() as ILocalizableString;
+            seoKeywords.Replace(model.SeoKeywords.Select(x => x as ILocalizableStringValue));
+            page.SeoKeywords = seoKeywords;
+
+            var seoText = new LocalizableString() as ILocalizableString;
+            seoText.Replace(model.SeoText.Select(x => x as ILocalizableStringValue));
+            page.SeoText = seoText;
+
+            page.Timestamp = DateTime.Now;
+
+            if (page.Photo != null && page.Photo.StartsWith("data"))
+            {
+                page.Photo = await UploadPhoto(page.Photo);
+            }
+
+            await _core.Pages.Create(page);
+
+            return page.Category == PageCategory.Content ? RedirectToAction("Content") : RedirectToAction("Blog");
+        }
+
+        private async Task<string> UploadPhoto(string base64)
+        {
+            base64 = base64.Substring(base64.IndexOf(',') + 1);
+            base64 = base64.Trim('\0');
+            byte[] bytes = Convert.FromBase64String(base64);
+            var file = new DbFile
+            {
+                Data = bytes,
+                Id = Guid.NewGuid().ToString(),
+                Mime = Helpers.ImageHelper.GetMimeType(base64),
+                Size = bytes.Length
+            };
+
+            await _core.Files.Create(file);
+
+            return file.Id + Helpers.ImageHelper.GetExtension(base64);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Edit(string id)
+        {
+            var page = await _core.Pages.GetById(id);
+
+            return View(page);
+        }
+
+        [Authorize(Roles = "admin, manager")]
+        [HttpPost]
+        public async Task<IActionResult> Edit(CreatePageModel model)
+        {
+            var page = model.GetPage() as IPage;
+
+            var title = new LocalizableString() as ILocalizableString;
+            title.Replace(model.Title.Select(x => x as ILocalizableStringValue));
+            page.Title = title;
+
+            var shortContent = new LocalizableString() as ILocalizableString;
+            shortContent.Replace(model.ShortContent.Select(x => x as ILocalizableStringValue));
+            page.ShortContent = shortContent;
+
+            var content = new LocalizableString() as ILocalizableString;
+            content.Replace(model.Content.Select(x => x as ILocalizableStringValue));
+            page.Content = content;
+
+            var seoTitle = new LocalizableString() as ILocalizableString;
+            seoTitle.Replace(model.SeoTitle.Select(x => x as ILocalizableStringValue));
+            page.SeoTitle = seoTitle;
+
+            var seoDescription = new LocalizableString() as ILocalizableString;
+            seoDescription.Replace(model.SeoDescription.Select(x => x as ILocalizableStringValue));
+            page.SeoDescription = seoDescription;
+
+            var seoKeywords = new LocalizableString() as ILocalizableString;
+            seoKeywords.Replace(model.SeoKeywords.Select(x => x as ILocalizableStringValue));
+            page.SeoKeywords = seoKeywords;
+
+            var seoText = new LocalizableString() as ILocalizableString;
+            seoText.Replace(model.SeoText.Select(x => x as ILocalizableStringValue));
+            page.SeoText = seoText;
+
+            if (page.Photo != null && page.Photo.StartsWith("data"))
+            {
+                page.Photo = await UploadPhoto(page.Photo);
+            }
+            else if (page.Photo == null)
+            {
+                page.Photo = null;
+            }
+            page.Timestamp = DateTime.Now;
+
+            await _core.Pages.Update(page);
+
+            return page.Category == PageCategory.Content ? RedirectToAction("Content") : RedirectToAction("Blog");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UploadBase64Photo(string base64)
+        {
+            base64 = base64.Substring(base64.IndexOf(',') + 1);
+            base64 = base64.Trim('\0');
+            byte[] bytes = Convert.FromBase64String(base64);
+            var file = new DbFile
+            {
+                Data = bytes,
+                Id = Guid.NewGuid().ToString(),
+                Mime = Helpers.ImageHelper.GetMimeType(base64),
+                Size = bytes.Length
+            };
+
+            await _core.Files.Create(file);
+
+            return Ok(new { id = file.Id, name = file.Id + Helpers.ImageHelper.GetExtension(base64), approved = true });
+        }
+
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "admin, manager")]
+        [HttpPost]
+        public async Task<IActionResult> Delete(string id)
+        {
+            await _core.Pages.Delete(id);
+            return Ok();
+        }
+    }
+}

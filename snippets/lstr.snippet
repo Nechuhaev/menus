@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeSnippets xmlns="http://schemas.microsoft.com/VisualStudio/2005/CodeSnippet">
+  <CodeSnippet Format="1.0.0">
+    <Header>
+      <SnippetTypes>
+        <SnippetType>Expansion</SnippetType>
+      </SnippetTypes>
+      <Title>LocalizableString</Title>
+      <Author>
+      </Author>
+      <Description>
+      </Description>
+      <HelpUrl>
+      </HelpUrl>
+      <Shortcut>
+      </Shortcut>
+    </Header>
+    <Snippet>
+      <Declarations>
+        <Literal Editable="true">
+          <ID>variable</ID>
+          <ToolTip>variable</ToolTip>
+          <Default>variable</Default>
+          <Function>
+          </Function>
+        </Literal>
+        <Literal Editable="true">
+          <ID>Interface</ID>
+          <ToolTip>Interface</ToolTip>
+          <Default>Interface</Default>
+          <Function>
+          </Function>
+        </Literal>
+      </Declarations>
+      <Code Language="csharp" Delimiter="$"><![CDATA[[NotMapped]
+private LocalizableString _$variable$
+{
+    get
+    {
+        if (_$variable$Cached != null) return _$variable$Cached;
+        var data = JsonConvert.DeserializeObject<LocalizableString>($variable$);
+        _$variable$Cached = data;
+        return data;
+    }
+    set
+    {
+        _$variable$Cached = value;
+        $variable$ = JsonConvert.SerializeObject(value);
+    }
+}
+[NotMapped]
+private LocalizableString _$variable$Cached;
+[NotMapped]
+ILocalizableString $Interface$.$variable$
+{
+    get => _$variable$; set => _$variable$ = value as LocalizableString;
+}]]></Code>
+    </Snippet>
+  </CodeSnippet>
+</CodeSnippets>

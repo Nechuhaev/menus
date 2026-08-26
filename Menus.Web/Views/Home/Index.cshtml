@@ -1,0 +1,756 @@
+@using System.Text.RegularExpressions
+@using Menus.Abstract.Models
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@inject Menus.Domain.Core Core
+@inject Menus.Web.Services.LocaleService LocaleSrvc;
+
+@inject Menus.Web.Services.UserService  UserService;
+@{
+    ViewData["Title"] = Localizer["MetaTitle"];
+    ViewData["Description"] = Localizer["MetaDescription"];
+    var user = await UserService.GetUserById(User.Identity.Name);
+    var selectedCity = ViewData["selectedCity"] as ICity;
+    var latestRestaurants = (ViewData["latestViewedRestaurants"] as List<ICompleteRestaurant>) ?? new List<ICompleteRestaurant>();
+    var featuredRestaurants = (ViewData["featuredRestaurants"] as List<ICompleteRestaurant>) ?? new List<ICompleteRestaurant>();
+    var nearestRestaurants = (ViewData["nearestRestaurants"] as List<ICompleteRestaurant>) ?? new List<ICompleteRestaurant>();
+    var bestDishes = ViewData["bestDishes"] as List<ISearchDish>;
+
+    var locales = LocaleSrvc.GetLocales();
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+    var isMobileUser = UserService.IsMobileUser(Context.Request);
+}
+
+<link href="~/css/swiper.min.css" rel="stylesheet" />
+
+<header id="site-header" class="site-header header-home">
+
+    <div class="header-top header-top-white">
+
+        <div class="site-header--left">
+            <a class="site-logo" asp-area="" asp-controller="Home" asp-action="Index" asp-route-culture="@culture">
+                <img src="~/images/site_logo_dark.svg" alt="Logo" />
+            </a>
+        </div>
+
+        <div class="site-header--right">
+            @await Html.PartialAsync("_SignInButtons")
+
+            @if (!isMobileUser)
+            {
+                @await Html.PartialAsync("_LanguagesDropdown")
+            }
+        </div>
+
+    </div>
+
+    <div class="header-bottom">
+        <h1 data-search="restaurant">@Localizer["MenusOfAllRestarauns"]</h1>
+        <h1 data-search="dish" class="hidden">@Localizer["DishesOfAllRestaraunts"]</h1>
+        <div class="locationBlock">
+            <button id="chosen-city-button">@selectedCity.Name.Get(culture)</button>
+            <div id="choose-city-container" class="hidden" onclick="event.stopPropagation()">
+                <div id="choose-city-container-input" class="autocomplete" style="width: auto;">
+                    <input type="text" id="search_cities_input" name="search_cities_input" placeholder="@Localizer["PleaseEnterCityName"]" />
+                </div>
+            </div>
+            <input type="hidden" name="search_cities_input_id" value="" />
+        </div>
+        @if (!isMobileUser)
+        {
+            <form class="search-form" action="@Url.Action("FindRestaurant")">
+                <div data-search="restaurant" class="search-form-content">
+                    <div class="autocomplete">
+                        <input type="text" name="q" autocomplete="off" value="" id="search_restaurants_input" placeholder="@Localizer["SearchPlaceholder"]" />
+                    </div>
+                    <input type="hidden" name="q_id" value="" />
+                    <button type="submit">@Localizer["Search"]</button>
+                </div>
+                <div data-search="dish" class="search-form-content hidden">
+                    <div class="autocomplete">
+                        <input type="text" name="dish_q" autocomplete="off" value="" id="search_dishes_input" placeholder="@Localizer["EnterDishName"]" />
+                        <object class="loading-icon hidden" type="image/svg+xml" data="~/images/loading.svg"></object>
+                    </div>
+                    <input type="hidden" name="dish_q_id" value="" />
+                    <button data-search-dish type="submit">@Localizer["FindDish"]</button>
+                </div>
+                <div class="search-form-radio">
+                    <ul>
+                        <li data-select-search="restaurant" class="current">@Localizer["RestarauntSearch"]</li>
+                        <li data-select-search="dish">@Localizer["DishSearch"]</li>
+                    </ul>
+                </div>
+            </form>
+        }
+        else
+        {
+            <form class="search-form mobile_search_open" action="@Url.Action("FindRestaurant")">
+                <div data-search="restaurant" class="search-form-content">
+                    <div class="autocomplete">
+                        <input type="text" autocomplete="off" value="" placeholder="@Localizer["SearchPlaceholder"]" />
+                    </div>
+                    <input type="hidden" value="" />
+                    <button type="submit">@Localizer["Search"]</button>
+                </div>
+                <div data-search="dish" class="search-form-content hidden">
+                    <div class="autocomplete">
+                        <input type="text" autocomplete="off" value="" placeholder="@Localizer["EnterDishName"]" />
+                    </div>
+                    <input type="hidden" value="" />
+                    <button data-search-dish type="submit">@Localizer["FindDish"]</button>
+                </div>
+                <div class="search-form-radio">
+                    <ul>
+                        <li data-select-search="restaurant" class="current">@Localizer["RestarauntSearch"]</li>
+                        <li data-select-search="dish">@Localizer["DishSearch"]</li>
+                    </ul>
+                </div>
+            </form>
+            <form class="search_restaurant locationBlock sub_search" method="get" asp-area="" asp-controller="Home" asp-action="FindRestaurant">
+
+                <div class="mobile_search_block">
+                    <span class="mobile_search_close"></span>
+                    <span class="selected-city"><i class="fas fa-map-marker-alt"></i> <em>@selectedCity.Name.Get() </em></span>
+                    <div data-search="restaurant" class="inner inner_restaurant">
+                        <input type="text" name="q" autocomplete="off" value="" id="search_restaurants_input" placeholder="@Localizer["EnterRestarauntName"]" />
+                        <input type="hidden" name="q_id" value="" />
+                        <input type="submit" value="" />
+                    </div>
+                    <div data-search="dish" class="inner inner_dish hidden">
+                        <input type="text" name="dish_q" autocomplete="off" value="" id="search_dishes_input" placeholder="@Localizer["EnterDishName"]" />
+                        <object class="loading-icon hidden" type="image/svg+xml" data="~/images/loading.svg"></object>
+                        <a href="javascript:void(0);" target="_blank" class="view-all-dish-search-result-top view-all-dishes-button">
+                            <object class="view-all-icon" type="image/svg+xml" data="~/images/viewall.svg"></object>
+                        </a>
+                        <input type="hidden" name="dish_q_id" value="" />
+                        <input type="submit" value="" />
+                        <div class="view-all-dish-search-result">
+                            <a href="javascript:void(0);" target="_blank" class="view-all-dishes-button">@Localizer["ViewAllDishes"]</a>
+                        </div>
+                    </div>
+                    <div class="search_restaurant-radio">
+                        <ul>
+                            <li data-select-search="restaurant" class="current">@Localizer["RestarauntSearch"]</li>
+                            <li data-select-search="dish">@Localizer["DishSearch"]</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </form>
+        }
+    </div>
+
+</header>
+
+<div class="site-content no-min-height">
+    <main>
+        <div class="site-content-align">
+            @if (nearestRestaurants.Any() && !isMobileUser)
+            {
+                <div class="title_section">
+                    <h2>@Localizer["NewlyAdded"]</h2>
+                    @await Html.PartialAsync("_GoogleSence",
+                        new Menus.Web.Models.Internal.GoogleSence() {
+                            GoogleSenceType = Menus.Web.Models.Internal.GoogleSenceTypes.Wide
+                        })
+                    <span>
+                        <a asp-area="" asp-controller="Home" asp-action="Newest">@Localizer["ViewAll"]</a>
+                    </span>
+                </div>
+            }
+            else if (nearestRestaurants.Any())
+            {
+                @await Html.PartialAsync("_GoogleSence",
+                new Menus.Web.Models.Internal.GoogleSence() {
+                    GoogleSenceType = Menus.Web.Models.Internal.GoogleSenceTypes.Wide
+                })
+                <div class="title_section">
+                    <h2>@Localizer["NewlyAdded"]</h2>
+                    <span>
+                        <a asp-area="" asp-controller="Home" asp-action="Newest">@Localizer["ViewAll"]</a>
+                    </span>
+                </div>
+            }
+
+            @if (nearestRestaurants.Any() && !isMobileUser)
+            {
+                <div class="restaurants-container disableOnMobile">
+                    @{
+                        var maxNearestCounter = nearestRestaurants.Count >= 4 ? 4 : nearestRestaurants.Count;
+                    }
+                    @for (int nearestRestCounter = 0; nearestRestCounter < maxNearestCounter; nearestRestCounter++)
+                    {
+                        var restaurant = nearestRestaurants[nearestRestCounter];
+                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                        <div class="restaurant">
+                            <a class="restaurant" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                @if (photos.Count > 0)
+                                {
+                                    <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Medium));"></figure>
+                                }
+                                else
+                                {
+                                    <figure class="restaurant-image"></figure>
+                                }
+                                <p class="restaurant-name">
+                                    @restaurant.Name
+                                    @if (restaurant.Distance != null)
+                                    {
+                                        <span class="restaurant-distance">@restaurant.Distance.Value.ToString("F1") km</span>
+                                    }
+                                </p>
+                                <p class="restaurant-kitchen">
+                                    @restaurant.Cuisine.Get()
+                                </p>
+                                <p class="rating-count">
+                                    @Localizer["RatingCount"]: @restaurant.RatingsCount
+                                </p>
+                            </a>
+                            @await Html.PartialAsync("_ServiceButtons")
+                        </div>
+                    }
+                 </div>
+            }
+            else if (nearestRestaurants.Any())
+            {
+                <!-- Swiper -->
+                <div class="swiper-area disableOnDesktop">
+                    <div class="swiper-container">
+                        <div class="swiper-wrapper">
+                            @foreach (var restaurant in nearestRestaurants)
+                            {
+                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                <a class="swiper-slide" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                    @if (photos.Count > 0)
+                                    {
+                                        <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Low));">
+                                            @if (restaurant.Distance != null)
+                                            {
+                                                <figcaption>@restaurant.Distance.Value.ToString("F1") km</figcaption>
+                                            }
+                                        </figure>
+                                    }
+                                    else
+                                    {
+                                        <figure class="restaurant-image">
+                                            @if (restaurant.Distance != null)
+                                            {
+                                                <figcaption>@restaurant.Distance.Value.ToString("F1") km</figcaption>
+                                            }
+                                        </figure>
+                                    }
+                                    <p class="restaurant-name">
+                                        @restaurant.Name
+                                    </p>
+                                    <p class="restaurant-kitchen">
+                                        @restaurant.Cuisine.Get()
+                                    </p>
+                                    <p class="rating-count">
+                                        @Localizer["RatingCount"]: @restaurant.RatingsCount
+                                    </p>
+                                    @await Html.PartialAsync("_ServiceButtons")
+                                </a>
+                            }
+                        </div>
+                        <!-- Add Pagination -->
+                        <div class="swiper-pagination"></div>
+                    </div>
+                </div>
+            }
+
+
+            @if (featuredRestaurants.Any())
+            {
+                <div class="title_section">
+                    <h2>@Localizer["Featured"]</h2>
+                    <span>
+                        <a asp-area="" asp-controller="Home" asp-action="Featured">@Localizer["ViewAll"]</a>
+                    </span>
+                </div>
+            }
+
+            @if (featuredRestaurants.Any() && !isMobileUser)
+            {
+                <div class="restaurants-container disableOnMobile">
+                    @foreach (var restaurant in featuredRestaurants)
+                    {
+                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                        <div class="restaurant">
+                            <a class="restaurant" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                @if (photos.Count > 0)
+                                {
+                                    <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Medium));"></figure>
+                                }
+                                else
+                                {
+                                    <figure class="restaurant-image"></figure>
+                                }
+                                <p class="restaurant-name">
+                                    @restaurant.Name
+                                </p>
+                                <p class="restaurant-kitchen">
+                                    @restaurant.Cuisine.Get()
+                                </p>
+                                <p class="rating-count">
+                                    @Localizer["RatingCount"]: @restaurant.RatingsCount
+                                </p>
+                            </a>
+                            @await Html.PartialAsync("_ServiceButtons")
+                        </div>
+                    }
+                </div>
+            }
+            else if (featuredRestaurants.Any())
+            {
+                <!-- Swiper -->
+                <div class="swiper-area disableOnDesktop">
+                    <div class="swiper-container">
+                        <div class="swiper-wrapper">
+                            @foreach (var restaurant in featuredRestaurants)
+                            {
+                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                <a class="swiper-slide" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                    @if (photos.Count > 0)
+                                    {
+                                        <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Low));"></figure>
+                                    }
+                                    else
+                                    {
+                                        <figure class="restaurant-image"></figure>
+                                    }
+                                    <p class="restaurant-name">
+                                        @restaurant.Name
+                                    </p>
+                                    <p class="restaurant-kitchen">
+                                        @restaurant.Cuisine.Get()
+                                    </p>
+                                    <p class="rating-count">
+                                        @Localizer["RatingCount"]: @restaurant.RatingsCount
+                                    </p>
+                                    @await Html.PartialAsync("_ServiceButtons")
+                                </a>
+                            }
+                        </div>
+                        <!-- Add Pagination -->
+                        <div class="swiper-pagination"></div>
+                    </div>
+                </div>
+            }
+
+            @if (latestRestaurants.Any())
+            {
+                <h2>@Localizer["SeenRecently"]</h2>
+            }
+
+            @if (!isMobileUser && latestRestaurants.Any())
+            {
+                <div class="restaurants-container disableOnMobile">
+                    @{
+                        var maxLatestCounter = latestRestaurants.Count >= 4 ? 4 : latestRestaurants.Count;
+                    }
+                    @for (int latestRestCounter = 0; latestRestCounter < maxLatestCounter; latestRestCounter++)
+                    {
+                        var restaurant = latestRestaurants[latestRestCounter];
+                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                        <div class="restaurant">
+
+                            <a class="restaurant" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                @if (photos.Count > 0)
+                                {
+                                    <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Medium));"></figure>
+                                }
+                                else
+                                {
+                                    <figure class="restaurant-image"></figure>
+                                }
+                                <p class="restaurant-name">
+                                    @restaurant.Name
+                                </p>
+                                <p class="restaurant-kitchen">
+                                    @restaurant.Cuisine.Get()
+                                </p>
+                                <p class="rating-count">
+                                    @Localizer["RatingCount"]: @restaurant.RatingsCount
+                                </p>
+                            </a>
+                            @await Html.PartialAsync("_ServiceButtons")
+                        </div>
+                    }
+                </div>
+            }
+
+            else if (latestRestaurants.Any())
+            {
+                <!-- Swiper -->
+                <div class="swiper-area disableOnDesktop">
+                    <div class="swiper-container">
+                        <div class="swiper-wrapper">
+                            @foreach (var restaurant in latestRestaurants)
+                            {
+                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                <a class="swiper-slide" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                    @if (photos.Count > 0)
+                                    {
+                                        <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Low));"></figure>
+                                    }
+                                    else
+                                    {
+                                        <figure class="restaurant-image"></figure>
+                                    }
+                                    <p class="restaurant-name">
+                                        @restaurant.Name
+                                    </p>
+                                    <p class="restaurant-kitchen">
+                                        @restaurant.Cuisine.Get()
+                                    </p>
+                                    <p class="rating-count">
+                                        @Localizer["RatingCount"]: @restaurant.RatingsCount
+                                    </p>
+                                    @await Html.PartialAsync("_ServiceButtons")
+                                </a>
+                            }
+                        </div>
+                        <!-- Add Pagination -->
+                        <div class="swiper-pagination"></div>
+                    </div>
+                </div>
+            }
+
+            @if (bestDishes.Any())
+            {
+                <div class="title_section">
+                    <h2>@Localizer["BestDishes"]</h2>
+                    <span>
+                        <a asp-area="" asp-controller="Home" asp-action="BestDishes">@Localizer["ViewAll"]</a>
+                    </span>
+                </div>
+            }
+
+            @if (!isMobileUser && bestDishes.Any())
+            {
+                <div class="restaurants-container extra disableOnMobile">
+                    @foreach (var dish in bestDishes)
+                    {
+                        <div class="restaurant">
+                            <a class="restaurant" asp-action="Dish" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@dish.RestaurantUrl" asp-route-dishId="@dish.DishUrl">
+                                @if (dish.Photos.Any())
+                                {
+                                    <figure class="restaurant-image" style="background-image: url(@Img.Url(dish.Photos.FirstOrDefault(), Quality.Medium));"></figure>
+                                }
+                                else
+                                {
+                                    <figure class="restaurant-image"></figure>
+                                }
+                                <p class="restaurant-name restaurant-name--line">
+                                    @dish.Name.Get()
+                                </p>
+                                <p class="restaurant-location">
+                                    @dish.RestaurantName <!--<span>0.4 km</span>-->
+                                </p>
+                                <p class="popular_dish_info">
+                                    <strong>@dish.RatingFloat.ToString("F1")</strong>
+                                    @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                    <em>(@dish.RatingsCount)</em>
+                                </p>
+                            </a>
+                            @await Html.PartialAsync("_ServiceButtons")
+                        </div>
+                    }
+                </div>
+            }
+            else if (bestDishes.Any())
+            {
+                <!-- Swiper -->
+                <div class="swiper-area disableOnDesktop">
+                    <div class="swiper-container">
+                        <div class="swiper-wrapper">
+                            @foreach (var dish in bestDishes)
+                            {
+                                <a class="swiper-slide" asp-action="Dish" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@dish.RestaurantUrl" asp-route-dishId="@dish.DishUrl">
+                                    @if (dish.Photos.Any())
+                                    {
+                                        <figure class="restaurant-image" style="background-image: url(@Img.Url(dish.Photos.FirstOrDefault(), Quality.Low));"></figure>
+                                    }
+                                    else
+                                    {
+                                        <figure class="restaurant-image"></figure>
+                                    }
+                                    <p class="restaurant-name restaurant-name--line">
+                                        @dish.Name.Get()
+                                    </p>
+                                    <p class="restaurant-location">
+                                        @dish.RestaurantName <!--<span>0.4 km</span>-->
+                                    </p>
+                                    <p class="popular_dish_info">
+                                        <strong>@dish.RatingFloat.ToString("F1")</strong>
+                                        @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                        <em>(@dish.RatingsCount)</em>
+                                    </p>
+                                    @await Html.PartialAsync("_ServiceButtons")
+                                </a>
+                            }
+                        </div>
+                        <!-- Add Pagination -->
+                        <div class="swiper-pagination"></div>
+                    </div>
+                </div>
+            }
+
+        </div>
+    </main>
+</div>
+
+@await Html.PartialAsync("_Footer")
+
+<div class="popUpBlock popUpBlockMain">
+    <div class="popUpCloser"></div>
+    <div class="popUpBlock_inner">
+
+        <div class="popUpWindow popUpClosestRestaurants pop-up-text-left">
+            <span class="popUp_close"></span>
+            <div data-restaurant-helper-result class="hidden">
+                <div class="popUpTitle">@Localizer["MayBeYouAreAtTheCurrentPlace"]</div>
+                <ul id="nearest-restaurants"></ul>
+                <a class="view-all-nearest" href="@Url.Action("Nearest", "Home")" style="display: none;">@Localizer["ShowNearbyPlaces"]</a>
+            </div>
+            <div data-restaurant-helper-enable class="hidden">
+                <div class="popUpTitle">@Localizer["AllowGeolocation"]</div>
+                <object class="loading-icon" type="image/svg+xml" data="~/images/loading.svg"></object>
+                <div class="description">
+                    <p>@Localizer["AllowGeolocationDescription1"]</p>
+                    <p>@Localizer["AllowGeolocationDescription2"]</p>
+                </div>
+            </div>
+            <div data-restaurant-helper-loading class="hidden">
+                <div class="popUpTitle">@Localizer["LoadingNearestRestaraunts"]</div>
+                <object class="loading-icon" type="image/svg+xml" data="~/images/loading.svg"></object>
+            </div>
+            <div data-restaurant-helper-error class="hidden">
+                <div class="popUpTitle">@Localizer["ErrorGeolocationTurnedOff"]</div>
+                <div class="description">
+                    <p>@Localizer["YouPreventTipMyMenuOfUsingGeolocation1"]</p>
+                    <p>@Localizer["YouPreventTipMyMenuOfUsingGeolocation2"]</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="btn_nearest_restaurants" class="ab-test-button">
+    <img src="~/images/icon_nearest_restaurants.png" alt="" />
+    <div>@Localizer["RestarauntsNearMe"]</div>
+</div>
+
+@section Scripts {
+    <script src="~/js/jquery.js"></script>
+    <script src="~/js/swiper.min.js"></script>
+    <script>
+        //transplation constants
+        const NO_ANY_NEARBY_RESTARAUNT = '@Localizer["NoAnyNearbyPlace"]';
+        var cities = @Html.Raw(ViewData["cities"]);
+        var selectedCity = "@selectedCity.Id";
+    </script>
+    <script src="~/js/typeahead.js" asp-append-version="true"></script>
+    <script>
+        $(document).ready(function () {
+            //hide return top buttn
+            $("#toTop").addClass("hidden");
+            //init swiper
+            var swiper = new Swiper('.swiper-container', {
+                slidesPerView: 2,
+                spaceBetween: 20,
+                pagination: {
+                    el: '.swiper-pagination',
+                    clickable: true,
+                },
+            });
+
+            params = {
+                searchSelectRadioButtonDataAttribute: 'data-select-search',
+                searchSelectContainerAttribute: 'data-search',
+                findRestaurantsPath: '@Url.Action("FindRestaurant", "Home", new { culture = culture })',
+                findDishesPath: '@Url.Action("SearchDish", "Home", new { culture = culture })',
+                formSelector: 'form.search_restaurant, form.search-form',
+                dishQueryDataAttribute: 'dish_q',
+                buttonSeachDishSelector: '[data-search-dish]',
+                formContentSelector: '.search-form-content',
+                viewAllDishesSelector: '.view-all-dishes-button',
+            }
+            initSearchEvents(params);
+            loadMainPageBannerAbTest();
+        });
+
+
+        //Restaurant nearest search
+        $("#btn_nearest_restaurants").click(function(e) {
+            e.preventDefault();
+
+            $('.popUpBlockMain').addClass('visible');
+            $(".popUpClosestRestaurants").fadeIn();
+            $("[data-restaurant-helper-enable]").removeClass("hidden");
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    $(".popUpClosestRestaurants > div").addClass("hidden");
+                    $("[data-restaurant-helper-loading]").removeClass("hidden");
+
+                    setCoordinates(position)
+                    setDishSearchOrder(SORT_ORDER_DISTANCE)
+
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    setCookie(".Menus.UserLatitude", lat, 5);
+                    setCookie(".Menus.UserLongitude", lon, 5);
+
+                    $.ajax({
+                        url: "@Url.Action("FindNearestRestaurants")",
+                        type: "GET",
+                        data: {
+                            lat: lat,
+                            lon: lon
+                        }
+                    }).done(function(x) {
+                        if (x.length < 10) {
+                            $(".popUpClosestRestaurants .popUpTitle").text(NO_ANY_NEARBY_RESTARAUNT);
+                            $("#nearest-restaurants").remove();
+                        }
+
+                        if (x.length < 10) {
+                            $('.view-all-nearest').hide();
+                        } else {
+                            $('.view-all-nearest').show();
+                        }
+
+                        $(".popUpClosestRestaurants > div").addClass("hidden");
+                        $("[data-restaurant-helper-result]").removeClass("hidden");
+
+                        $("#nearest-restaurants").empty().append(x);
+                    });
+                }, function() {
+                    $(".popUpClosestRestaurants > div").addClass("hidden");
+                    $("[data-restaurant-helper-error]").removeClass("hidden");
+                });
+            }
+        });
+
+        $(".do_not_offer a").click(function(e) {
+            e.preventDefault();
+            $(".do_not_offer").addClass("hidden");
+            $(".popUpClosestRestaurants .are_you_sure").removeClass("hidden");
+        });
+
+        $(".popUpClosestRestaurants .are_you_sure .btn_yes").click(function(e) {
+            e.preventDefault();
+
+            localStorage.setItem("closestRestaurantsDisable", "true");
+            $('.popUpBlock').removeClass('visible');
+            $(".popUpClosestRestaurants").fadeOut();
+        });
+
+        $(".popUpClosestRestaurants .are_you_sure .btn_no").click(function(e) {
+            e.preventDefault();
+
+            $(".do_not_offer").removeClass("hidden");
+            $(".popUpClosestRestaurants .are_you_sure").addClass("hidden");
+        });
+
+        //Profile events
+
+        jQuery('.profile_close').on('click', function () {
+            jQuery('.js-mobile-profile').removeClass('active');
+        });
+
+        function loadMainPageBannerAbTest() {
+            const testName = 'mainPageBanner';
+            const currentIdTestResult = getLastAbTestAccess(testName)
+
+            if (!currentIdTestResult) {
+                const ABTEST_NAMES = {
+                    withBanner: 'withBanner',
+                    withoutBanner: 'withoutBanner',
+                    withoutBannerOldButton: 'withoutBannerOldButton'
+                }
+                const url = `@Url.Action("GetAbTest")?name=${testName}`;
+                $.ajax({
+                    url: url,
+                    type: "GET",
+                }).done(function (abTest) {
+                    if (abTest) {
+                        const {
+                            name
+                        } = abTest;
+                        setLastAbTestAccess(testName);
+
+                        if (name === ABTEST_NAMES.withBanner) {
+                            runABTestWithBanner();
+                        }
+                        if (name === ABTEST_NAMES.withoutBanner) {
+                            runABTestWithoutBanner();
+                        }
+                        if (name === ABTEST_NAMES.withoutBannerOldButton) {
+                            runABTestWithoutBannerOldButton();
+                        }
+                    }
+                });
+            }
+        }
+
+        function runABTestWithBanner() {
+            const $container = $('.popUpBlockMain .popUpBlock_inner');
+            const withTipMyMenuYouCan = '@Localizer["WithTipMyMenuYouCan"]';
+            const youCanViewMenu = '@Localizer["YouCanViewMenu"]';
+            const youCanAddPhoto = '@Localizer["YouCanAddPhoto"]';
+            const youCanRateViewDish = '@Localizer["YouCanRateViewDish"]';
+            const youCanRateDish = '@Localizer["YouCanRateDish"]';
+            const letGo = '@Localizer["LetGo"]';
+
+            const bannersMarkup = `
+                <div class="popUpWindow popUpAbTestBanner">
+                    <span class="popUp_close"></span>
+                    <div data-restaurant-helper-result">
+                        <div class="popUpTitle">${withTipMyMenuYouCan}</div>
+                        <ul id="nearest-restaurants">
+                            <li class="restaurant-menu">
+                                ${youCanViewMenu}
+                            </li>
+                            <li class="restaurant-dish">
+                                ${youCanRateViewDish}
+                            </li>
+                            <li class="add-photo">
+                                ${youCanRateDish}
+                            </li>
+                            <li class="rate-dish">
+                                ${youCanAddPhoto}
+                            </li>
+                        </ul>
+                        <a href="#" class="btn-primary btn-primary--fill btn-lets-go">
+                            ${letGo}
+                        </a>
+                    </div>
+                </div>
+            `;
+
+            $container.append(bannersMarkup);
+            $('.popUpBlockMain').addClass('visible');
+            $(".popUpAbTestBanner").fadeIn();
+
+            jQuery('.btn-lets-go, .popUpAbTestBanner .popUp_close').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible');
+                jQuery('.popUpWindow').fadeOut();
+            });
+        }
+
+        function runABTestWithoutBanner() {
+            //optional
+        }
+
+        function runABTestWithoutBannerOldButton() {
+            //optional
+        }
+    </script>
+}

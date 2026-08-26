@@ -1,0 +1,306 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@using Menus.Abstract.Models
+@model IEnumerable<Menus.Abstract.Models.ICompleteDish>
+@inject Menus.Web.Services.UserService  UserService
+@inject Menus.Domain.Core Core
+@{
+
+
+    ViewData["Robots"] = "NOINDEX,FOLLOW";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+    var featuredRestaurants = (ViewData["featuredRestaurants"] as List<ICompleteRestaurant>) ?? new List<ICompleteRestaurant>();
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    var sortOptions = new Dictionary<string, string>
+    {
+        { "rating", Localizer["Rating"].Value },
+        { "rating-count", Localizer["RatingsNumber"].Value },
+        { "distance", Localizer["Distance"].Value }
+    };
+
+    var q = Context.Request.Query["q"].FirstOrDefault();
+
+    var sort = Context.Request.Query["sort"].FirstOrDefault();
+    sort = string.IsNullOrEmpty(sort) ? "distance" : sort;
+
+    var selectedCity = Context.Request.Cookies[".Menus.SelectedCity"];
+    selectedCity = !string.IsNullOrEmpty(selectedCity) ? selectedCity : "e2655e24-92dc-4179-abf6-c3908278a4de";
+    var city = (await Core.Restaurants.GetCityById(selectedCity)).Name.Get(culture);
+    var dishName = this.Context.Request.Query["q"];
+    ViewData["Title"] = string.Format(Localizer["MetaTitle"].Value, dishName, city);
+    ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, dishName, city);
+}
+
+
+
+@await Html.PartialAsync("_Header")
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["DishSearch"]</breadcrumb></li>
+                <li><breadcrumb href="#">@q</breadcrumb></li>
+            </ul>
+        </div>
+
+
+
+        <div class="site-content-align">
+
+            @if (!UserService.IsMobileUser(Context.Request))
+            {
+                <div class="searchResult">
+                    <div class="searchResultLeft">
+                        <div class="searchResultTop">
+                            <div class="left_area">
+                                <h2>@Localizer["SearchResult"]</h2>
+                            </div>
+                            <div class="right_area">
+                                <form method="get" class="form_sort">
+                                    <label>@Localizer["SortBy"]:</label>
+                                    <input type="hidden" name="q" value="@q" />
+                                    <select name="sort" asp-items='sortOptions.Select(x => new SelectListItem { Text = x.Value, Value = x.Key, Selected = x.Key == sort })'></select>
+                                </form>
+                                <div class="post_display">
+                                    <ul>
+                                        <li class="display_1 current"><span class="fa-fw select-all fas"></span></li>
+                                        <li class="display_2"><span class="fa-fw select-all fas"></span></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="resultList" data-load-more-container>
+                            @foreach (var dish in Model)
+                            {
+                                <li>
+                                    <div class="caption">
+                                        <figure>
+                                            @if (dish.Photos.Any())
+                                            {
+                                                <a href="@Url.Action("Dish", "Home", new { id = dish.RestaurantUrl, dishId = dish.DishUrl })" style="background-image: url(@Img.Url(dish.Photos.First(), Quality.Medium))"></a>
+                                            }
+                                            @if (dish.RestaurantDistance != null)
+                                            {
+                                                <span>@dish.RestaurantDistance.Value.ToString("F1") km</span>
+                                            }
+                                        </figure>
+                                        <h3><a href="@Url.Action("Dish", "Home", new { id = dish.RestaurantUrl, dishId = dish.DishUrl })">@dish.Name.Get(culture)</a></h3>
+                                        <span class="resultListRating">
+                                            <em>@dish.RatingFloat.ToString("F1")</em>
+                                            @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                        </span>
+                                        <span class="searchResultReview">@dish.RatingsCount @Localizer["Ratings"]</span>
+                                        <a href="@Url.Action("Restaurant", "Home", new { id = dish.RestaurantUrl })" class="searchResultLocation">
+                                            @dish.RestaurantName - @dish.RestaurantDisplayAddress.Get(culture)
+                                        </a>
+                                        <span class="searchResultPrice">
+                                            @dish.RestaurantCurrency @dish.Price.ToString("F2") <span>@dish.Weight @dish.WeightType</span>
+                                        </span>
+                                        <p>@dish.ShortDescription.Get(culture)</p>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                    <div class="searchResultRight">
+                        <h2>@Localizer["Recomendations"]</h2>
+                        <ul class="recommendationList">
+                            @foreach (var restaurant in featuredRestaurants)
+                            {
+                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                <li>
+                                    <figure>
+                                        <img src="@(string.IsNullOrEmpty(photos.FirstOrDefault()) ? "/images/rest_02.jpg" : Img.Url(photos.FirstOrDefault(), Quality.Medium))" alt="Alternate Text" />
+                                    </figure>
+                                    <h3><a asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">@restaurant.Name</a></h3>
+                                    <p>@Localizer["RatingByDishes"]: @restaurant.RatingsCount</p>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="searchResultMobile">
+                    <div class="searchTopMobile">
+                        <h2>@Localizer["SearchResult"] <span>@Localizer["Sort"]</span></h2>
+                    </div>
+                    <ul class="resultMobile" data-load-more-container>
+                        @foreach (var dish in Model)
+                        {
+                            <li>
+                                <div class="caption">
+                                    <figure>
+                                        @if (dish.Photos.Any())
+                                        {
+                                            <a href="@Url.Action("Dish", "Home", new { id = dish.RestaurantUrl, dishId = dish.DishUrl })" style="background-image: url(@Img.Url(dish.Photos.First(), Quality.Medium));"></a>
+                                        }
+                                        @if (dish.RestaurantDistance != null)
+                                        {
+                                            <span>@dish.RestaurantDistance.Value.ToString("F1") km</span>
+                                        }
+                                    </figure>
+                                    <h3><a href="@Url.Action("Dish", "Home", new { id = dish.RestaurantUrl, dishId = dish.DishUrl })">@dish.Name.Get(culture)</a></h3>
+                                    <span class="resultListRating">
+                                        <em>@dish.RatingFloat.ToString("F1")</em>
+                                        @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                    </span>
+                                    <span class="searchResultReview">@dish.RatingsCount @Localizer["Ratings"]</span>
+                                    <a href="@Url.Action("Restaurant", "Home", new { id = dish.RestaurantUrl })" class="searchResultLocation">
+                                        @dish.RestaurantName - @dish.RestaurantDisplayAddress.Get(culture)
+                                    </a>
+                                    <span class="searchResultPrice">
+                                        @dish.RestaurantCurrency @dish.Price.ToString("F2") <span>@dish.Weight @dish.WeightType</span> @*<em>0.9 km</em>*@
+                                    </span>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+
+                <div class="sortPopup">
+                    <div class="sortPopUpBlackout"></div>
+                    <div class="sortPopupInner">
+                        <div class="sortPopupCaption">
+                            <span class="sortPopupClose"></span>
+                            <div class="title">@Localizer["SortBy"]:</div>
+                            <ul>
+                                @*<li class="sort_top current">@Localizer["TopTen"]</li>*@
+                                <li data-sort="rating" class="sort_rating">@Localizer["Rating"]</li>
+                                <li data-sort="rating-count" class="sort_count">@Localizer["RatingsNumber"]</li>
+                                <li data-sort="distance" class="sort_near">@Localizer["Distance"]</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <form>
+                        <input type="hidden" name="q" value="@q" />
+                        <input type="hidden" name="sort" value="@sort" />
+                    </form>
+                </div>
+
+            }
+
+            @if (Model.Count() == 28)
+            {
+                <div class="searchNav">
+                    <p>
+                        <a data-load-more href="#">@Localizer["LoadMore"] </a>
+                    </p>
+                </div>
+            }
+
+        </div>
+
+
+
+    </main>
+</div>
+
+
+
+@await Html.PartialAsync("_Footer")
+
+
+
+@section Scripts
+{
+    <script src="~/js/jquery.js"></script>
+
+    <script>
+        jQuery(function() {
+            if (localStorage.getItem("search-display-2") === "true") {
+                jQuery('.resultList').addClass('display_2');
+                jQuery('.post_display ul li').removeClass('current');
+                jQuery('.post_display ul li').eq(1).addClass('current');
+            }
+
+            jQuery('.post_display ul li').on('click',
+                function() {
+                    jQuery('.post_display ul li').removeClass('current');
+                    jQuery(this).addClass('current');
+                });
+
+            jQuery('.post_display ul li.display_1').on('click',
+                function() {
+                    jQuery('.resultList').removeClass('display_2');
+                    localStorage.removeItem("search-display-2");
+                });
+
+            jQuery('.post_display ul li.display_2').on('click',
+                function() {
+                    jQuery('.resultList').addClass('display_2');
+                    localStorage.setItem("search-display-2", "true");
+                });
+        });
+        jQuery(window).on('load', function () {
+            jQuery('.resultList li h3 a, .resultList li .searchResultLocation').css({
+                'display' : '-webkit-box',
+                '-webkit-line-clamp' : '2',
+                '-webkit-box-orient' : 'vertical',
+            });
+        });
+    </script>
+
+    <script>
+        jQuery(function() {
+            jQuery('.searchTopMobile h2 span').on('click',
+                function() {
+                    jQuery('.sortPopup').fadeIn();
+                });
+
+            jQuery('.sortPopupCaption ul li').on('click',
+                function() {
+                    jQuery('.sortPopupCaption ul li').removeClass('current');
+                    jQuery(this).addClass('current');
+                    var sort = $(this).attr("data-sort");
+                    $("[name=sort]").val(sort);
+                    $(".sortPopup form").submit();
+                });
+
+            jQuery('.sortPopupClose, .sortPopUpBlackout').on('click',
+                function() {
+                    jQuery('.sortPopup').fadeOut();
+                });
+
+            $("[data-sort=@sort]").addClass("current");
+        });
+
+        $("select[name=sort]").change(function() {
+            $(".form_sort").submit();
+        });
+
+        var dataLoadMorePage = 0;
+        $("[data-load-more]").click(function(e) {
+            e.preventDefault();
+            dataLoadMorePage++;
+            $("[data-load-more]").addClass("hidden");
+
+            $.ajax({
+                url: location.url,
+                type: "GET",
+                data: {
+                    page: dataLoadMorePage
+                },
+                success: function(data) {
+                    if (data.length > 20) {
+                        $("[data-load-more-container]").append(data);
+                        $("[data-load-more]").removeClass("hidden");
+                    }
+                }
+            });
+        });
+    </script>
+
+    <script src="~/js/typeahead-inner.js"></script>
+}

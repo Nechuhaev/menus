@@ -1,0 +1,180 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Domain.Core Core
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var selectedCity = Context.Request.Cookies[".Menus.SelectedCity"];
+    selectedCity = !string.IsNullOrEmpty(selectedCity) ? selectedCity : "e2655e24-92dc-4179-abf6-c3908278a4de";
+    var user = await UserService.GetUserById(User.Identity.Name);
+    var featuredRestaurants = Core.Restaurants.GetCompleteRestaurants().Where(x => x.IsFeatured && x.City == selectedCity).Take(4).ToList();
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+    var city = (await Core.Restaurants.GetCityById(selectedCity)).Name.Get(culture);
+    var dishName = this.Context.Request.Query["q"];
+    ViewData["Title"] = string.Format(Localizer["MetaTitle"].Value, dishName, city);
+    ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, dishName, city);
+}
+
+
+
+@await Html.PartialAsync("_Header")
+
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs breadcrumbs-content breadcrumbs-content-position">
+            <ul>
+                <li><breadcrumb asp-route-culture="@culture" asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="#">404</breadcrumb></li>
+            </ul>
+        </div>
+
+        <div class="site-content-align">
+
+
+            <div class="page_404">
+
+                <div class="page_404_left">
+                    <h2>@Localizer["SorryWeHaventFound"] <span>@Localizer["OnYourRequest"]</span></h2>
+                    <h3>@Localizer["TryToMakeSearch"]:</h3>
+                    <ul>
+                        <li>@Localizer["AnontherCity"]</li>
+                        <li>@Localizer["CheckSpelling"]</li>
+                    </ul>
+                    <div class="page_404_btns">
+                        <a href="javascript:void(0)" class="btn-default">@Localizer["BeginSearch"]</a>
+                        <a asp-route-culture="@culture" asp-area="" asp-controller="Home" asp-action="Index" class="btn-link">@Localizer["ToHome"]</a>
+                    </div>
+                </div>
+
+                <div class="page_404_right">
+                    <figure class="img_404">
+                        <img src="~/images/img_404.png" alt="404" class="desktop_404_image" />
+                        <img src="~/images/img_404_mobile.png" alt="404" class="mobile_404_image" />
+                    </figure>
+                </div>
+
+            </div>
+
+            @await Html.PartialAsync("_GoogleSence",
+                    new Menus.Web.Models.Internal.GoogleSence() {
+                        GoogleSenceType = Menus.Web.Models.Internal.GoogleSenceTypes.Wide
+                    })
+
+            @if (featuredRestaurants.Any())
+            {
+                <h2>@Localizer["MbYouWillBeIntrestedIn"]</h2>
+            }
+
+            @if (!UserService.IsMobileUser(Context.Request) && featuredRestaurants.Any())
+            {
+                <div class="restaurants-container extra disableOnMobile">
+                    @foreach (var restaurant in featuredRestaurants)
+                    {
+                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                        <a class="restaurant" asp-route-culture="@culture" asp-controller="Home" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                            @if (photos.Count > 0)
+                            {
+                                <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Low));"></figure>
+                            }
+                            else
+                            {
+                                <figure class="restaurant-image"></figure>
+                            }
+                            <p class="restaurant-name">
+                                @restaurant.Name
+                            </p>
+                            <p class="restaurant-kitchen">
+                                @restaurant.Cuisine.Get()
+                            </p>
+                            <p class="rating-count">
+                                @Localizer["RatingByDishes"]: @restaurant.RatingsCount
+                            </p>
+                        </a>
+                    }
+                </div>
+            }
+
+            else if (featuredRestaurants.Any())
+            {
+                <!-- Swiper -->
+                <div class="swiper-area disableOnDesktop">
+                    <div class="swiper-container">
+                        <div class="swiper-wrapper">
+                            @foreach (var restaurant in featuredRestaurants)
+                            {
+                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                <a class="swiper-slide" asp-route-culture="@culture" asp-controller="Home" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                    @if (photos.Count > 0)
+                                    {
+                                        <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Low));"></figure>
+                                    }
+                                    else
+                                    {
+                                        <figure class="restaurant-image"></figure>
+                                    }
+                                    <p class="restaurant-name">
+                                        @restaurant.Name
+                                    </p>
+                                    <p class="restaurant-kitchen">
+                                        @restaurant.Cuisine.Get()
+                                    </p>
+                                    <p class="rating-count">
+                                        @Localizer["RatingByDishes"]: @restaurant.RatingsCount
+                                    </p>
+                                </a>
+                            }
+                        </div>
+                        <!-- Add Pagination -->
+                        <div class="swiper-pagination"></div>
+                    </div>
+                </div>
+            }
+
+        </div>
+
+    </main>
+</div>
+
+
+
+@await Html.PartialAsync("_Footer")
+
+<script src="~/js/typeahead-inner.js"></script>
+
+@section Scripts
+    {
+    <link href="~/css/swiper.min.css" rel="stylesheet" />
+    <script src="~/js/swiper.min.js"></script>
+    @if (UserService.IsMobileUser(Context.Request))
+    {
+        <script>
+            $(document).ready(function () {
+                var swiper = new Swiper('.swiper-container', {
+                    slidesPerView: 2,
+                    spaceBetween: 20,
+                    pagination: {
+                        el: '.swiper-pagination',
+                        clickable: true,
+                    },
+                });
+            });
+
+        </script>
+    }
+
+    <script>
+        $(document).ready(function () {
+            $('.page_404_btns .btn-default').on('click', function (e) {
+                e.preventDefault();
+                $('.search_form_btn').click();
+                $('.mobile_search_open').click();
+            });
+        });
+    </script>
+}

@@ -1,0 +1,800 @@
+@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@using Menus.Abstract.Models
+@model Menus.Abstract.Models.IRestaurantInfo
+@{
+    ViewData["Title"] = "Menu";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture;
+    var Locales = LocaleSrvc.GetLocales();
+
+    var owner = ViewData["owner"] as IUser;
+
+    var currencies = new List<string>
+    {
+        "₴",
+        "$"
+    };
+
+    ViewData["controller"] = "About";
+    ViewData["action"] = "UploadRestaurantLogo";
+    ViewData["area"] = "Restaurants";
+    ViewData["valueName"] = "id";
+    ViewData["value"] = Model.Id;
+}
+
+<link href="~/css/cropper.min.css" rel="stylesheet" />
+<style>
+    .twitter-typeahead {
+        display: block !important;
+    }
+
+    .tt-menu {
+        background: #fff;
+    }
+</style>
+
+<div class="site-content">
+    <main>
+        
+        <partial name="_AboutBreadcrumbs" model="@("")"/>
+
+        <div class="site-content-wrapper">
+
+            <partial name="_AboutSubheader" />
+
+            <div class="language_and_text">
+                <div class="column_left">
+                    <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
+                </div>
+                <div class="column_right">
+                    <ul class="content_language">
+                        @{
+                            var firstLocale = true;
+                        }
+                        @foreach (var locale in Locales)
+                        {
+                            <li class="@(firstLocale ? "current" : "")"><a data-locale="@locale.Id" href="#">@locale.ShortName</a></li>
+                            firstLocale = false;
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <form method="post" class="form_details">
+                <input type="hidden" name="Contacts" value="@Model.Contacts" />
+                <input type="hidden" name="OpenHours" value="@Model.OpenHours" />
+                <input type="hidden" name="Photos" value="@Model.Photos" />
+                <input type="hidden" name="Logo" value="@Model.Logo" />
+                <input type="hidden" name="Id" value="@Model.Id" />
+                <input type="hidden" name="RestaurantId" value="@Model.RestaurantId" />
+                @if (User.IsInRole("admin"))
+                {
+                    <div class="form_group">
+                        <label>Владелец</label>
+                        <input id="restaurant-owner" type="text" name="Owner" value="@owner.FirstName @owner.LastName | @owner.Email | @owner.Id" />
+                    </div>
+                    <div style="padding-top: 1vw; padding-bottom: 3vw;" class="form_group form_group_submit">
+                        <input id="restaurant-owner-save" type="submit" value="Сменить владельца" />
+                    </div>
+                }
+                @if (User.IsInRole("admin"))
+                {
+                    <div class="form_group">
+                        <label>ID Документа</label>
+                        <input id="spreadsheet-id" type="text" name="Owner" value="" placeholder="Введите ID документа, например 1NdXmtFFFF0UHm1ODXU4FFPPuK-1B2FTKHNVvYB0nQqE" />
+                        <div class="operation-status"></div>
+                    </div>
+                    <div style="padding-top: 1vw; padding-bottom: 3vw;" class="form_group form_group_submit">
+                        <input id="update-spreadsheet" type="submit" value="Заполнить документ" />
+                    </div>
+                     <div style="padding-top: 1vw; padding-bottom: 3vw;" class="form_group form_group_submit">
+                        <input id="update-from-spreadsheet" type="submit" value="Обновить из документа" />
+                    </div>
+                }
+                <div class="form_group">
+                    <label>Общая информация <span>*</span></label>
+                    @{
+                        var localeIndex = 0;
+                    }
+                    @foreach (var locale in Locales)
+                    {
+                        <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                            <input type="hidden" name="ShortInfo[@localeIndex].Locale" value="@locale.Id" />
+                            <textarea name="ShortInfo[@localeIndex].Value">@Model.ShortInfo.Get(locale.Id)</textarea>
+                        </span>
+                        localeIndex++;
+                    }
+                </div>
+                <div class="form_group">
+                    <label>Подробная информация</label>
+                    @{
+                        localeIndex = 0;
+                    }
+                    @foreach (var locale in Locales)
+                    {
+                        <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                            <input type="hidden" name="FullInfo[@localeIndex].Locale" value="@locale.Id" />
+                            <textarea class="extra" name="FullInfo[@localeIndex].Value">@Model.FullInfo.Get(locale.Id)</textarea>
+                        </span>
+                        localeIndex++;
+                    }
+                </div>
+                <div class="form_group">
+                    <label>Направленность <span>*</span></label>
+                    @{
+                        localeIndex = 0;
+                    }
+                    @foreach (var locale in Locales)
+                    {
+                        <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                            <input type="hidden" name="Cuisine[@localeIndex].Locale" value="@locale.Id" />
+                            <input type="text" name="Cuisine[@localeIndex].Value" value="@Model.Cuisine.Get(locale.Id)" placeholder="например:  Морепродукты, Европейская, Русская" />
+                        </span>
+                        localeIndex++;
+                    }
+                </div>
+                <div class="form_group">
+                    <label>Валюта <span>*</span></label>
+                    <select class="form-control" asp-for="Currency"
+                            asp-items="currencies.Select(x => new SelectListItem { Text = x, Value = x })"></select>
+                </div>
+                <div class="form_group">
+                    <label>Разрешить добавлять фото меню </label>
+                    @Html.CheckBoxFor(x => x.UserAllowedAddMenu)
+                </div>
+                <div class="form_group">
+                    <label>Разрешить просматривать фото меню </label>
+                    @Html.CheckBoxFor(x => x.UserAllowedOpenMenu)
+                </div>
+                <div class="form_group">
+                    <label>Разрешить добавлять блюда </label>
+                    @Html.CheckBoxFor(x => x.UserAllowedAddDishes)
+                </div>
+                @if (User.IsInRole("admin") || User.IsInRole("manager"))
+                {
+                    <div class="form_group">
+                        <label>Рекомендуемый ресторан </label>
+                        @Html.CheckBoxFor(x => x.IsFeatured)
+                    </div>
+                    <div class="form_group">
+                        <label>Выводить на главной в новых </label>
+                        @Html.CheckBoxFor(x => x.ShowOnIndex)
+                    </div>
+                }
+                <div class="form_group">
+                    <label>Логотип ресторана</label>
+                    <ul class="photo_list_logo">
+                        <li class="add_file" style="overflow: visible; background: none;">
+                            <label data-upload-photo for="photo-upload-input" style="cursor: pointer; width: 100%; height: 100%; display: inline-block">
+                                <img alt="Alternate Text">
+                            </label>
+                            <a href="javascript:;" class="btn_delete"></a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="form_group">
+                    <label>Добавить  фото ресторана <em>( вы можете дабавить до 10 фото )</em></label>
+                    <div class="add_file">
+                        <input id="photos-add" type="file" value="" />
+                    </div>
+                    <ul class="photo_list"></ul>
+                </div>
+                <div class="form_group">
+                    <label>Website</label>
+                    <input type="text" asp-for="Website" placeholder="" />
+                </div>
+                <div class="form_group">
+                    <label>Адрес для отображения <span>*</span></label>
+                    @{
+                        localeIndex = 0;
+                    }
+                    @foreach (var locale in Locales)
+                    {
+                        <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                            <input type="hidden" name="DisplayAddress[@localeIndex].Locale" value="@locale.Id" />
+                            <input type="text" name="DisplayAddress[@localeIndex].Value" value="@Model.DisplayAddress.Get(locale.Id)" />
+                        </span>
+                        localeIndex++;
+                    }
+                </div>
+                <div class="form_group open-hours">
+                    <label>Часы работы <span>*</span></label>
+                    <div class="form_group_columns">
+                        <p>
+                            <input type="text" required placeholder="09:00" data-maintime-from class="time" />
+                        </p>
+                        <p>
+                            <input type="text" required placeholder="23:00" data-maintime-to class="time" />
+                        </p>
+                        <p>
+                            <span class="icon_open_btn"></span>
+                        </p>
+                    </div>
+                    <div class="hidden_block">
+                        <label>Расписание на неделю</label>
+                        <ul>
+                            @*<li class="inactive">
+                        <input type="text" placeholder="09:00" class="time" />
+                        <input type="text" placeholder="23:00" class="time" />
+                        <input type="checkbox" class="checkbox" checked id="checkbox_02" />
+                        <label for="checkbox_02">ВТ</label>
+                    </li>*@
+                            <li data-time="0">
+                                <input type="text" data-time-from placeholder="09:00" class="time" />
+                                <input type="text" data-time-to placeholder="23:00" class="time" />
+                                <input type="checkbox" class="checkbox" id="checkbox_01" />
+                                <label for="checkbox_01">ПН</label>
+                            </li>
+                            <li data-time="1">
+                                <input type="text" data-time-from placeholder="09:00" class="time" />
+                                <input type="text" data-time-to placeholder="23:00" class="time" />
+                                <input type="checkbox" class="checkbox" id="checkbox_02" />
+                                <label for="checkbox_02">ВТ</label>
+                            </li>
+                            <li data-time="2">
+                                <input type="text" data-time-from placeholder="09:00" class="time" />
+                                <input type="text" data-time-to placeholder="23:00" class="time" />
+                                <input type="checkbox" class="checkbox" id="checkbox_03" />
+                                <label for="checkbox_03">СР</label>
+                            </li>
+                            <li data-time="3">
+                                <input type="text" data-time-from placeholder="09:00" class="time" />
+                                <input type="text" data-time-to placeholder="23:00" class="time" />
+                                <input type="checkbox" class="checkbox" id="checkbox_04" />
+                                <label for="checkbox_04">ЧТ</label>
+                            </li>
+                            <li data-time="4">
+                                <input type="text" data-time-from placeholder="09:00" class="time" />
+                                <input type="text" data-time-to placeholder="23:00" class="time" />
+                                <input type="checkbox" class="checkbox" id="checkbox_05" />
+                                <label for="checkbox_05">ПТ</label>
+                            </li>
+                            <li data-time="5">
+                                <input type="text" data-time-from placeholder="09:00" class="time" />
+                                <input type="text" data-time-to placeholder="23:00" class="time" />
+                                <input type="checkbox" class="checkbox" id="checkbox_06" />
+                                <label for="checkbox_06">СБ</label>
+                            </li>
+                            <li data-time="6">
+                                <input type="text" data-time-from placeholder="09:00" class="time" />
+                                <input type="text" data-time-to placeholder="23:00" class="time" />
+                                <input type="checkbox" class="checkbox" id="checkbox_07" />
+                                <label for="checkbox_07">ВС</label>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="form_group contacts">
+                    <div class="form_group_columns">
+                        <p>
+                            <label>Дополнительная контактная информация</label>
+                        </p>
+                        <p>
+                            <span id="contacts_show" class="icon_open_btn"></span>
+                        </p>
+                    </div>
+                    <div class="hidden_block">
+                        <div class="choose_block" id="add-phone-container">
+                            <select id="add-contact-select">
+                                <option value="telephone">Телефон</option>
+                                <option value="viber">Viber</option>
+                                <option value="whatsapp">WhatsApp</option>
+                            </select>
+                            <a id="add-phone" href="#">Добавить</a>
+                        </div>
+                        <div id="phones-container"></div>
+                        @*<p class="telephone_block hidden" data-contact="phone">
+                    <em><input type="tel" name="contact-phone" value="" /></em>
+                    <i class="delete_item"></i>
+                </p>
+                <p class="viber_block hidden" data-contact="viber">
+                    <em><input type="tel" name="contact-viber" value="" /></em>
+                    <i class="delete_item"></i>
+                </p>
+                <p class="whatsapp_block hidden" data-contact="whatsapp">
+                    <em><input type="tel" name="contact-whatsapp" value="" /></em>
+                    <i class="delete_item"></i>
+                </p>*@
+                    </div>
+                </div>
+                <div class="form_group">
+                    <label>GPS данные</label>
+                    <div class="form_group_gps">
+                        <p>
+                            <input asp-for="GpsLatitude" placeholder="Широта" />
+                        </p>
+                        <p>
+                            <input asp-for="GpsLongitude" type="text" placeholder="Долгота" />
+                        </p>
+                        <p>
+                            <a id="init-gmaps" href="javascript:;">Показать</a>
+                        </p>
+                    </div>
+                </div>
+                <div class="form_group form_group_map">
+                    <iframe class="hidden" width="100%" height="450" style="border:0" id="gmaps-iframe"></iframe>
+                    <img src="~/images/image_map.jpg" id="gmaps-placeholder" alt="Alternate Text" />
+                </div>
+                <div class="form_group form_group_submit">
+                    <input type="submit" value="сохранить" />
+                </div>
+            </form>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+<div class="popUpWindow hidden">
+    <div class="popUpAlign">
+        <div class="popUpContent">
+            <span class="popUpClose"></span>
+            <div class="cropper" style="height: 35vw; margin-bottom: 3vw;">
+                <img id="cropper-img-gallery" style="max-width: 100%;" src="" alt="Alternate Text" />
+            </div>
+            <div class="popUpBtns">
+                <a href="javascript:;" class="btnCancel">Отменить</a>
+                <a href="javascript:;" class="btnChange">Добавить</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts{
+<script src="~/js/jquery.js"></script>
+<script src="~/js/jquery-ui.min.js"></script>
+<script src="~/js/cropper.min.js"></script>
+<script src="~/js/jquery-cropper.min.js"></script>
+@if (User.IsInRole("admin"))
+{
+    <script src="~/js/bloodhound.min.js"></script>
+    <script src="~/js/typeahead.jquery.min.js"></script>
+    <script>
+        var users = new Bloodhound({
+            datumTokenizer: Bloodhound.tokenizers.whitespace,
+            queryTokenizer: Bloodhound.tokenizers.whitespace,
+            prefetch: '@Url.Action("GetPossibleOwners", "About")',
+            remote: {
+                url: '@Url.Action("GetPossibleOwners", "About")?query=%QUERY',
+                wildcard: '%QUERY'
+            }
+        });
+
+        $('#restaurant-owner').typeahead(null, {
+            name: 'owner',
+            display: 'value',
+            source: users
+        });
+
+        $('#restaurant-owner-save').click(function(e) {
+            e.preventDefault();
+
+            if (!confirm("Вы уверены?")) return;
+
+            $.ajax({
+                url: "@Url.Action("ChangeOwner", "About")",
+                type: "POST",
+                data: {
+                    restaurantId: "@Model.RestaurantId",
+                    userString: $('#restaurant-owner').val()
+                }
+            });
+        });
+
+        $('#update-spreadsheet').click(function(e) {
+            e.preventDefault();
+
+            if (!confirm("Вы уверены?")) return;
+
+            $.ajax({
+                url: "@Url.Action("UpdateSpreadSheetWithRestaurantData", "About")",
+                type: "POST",
+                data: {
+                    spreadsheetId: $('#spreadsheet-id').val()
+                }
+                }).done(function (data) {
+                    processStatus(data);
+                }).fail(function (data) {
+                    processStatus(data);
+                });;
+             });
+
+            $('#update-from-spreadsheet').click(function (e) {
+                e.preventDefault();
+
+                if (!confirm("Вы уверены?")) return;
+
+                $.ajax({
+                    url: "@Url.Action("UpdateFromSpreadSheetWithRestaurantData", "About")",
+                    type: "POST",
+                    data: {
+                        spreadsheetId: $('#spreadsheet-id').val()
+                    }
+                }).done(function (data) {
+                    processStatus(data);
+                }).fail(function (data) {
+                    processStatus(data);
+                });
+            });
+
+            function processStatus(data){
+                console.log(data);
+                let statusMessageContainer = $('.operation-status');
+                let htmlContent = '';
+                let messages = '';
+
+                if (data.messages) {
+                    for(let message of data.messages) {
+                        messages = `${message} </br >`;
+                    }                    
+                }
+
+                if(data.status === 'Success') {
+                    htmlContent = `<p style='color: green; font-weight:bold;'>Операция успешна: </p> ${messages}`;
+                }
+                
+                if(data.status === 'Error') {
+                    htmlContent = `<p style='color: red; font-weight:bold;'>Произошла ошибка: </p> ${messages}`;
+                }
+
+                statusMessageContainer.html(htmlContent);
+            }
+    </script>
+}
+<script>
+    window.loggedIn = true;
+    window.uploadPhotoCallback = function (data) {
+        $("input[name=Logo]").val(data.name);
+        $(".photo_list_logo img").attr("src", "@Img.BaseUrl/" + getPhotoId(data.name) + "-small.jpg");
+        $(".photo_list_logo img").css("display", "inline");
+        $(".photo_list_logo li").removeClass("add_file");
+        $(".photo_list_logo .btn_delete").css("display", "inline-block");
+    }
+
+    $(".photo_list_logo .btn_delete").click(function(e) {
+        e.preventDefault();
+        $("input[name=Logo]").val("");
+        $(".photo_list_logo img").attr("src", "");
+        $(".photo_list_logo img").css("display", "none");
+        $(".photo_list_logo li").addClass("add_file");
+        $(".photo_list_logo .btn_delete").css("display", "none");
+    });
+
+    if ($("input[name=Logo]").val()) {
+        $(".photo_list_logo img").attr("src", "@Img.BaseUrl/" + getPhotoId($("input[name=Logo]").val()) + "-small.jpg");
+        $(".photo_list_logo img").css("display", "inline");
+        $(".photo_list_logo li").removeClass("add_file");
+    } else {
+        $(".photo_list_logo img").css("display", "none");
+        $(".photo_list_logo .btn_delete").css("display", "none");
+    }
+
+    function getToken() {
+        var token = '@Html.AntiForgeryToken()';
+        token = $(token).val();
+        return token;
+    }
+
+    $("a[data-locale]").click(function (e) {
+        e.preventDefault();
+        $("a[data-locale]").parent().removeClass("current");
+        $(this).parent().addClass("current");
+
+        $("div[data-locale], span[data-locale]").addClass("hidden");
+        var id = $(this).attr("data-locale");
+        $("div[data-locale=" + id + "], span[data-locale=" + id + "]").removeClass("hidden");
+    });
+
+    ////////// TIMES
+    var times = JSON.parse('@(string.IsNullOrEmpty(Model.OpenHours) ? Html.Raw("{\"perDay\": false, \"data\": []}") : Html.Raw(Model.OpenHours))');
+    if (times.data.length === 0) {
+        times.data = [
+            {
+                from: "",
+                to: "",
+                active: true
+            },
+            {
+                from: "",
+                to: "",
+                active: true
+            },
+            {
+                from: "",
+                to: "",
+                active: true
+            },
+            {
+                from: "",
+                to: "",
+                active: true
+            },
+            {
+                from: "",
+                to: "",
+                active: true
+            },
+            {
+                from: "",
+                to: "",
+                active: true
+            },
+            {
+                from: "",
+                to: "",
+                active: true
+            }
+        ];
+    }
+
+    function initTimes() {
+        $(".open-hours .icon_open_btn").removeClass("active");
+        $(".open-hours .hidden_block").hide();
+
+        if (times.perDay) {
+            $(".open-hours .icon_open_btn").addClass("active");
+            $(".open-hours .hidden_block").show();
+        }
+
+        $("[data-maintime-from]").val(times.data[0].from);
+        $("[data-maintime-to]").val(times.data[0].to);
+        for (var i = 0; i < 7; i++) {
+            var dayContainer = $("[data-time=" + i + "]");
+            dayContainer.find("[data-time-from]").val(times.data[i].from);
+            dayContainer.find("[data-time-to]").val(times.data[i].to);
+            dayContainer.find("input[type=checkbox]").prop("checked", times.data[i].active);
+        }
+    };
+    initTimes();
+
+    $('.open-hours .icon_open_btn').on('click', function (e) {
+        e.preventDefault();
+        jQuery(this).toggleClass('active');
+        jQuery(this).closest('.form_group').find('.hidden_block').slideToggle();
+        times.perDay = !times.perDay;
+        $("[name=OpenHours]").val(JSON.stringify(times));
+    });
+
+    $(document).on("change", "[data-time] input[type=checkbox]", function () {
+        var id = parseInt($(this).parent().attr("data-time"));
+        times.data[id].active = $(this).prop("checked");
+        $("[name=OpenHours]").val(JSON.stringify(times));
+    });
+    $("[data-maintime-from]").change(function () {
+        var val = $(this).val();
+        if (val.length === 4) val = val[0] + val[1] + ":" + val[2] + val[3];
+        $(this).val(val);
+        $("[data-time-from]").val(val);
+        $("[data-time-from]").change();
+    });
+    $("[data-maintime-to]").change(function () {
+        var val = $(this).val();
+        if (val.length === 4) val = val[0] + val[1] + ":" + val[2] + val[3];
+        $(this).val(val);
+        $("[data-time-to]").val(val);
+        $("[data-time-to]").change();
+    });
+    $(document).on("change", "[data-time-from]", function () {
+        var id = parseInt($(this).parent().attr("data-time"));
+        times.data[id].from = $(this).val();
+        $("[name=OpenHours]").val(JSON.stringify(times));
+    });
+    $(document).on("change", "[data-time-to]", function () {
+        var id = parseInt($(this).parent().attr("data-time"));
+        times.data[id].to = $(this).val();
+        $("[name=OpenHours]").val(JSON.stringify(times));
+    });
+    ////////// TIMES END
+
+    ////////// PHONES
+    var phones = JSON.parse('@(string.IsNullOrEmpty(Model.Contacts) ? Html.Raw("[]") : Html.Raw(Model.Contacts))');
+
+    $('.contacts .icon_open_btn').on('click', function (e) {
+        e.preventDefault();
+        jQuery(this).toggleClass('active');
+        jQuery(this).closest('.form_group').find('.hidden_block').slideToggle();
+    });
+
+    function initPhones() {
+        $("#phones-container").empty();
+
+        phones.forEach(function(item, index) {
+            $("#phones-container").append('<p class="' + item.type + '_block"><em><input data-index="' + index + '" type="tel" value="' + item.value + '" /></em><i class="delete_item" data-index="' + index + '"></i></p>');
+        });
+    }
+
+    $(document).on("click", "#phones-container .delete_item[data-index]", function () {
+        var index = parseInt($(this).attr("data-index"));
+        phones.splice(index, 1);
+        $("input[name=Contacts]").val(JSON.stringify(phones));
+
+        initPhones();
+    });
+
+    $(document).on("change", "#phones-container input", function () {
+        var index = parseInt($(this).attr("data-index"));
+        phones[index].value = $(this).val();
+        $("input[name=Contacts]").val(JSON.stringify(phones));
+    });
+
+    $("#add-phone").click(function (e) {
+        e.preventDefault();
+
+        var type = $("#add-contact-select").val();
+        phones.push({
+            type: type,
+            value: ''
+        });
+
+        initPhones();
+    });
+
+    initPhones();
+
+
+    //// MAPS
+    var lat = "@Model.GpsLatitude";
+    var lon = "@Model.GpsLongitude";
+
+    function initMap() {
+        if (!lat || !lon) return;
+
+        //$("#gmaps-iframe").removeClass("hidden").attr("src", "https://www.google.com/maps/embed/v1/place?q=" + lat + "," + lon + "&key=AIzaSyBT6KSc0nTT6ytFEBtczXWCjT69gvm0QLY");
+        $("#gmaps-iframe").removeClass("hidden").attr("src", "https://maps.google.com/maps?q=" + lat + "," + lon + "&z=12&output=embed");
+        $("#gmaps-placeholder").addClass("hidden");
+    };
+
+    $("[name=GpsLatitude]").change(function () {
+        lat = $(this).val();
+    });
+
+    $("[name=GpsLongitude]").change(function () {
+        lon = $(this).val();
+    });
+
+    $("#init-gmaps").click(function () {
+        initMap();
+    });
+
+    initMap();
+    //// MAPS END
+
+
+    //// IMAGES
+    var images = JSON.parse('@(string.IsNullOrEmpty(Model.Photos) ? Html.Raw("[]") : Html.Raw(Model.Photos))');
+
+    function getPhotoId(imgUrl) {
+        return imgUrl.split(".")[0];
+    }
+
+    function initImages() {
+        $("ul.photo_list").empty();
+        images.forEach(function (i) {
+            $("ul.photo_list").append('<li data-uploaded><img data-src="' + i + '" src = "' + '@Img.BaseUrl/' + getPhotoId(i) + '-small.jpg" alt = "Alternate Text" /><a href="javascript:;" class="btn_delete"></a></li >');
+        });
+    }
+
+    $("#photos-add").change(function () {
+
+    });
+
+    $("ul.photo_list").sortable({
+        update: function (e, ui) {
+            //var draggedItem = ui.item[0];
+
+            //var index = $("ul.photo_list li").index(draggedItem);
+
+        }
+    }).disableSelection();
+
+    initImages();
+
+
+
+    var $image = $("#cropper-img-gallery");
+    $("#photos-add").change(function () {
+        if ($("ul.photo_list li").length > 9) return;
+
+        var oFReader = new FileReader();
+
+        oFReader.readAsDataURL(this.files[0]);
+
+        $(".popUpWindow").removeClass("hidden");
+
+        oFReader.onload = function (oFREvent) {
+
+            // Destroy the old cropper instance
+            $image.cropper('destroy');
+
+            // Replace url
+            $image.attr('src', this.result);
+
+            // Start cropper
+            $image.cropper({
+                aspectRatio: 1.3333333,
+                movable: false,
+                zoomable: false,
+                rotatable: false,
+                scalable: true
+            });
+        };
+    });
+    $(".popUpWindow .btnCancel, .popUpWindow .popUpClose").click(function () { 
+        $(".popUpWindow").addClass("hidden");
+    });
+
+    $(document).on('click', "ul.photo_list .btn_delete", function () {
+        $(this).parent().remove();
+    });
+
+    function updateImagesArray() {
+        images = [];
+        $("ul.photo_list [data-uploaded] img").each(function () {
+            images.push($(this).attr("data-src"));
+        });
+
+        $("[name=Photos]").val(JSON.stringify(images));
+    }
+
+    var formSubmitted = false;
+    $(".form_details").submit(function (e) {
+        e.preventDefault();
+        if (formSubmitted) return;
+
+        formSubmitted = true;
+        var imagesToUpload = $("ul.photo_list [data-not-uploaded]");
+        window.imagesToUploadCount = imagesToUpload.length;
+
+        updateImagesArray();
+        if (window.imagesToUploadCount === 0) {
+            $(".form_details").unbind('submit');
+            $(".form_details").submit();
+        }
+
+        imagesToUpload.each(function () {
+            var li = $(this);
+            var img = $(this).find("img");
+            var src = img.attr("src");
+
+            $.ajax({
+                    url: "@Url.Action("UploadBase64Photo")",
+                    method: "POST",
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        base64: src
+                    }
+                })
+                .done(function (data) {
+                    window.imagesToUploadCount--;
+                    li.removeAttr("data-not-uploaded");
+                    li.attr("data-uploaded", "");
+                    img.attr("data-src", data.name);
+
+                    updateImagesArray();
+
+                    if (window.imagesToUploadCount === 0) {
+                        $(".form_details").unbind('submit');
+                        $(".form_details").submit();
+                    }
+                })
+                .fail(function (data) {
+                    window.Logger.logTextError("UPLOAD Base64 img action failed");
+                });
+        });
+    });
+    $(".popUpWindow .btnChange").click(function () {
+        var dataUrl = $image.cropper('getCroppedCanvas', { maxWidth: 1200, maxHeight: 1200 }).toDataURL();
+        $("ul.photo_list").append('<li data-not-uploaded><img src = "' + dataUrl + '" alt = "Alternate Text" /><a href="javascript:;" class="btn_delete"></a></li >');
+        $(".popUpWindow").addClass("hidden");
+    });
+    //// IMAGES END
+</script>
+}
+
+
+@await Html.PartialAsync("_PcPhotoUpload", ViewData)

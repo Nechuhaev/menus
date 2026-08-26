@@ -1,0 +1,169 @@
+﻿@model Menus.Abstract.Models.IRestaurant
+@inject Menus.Domain.Core Core
+@{
+    ViewData["Title"] = "Register";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+}
+
+<div class="site-content">
+    <main>
+
+        <partial name="_AboutBreadcrumbs" model="@("Регистрационные данные")" />
+
+        <div class="site-content-wrapper">
+
+            <partial name="_AboutSubheader" />
+
+            <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
+
+            <form method="post" class="registerRestaurant" enctype="multipart/form-data">
+                <input type="hidden" asp-for="Id" />
+                <div class="restaurant_columns">
+                    <div class="restaurant_left">
+                        <div class="input-group">
+                            <label>Название ресторана <span>*</span></label>
+                            <input asp-for="Name" />
+                        </div>
+                        <div class="input-group">
+                            <label>E-mail <span>*</span></label>
+                            <input asp-for="Email" />
+                        </div>
+                        <div class="input-group">
+                            <label>Телефон <span>*</span></label>
+                            <input asp-for="Phone" />
+                        </div>
+                        <div class="input-group">
+                            <label>Адрес <span>*</span></label>
+                            <input asp-for="Address" />
+                        </div>
+                        <div class="input-group">
+                            <label>Город <span>*</span></label>
+                            <select class="form-control" asp-for="City"
+                                    asp-items="(await Core.Restaurants.GetCities()).Select(x => new SelectListItem { Text = x.Name.Get(), Value = x.Id, Selected = x.Id == Model.City })"></select>
+                        </div>
+                    </div>
+                    <div class="restaurant_right">
+                        <div class="input-group">
+                            <label>Свидетельство о регистрации <span>*</span></label>
+                            <div class="file_upload">
+                                <label for="reg-file-input">
+                                    <button type="button">Прикрепить файл</button>
+                                    <span></span>
+                                </label>
+                                <input name="RegistrationFile" type="file" id="reg-file-input" class="hidden" accept="image/png, image/jpeg, application/pdf">
+                            </div>
+                            <img class="hidden" alt="Registration" />
+                            <p>
+                                @if (!string.IsNullOrEmpty(Model.RegistrationLink))
+                                {
+                                    <a target="_blank" href="@Img.Url(Model.RegistrationLink, Quality.High)">Просмотреть</a>
+                                }
+                            </p>
+                        </div>
+                        <div class="input-group">
+                            <label>Лицензия <span>*</span></label>
+                            <div class="file_upload">
+                                <label for="license-file-input">
+                                    <button type="button">Прикрепить файл</button>
+                                    <span></span>
+                                </label>
+                                <input name="LicenseFile" type="file" id="license-file-input" class="hidden" accept="image/png, image/jpeg, application/pdf">
+                            </div>
+                            <img class="hidden" alt="License" />
+                            <p>
+                                @if (!string.IsNullOrEmpty(Model.LicenseLink))
+                                {
+                                    <a target="_blank" href="@Img.Url(Model.LicenseLink, Quality.High)">Просмотреть</a>
+                                }
+                            </p>
+                        </div>
+                        @if (User.IsInRole("admin"))
+                        {
+                            <div class="input-group">
+                                <label>Находится под упарвлением ресторана</label>
+                                <input asp-for="IsModeratable" />
+                            </div>
+                            <div class="input-group">
+                                <label>Проверено администратором</label>
+                                <input asp-for="Moderated" />
+                            </div>
+                            <div class="input-group">
+                                <label>Проверено администратором</label>
+                                <select class="form-control" asp-for="Status"
+                                        asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.RestaurantStatus>()"></select>
+                            </div>
+                            <div class="input-group">
+                                <input id="send-confirmation" type="submit" value="Отправить подтверждение" />
+                            </div>
+                        }
+                        else
+                        {
+                            <input type="hidden" asp-for="IsModeratable" />
+                            <input type="hidden" asp-for="Moderated" />
+                        }
+                        @*<div class="input-group">
+                        <label>Свидетельство о регистрации <span>*</span></label>
+                    </div>
+                    <div class="input-group">
+                        <label>Лицензия <span>*</span></label>
+                    </div>*@
+                    </div>
+                </div>
+                <div class="input-group input-group--submit">
+                    <input type="submit" value="сохранить" />
+                </div>
+            </form>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+
+@section Scripts {
+    <script src="~/js/jquery.js"></script>
+    <script>
+        function readURL(input, img) {
+
+            if (input.files && input.files[0] && input.files[0].type.indexOf("image/") !== -1) {
+                var reader = new FileReader();
+
+                reader.onload = function (e) {
+                    $(img).attr('src', e.target.result);
+                }
+
+                reader.readAsDataURL(input.files[0]);
+                return true;
+            }
+            return false;
+        }
+
+        $(".file_upload input").change(function () {
+            var container = $(this).parent();
+            container.find("label span").html(this.files[0].name);
+            if (readURL(this, container.parent().find("img")[0])) {
+                container.parent().find("img").removeClass("hidden");
+            }
+            container.parent().find("p").addClass("hidden");
+        });
+
+        $('#send-confirmation').click(function(e) {
+            e.preventDefault();
+
+            if (!confirm("Вы уверены?")) {
+                return;
+            }
+
+            $.ajax({
+                url: "@Url.Action("SendActivationEmail", "About")",
+                type: "POST",
+            }).done(function (data) {
+                alert('Отправлено');
+            }).fail(function (data) {
+                alert('Ошибка при отправке');
+            });;
+        });
+    </script>
+}

@@ -1,0 +1,228 @@
+﻿@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@{
+    ViewData["Title"] = "Dishes";
+    Layout = "~/Areas/Restaurants/Views/Shared/_Layoutinner.cshtml";
+    var menuCategories = ViewData["menuCategories"] as IEnumerable<Menus.Abstract.Models.IMenuCategory>;
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture;
+    var Locales = LocaleSrvc.GetLocales();
+}
+
+
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                <li>Добавить блюдо</li>
+            </ul>
+        </div>
+
+        <div class="site-content-wrapper">
+
+            <ul class="content_nav">
+                <li class="active"><a asp-action="CreateDish">Общая информация</a></li>
+                <li class="not_active"><a href="#">SEO</a></li>
+            </ul>
+
+            <div class="language_and_text">
+                <div class="column_left">
+                    <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
+                </div>
+                <div class="column_right">
+                    <ul class="content_language">
+                        @{
+                            var firstLocale = true;
+                        }
+                        @foreach (var locale in Locales)
+                        {
+                            <li class="@(firstLocale ? "current" : "")"><a data-locale="@locale.Id" href="javasript:;">@locale.ShortName</a></li>
+                            firstLocale = false;
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" class="my_menu">
+                <div class="input-group selected-categories">
+                    <label>РАЗДЕЛ МЕНЮ <span>*</span></label>
+                    @*<input type="text" placeholder="например: завтраки" />*@
+                    @foreach (var category in menuCategories.OrderBy(x => x.Index))
+                    {
+                        <div data-category="@category.Id">
+                            <label><input type="checkbox" /> @category.Name.Get(culture.TwoLetterISOLanguageName)</label>
+                        </div>
+                    }
+                        <input type="hidden" name="Categories" value="" />
+                </div>
+                <div class="input-group input-group-columns">
+                    <p>
+                        <label>ПОЗИЦИЯ <span>*</span></label>
+                        @{
+                            var localeIndex = 0;
+                        }
+                        @foreach (var locale in Locales)
+                        {
+                            <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                <input type="hidden" name="Name[@localeIndex].Locale" value="@locale.Id" />
+                                <input type="text" name="Name[@localeIndex].Value" placeholder="например: омлет" />
+                            </span>
+                            localeIndex++;
+                        }
+                    </p>
+                    <p>
+                        <label>ВЕС <span>*</span></label>
+                        <input type="text" name="Weight" placeholder="200г" required />
+                    </p>
+                    <p>
+                        <label>ЦЕНА <span>*</span></label>
+                        <input type="text" name="Price" placeholder="85грн" required />
+                    </p>
+                </div>
+                <div class="input-group">
+                    <label>Краткое описание позиции</label>
+                    @{
+                        localeIndex = 0;
+                    }
+                    @foreach (var locale in Locales)
+                    {
+                        <div data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                            <input type="hidden" name="ShortDescription[@localeIndex].Locale" value="@locale.Id" />
+                            <input type="text" name="ShortDescription[@localeIndex].Value" placeholder="например: омлет с сосисками" />
+                        </div>
+                        localeIndex++;
+                    }
+                </div>
+
+                <div class="block-more">
+                    <div class="input-group">
+                        <label>Состав</label>
+                        @{
+                            localeIndex = 0;
+                        }
+                        @foreach (var locale in Locales)
+                        {
+                            <div data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                <input type="hidden" name="Ingredients[@localeIndex].Locale" value="@locale.Id" />
+                                <input type="text" name="Ingredients[@localeIndex].Value" />
+                            </div>
+                            localeIndex++;
+                        }
+                    </div>
+                    <div class="textarea-group">
+                        <label>Подробное описание позиции</label>
+                        <div class="textarea-columns">
+                            <div class="textarea-left">
+                                @{
+                                    localeIndex = 0;
+                                }
+                                @foreach (var locale in Locales)
+                                {
+                                    <div data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                        <input type="hidden" name="Description[@localeIndex].Locale" value="@locale.Id" />
+                                        <textarea name="Description[@localeIndex].Value"></textarea>
+                                    </div>
+                                    localeIndex++;
+                                }
+                            </div>
+                            <div class="textarea-right">
+                                <div class="add_photo_dishes">
+                                    <input id="dish-photo" name="PhotoFile" type="file" accept="image/png, image/jpeg" />
+                                </div>
+                                <div class="file_data">
+                                    <em>
+                                        <label for="dish-photo">Загрузить новое</label>
+                                    </em>
+                                    <em>
+                                        <a id="clear-photo" href="javascript:;">
+                                            <span class="fa-fw select-all fas"></span>
+                                        </a>
+                                    </em>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <a href="#" class="view-more">расширенные опции (описание позиции, фото)</a>
+
+                @*<div class="button-group">
+                        <a href="#">Добавить позицию</a>
+                    </div>*@
+                <div class="submit-group">
+                    <input type="submit" onclick="$('.my_menu').attr('action', '@Url.Action("CreateDishAndCopy")')" value="сохранить и копировать" />
+                    <input type="submit" onclick="$('.my_menu').attr('action', '@Url.Action("CreateDishAndReturn")')" value="сохранить и продолжить" />
+                    <input type="submit" onclick="$('.my_menu').attr('action', '@Url.Action("CreateDish")')" value="сохранить" />
+                </div>
+            </form>
+
+        </div>
+
+    </main>
+</div>
+
+
+
+<script src="~/js/jquery.js"></script>
+<script>
+    jQuery(document).ready(function () {
+        jQuery('.view-more').on('click', function (e) {
+            e.preventDefault();
+            jQuery(this).toggleClass('view-more-open');
+            jQuery('.block-more').slideToggle();
+        });
+    });
+
+    $("a[data-locale]").click(function () {
+        $("a[data-locale]").parent().removeClass("current");
+        $(this).parent().addClass("current");
+
+        $("div[data-locale], span[data-locale]").addClass("hidden");
+        var id = $(this).attr("data-locale");
+        $("div[data-locale=" + id + "], span[data-locale=" + id + "]").removeClass("hidden");
+    });
+
+    function readURL(input, img) {
+
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+
+            reader.onload = function (e) {
+                $(img).css('background-image', "url(" + e.target.result + ")");
+            }
+
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    $(document).on("change", ".add_photo_dishes input", function () {
+        var container = $(this).parent();
+        readURL(this, container[0]);
+    });
+
+    $(document).on("change", "[data-category] input", function () {
+        var selectedCategories = [];
+        $("[data-category] input").each(function () {
+            if ($(this).is(":checked")) {
+                var id = $(this).parent().parent().attr("data-category");
+                selectedCategories.push(id);
+            }
+        });
+
+        $("[name=Categories]").val(JSON.stringify(selectedCategories));
+    });
+
+    $("#clear-photo").click(function () {
+        var fileopen = $(".add_photo_dishes input");
+
+        var parent = fileopen.parent();
+        parent.removeAttr("style");
+
+        fileopen.remove();
+        parent.append("<input id=\"dish-photo\" name=\"PhotoFile\" type=\"file\" accept=\"image/png, image/jpeg\" />");
+    });
+
+</script>

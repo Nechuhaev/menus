@@ -1,0 +1,193 @@
+﻿@model Menus.Abstract.Models.IRestaurant
+@inject Menus.Domain.Core Core
+@{
+    ViewData["Title"] = "Register";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+}
+
+<div class="site-content">
+    <main>
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                <li>Добавить ресторан</li>
+            </ul>
+        </div>
+        <div class="site-content-wrapper">
+            <ul class="content_nav">
+                <li class="active"><a>Регистрационные данные</a></li>
+                @*<li class="not_active"><a>SEO</a></li>
+                <li class="not_active"><a>Общая информация</a></li>*@
+            </ul>
+            <h1>регистрация ресторана</h1>
+            <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
+            <form method="post" class="registerRestaurant" enctype="multipart/form-data" id="registerRestaurantForm">
+                <div class="restaurant_columns">
+                    <div class="restaurant_left">
+                        <h2>Данные ресторана</h2>
+                        <div class="input-group">
+                            <label>Название ресторана <span>*</span></label>
+                            @if (Model == null || string.IsNullOrEmpty(Model.Id))
+                            {
+                                <input asp-for="Name" />
+                            }
+                            else
+                            {
+                                <input asp-for="Name" disabled />
+                            }
+                        </div>
+                        <div class="input-group">
+                            <label>E-mail <span>*</span></label>
+                            @if (Model == null || string.IsNullOrEmpty(Model.Id))
+                            {
+                                <input asp-for="Email" />
+                            }
+                            else
+                            {
+                                <input asp-for="Email" disabled />
+                            }
+                        </div>
+                        <div class="input-group">
+                            <label>Телефон <span>*</span></label>
+                            @if (Model == null || string.IsNullOrEmpty(Model.Id))
+                            {
+                                <input asp-for="Phone" />
+                            }
+                            else
+                            {
+                                <input asp-for="Phone" disabled />
+                            }
+                        </div>
+                        <div class="input-group">
+                            <label>Адрес <span>*</span></label>
+                            @if (Model == null || string.IsNullOrEmpty(Model.Id))
+                            {
+                                <input asp-for="Address" />
+                            }
+                            else
+                            {
+                                <input asp-for="Address" disabled />
+                            }
+                        </div>
+                        <div class="input-group">
+                            <label>Город <span>*</span></label>
+                            @if (Model == null || string.IsNullOrEmpty(Model.Id))
+                            {
+                            <select class="form-control" asp-for="City"
+                                    asp-items="(await Core.Restaurants.GetCities()).Select(x => new SelectListItem { Text = x.Name.Get(), Value = x.Id })"></select>
+                            }
+                            else
+                            {
+                            <select class="form-control" asp-for="City" disabled
+                                    asp-items="(await Core.Restaurants.GetCities()).Select(x => new SelectListItem { Text = x.Name.Get(), Value = x.Id })"></select>
+                            }
+                        </div>
+                    </div>
+                    <div class="restaurant_right">
+                        <div class="restaurant_right__help-text">
+                            <div class="restaurant_right__help-text__icon-container">
+                                <img src="~/images/info.png" alt="Alternate Text" class="restaurant_right__help-text__icon-container__icon" />
+                            </div>
+                            Ваш ресторан станет доступен пользователям на платформе TipMyMenu, а так же возможность его редактирования(часы работы, добавление меню и т.д.) после того, как вы предоставите соответствующие документы.
+                        </div>
+
+
+
+                        <div class="input-group">
+                            <label><span class=" hidden error-file-registration error-file"> * </span>Свидетельство о регистрации <span> jpeg, png, pdf</span></label>
+                            <div class="file_upload">
+                                <label for="reg-file-input">
+                                    <button type="button">Прикрепить файл</button>
+                                    <span></span>
+                                </label>
+                                <input name="RegistrationFile" type="file" id="reg-file-input" class="hidden" accept="image/png, image/jpeg">
+                            </div>
+                            <img class="hidden" alt="Registration" />
+                        </div>
+                        <div class="input-group">
+                            <label><span class="hidden error-file-license error-file"> * </span>Лицензия <span> jpeg, png, pdf</span></label>
+                            <div class="file_upload">
+                                <label for="license-file-input">
+                                    <button type="button">Прикрепить файл</button>
+                                    <span></span>
+                                </label>
+                                <input name="LicenseFile" type="file" id="license-file-input" class="hidden" accept="image/png, image/jpeg, application/pdf">
+                            </div>
+                            <img class="hidden" alt="License" />
+                        </div>
+                        @*<div class="input-group">
+                                <label>Свидетельство о регистрации <span>*</span></label>
+                            </div>
+                            <div class="input-group">
+                                <label>Лицензия <span>*</span></label>
+                            </div>*@
+                    </div>
+                </div>
+                <div class="input-group input-group--submit">
+                    <input type="hidden" asp-for="Id" />
+                    @if (Model == null || string.IsNullOrEmpty(Model.Id))
+                    {
+                        <input type="submit" value="создать ресторан" id="registerSubmit" />
+                    }
+                    else
+                    {
+                        <input type="submit" value="получить доступ" id="registerSubmit" />
+                    }
+                </div>
+            </form>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+
+@section Scripts {
+    <script src="~/js/jquery.js"></script>
+    <script>
+        function readURL(input, img) {
+
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+
+                reader.onload = function (e) {
+                    $(img).attr('src', e.target.result);
+                }
+
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        $(".file_upload input").change(function () {
+            var container = $(this).parent();
+            container.find("label span").html(this.files[0].name);
+            readURL(this, container.parent().find("img")[0]);
+            container.parent().find("img").removeClass("hidden");
+        });
+
+        jQuery('#registerSubmit').on('click', function (event) {
+            event.preventDefault();
+            var button = jQuery(this);
+            var form = jQuery('#registerRestaurantForm');
+            var hasSelectedLicense = jQuery('[name=LicenseFile]').val().length;
+            var hasSelectedRegistrationFile = jQuery('[name=RegistrationFile]').val().length;
+            jQuery('.error-file').toggleClass('hidden', true);
+
+            if (hasSelectedLicense && hasSelectedRegistrationFile) {
+                button.attr("disabled", true);
+                form.submit();
+            } else {
+                if (!hasSelectedLicense) {
+                    jQuery('.error-file-license').toggleClass('hidden', false);
+                }
+                if (!hasSelectedRegistrationFile) {
+                    jQuery('.error-file-registration').toggleClass('hidden', false);
+                }
+                
+                return false;
+            }
+        });
+    </script>
+}

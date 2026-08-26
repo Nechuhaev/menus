@@ -1,0 +1,23 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@inject Menus.Web.Services.UserService  UserService;
+
+@{
+    var isDesktop = !UserService.IsMobileUser(Context.Request);
+}
+
+<div class="popUpBlock popUpBlockServiceButtons">
+    <div class="popUpCloser"></div>
+    <div class="popUpBlock_inner">
+        <div class="popUpWindow popUpServiceButtons">
+            <span class="popUp_close"></span>
+            <div class="popUpTitle">@Localizer["FunctionIsInDevelopment"]</div>
+            <div class="description">
+                @if (isDesktop)
+                {
+                    <p>@Localizer["FunctionIsInDevelopment"]</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>

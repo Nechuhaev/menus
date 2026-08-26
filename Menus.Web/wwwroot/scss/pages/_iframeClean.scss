@@ -1,0 +1,1066 @@
+﻿@import url('https://fonts.googleapis.com/css?family=Rubik:300,400,500,700&display=swap&subset=cyrillic');
+
+$font-family: 'Rubik', sans-serif;
+
+$color-primary: #ff0000;
+$color-secondary: #2b2a26;
+$color-logo: #000000;
+$color-text: #767675;
+$color-border: #e8e8e9;
+
+$language-color: #949191;
+$language-color-act: #000000;
+
+$media-px: 2000px;
+
+
+.site-content-iframe {
+    /*padding: 0 vw(30);*/
+    line-height: vw(25);
+    font-family: $font-family;
+    font-size: vw(20);
+    font-weight: 300;
+    color: $color-secondary;
+
+    @media (min-width: $media-px) {
+        /*padding: 0 30px;*/
+        line-height: 25px;
+        font-size: 20px;
+    }
+
+
+
+    main {
+        max-width: 1490px;
+        margin: 0 auto;
+    }
+
+
+
+    .site-content-align {
+
+        & + .site-content-align {
+            border-top: 1px solid $color-border;
+        }
+    }
+
+
+
+    a {
+        transition: background 0.4s, color 0.4s;
+        text-decoration: none;
+        color: inherit;
+
+        &:hover {
+            text-decoration: none;
+            color: $color-primary;
+        }
+    }
+
+
+
+    .iframe-top-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        margin: 0;
+        padding: vw(50) 0 vw(50) 0;
+        z-index: 9;
+
+        @media (min-width: $media-px) {
+            padding: 50px 0 50px 0;
+        }
+
+        .iframe-top-section-title {
+            display: none;
+            line-height: vw(80);
+            font-size: vw(60);
+            font-weight: 700;
+            color: $color-logo;
+
+            @media (min-width: $media-px) {
+                line-height: 80px;
+                font-size: 60px;
+            }
+        }
+
+        .iframe-top-section-phone-href {
+            display: none;
+        }
+
+        .iframe-top-section-phone {
+
+            .iframe-top-section-phone-button {
+                background: #ff0000;
+                display: inline-block;
+                height: vw(46);
+                margin: 0;
+                padding: 0 vw(20) 0 vw(20);
+                border: none;
+                border-radius: 0;
+                vertical-align: top;
+                line-height: vw(18);
+                font-size: vw(14);
+                font-weight: normal;
+                text-transform: uppercase;
+                color: #fff;
+                cursor: pointer;
+
+                @media (min-width: $media-px) {
+                    height: 46px;
+                    padding: 0 20px 0 20px;
+                    line-height: 18px;
+                    font-size: 14px;
+                }
+
+                &:before {
+                    background: url(../../images/icon_phone.svg) no-repeat 50% 50%;
+                    background-size: contain;
+                    display: inline-block;
+                    width: vw(16);
+                    height: vw(16);
+                    overflow: hidden;
+                    margin: vw(1) vw(6) 0 0;
+                    vertical-align: top;
+                    content: '';
+
+                    @media (min-width: $media-px) {
+                        width: 16px;
+                        height: 16px;
+                        margin: 1px 6px 0 0;
+                    }
+                }
+            }
+
+            .iframe-top-section-phone-href {
+                line-height: vw(22);
+                font-size: vw(22);
+                font-weight: normal;
+
+                @media (min-width: $media-px) {
+                    line-height: 22px;
+                    font-size: 22px;
+                }
+
+                .iframe-top-section-phone-title,
+                .iframe-top-section-phone-phone {
+                    display: inline-block;
+                    padding: vw(12) 0 vw(12) 0;
+                    vertical-align: top;
+
+                    @media (min-width: $media-px) {
+                        padding: 12px 0 12px 0;
+                    }
+                }
+
+                .iframe-top-section-phone-phone {
+                    color: #ff0000;
+                }
+            }
+        }
+
+        figure {
+            width: auto;
+            height: vw(120);
+            margin: 0;
+            padding: 0;
+
+            @media (min-width: $media-px) {
+                height: 120px;
+            }
+
+            img {
+                width: auto;
+                height: 100%;
+            }
+        }
+
+        .iframe-top-section-language {
+
+            ul {
+                display: flex;
+                margin: 0;
+                padding: 0;
+
+                li {
+                    position: relative;
+                    margin: 0 vw(38) 0 0;
+                    padding: 0;
+                    list-style: none;
+                    line-height: vw(34);
+                    font-family: $font-family;
+                    font-size: vw(30);
+                    font-weight: 400;
+                    text-transform: uppercase;
+                    color: $language-color;
+
+                    @media (min-width: $media-px) {
+                        margin: 0 38px 0 0;
+                        line-height: 34px;
+                        font-size: 30px;
+                    }
+
+                    &:before {
+                        background: $language-color;
+                        display: block;
+                        width: vw(2);
+                        overflow: hidden;
+                        position: absolute;
+                        top: 0;
+                        right: vw(-19);
+                        bottom: 0;
+                        content: '';
+
+                        @media (min-width: $media-px) {
+                            width: 2px;
+                            right: -19px;
+                        }
+                    }
+
+                    &:last-child {
+                        margin: 0;
+
+                        &:before {
+                            display: none;
+                        }
+                    }
+
+                    &.current {
+
+                        a {
+                            color: $language-color-act;
+                        }
+                    }
+
+                    a {
+                        background: none;
+                        width: auto;
+                        height: auto;
+                        margin: 0;
+                        padding: 0;
+                        border-radius: 0;
+                        line-height: inherit;
+                        font-family: inherit;
+                        font-size: inherit;
+                        font-weight: inherit;
+                        color: inherit;
+
+                        &:hover {
+                            color: $language-color-act;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+    .contentNavi {
+        margin: 0 0 vw(40) 0;
+        line-height: vw(30);
+        font-family: inherit;
+        font-size: vw(26);
+        font-weight: inherit;
+
+        @media (min-width: $media-px) {
+            margin: 0 0 40px 0;
+            line-height: 30px;
+            font-size: 26px;
+        }
+
+        .contentNaviWrapper {
+            width: auto;
+            margin: 0;
+        }
+
+        ul {
+            margin: 0;
+            padding: 0;
+
+            li {
+                margin: 0 vw(29) vw(20) 0;
+                padding: 0;
+                list-style: none;
+                line-height: inherit;
+                font-size: inherit;
+                font-weight: inherit;
+                color: inherit;
+
+                @media (min-width: $media-px) {
+                    margin: 0 29px 20px 0;
+                }
+            }
+        }
+
+        &.theardLevelMenuContainer {
+            margin: 0 0 vw(10) 0;
+
+            @media (min-width: $media-px) {
+                margin: 0 0 10px 0;
+            }
+
+            ul {
+
+                li {
+                    margin: 0 vw(17) vw(17) 0;
+                    line-height: vw(20);
+                    font-size: vw(18);
+                    font-weight: 400;
+
+                    @media (min-width: $media-px) {
+                        margin: 0 17px 17px 0;
+                        line-height: 20px;
+                        font-size: 18px;
+                    }
+
+                    a {
+                        display: inline-block;
+                        margin: 0;
+                        padding: vw(9) vw(20) vw(9) vw(20);
+                        border: 1px solid $color-primary;
+                        border-radius: vw(2);
+                        vertical-align: top;
+                        color: $color-primary;
+
+                        @media (min-width: $media-px) {
+                            padding: 9px 20px 9px 20px;
+                            border-radius: 2px;
+                        }
+
+                        &:hover {
+                            background: $color-primary;
+                            color: #fff;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+    div.theard-level-menu {
+        padding: 0 0 vw(34) 0;
+        border-bottom: 1px solid $color-border;
+        line-height: vw(30);
+        font-size: vw(30);
+        font-weight: 400;
+        color: $color-primary;
+
+        @media (min-width: $media-px) {
+            padding: 0 0 34px 0;
+            line-height: 30px;
+            font-size: 30px;
+        }
+
+        .theard-level-category-description {
+            padding: vw(45) 0 0 0;
+            letter-spacing: normal;
+            line-height: vw(26);
+            font-family: Rubik,sans-serif;
+            font-size: vw(22);
+            font-weight: 300;
+            text-transform: none;
+            color: $color-secondary;
+
+            @media (min-width: $media-px) {
+                padding: 45px 0 0 0;
+                line-height: 26px;
+                font-size: 22px;
+            }
+        }
+    }
+
+
+
+    .table_element {
+        position: relative;
+
+        .table_food {
+            tbody {
+                display: none !important;
+            }
+        }
+
+        &:before {
+            background: url(../../images/icon_arrow_small.png) no-repeat 50% 50%;
+            background-size: contain;
+            display: block;
+            width: vw(6);
+            height: vw(12);
+            overflow: hidden;
+            position: absolute;
+            top: vw(27);
+            right: vw(54);
+            pointer-events: none;
+            content: '';
+
+            @media (min-width: $media-px) {
+                width: 6px;
+                height: 12px;
+                top: 27px;
+                right: 54px;
+            }
+        }
+
+        &.visible {
+
+            &:before {
+                transform: rotate(90deg);
+            }
+
+            .table_food {
+
+                thead {
+
+                    tr {
+                        td.table_food_name {
+                            text-transform: uppercase;
+                            color: $color-primary;
+                        }
+                    }
+                }
+
+                tbody {
+                    display: table-row-group !important;
+
+                    &.table-two-columns {
+                        display: flex !important;
+                    }
+                }
+            }
+        }
+
+        & + div.theard-level-menu {
+            padding-top: vw(34);
+
+            @media (min-width: $media-px) {
+                padding-top: 34px;
+            }
+        }
+
+        .table_food {
+
+            thead {
+
+                tr {
+
+                    td.table_food_name {
+                        padding: vw(17) 0 vw(17) 0;
+                        line-height: vw(27);
+                        font-family: $font-family;
+                        font-size: vw(24);
+                        font-weight: 400;
+                        color: #2b2a26;
+
+                        @media (min-width: $media-px) {
+                            padding: 17px 0 17px 0;
+                            line-height: 27px;
+                            font-size: 24px;
+                        }
+
+                        h2 {
+                            margin: 0;
+                            padding: 0;
+                            line-height: inherit;
+                            font-family: inherit;
+                            font-size: inherit;
+                            font-weight: inherit;
+                            text-transform: inherit;
+                            color: inherit;
+
+                            &:after {
+                                display: none;
+                            }
+                        }
+                    }
+                }
+            }
+
+            tbody {
+                tr {
+
+                    &:first-child {
+
+                        td {
+                            border-top: none;
+                        }
+                    }
+
+                    td {
+                        padding-top: vw(17);
+                        padding-bottom: vw(17);
+                        line-height: vw(25);
+                        font-family: $font-family;
+                        font-size: vw(20);
+                        font-weight: 300;
+                        color: $color-text;
+
+                        @media (min-width: $media-px) {
+                            padding-top: 17px;
+                            padding-bottom: 17px;
+                            line-height: 25px;
+                            font-size: 20px;
+                        }
+
+                        &.table_food_name {
+                            position: relative;
+                            padding-right: vw(200);
+
+                            @media (min-width: $media-px) {
+                                padding-right: 200px;
+                            }
+
+                            .dish-image {
+                                background-repeat: no-repeat;
+                                background-position: 50% 50%;
+                                background-size: cover;
+                                float: left;
+                                width: vw(178);
+                                height: vw(148);
+                                overflow: hidden;
+                                margin: 0 vw(19) 0 0;
+
+                                @media (min-width: $media-px) {
+                                    width: 178px;
+                                    height: 148px;
+                                    margin: 0 19px 0 0;
+                                }
+                            }
+
+                            h3 {
+                                margin: 0;
+                                padding: 0;
+                                line-height: vw(25);
+                                font-family: $font-family;
+                                font-size: vw(20);
+                                font-weight: 400;
+                                color: $color-secondary;
+
+                                @media (min-width: $media-px) {
+                                    line-height: 25px;
+                                    font-size: 20px;
+                                }
+
+                                span.show-dish-image {
+                                    /*background-image: url(../../images/has_pictures.svg);*/
+                                    pointer-events: none;
+                                    background-size: contain;
+                                    background-repeat: no-repeat;
+                                    background-position: 50% 50%;
+                                    display: inline-block;
+                                    width: 1.2vw;
+                                    height: 1.2vw;
+                                    overflow: visible;
+                                    margin: 0 0 0 0.2vw;
+                                    vertical-align: top;
+                                    line-height: 0;
+                                    font-size: 0;
+
+                                    @media (min-width: 2000px) {
+                                        width: 24px;
+                                        height: 24px;
+                                        margin: 7px 0 0 10px;
+                                    }
+                                }
+
+                                .dish-tags {
+
+                                    > span {
+                                        background-image: url(../../images/vegan.svg);
+                                        background-repeat: no-repeat;
+                                        background-position: 50% 50%;
+                                        background-size: contain;
+                                        display: inline-block;
+                                        width: vw(21);
+                                        height: vw(21);
+                                        overflow: hidden;
+                                        margin: 0 0 0 vw(6);
+                                        vertical-align: top;
+
+                                        @media (min-width: $media-px) {
+                                            width: 21px;
+                                            height: 21px;
+                                            margin: 0 0 0 6px;
+                                        }
+
+                                        &.new {
+                                            background-image: url(../../images/new.svg);
+                                            width: vw(23);
+
+                                            @media (min-width: $media-px) {
+                                                width: 23px;
+                                            }
+                                        }
+
+                                        &.spicy {
+                                            background-image: url(../../images/peper.svg);
+                                            width: vw(35);
+
+                                            @media (min-width: $media-px) {
+                                                width: 35px;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            p {
+                                margin: 0;
+                                padding: 0;
+                                line-height: vw(25);
+                                font-family: $font-family;
+                                font-size: vw(20);
+                                font-weight: 300;
+                                color: $color-text;
+
+                                @media (min-width: $media-px) {
+                                    line-height: 25px;
+                                    font-size: 20px;
+                                }
+                            }
+
+                            .table_food_data {
+                                display: flex;
+                                position: absolute;
+                                top: vw(17);
+                                right: vw(-70);
+
+                                @media (min-width: $media-px) {
+                                    top: 17px;
+                                    right: -70px;
+                                }
+
+                                .table_food_price {
+                                    padding: 0 vw(6) 0 0;
+                                    font-weight: 400;
+                                    color: $color-secondary;
+
+                                    @media (min-width: $media-px) {
+                                        padding: 0 6px 0 0;
+                                    }
+                                }
+
+                                .table_food_weight {
+                                    min-width: vw(120);
+                                    margin: 0;
+                                    font-weight: 300;
+                                    color: $color-secondary;
+
+                                    @media (min-width: $media-px) {
+                                        width: 120px;
+                                        min-width: 120px;
+                                    }
+
+                                    &:before {
+                                        background: $color-secondary;
+                                        display: inline-block;
+                                        width: vw(2);
+                                        height: vw(25);
+                                        overflow: hidden;
+                                        vertical-align: top;
+                                        margin: 0 vw(6) 0 0;
+                                        border: none;
+                                        content: '';
+
+                                        @media (min-width: $media-px) {
+                                            width: 2px;
+                                            height: 25px;
+                                            margin: 0 6px 0 0;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        &.table_food_price {
+                            position: relative;
+                            right: vw(-65);
+                            padding: vw(17) vw(6) vw(17) 0;
+                            font-weight: 400;
+                            color: $color-secondary;
+
+                            @media (min-width: $media-px) {
+                                right: -65px;
+                                padding: 17px 6px 17px 0;
+                            }
+                        }
+
+                        &.table_food_weight {
+                            position: relative;
+                            right: vw(-65);
+                            width: vw(120);
+                            min-width: vw(120);
+                            margin: 0;
+                            padding-top: vw(17);
+                            padding-bottom: vw(17);
+                            font-weight: 300;
+                            color: $color-secondary;
+
+                            @media (min-width: $media-px) {
+                                right: -65px;
+                                width: 120px;
+                                min-width: 120px;
+                                padding-top: 17px;
+                                padding-bottom: 17px;
+                            }
+
+                            &:before {
+                                background: $color-secondary;
+                                display: inline-block;
+                                width: vw(2);
+                                height: vw(25);
+                                overflow: hidden;
+                                vertical-align: top;
+                                margin: 0 vw(9) 0 0;
+                                border: none;
+                                content: '';
+
+                                @media (min-width: $media-px) {
+                                    width: 2px;
+                                    height: 25px;
+                                    margin: 0 9px 0 0;
+                                }
+                            }
+                        }
+
+                        &.table_food_link {
+                            display: none;
+                        }
+                    }
+                }
+
+                &.table-two-columns {
+                    /*display: flex;*/
+                    flex-wrap: wrap;
+                    justify-content: space-between;
+
+                    tr {
+                        display: flex;
+                        flex-direction: column;
+                        position: relative;
+                        width: 49%;
+                        border-top: 1px solid $color-border;
+
+                        &:first-child,
+                        &:nth-child(2) {
+                            border-top: none;
+                        }
+
+                        td {
+
+                            &.table_food_name {
+                                padding-right: 0;
+
+                                .table_food_data {
+                                    position: relative;
+                                    top: auto;
+                                    right: auto;
+                                    padding: vw(20) 0 0 0;
+
+                                    @media (min-width: $media-px) {
+                                        padding: 20px 0 0 0;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+.dish-tags-list {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    padding: vw(43) 0 vw(65) 0;
+    line-height: vw(22);
+    font-family: Rubik,sans-serif;
+    font-size: vw(18);
+    font-weight: 300;
+
+    @media (min-width: $media-px) {
+        padding: 43px 0 65px 0;
+        line-height: 22px;
+        font-size: 18px;
+    }
+
+    .dish-tags-list-description {
+        color: $color-text;
+    }
+
+    .dish-tags-list-items {
+        display: flex;
+        color: #2b2a26;
+
+        .vegan {
+            margin: 0 vw(40) 0 0;
+
+            @media (min-width: $media-px) {
+                margin: 0 40px 0 0;
+            }
+
+            &:before {
+                background: url(../../images/vegan.svg) no-repeat 50% 50%;
+                background-size: contain;
+                display: inline-block;
+                width: vw(21);
+                height: vw(21);
+                overflow: hidden;
+                margin: 0 vw(9) 0 0;
+                vertical-align: top;
+                content: '';
+
+                @media (min-width: $media-px) {
+                    width: 21px;
+                    height: 21px;
+                    margin: 0 9px 0 0;
+                }
+            }
+        }
+
+        .alcoholfree {
+            margin: 0 vw(40) 0 0;
+
+            @media (min-width: $media-px) {
+                margin: 0 40px 0 0;
+            }
+
+            &:before {
+                background: url(../../images/vegan.svg) no-repeat 50% 50%;
+                background-size: contain;
+                display: inline-block;
+                width: vw(21);
+                height: vw(21);
+                overflow: hidden;
+                margin: 0 vw(9) 0 0;
+                vertical-align: top;
+                content: '';
+
+                @media (min-width: $media-px) {
+                    width: 21px;
+                    height: 21px;
+                    margin: 0 9px 0 0;
+                }
+            }
+        }
+
+        .new {
+            margin: 0 vw(40) 0 0;
+
+            @media (min-width: $media-px) {
+                margin: 0 40px 0 0;
+            }
+
+            &:before {
+                background: url(../../images/new.svg) no-repeat 50% 50%;
+                background-size: contain;
+                display: inline-block;
+                width: vw(23);
+                height: vw(21);
+                overflow: hidden;
+                margin: 0 vw(9) 0 0;
+                vertical-align: top;
+                content: '';
+
+                @media (min-width: $media-px) {
+                    width: 23px;
+                    height: 21px;
+                    margin: 0 9px 0 0;
+                }
+            }
+        }
+
+        .spicy {
+            margin: 0 vw(40) 0 0;
+
+            @media (min-width: $media-px) {
+                margin: 0 40px 0 0;
+            }
+
+            &:before {
+                background: url(../../images/peper.svg) no-repeat 50% 50%;
+                background-size: contain;
+                display: inline-block;
+                width: vw(35);
+                height: vw(21);
+                overflow: hidden;
+                margin: 0 vw(9) 0 0;
+                vertical-align: top;
+                content: '';
+
+                @media (min-width: $media-px) {
+                    width: 35px;
+                    height: 21px;
+                    margin: 0 9px 0 0;
+                }
+            }
+        }
+    }
+}
+
+
+
+.iframe-bottom-section {
+    padding: vw(47) 0;
+    line-height: vw(25);
+    font-family: $font-family;
+    font-size: vw(20);
+    font-weight: 300;
+    color: $color-secondary;
+
+    @media (min-width: $media-px) {
+        padding: 47px 0;
+        line-height: 25px;
+        font-size: 20px;
+    }
+
+    a {
+        display: inline-block;
+        vertical-align: top;
+        text-decoration: none;
+        color: inherit;
+
+        &:hover {
+            text-decoration: none;
+            color: $color-primary;
+        }
+    }
+
+    p {
+        margin: 0;
+        padding: 0;
+        line-height: inherit;
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        color: inherit;
+
+        span {
+            color: $color-primary;
+        }
+    }
+}
+
+
+
+.popUpBlock {
+
+    &.popUpBlockIframe {
+        background: none;
+
+        .popUpWindow {
+            box-shadow: 2px 2px 2px 2px rgba(0,0,0,0.1);
+        }
+    }
+
+    .popUpBlock_inner {
+
+        .popUpDishDesription {
+            width: vwe(750);
+            padding: 0 vwe(35) vwe(26) vwe(35);
+
+            @media (min-width: $media-px) {
+                width: 750px;
+                padding: 0 35px 26px 35px;
+            }
+
+            .popUp_close {
+                display: block;
+                width: auto;
+                height: vwe(60);
+                overflow: visible;
+                position: absolute;
+                top: 0;
+                right: 0;
+                left: 0;
+                box-shadow: none;
+                line-height: vwe(50);
+                font-size: vwe(64);
+                text-align: right;
+                cursor: auto;
+
+                @media (min-width: $media-px) {
+                    height: 60px;
+                    line-height: 50px;
+                    font-size: 64px;
+                }
+
+                &:before {
+                    background: #fff;
+                    display: inline-block;
+                    width: vwe(60);
+                    height: inherit;
+                    vertical-align: top;
+                    line-height: inherit;
+                    text-align: center;
+                    cursor: pointer;
+
+                    @media (min-width: $media-px) {
+                        width: 60px;
+                    }
+                }
+            }
+
+            .dish-image {
+                height: vwe(756);
+                margin: 0 vwe(-35) vwe(26) vwe(-35);
+
+                @media (min-width: $media-px) {
+                    height: 556px;
+                    margin: 0 -35px 26px -35px;
+                }
+            }
+
+            .dish-description {
+                line-height: vwe(37);
+                font-size: vwe(30);
+
+                @media (min-width: $media-px) {
+                    line-height: 37px;
+                    font-size: 30px;
+                }
+
+                .dish-name,
+                .dish-image-name {
+                    display: block;
+                    padding: 0 0 vwe(16) 0;
+                    text-transform: uppercase;
+
+                    @media (min-width: $media-px) {
+                        padding: 0 0 16px 0;
+                    }
+                }
+
+                .dish-description,
+                .dish-image-description {
+                    display: block;
+                    margin: 0 0 vwe(16) 0;
+                    line-height: vwe(26);
+                    font-size: vwe(22);
+                    font-weight: 300;
+                    color: $color-text;
+
+                    @media (min-width: $media-px) {
+                        margin: 0 0 16px 0;
+                        line-height: 26px;
+                        font-size: 22px;
+                    }
+                }
+
+                .dish-price,
+                .dish-image-price {
+                    display: inline-block;
+                    font-weight: 500;
+                    vertical-align: top;
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,53 @@
+﻿@model Menus.Abstract.Models.IRestaurant
+@{
+    string currentController = ViewContext.RouteData.Values["Controller"].ToString();
+    string currentAction = ViewContext.RouteData.Values["Action"].ToString();
+    bool indexPage = currentController == "manage" && currentAction == "Index";
+}
+
+<div class="topSection">
+    <div class="wrapper">
+        @if (Model != null)
+        {
+            if (currentController == "manage" && currentAction == "register")
+            {
+                <h2>Новый ресторан</h2>
+            }
+            else if (indexPage)
+            {
+                <h2>Мои рестораны</h2>
+            }
+            else
+            {
+                <h2>@Model.Name
+                    <a href="@Url.Action("Restaurant", "Home", new {id = Model.Id})" target="_blank">
+                        <img class="preview-icon" src="~/images/eye.svg" alt="View" />
+                    </a>
+                </h2>
+            }
+        }
+        <ul>
+            @if (User.IsInRole("admin") || User.IsInRole("manager"))
+            {
+                <li><a asp-area="Admin" asp-controller="Restaurants" asp-action="Index">все рестораны</a></li>
+            }
+            @if (!User.IsInRole("admin") && !User.IsInRole("manager"))
+            {
+                <li asp-is-active-route asp-controller="Manage" asp-action="Index"><a asp-controller="Manage" asp-action="Index">мои рестораны</a></li>
+            }
+            @if (Model != null && !indexPage)
+            {
+                <li asp-is-active-route asp-controller="About"><a asp-controller="About" asp-action="Index">о ресторане</a></li>
+                <li asp-is-active-route asp-controller="Manage" asp-action="Menu"><a asp-controller="Manage" asp-action="Menu">разделы блюд</a></li>
+                <li asp-is-active-route asp-controller="Manage" asp-action="DishesList"><a asp-controller="Manage" asp-action="DishesList">мое меню</a></li>
+                <li asp-is-active-route asp-controller="Home" asp-action="Ratings"><a asp-controller="Home" asp-action="Ratings">отзывы</a></li>
+            }
+            @if (!User.IsInRole("admin") && !User.IsInRole("manager"))
+            {
+                @*<li asp-is-active-route asp-controller="Home" asp-action="Profile"><a asp-controller="Home" asp-action="Profile">профиль</a></li>
+                <li asp-is-active-route asp-controller="Home" asp-action="Password"><a asp-controller="Home" asp-action="Password">пароль</a></li>*@
+                @*<li asp-is-active-route asp-controller="Home" asp-action="Faq"><a asp-controller="Home" asp-action="Faq">FAQ</a></li>*@
+            }
+        </ul>
+    </div>
+</div>

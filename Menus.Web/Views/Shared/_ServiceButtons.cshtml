@@ -1,0 +1,16 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+
+<div class="menu-service-buttons" style="display: none;">
+    <div class="menu-service-buttons__button menu-service-buttons__button--glovo"></div>
+    <div class="menu-service-buttons__button menu-service-buttons__button--raketa"></div>
+    @if (ViewData["IsExtented"] != null && (bool)ViewData["IsExtented"] == true)
+    {
+        <div class="menu-service-buttons__button menu-service-buttons__button--reserv">
+            <div class="menu-service-buttons__button__calendar"></div>
+            <div class="menu-service-buttons__button__label">
+                @Localizer["Reserv"]
+            </div>
+        </div>
+    }
+</div>

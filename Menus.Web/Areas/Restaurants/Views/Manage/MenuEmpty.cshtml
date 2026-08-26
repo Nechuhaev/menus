@@ -1,0 +1,57 @@
+﻿@inject Menus.Web.Services.UserService  UserService;
+@{
+    ViewData["Title"] = "Menu";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+}
+
+
+
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                <li>Мое меню</li>
+            </ul>
+        </div>
+
+        <div class="tabs_area">
+
+            @if (User.IsInRole("restaurant") || User.IsInRole("restaurant-manager"))
+            {
+                <ul class="list_tabs">
+                    @{
+                        var restaurants = ViewData["restaurants"] as IEnumerable<Menus.Abstract.Models.IRestaurant>;
+                        var selectedRestaurant = await UserService.GetSelecedRestaurant(User, Context.Request);
+                    }
+                    @foreach (var restaurant in restaurants)
+                    {
+                        <li class="@(selectedRestaurant != null && selectedRestaurant.Id == restaurant.Id ? "active" : "")"><a asp-action="SelectRestaurant" asp-route-id="@restaurant.Id" asp-route-redirect="Menu">@restaurant.Name</a></li>
+                    }
+                </ul>
+            }
+
+        </div>
+
+        <div class="site-content-align">
+
+
+            <div class="create_section">
+
+                <h2>у вас еще нет меню</h2>
+
+                <div class="add-item add-item--center">
+                    <a asp-action="CreateMenuCategory">создать раздел меню</a>
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+    </main>
+</div>

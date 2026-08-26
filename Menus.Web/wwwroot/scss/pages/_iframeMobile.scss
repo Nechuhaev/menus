@@ -1,0 +1,252 @@
+﻿@media (max-width: 991px) {
+
+    .site-content-iframe .contentNaviCarousel {
+        background: none;
+    }
+
+    .site-content-iframe .contentNaviCarousel .swiper-slide {
+        line-height: 4.53333vw;
+        font-size: 4vw;
+        text-transform: none;
+        color: #2b2a26;
+    }
+
+    .site-content-iframe .contentNaviCarousel .swiper-slide a {
+        display: block;
+    }
+
+    .site-content-iframe .contentNaviCarousel .swiper-slide a:first-letter {
+        text-transform: capitalize;
+    }
+
+    .site-content-iframe .contentNaviCarousel.stickUp .contentNaviCarouselInner {
+        top: 0;
+    }
+
+
+
+    .site-content-iframe .accordion_area .accordion_item .accordion_title {
+        padding: 2.13333vw 0 2.13333vw 0;
+    }
+
+    .site-content-iframe .accordion_area .accordion_item .accordion_title h2 {
+        position: relative;
+        padding: 0 10.66666vw 0 0;
+        line-height: 4.4vw;
+        font-family: 'Open Sans', sans-serif;
+        font-size: 4vw;
+        font-weight: 600;
+        text-transform: none;
+        color: #2b2a26;
+    }
+
+    .site-content-iframe .accordion_area .accordion_item .accordion_title h2:first-letter {
+        text-transform: uppercase;
+    }
+
+    .site-content-iframe .accordion_area .accordion_item .accordion_title h2:before {
+        background: #e8e8e9;
+        display: none;
+        height: 1px;
+        overflow: hidden;
+        position: absolute;
+        right: 0;
+        bottom: -2.26666vw;
+        left: 0;
+        content: '';
+    }
+
+    .site-content-iframe .accordion_area .accordion_item.open .accordion_title h2:before {
+        display: block;
+    }
+
+    .site-content-iframe .accordion_area .accordion_item .accordion_title h2:after {
+        position: absolute;
+        top: 0.26666vw;
+        right: 4.26666vw;
+        line-height: 4vw;
+        font-size: 3.73333vw;
+        content: '\f054';
+    }
+
+    .site-content-iframe .accordion_area .accordion_item.open .accordion_title h2:after {
+        top: 1.06666vw;
+        content: '\f078';
+    }
+
+    .site-content-iframe .accordion_area .accordion_item .accordion_title em {
+        display: none;
+    }
+
+    .site-content-iframe .accordion_area .accordion_item .accordion_content {
+        padding: 4.4vw 0 5.86666vw 0;
+    }
+
+    .site-content-iframe .food_list li {
+        position: relative;
+        margin: 0 0 6.53333vw 0;
+        padding: 0 33.33333vw 0 0;
+    }
+
+    .site-content-iframe .food_list li h3 {
+        margin: 0;
+        padding: 0;
+        line-height: 4vw;
+        font-family: 'Open Sans', sans-serif;
+        font-size: 3.46666vw;
+        font-weight: 600;
+        color: #2b2a26;
+    }
+
+    .site-content-iframe .food_list li p {
+        margin: 0;
+        padding: 0;
+        line-height: 3.33333vw;
+        font-family: 'Open Sans', sans-serif;
+        font-size: 2.93333vw;
+        font-weight: 300;
+        color: #2b2a26;
+    }
+
+    .site-content-iframe .food_list li p:first-letter {
+        text-transform: uppercase;
+    }
+
+    .site-content-iframe .food_list li b,
+    .site-content-iframe .food_list li i,
+    .site-content-iframe .food_list li .countsOfReview {
+        display: none;
+    }
+
+    .site-content-iframe .food_list li em {
+        position: absolute;
+        top: 0;
+        right: 0;
+        line-height: 3.466666vw;
+        font-family: 'Open Sans', sans-serif;
+        font-size: 3.2vw;
+        font-weight: 600;
+        color: #2b2a26;
+    }
+
+    .site-content-iframe .food_list li em .dishWeight {
+        line-height: inherit;
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: 600;
+    }
+}
+
+
+
+/* New part of CSS for image, icon and popup
+============================================================================== */
+
+@import url('https://fonts.googleapis.com/css?family=Rubik:300,400,500&display=swap');
+
+
+
+.site-content-iframe {
+
+    .food_list {
+
+        li {
+
+            .dish-image {
+                float: left;
+                width: mvw(125);
+                height: mvw(119);
+                overflow: hidden;
+                margin: 0 mvw(25) 0 0;
+            }
+
+            h3 {
+
+                span.show-dish-image {
+                    /*background-image: url(../../images/has_pictures.svg);*/
+                    pointer-events: none;
+                    background-size: contain;
+                    background-repeat: no-repeat;
+                    background-position: 50% 50%;
+                    display: inline-block;
+                    width: 4vw;
+                    height: 4vw;
+                    overflow: visible;
+                    margin: mvw(6) 0 mvw(6) mvw(5);
+                    vertical-align: top;
+                    line-height: 0;
+                    font-size: 0;
+                }
+            }
+        }
+    }
+}
+
+
+
+.popUpBlock {
+    /*opacity: 1;
+    z-index: 9999;*/
+
+    .popUpCarousel {
+        /*display: none;*/
+    }
+
+    .popUpDishDesription {
+        /*display: block !important;*/
+        width: 100%;
+        margin: 0;
+        padding: mvw(150) mvw(35) mvw(80) mvw(35);
+
+        &.popUpDishDesriptionDark {
+            background: #222;
+
+            .popUp_close {
+                color: #fff;
+            }
+
+            .dish-description {
+                color: #fff;
+            }
+        }
+
+        .popUp_close {
+            background: none;
+            display: block;
+            width: mvw(40);
+            height: mvw(40);
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            position: absolute;
+            top: mvw(41);
+            right: mvw(33);
+            border-radius: 0;
+            box-shadow: none;
+            line-height: mvw(30);
+            font-size: mvw(60);
+            font-weight: 500;
+            text-align: center;
+            color: #000;
+        }
+
+        .dish-image {
+            background-color: #000;
+            background-image: url(../../images/popup_image_demo.jpg);
+            background-repeat: no-repeat;
+            background-position: 50% 50%;
+            background-size: cover;
+            height: mvw(756);
+            margin: 0 mvw(-35) mvw(26) mvw(-35);
+        }
+
+        .dish-description {
+            line-height: mvw(37);
+            font-family: 'Rubik', sans-serif;
+            font-size: mvw(30);
+            font-weight: 400;
+            text-align: left;
+            color: #2b2a26;
+        }
+    }
+}

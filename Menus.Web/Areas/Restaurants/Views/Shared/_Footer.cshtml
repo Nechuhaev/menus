@@ -1,0 +1,109 @@
+﻿<footer class="site-footer">
+
+    @*<div class="footer_top">
+        <div class="wrapper">
+
+            <div class="col_1">
+                <div class="widget_area">
+                    <div class="widget_title">Lorem ipsum</div>
+                    <div class="widget_content">
+                        <ul>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col_2">
+                <div class="widget_area">
+                    <div class="widget_title">Lorem ipsum</div>
+                    <div class="widget_content">
+                        <ul>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col_3">
+                <div class="widget_area">
+                    <div class="widget_title">Lorem ipsum</div>
+                    <div class="widget_content">
+                        <ul>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                            <li><a href="#">Lorem ipsum</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col_4">
+                <div class="widget_area">
+                    <div class="widget_content">
+                        <a href="#" class="footer_btn">ВХОД ДЛЯ РЕСТОРАНОВ</a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>*@
+
+    <div class="footer_bottom">
+        <div class="wrapper">
+            &copy; @DateTime.Now.Year.ToString() Tipmymenu. Все права защищены
+        </div>
+    </div>
+
+</footer>
+
+<a href="#site-header" id="toTop" class="smooth-scroll"></a>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        /* To top
+	    =========================================*/
+
+        jQuery(document).on('scroll', function () {
+            var documentPosition = jQuery(document).scrollTop();
+
+            if (documentPosition > 200) {
+                jQuery('#toTop').addClass('visible');
+            }
+            else {
+                jQuery('#toTop').removeClass('visible');
+            }
+        });
+
+        jQuery('.profile_close').on('click', function () {
+            jQuery('.js-mobile-profile').removeClass('active');
+        });
+
+        /* Smooth scroll
+	    =========================================*/
+
+        jQuery('.smooth-scroll').on('click', function (e) {
+            e.preventDefault();
+
+            var
+                href = jQuery(this).attr('href'),
+                top = jQuery(href).offset().top;
+
+            jQuery('html, body').animate({
+                scrollTop: top
+            }, 750);
+
+        });
+    }, false);
+</script>

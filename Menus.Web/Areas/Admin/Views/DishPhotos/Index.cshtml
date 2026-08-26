@@ -1,0 +1,175 @@
+﻿@model IEnumerable<Menus.Abstract.Models.IDishPhotoExtended>
+
+@{
+    ViewData["status"] = ViewData["status"] != null ? ViewData["status"].ToString() : "";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var page = (int)ViewData["page"];
+}
+
+<div class="site-content">
+    <main>
+
+        <div class="site-content-center">
+
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li>Фото</li>
+                </ul>
+            </div>
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>ФОТО</h2>
+                </div>
+                <div class="title-section--right">
+                    <form method="get" class="filter-form">
+                        <div class="filter-form--title">Фильтр:</div>
+                        <p>
+                            <select class="form-control" asp-for="@ViewData["status"]"
+                                    name="status"
+                                    asp-items='Html.GetEnumSelectList<Menus.Abstract.Models.DishPhotoStatus>().Select(x => new SelectListItem { Text = x.Text, Value = x.Value, Selected = x.Value.ToString() == ViewData["status"].ToString()})'>
+                                <option value="">Все статусы</option>
+                            </select>
+                        </p>
+                        <input type="submit" value="Применить" />
+                    </form>
+                </div>
+            </div>
+
+            <table class="mainTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>
+                            ДАТА
+                        </th>
+                        <th>
+                            ПОЛЬЗОВАТЕЛЬ
+                        </th>
+                        <th>
+                            РЕСТОРАН
+                        </th>
+                        <th>
+                            БЛЮДО
+                        </th>
+                        <th>
+                            ФОТО
+                        </th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr data-id="@item.Id">
+                            <td class="tableStatusIcon
+                            @(item.Status == Menus.Abstract.Models.DishPhotoStatus.Blocked ? "StatusIconBlock" : "" )
+                            @(item.Status == Menus.Abstract.Models.DishPhotoStatus.New ? "StatusIconNew" : "" )
+                            @(item.Status == Menus.Abstract.Models.DishPhotoStatus.Approved ? "StatusIconApproved" : "" )">
+                                <span></span>
+                            </td>
+                            <td>
+                                @item.Date.ToString("dd/MM/yyyy")
+                            </td>
+                            <td>
+                                @item.UserFirstName @item.UserLastName
+                            </td>
+                            <td>
+                                <strong>@item.RestaurantName</strong>
+                            </td>
+                            <td>
+                                <strong>@item.DishName.Get()</strong>
+                            </td>
+                            <td>
+                                <div class="photoContainer"
+                                     style='background-image:url(@(String.IsNullOrEmpty(item.ImageUrl) ? "/images/no-avatar.jpg" : Img.Url(item.ImageUrl, Quality.Medium)))'>
+                                </div>
+                            </td>
+                            <td>
+                                <select class="form-control" asp-for="@item.Status"
+                                        onchange="saveStatus('@item.Id', this)"
+                                        asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.DishPhotoStatus>()"></select>
+                                <a class="tableDeleteBtn" href="#" data-delete data-id="@item.Id">Delete</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div style="text-align:center; margin-top: 30px;">
+                @if (page != 0)
+                {
+                    <a asp-route-status="@(ViewData["status"])" asp-route-page="@(page - 1)">&larr;Назад &nbsp;</a>
+                }
+                @if (Model.Count() == 10)
+                {
+                    <a asp-route-status="@(ViewData["status"])" asp-route-page="@(page + 1)">Вперёд&rarr;</a>
+                }
+            </div>
+
+        </div>
+
+    </main>
+</div>
+
+<script src="~/js/jquery.js"></script>
+
+<script>
+
+     function getToken() {
+        var token = '@Html.AntiForgeryToken()';
+        token = $(token).val();
+        return token;
+    }
+
+    function saveStatus(id, context) {
+        var status = $(context).val();
+         $.ajax({
+                url: "@Url.Action("ChangeDishPhotoStatus")",
+                type: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id,
+                    status: status
+                },
+             success: () => {
+                 var iconElement = $($($(context).parent()).siblings(".tableStatusIcon"));
+                 if (iconElement) {
+                     iconElement.removeClass();
+                     iconElement.addClass("tableStatusIcon");
+                     if (status === "0") {
+                         iconElement.addClass("StatusIconNew");
+                     }
+                     if (status === "1") {
+                         iconElement.addClass("StatusIconApproved");
+                     }
+                     if (status === "2") {
+                         iconElement.addClass("StatusIconBlock");
+                     }
+                 }
+             }
+            });
+    }
+
+     $(document).on("click", "[data-delete]", function () {
+         var id = $(this).attr("data-id");
+
+         if (!confirm("Are you sure?")) return;
+
+         $.ajax({
+                 url: "@Url.Action("Delete")",
+                 method: "POST",
+                 data: {
+                     "__RequestVerificationToken": getToken(),
+                     id: id
+                 }
+             })
+             .done(function () {
+                 $("tr[data-id=" + id + "]").remove();
+             })
+             .fail(function (data) {
+                 window.Logger.logTextError("DELETE Photo action failed, id = " + id);
+             });
+     });
+</script>

@@ -1,0 +1,230 @@
+﻿.our_recommendation {
+    display: flex;
+    flex-direction: column;
+    padding: mvw(15) 0 0 0;
+}
+
+
+
+.recommendation_top {
+    margin: 0 0 mvw(35) 0;
+
+    h2, h1 {
+        margin: 0;
+        padding: 0;
+        line-height: mvw(32);
+        font-size: mvw(30);
+        text-transform: none;
+
+        &:after {
+            display: block;
+            clear: both;
+            content: '';
+        }
+
+        span {
+            float: right;
+            padding: mvw(8) 0 0 0;
+            line-height: mvw(24);
+            font-size: mvw(22);
+            font-weight: normal;
+            cursor: pointer;
+
+            &:after {
+                display: inline-block;
+                margin: mvw(-2) 0 0 mvw(15);
+                vertical-align: top;
+                line-height: mvw(30);
+                font-family: "Font Awesome 5 Free";
+                font-size: mvw(30);
+                font-weight: 900;
+                color: #e32929;
+                content: '\f03a';
+            }
+        }
+    }
+}
+
+
+
+.recommendation_list {
+    margin: 0;
+    padding: 0;
+
+    li {
+        margin: 0 0 mvw(19) 0;
+        padding: 0;
+        list-style: none;
+
+        .caption {
+            background: #fff;
+            position: relative;
+            padding: mvw(22) mvw(15) mvw(15) mvw(238);
+            overflow: hidden;
+            border-radius: mvw(6);
+            box-shadow: 0 0 mvw(46) rgba(0,0,0,0.13);
+            line-height: mvw(24);
+            font-size: mvw(22);
+
+            figure {
+                background: #ffb80e url(../../images/stub_picture.png) no-repeat 50% 50%;
+                background-size: contain;
+                width: mvw(211);
+                overflow: hidden;
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                margin: 0;
+                padding: 0;
+                line-height: 0;
+                font-size: 0;
+
+                a {
+                    background-color: #fff;
+                    background-repeat: no-repeat;
+                    background-position: 50% 50%;
+                    background-size: cover;
+                    display: block;
+                    width: 100%;
+                    height: 100%;
+                }
+
+                img {
+                    /*max-width: none;
+                    height: 100%;
+                    max-height: 100%;*/
+                    width: 100%;
+                    height: auto;
+                    transition: all 0.4s;
+                }
+
+                figcaption {
+                    background: #ebebeb;
+                    padding: mvw(3) mvw(8) mvw(3) mvw(8);
+                    position: absolute;
+                    top: mvw(16);
+                    left: mvw(13);
+                    border-radius: mvw(2);
+                    line-height: mvw(22);
+                    font-size: mvw(20);
+                    color: #000;
+                }
+            }
+
+            h3 {
+                margin: 0 0 mvw(21) 0;
+                padding: 0;
+                line-height: mvw(30);
+                font-size: mvw(28);
+                color: #000;
+            }
+
+            .recommendation_location {
+                display: block;
+                margin: 0 0 mvw(19) 0;
+                color: #000;
+
+                &:before {
+                    margin: 0 mvw(8) 0 0;
+                    font-family: "Font Awesome 5 Free";
+                    font-weight: 900;
+                    color: #e32929;
+                    content: '\f3c5';
+                }
+            }
+
+            .dish_info {
+                margin: 0;
+                padding: 0;
+                line-height: 0;
+                font-size: 0;
+                color: #706e6e;
+
+                strong {
+                    display: inline-block;
+                    margin: 0 mvw(17) 0 0;
+                    padding: mvw(1) 0 0 0;
+                    vertical-align: top;
+                    line-height: mvw(27);
+                    font-size: mvw(22);
+                    font-weight: 900;
+                    color: #000;
+                }
+
+                .stars {
+                    width: mvw(27);
+                    height: mvw(27);
+                    margin: 0;
+                }
+
+                em {
+                    display: inline-block;
+                    margin: 0 0 0 mvw(12);
+                    padding: 0;
+                    vertical-align: top;
+                    line-height: mvw(27);
+                    font-size: mvw(22);
+                    font-weight: normal;
+                    font-style: normal;
+                    color: #706e6e;
+                }
+            }
+
+            .recommendation_kitchen {
+                display: block;
+                margin: 0 0 mvw(14) 0;
+                color: #646464;
+            }
+
+            .recommendation_review {
+                line-height: mvw(24);
+                font-size: mvw(22);
+            }
+
+            .recommendation_distance {
+                background: #f5f5f5;
+                display: block;
+                position: absolute;
+                right: mvw(10);
+                bottom: mvw(11);
+                margin: 0;
+                padding: mvw(3) mvw(8) mvw(3) mvw(8);
+                border-radius: mvw(2);
+                line-height: mvw(22);
+                font-size: mvw(20);
+                color: #000;
+            }
+        }
+    }
+}
+
+
+
+.recommendation_nav {
+    padding: mvw(57) 0 mvw(30) 0;
+    text-align: center;
+
+    p {
+        margin: 0;
+        padding: 0;
+
+        a {
+            display: inline-block;
+            min-width: mvw(420);
+            margin: 0;
+            padding: mvw(24) mvw(30) mvw(24) mvw(30);
+            border: 1px solid #333;
+            border-radius: mvw(40);
+            box-sizing: border-box;
+            vertical-align: top;
+            line-height: mvw(30);
+            font-size: mvw(26);
+            font-weight: 900;
+            text-align: center;
+            text-transform: lowercase;
+            text-decoration: none;
+            color: #333;
+        }
+    }
+}

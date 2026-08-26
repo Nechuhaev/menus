@@ -1,0 +1,49 @@
+﻿@using System.Text.RegularExpressions
+@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@inject Microsoft.Extensions.Configuration.IConfiguration config;
+@{
+    var locales = LocaleSrvc.GetLocales();
+    var crq = Context.Request;
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    locales = locales.Where(x => !Convert.ToBoolean(config[$"DisableLanguages:{x.Id}"] != null ? config[$"DisableLanguages:{x.Id}"].ToLower() : "false")).ToList();
+
+    var is404 = Context.Response.StatusCode >= 400;
+}
+
+<div class="dropdown_languages">
+    <button class="display_lang">@culture</button>
+    <ul>
+        @foreach (var lang in locales)
+        {
+            if (is404)
+            {
+                <li class="@(lang.Id == culture ? "current" : "")"><a href="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}/{lang.Id}")">@lang.Id</a></li>
+            }
+            else
+            {
+                <li class="@(lang.Id == culture ? "current" : "")"><a href="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{Regex.Replace(crq.Path, "/(ru|uk|en)", $"/{lang.Id}")}{crq.QueryString}")">@lang.Id</a></li>
+            }
+
+        }
+    </ul>
+</div>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        /* Header languages
+        =========================================*/
+        $('.dropdown_languages .display_lang').click(function () {
+            $('.dropdown_languages ul').slideToggle();
+        });
+
+        $('.dropdown_languages ul li').click(function () {
+            $('.dropdown_languages ul li').removeClass('current');
+            $(this).addClass('current');
+            $('.dropdown_languages ul').slideToggle();
+        });
+    })
+</script>

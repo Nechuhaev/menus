@@ -1,0 +1,67 @@
+image: docker:19.03.12
+
+services:
+  - docker:dind
+
+build_image_prod:
+#    image: docker:git
+    script:
+        - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN registry.gitlab.com
+        - docker build -f Dockerfile.Production -t registry.gitlab.com/nechuhaev/menus/backend-prod .
+        - docker push registry.gitlab.com/nechuhaev/menus/backend-prod
+    only:
+        - master
+    environment:
+        name: prod
+        url: https://tipmymenu.com
+    when: manual
+
+build_image_telegram:
+#    image: docker:git
+    script:
+        - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN registry.gitlab.com
+        - docker build -f Dockerfile.Telegram -t registry.gitlab.com/nechuhaev/menus/telegram-bot-prod .
+        - docker push registry.gitlab.com/nechuhaev/menus/telegram-bot-prod
+    only:
+        - master
+    environment:
+        name: prod-bot
+        url: https://tipmymenu.com/bot
+    when: manual
+
+build_image_files:
+#    image: docker:git
+    script:
+        - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN registry.gitlab.com
+        - docker build -f Dockerfile.Files -t registry.gitlab.com/nechuhaev/menus/files-prod .
+        - docker push registry.gitlab.com/nechuhaev/menus/files-prod
+    only:
+        - master
+    environment:
+        name: prod-files
+        url: https://tipmymenu.com/files
+    when: manual
+
+build_image:
+#    image: docker:git
+    script:
+        - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN registry.gitlab.com
+        - docker build -f Dockerfile.Qa -t registry.gitlab.com/nechuhaev/menus/backend .
+        - docker push registry.gitlab.com/nechuhaev/menus/backend
+    only:
+        - master
+    environment:
+        name: qa
+        url: https://qa.tipmymenu.com
+
+build_image_dev:
+#    image: docker:git
+    script:
+        - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN registry.gitlab.com
+        - docker build -f Dockerfile.Staging -t registry.gitlab.com/nechuhaev/menus/backend-dev .
+        - docker push registry.gitlab.com/nechuhaev/menus/backend-dev
+    only:
+        - dev
+    environment:
+        name: staging
+        url: https://staging.tipmymenu.com

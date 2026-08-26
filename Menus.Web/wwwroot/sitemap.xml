@@ -1,0 +1,38 @@
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap xmlns="">
+    <loc>https://localhost:5000/sitemapru.xml</loc>
+    <lastmod>2019-01-03T20:20:36+02:00</lastmod>
+  </sitemap>
+  <sitemap xmlns="">
+    <loc>https://localhost:5000/sitemaprurestaurants.xml</loc>
+    <lastmod>2019-01-03T20:20:36+02:00</lastmod>
+  </sitemap>
+  <sitemap xmlns="">
+    <loc>https://localhost:5000/sitemaprudishes.xml</loc>
+    <lastmod>2019-01-03T20:20:36+02:00</lastmod>
+  </sitemap>
+  <sitemap xmlns="">
+    <loc>https://localhost:5000/sitemapen.xml</loc>
+    <lastmod>2019-01-03T20:20:36+02:00</lastmod>
+  </sitemap>
+  <sitemap xmlns="">
+    <loc>https://localhost:5000/sitemapenrestaurants.xml</loc>
+    <lastmod>2019-01-03T20:20:36+02:00</lastmod>
+  </sitemap>
+  <sitemap xmlns="">
+    <loc>https://localhost:5000/sitemapendishes.xml</loc>
+    <lastmod>2019-01-03T20:20:36+02:00</lastmod>
+  </sitemap>
+  <sitemap xmlns="">
+    <loc>https://localhost:5000/sitemapuk.xml</loc>
+    <lastmod>2019-01-03T20:20:36+02:00</lastmod>
+  </sitemap>
+  <sitemap xmlns="">
+    <loc>https://localhost:5000/sitemapukrestaurants.xml</loc>
+    <lastmod>2019-01-03T20:20:36+02:00</lastmod>
+  </sitemap>
+  <sitemap xmlns="">
+    <loc>https://localhost:5000/sitemapukdishes.xml</loc>
+    <lastmod>2019-01-03T20:20:36+02:00</lastmod>
+  </sitemap>
+</sitemapindex>

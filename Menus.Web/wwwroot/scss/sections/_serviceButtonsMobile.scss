@@ -1,0 +1,59 @@
+﻿.menu-service-buttons {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 1vh;
+
+    &__button {
+        height: 7vw;
+        width: 22vw;
+        border-radius: 5px;
+        background-repeat: no-repeat;
+        background-position: 50% 50%;
+        border: 1px solid #ececec;
+        padding: 0 10px;
+        cursor: pointer;
+        background-size: contain;
+
+        &:hover {
+            border: solid 1px #ffb80e;
+        }
+
+        &--glovo {
+            background-image: url(/images/serviceButtons/glovo_btn.png);
+        }
+
+        &--raketa {
+            background-image: url(/images/serviceButtons/raketa_btn.png);
+        }
+
+        &--reserv {
+            display: flex;
+            width: 38vw;
+        }
+
+        &__calendar {
+            background-image: url(/images/serviceButtons/calendar_btn.png);
+            background-repeat: no-repeat;
+            background-position: 50% 50%;
+            width: 8vw;
+            height: 3vh;
+            background-size: cover;
+            margin-top: 0.2vh;
+        }
+
+        &__label {
+            width: 100%;
+            font-size: 1.7vh;
+            margin-top: 1.3vh;
+            margin-left: 1vw;
+            color: #e32929;
+        }
+    }
+}
+
+.popUpBlockServiceButtons {
+    .description {
+        font-size: 2vh;
+    }
+}

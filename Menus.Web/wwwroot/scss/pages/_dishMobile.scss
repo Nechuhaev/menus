@@ -1,0 +1,731 @@
+﻿.mobileDish {
+    padding: mvw(2) 0 0 0;
+
+    .mobileDishTop {
+        position: relative;
+        padding: 0 mvw(130) 0 0;
+
+        h1 {
+            margin: 0 0 mvw(7) 0;
+            line-height: mvw(32);
+            font-size: mvw(30);
+            font-weight: 900;
+            text-transform: none;
+            color: #000;
+        }
+
+        .mobileDishData {
+            display: block;
+            margin: 0 0 mvw(23) 0;
+            line-height: mvw(26);
+            font-size: mvw(24);
+            font-weight: 900;
+            color: #000;
+
+            h2 {
+                display: inline;
+                margin: 0;
+                padding: 0;
+                line-height: mvw(26);
+                font-size: mvw(24);
+                font-weight: 900;
+                color: #000;
+            }
+
+            span {
+                font-weight: 400;
+            }
+        }
+
+        .mobileDishRating {
+            position: absolute;
+            top: mvw(4);
+            right: 0;
+            line-height: mvw(32);
+            font-size: mvw(26);
+            font-weight: 900;
+            color: #000;
+            text-align: right;
+
+            img {
+                width: mvw(32);
+                margin: mvw(-6) mvw(15) 0 0;
+                vertical-align: top;
+            }
+
+            .dish_rate_star {
+                margin-top: mvw(-3);
+            }
+
+            em {
+                font-style: normal;
+            }
+
+            .food_count {
+                font-weight: normal;
+                font-size: vwm(20);
+            }
+        }
+    }
+
+    .mobileDishPicture {
+        position: relative;
+        margin: 0 mvw(-40) 0 mvw(-40);
+
+        .mobile-dish-picture-data {
+            line-height: 0;
+            font-size: 0;
+
+            .picture-data-icon {
+                background: #666;
+                display: block;
+                width: mvw(76);
+                height: mvw(76);
+                overflow: hidden;
+                position: absolute;
+                top: mvw(20);
+                left: mvw(20);
+                border: mvw(7) solid #fff;
+                border-radius: 50%;
+                box-sizing: border-box;
+                box-shadow: 0 0 mvw(5) rgba(0,0,0,0.2);
+                line-height: mvw(62);
+                font-size: mvw(34);
+                text-align: center;
+                color: #fff;
+
+                &:before {
+                    font-family: "Font Awesome 5 Free";
+                    font-weight: 900;
+                    content: '\f030';
+                }
+            }
+
+            .picture-data-count {
+                position: absolute;
+                bottom: mvw(100);
+                left: mvw(40);
+                line-height: mvw(34);
+                font-size: mvw(28);
+                color: #fff;
+            }
+        }
+
+        img {
+            /*background-color: #ababab;*/
+            background-color: #fff;
+            width: 100%;
+            vertical-align: top;
+        }
+    }
+}
+
+
+
+.mobileDishRate {
+    background: #fff;
+    position: relative;
+    margin: mvw(-82) 0 mvw(59) 0;
+    padding: mvw(20) mvw(30) mvw(30) mvw(30);
+    box-shadow: 0 0 mvw(46) rgba(0,0,0,0.13);
+    border-radius: mvw(6);
+    line-height: mvw(30);
+    font-size: mvw(28);
+    text-align: center;
+    color: #000;
+
+    em {
+        display: block;
+        margin: 0 0 mvw(23) 0;
+        line-height: mvw(32);
+        font-size: mvw(30);
+        font-weight: 900;
+        font-style: normal;
+        color: #e32929;
+    }
+
+    .mobileStarsRate {
+        margin: 0 0 mvw(44) 0;
+    }
+
+    a {
+        text-decoration: underline;
+        color: inherit;
+    }
+}
+
+.mobileStarsRate {
+    display: block;
+    line-height: 0;
+    font-size: 0;
+
+    .stars {
+        background-image: url(../../images/star_grey_big.png);
+        background-repeat: no-repeat;
+        background-position: 50% 50%;
+        background-size: cover;
+        display: inline-block;
+        width: mvw(63);
+        height: mvw(61);
+        overflow: hidden;
+        margin: 0 mvw(22);
+        vertical-align: top;
+
+        &.star_yellow {
+            background-image: url(../../images/star_yellow_big.png);
+        }
+
+        &.star_red {
+            background-image: url(../../images/star_red_big.png);
+        }
+    }
+}
+
+
+
+.reviews {
+
+    .reviews_top {
+        margin: 0 0 mvw(20) 0;
+
+        h2 {
+            margin: 0 0 mvw(46) 0;
+
+            span {
+                color: #bcbcbc;
+            }
+        }
+
+        a {
+            display: none;
+        }
+    }
+}
+
+
+
+.reviews_list {
+    margin: 0;
+    padding: 0;
+
+    > li {
+        margin: 0 0 mvw(40) 0;
+        padding: 0;
+        list-style: none;
+        line-height: mvw(40);
+        font-size: mvw(26);
+
+        &:last-child {
+            margin: 0 0 mvw(39) 0;
+        }
+
+        figure {
+            float: left;
+            width: mvw(90);
+            height: mvw(90);
+            overflow: hidden;
+            margin: 0 mvw(20) 0 0;
+            border-radius: 50%;
+
+            img {
+                width: 100%;
+                min-height: 100%;
+                vertical-align: top;
+            }
+        }
+
+        .caption {
+            padding: mvw(10) 0 mvw(5) 0;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .review_name {
+            margin: 0 0 mvw(15) 0;
+            line-height: mvw(24);
+            font-size: mvw(22);
+            font-weight: 700;
+            color: #000;
+
+            span {
+                float: right;
+                font-size: mvw(22);
+                font-weight: 400;
+                color: #595959;
+            }
+        }
+
+        .review_numbers {
+            margin: 0 0 mvw(29) 0;
+            line-height: mvw(24);
+            font-size: mvw(20);
+            color: #9a9a9a;
+
+            img {
+                width: mvw(24);
+                margin: mvw(-2) 0 0 0;
+                vertical-align: top;
+            }
+        }
+
+        .review_rating {
+            margin: 0 0 mvw(10) 0;
+            padding: mvw(21) 0 0 0;
+            clear: both;
+
+            &:after {
+                display: block;
+                clear: both;
+                content: '';
+            }
+
+            img {
+                float: left;
+                width: mvw(32);
+                margin: 0 mvw(2) 0 0;
+                vertical-align: top;
+            }
+        }
+
+        p {
+            margin: 0 0 mvw(12) 0;
+        }
+    }
+}
+
+
+
+.reviews_link_all {
+    margin: 0 0 mvw(14) 0;
+    text-align: center;
+
+    a {
+        display: inline-block;
+        min-width: mvw(420);
+        padding: mvw(23) mvw(30) mvw(23) mvw(30);
+        border: 1px solid #010101;
+        border-radius: mvw(6);
+        box-sizing: border-box;
+        vertical-align: top;
+        line-height: mvw(32);
+        font-size: mvw(30);
+        text-align: center;
+        color: #000;
+    }
+}
+
+
+
+.no_reviews {
+    padding: mvw(50) 0 mvw(100) 0;
+    line-height: mvw(30);
+    font-size: mvw(28);
+    text-align: center;
+
+    strong {
+        display: block;
+        margin: 0 0 mvw(29) 0;
+        line-height: mvw(32);
+        font-size: mvw(30);
+        font-weight: 900;
+        text-transform: uppercase;
+    }
+
+    a {
+        text-decoration: underline;
+        color: #0c0c0c;
+    }
+}
+
+
+
+.social_area {
+    margin: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.create-dish-buttons {
+    display: flex;
+    justify-content: center;
+    margin: vwm(80) 0 vwm(50);
+
+    a, button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-width: 1px;
+        border-color: #000;
+        border-style: solid;
+        border-radius: vwm(5);
+        width: vwm(327);
+        height: vwm(66);
+        font-size: vwm(20);
+        font-weight: bold;
+        background-color: #fff;
+    }
+
+    button {
+        margin-left: vwm(20);
+        background-color: #ffb80e;
+        border: none;
+    }
+}
+
+.mobileDishTopCreateDish {
+    display: flex;
+    padding: 0 !important;
+
+    .input-group {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: vwm(44);
+
+        &:nth-child(1) {
+            width: vwm(490);
+        }
+
+        &:nth-child(2) {
+            width: vwm(160);
+            margin-left: vwm(22);
+        }
+
+        label {
+            display: block;
+            font-size: vwm(22);
+            margin-bottom: vwm(13);
+        }
+
+        input {
+            background: #fff;
+            width: 100%;
+            margin: 0;
+            border: 1px solid #e6e6e6;
+            box-sizing: border-box;
+            font-family: GT Walsheim Pro,sans-serif;
+            font-weight: 400;
+            color: #000;
+            height: vwm(70);
+            padding: vwm(24) vwm(12);
+            border-radius: vwm(2);
+            line-height: vwm(22);
+            font-size: vwm(22);
+        }
+    }
+}
+
+/*.article {
+    margin: 0 0 mvw(41) 0;
+    padding: 0;
+
+    h2 {
+        margin: 0 0 mvw(22) 0;
+        line-height: mvw(32);
+        font-size: mvw(30);
+    }
+
+    p {
+        margin: 0 0 mvw(33) 0;
+        padding: 0;
+        letter-spacing: mvw(-0.5);
+        line-height: mvw(33);
+        font-size: mvw(28);
+    }
+
+    & + .social_area {
+        border-top: 1px solid #e5e5e5;
+    }
+}
+
+.article_columns {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    .article_column_left {
+        width: 100%;
+        min-width: 1px;
+        margin: 0 0 mvw(50) 0;
+    }
+
+    .article_column_right {
+        width: 100%;
+        min-width: 1px;
+    }
+}
+
+
+
+.image_article {
+    margin: 0;
+
+    img {
+        width: 100%;
+    }
+}
+
+.food_weight {
+    margin: 0 0 mvw(44) 0;
+    padding: 0 0 mvw(45) 0;
+    border-bottom: 1px solid #e5e5e5;
+    line-height: mvw(30);
+    font-size: mvw(28);
+    color: #595959;
+
+    span {
+        color: #000;
+    }
+}
+
+.description {
+    line-height: mvw(33);
+    font-size: mvw(28);
+    color: #a0a0a0;
+
+    strong {
+        display: block;
+        font-weight: normal;
+    }
+}
+
+.food_data {
+    display: flex;
+    flex-direction: column;
+    margin: mvw(40) 0 0 0;
+    padding: mvw(49) 0 0 0;
+    border-top: 1px solid #e5e5e5;
+
+    .food_data_left {
+        display: flex;
+        align-items: center;
+    }
+
+    .food_rating {
+
+        &:after {
+            display: block;
+            clear: both;
+            content: '';
+        }
+
+        img {
+            float: left;
+            width: mvw(43);
+            margin: 0 mvw(14) 0 0;
+            vertical-align: top;
+        }
+    }
+
+    .food_count {
+        padding: mvw(8) 0 0 mvw(5);
+        line-height: mvw(28);
+        font-size: mvw(26);
+        color: #7b7a7a;
+    }
+
+    .food_price {
+        padding: mvw(44) 0 0 0;
+        line-height: mvw(42);
+        font-size: mvw(40);
+        color: #595959;
+
+        span {
+            font-size: mvw(40);
+            font-weight: 900;
+            color: #000;
+        }
+    }
+}*/
+
+
+
+
+
+
+.list_of_dishes {
+    margin: 0;
+    padding: 0;
+
+    li {
+        background: #fff;
+        position: relative;
+        overflow: hidden;
+        margin: 0 0 mvw(19) 0;
+        padding: 0;
+        list-style: none;
+        border-radius: mvw(6);
+        box-shadow: 0 0 mvw(46) rgba(0,0,0,0.13);
+
+        .caption {
+            padding: mvw(19) mvw(20) mvw(16) mvw(236);
+
+            .caption_image {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                width: mvw(211);
+
+                figure {
+                    background-color: #ffb80e;
+                    background-image: url(../../images/stub_picture.png);
+                    background-repeat: no-repeat;
+                    background-position: 50% 50%;
+                    background-size: contain;
+                    width: 100%;
+                    height: 100%;
+                    margin: 0;
+                    padding: 0;
+
+                    a {
+                        background-color: #fff;
+                        background-repeat: no-repeat;
+                        background-position: 50% 50%;
+                        background-size: cover;
+                        position: relative;
+                        display: block;
+                        width: 100%;
+                        height: 100%;
+                    }
+                }
+            }
+
+            .caption_info {
+                line-height: mvw(24);
+                font-size: mvw(22);
+                color: #000;
+
+                .price {
+                    font-weight: 900;
+                }
+
+                .weight {
+
+                    &:before {
+                        margin: 0 mvw(6) 0 0;
+                        content: '|';
+                    }
+                }
+            }
+        }
+
+        h3 {
+            overflow: hidden;
+            margin: 0 0 mvw(14) 0;
+            padding: 0;
+            white-space: nowrap;
+            line-height: mvw(34);
+            font-size: mvw(28);
+            text-overflow: ellipsis;
+        }
+
+        .dish_info {
+            margin: 0 0 mvw(17) 0;
+            padding: 0;
+            line-height: 0;
+            font-size: 0;
+            color: #706e6e;
+
+            strong {
+                display: inline-block;
+                margin: 0 mvw(9) 0 0;
+                padding: mvw(3) 0 0 0;
+                vertical-align: top;
+                line-height: mvw(28);
+                font-size: mvw(28);
+                font-weight: 900;
+                color: #000;
+            }
+
+            .stars {
+                width: mvw(27);
+                height: mvw(27);
+                margin: 0 mvw(1) 0 0;
+            }
+
+            em {
+                display: inline-block;
+                margin: 0 0 0 mvw(12);
+                padding: 0;
+                vertical-align: top;
+                line-height: mvw(28);
+                font-size: mvw(20);
+                font-weight: normal;
+                font-style: normal;
+                color: #646464;
+            }
+        }
+
+        .location {
+            margin: 0 0 mvw(15) 0;
+            padding: 0;
+            line-height: mvw(24);
+            font-size: mvw(22);
+            color: #000;
+
+            &:before {
+                display: inline-block;
+                margin: mvw(-2) mvw(9) 0 0;
+                vertical-align: top;
+                font-family: "Font Awesome 5 Free";
+                font-size: mvw(24);
+                font-weight: 900;
+                color: #e32929;
+                content: '\f3c5';
+            }
+        }
+
+        .excerpt {
+            display: none;
+        }
+    }
+}
+
+.btn-view-full-restaurant-menu {
+    display: block;
+    position: fixed;
+    top: mvw(0);
+    left: mvw(0);
+    cursor: pointer;
+    z-index: 9999;
+    text-align: center;
+    background: #fff;
+    display: inline-block;
+    width: mvw(670);
+    height: mvw(90);
+    overflow: hidden;
+    margin: 0;
+    padding: mvw(40) 0 0 mvw(100);
+    transition: border 0.4s;
+    line-height: mvw(26);
+    font-size: mvw(26);
+    font-weight: 900;
+    color: #e31720;
+    text-align: left;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    &-link {
+        position: fixed;
+        width: mvw(650);
+        left: 0;
+        padding-left: mvw(100)
+    }
+
+    &:before {
+        font-family: "Font Awesome 5 Free";
+        content: '\f053';
+        padding: 0 mvw(10) 0 mvw(17);
+        font-size: mvw(50);
+        position: fixed;
+        left: mvw(20);
+    }
+
+    div {
+        width: auto;
+        margin: 0;
+        padding: 0;
+        line-height: inherit;
+        font-size: inherit;
+    }
+}

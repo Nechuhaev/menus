@@ -1,0 +1,569 @@
+﻿@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@inject Menus.Web.Services.DishTagsService DishTags;
+@model Menus.Abstract.Models.IDish
+@{
+    ViewData["Title"] = "EditDish";
+    Layout = "~/Areas/Restaurants/Views/Shared/_Layoutinner.cshtml";
+    var menuCategories = ViewData["menuCategories"] as IEnumerable<Menus.Abstract.Models.IMenuCategory>;
+    var selectedMenuCategories = ViewData["selectedMenuCategories"] as IEnumerable<string>;
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture;
+    var Locales = LocaleSrvc.GetLocales();
+
+    //var openMore = !string.IsNullOrEmpty(Model.Ingredients.Get(Locales.First().Id)) || !string.IsNullOrEmpty(Model.Description.Get(Locales.First().Id)) || !string.IsNullOrEmpty(Model.PhotoLink);
+    var openMore = false;
+    var disableLanguagePrefill = /*string.IsNullOrEmpty(Context.Request.Cookies[".Menus.DisableLanguagePrefill"])*/ false;
+}
+
+<style>
+    .site-header, .topSection, .site-footer, .content_nav, .language_and_text, .breadcrumbs {
+        display: none !important;
+    }
+
+    .site-content {
+        overflow: visible;
+    }
+
+    .site-content-wrapper, .site-content {
+        padding: 0 !important;
+    }
+
+        .site-content .site-content-wrapper {
+            width: 100% !important;
+        }
+
+    body {
+        background-color: #fff;
+        width: 100%;
+        overflow-x: hidden;
+    }
+</style>
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                <li><a asp-action="DishesList">Список блюд</a></li>
+                <li>Редактировать блюдо</li>
+            </ul>
+        </div>
+
+        <div class="site-content-wrapper">
+
+            <ul class="content_nav">
+                <li asp-is-active-route asp-controller="Manage" asp-action="EditDish"><a asp-controller="Manage" asp-action="EditDish" asp-route-id="@Model.Id">Общая информация</a></li>
+                <li asp-is-active-route asp-controller="Manage" asp-action="DishSeo"><a asp-controller="Manage" asp-action="DishSeo" asp-route-id="@Model.Id">SEO</a></li>
+            </ul>
+
+            <div class="language_and_text">
+                <div class="column_left">
+                    <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
+                </div>
+                <div class="column_right">
+                    <ul class="content_language">
+                        @{
+                            var firstLocale = true;
+                        }
+                        @foreach (var locale in Locales)
+                        {
+                            <li class="@(firstLocale ? "current" : "")"><a data-locale="@locale.Id" href="#">@locale.ShortName</a></li>
+                            firstLocale = false;
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <style>
+                .selected-categories {
+                    position: relative;
+                }
+
+                .selected-categories-display {
+                    display: inline-flex;
+                    height: 23px;
+                    align-items: center;
+                }
+
+                    .selected-categories-display span {
+                        padding: 5px;
+                        margin: 0 5px;
+                        background: #ffb80e;
+                        border-radius: .2083333333vw;
+                        cursor: pointer;
+                        user-select: none;
+                    }
+
+                .selected-categories-input {
+                    position: absolute;
+                    background: #fff;
+                    width: 100%;
+                    border: 1px #eee solid;
+                    border-radius: .2083333333vw;
+                }
+            </style>
+
+            <form method="post" enctype="multipart/form-data" class="my_menu">
+                <input type="hidden" name="Id" value="@Model.Id" />
+                @*<input type="hidden" name="PhotoLink" value="@Model.PhotoLink" />*@
+                <input type="hidden" name="Prices" value='@Html.Raw(ViewData["variations"])' />
+                <div class="input-group selected-categories">
+                    <label style="display: inline-block;">РАЗДЕЛ МЕНЮ <span>*</span></label>
+                    <a data-toggle-categories href="#" style="display: inline-block; margin: 0 27px 0 8px;">Добавить</a>
+                    <div class="selected-categories-display">
+                        @foreach (var category in menuCategories.Where(x => selectedMenuCategories.Contains(x.Id)).OrderBy(x => x.Index))
+                        {
+                            <span>@category.Name.Get(culture.TwoLetterISOLanguageName)</span>
+                        }
+                    </div>
+                    <div class="clearfix"></div>
+                    @*<input type="text" placeholder="например: завтраки" />*@
+                    <div class="selected-categories-input" style="display: none;">
+                        @foreach (var category in menuCategories.OrderBy(x => x.Index))
+                        {
+                            <div data-category="@category.Id">
+                                <label><input type="checkbox" @(selectedMenuCategories.Contains(category.Id) ? Html.Raw("checked") : Html.Raw("")) /> @category.Name.Get(culture.TwoLetterISOLanguageName)</label>
+                            </div>
+                        }
+                        <a data-toggle-categories href="#">Ок</a>
+                    </div>
+                    <input type="hidden" name="Categories" value="@ViewData["selectedMenuCategoriesJson"]" />
+                </div>
+                <div class="input-group formStyle">
+                    <label>ПОЗИЦИЯ <span>*</span></label>
+                    <div class="block-four-columns">
+                        <p>
+                            @{
+                                var localeIndex = 0;
+                            }
+                            @foreach (var locale in Locales)
+                            {
+                                <span data-name data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                    <input type="hidden" name="Name[@localeIndex].Locale" value="@locale.Id" />
+                                    <input tabindex="1" type="text" name="Name[@localeIndex].Value" value="@Model.Name.Get(locale.Id, !disableLanguagePrefill)" placeholder="например: омлет" />
+                                </span>
+                                localeIndex++;
+                            }
+                        </p>
+                        <p><input tabindex="2" type="text" name="WeightSingle" value="" placeholder="Вес/Кол-во" /></p>
+                        <p>
+                            <select tabindex="3" name="UnitSingle">
+                                <option selected="" value="g">g</option>
+                                <option value="kg">kg</option>
+                                <option value="ml">ml</option>
+                                <option value="l">l</option>
+                                <option value="sv">serving</option>
+                                <option value="cm">cm</option>
+                                <option value=" ">item</option>
+                            </select>
+                        </p>
+                        <p><input tabindex="4" type="text" name="PriceSingle" value="" placeholder="Цена" /></p>
+                    </div>
+
+                </div>
+
+                <div class="block-more" style="@(openMore ? "display: block;" : "")">
+                    <div class="block-four-columns">
+                        <p>
+                            <input type="text" name="Tags" value="@(((Dish)Model).Tags)" placeholder="Теги" />
+                        </p>
+                    </div>
+                    <div class="input-group formStyle">
+                        <div class="formStyle4">
+                            <p><input type="text" name="Weight" value="" placeholder="Вес/Количество" /></p>
+                            <p>
+                                <select name="Unit">
+                                    <option selected="" value="g">g</option>
+                                    <option value="kg">kg</option>
+                                    <option value="ml">ml</option>
+                                    <option value="l">l</option>
+                                    <option value="sv">serving</option>
+                                    <option value="cm">cm</option>
+                                    <option value=" ">item</option>
+                                </select>
+                            </p>
+                            <p><input type="text" name="Price" value="" placeholder="Цена" /></p>
+                            <p><input type="button" id="add-variation" value="Добавить вариацию" /></p>
+                        </div>
+                    </div>
+
+                    <table id="variations">
+                        <thead>
+                            <tr>
+                                <th>Вес</th>
+                                <th>Единица</th>
+                                <th>Цена</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+
+                    <div class="input-group">
+                        <label>Показывать на главной</label>
+                        <input asp-for="ShowOnIndex" />
+                    </div>
+
+                    <div class="input-group">
+                        <label>Краткое описание позиции</label>
+                        @{
+                            localeIndex = 0;
+                        }
+                        @foreach (var locale in Locales)
+                        {
+                            <div data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                <input type="hidden" name="ShortDescription[@localeIndex].Locale" value="@locale.Id" />
+                                <input type="text" name="ShortDescription[@localeIndex].Value" value="@Model.ShortDescription.Get(locale.Id, !disableLanguagePrefill)" placeholder="например: омлет с сосисками" />
+                            </div>
+                            localeIndex++;
+                        }
+                    </div>
+
+                    <div class="input-group">
+                        <label>Состав</label>
+                        @{
+                            localeIndex = 0;
+                        }
+                        @foreach (var locale in Locales)
+                        {
+                            <div data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                <input type="hidden" name="Ingredients[@localeIndex].Locale" value="@locale.Id" />
+                                <input type="text" name="Ingredients[@localeIndex].Value" value="@Model.Ingredients.Get(locale.Id, !disableLanguagePrefill)" />
+                            </div>
+                            localeIndex++;
+                        }
+                    </div>
+                    <div class="textarea-group">
+                        <label>Подробное описание позиции</label>
+                        <div class="textarea-columns">
+                            <div class="textarea-left">
+                                @{
+                                    localeIndex = 0;
+                                }
+                                @foreach (var locale in Locales)
+                                {
+                                    <div data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                        <input type="hidden" name="Description[@localeIndex].Locale" value="@locale.Id" />
+                                        <textarea name="Description[@localeIndex].Value">@Model.Description.Get(locale.Id, !disableLanguagePrefill)</textarea>
+                                    </div>
+                                    localeIndex++;
+                                }
+                            </div>
+                            @*<div class="textarea-right hidden">
+                                    <div class="add_photo_dishes" style="@(!string.IsNullOrEmpty(Model.PhotoLink) ? $"background-image: url({Url.Action("File", "Home", new {id = Model.PhotoLink, area = ""})})" : "")">
+                                        <input id="dish-photo" name="PhotoFile" type="file" accept="image/png, image/jpeg" />
+                                    </div>
+                                    <div class="file_data">
+                                        <em>
+                                            <label for="dish-photo">Загрузить новое</label>
+                                        </em>
+                                        <em>
+                                            <a id="clear-photo" href="javascript:;">
+                                                <span class="fa-fw select-all fas"></span>
+                                            </a>
+                                        </em>
+                                    </div>
+                                </div>*@
+                        </div>
+                    </div>
+                </div>
+
+                <a href="#" class="view-more @(openMore ? "view-more-open" : "")">расширенные опции (описание позиции, фото)</a>
+
+                @*<div class="button-group">
+                        <a href="#">Добавить позицию</a>
+                    </div>*@
+                <div class="submit-group">
+                    <input tabindex="5" type="submit" onclick="$('.my_menu').attr('action', '@Url.Action("EditDishIframe", new { frameId = ViewData["frameId"] as string, mode = "copy" })')" value="сохранить и копировать" />
+                    <input tabindex="6" type="submit" onclick="$('.my_menu').attr('action', '@Url.Action("EditDishIframe", new { frameId = ViewData["frameId"] as string, mode = "new" })')" value="сохранить и продолжить" />
+                    <input tabindex="7" type="submit" onclick="$('.my_menu').attr('action', '@Url.Action("EditDishIframe", new { frameId = ViewData["frameId"] as string, mode = "save" })')" value="сохранить" />
+                </div>
+            </form>
+
+        </div>
+
+    </main>
+</div>
+
+
+
+<script src="~/js/jquery.js"></script>
+<link href="~/lib/tagify.css" rel="stylesheet" />
+<script src="~/lib/tagify.min.js"></script>
+<script>
+    var frameId = "@ViewData["frameId"]";
+    var pageMode = "@ViewData["mode"]";
+    var newId = "@ViewData["newId"]";
+    var prices = @Html.Raw(ViewData["variations"]);
+</script>
+<script>
+    var catVisible = false;
+    var moreVisible = false;
+
+    jQuery(document).ready(function () {
+        jQuery('.view-more').on('click', function (e) {
+            e.preventDefault();
+            jQuery(this).toggleClass('view-more-open');
+            jQuery('.block-more').slideToggle();
+            moreVisible = !moreVisible;
+
+            window.parent.postMessage({
+                action: "viewMore",
+                open: catVisible || moreVisible,
+                frameId: frameId
+            }, "@Context.Request.Scheme://@Context.Request.Host");
+        });
+
+        @*if (pageMode === "copy") {
+            window.parent.postMessage({
+                action: "existing",
+                itemId: newId,
+                frameId: frameId
+            }, "@Context.Request.Scheme://@Context.Request.Host");
+        }*@
+
+        if (pageMode === "copy") {
+            window.parent.postMessage({
+                action: "copy",
+                itemId: newId,
+                frameId: frameId
+            }, "@Context.Request.Scheme://@Context.Request.Host");
+        }
+
+        if (pageMode === "new") {
+            window.parent.postMessage({
+                action: "new",
+                frameId: frameId
+            }, "@Context.Request.Scheme://@Context.Request.Host");
+        }
+    });
+
+    $('input[name=Tags]').tagify({
+        autocomplete: true,
+        enforceWhitelist: true,
+        whitelist: @Html.Raw(DishTags.Autocomplete),
+        dropdown: {
+            enabled: 0
+        }
+    });
+
+    $(document).on("click",
+        ".selected-categories-display span, [data-toggle-categories]",
+        function (e) {
+            e.preventDefault();
+            $(".selected-categories-input").toggle();
+            catVisible = !catVisible;
+            window.parent.postMessage({
+                action: "viewMore",
+                open: catVisible || moreVisible,
+                frameId: frameId
+            }, "@Context.Request.Scheme://@Context.Request.Host");
+        });
+
+    $("a[data-locale]").click(function (e) {
+        e.preventDefault();
+        $("a[data-locale]").parent().removeClass("current");
+        $(this).parent().addClass("current");
+
+        $("div[data-locale], span[data-locale]").addClass("hidden");
+        var id = $(this).attr("data-locale");
+        $("div[data-locale=" + id + "], span[data-locale=" + id + "]").removeClass("hidden");
+    });
+
+    function readURL(input, img) {
+
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+
+            reader.onload = function (e) {
+                $(img).css('background-image', "url(" + e.target.result + ")");
+            }
+
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    $(document).on("change", ".add_photo_dishes input", function () {
+        var container = $(this).parent();
+        readURL(this, container[0]);
+    });
+
+    $(document).on("change",
+        "[data-category] input",
+        function () {
+            var selectedCategories = [];
+            $(".selected-categories-display").empty();
+            $("[data-category] input").each(function () {
+                if ($(this).is(":checked")) {
+                    var id = $(this).parent().parent().attr("data-category");
+                    selectedCategories.push(id);
+                    $(".selected-categories-display").append("<span>" + $(this).parent().text() + "</span>");
+                }
+            });
+
+            $("[name=Categories]").val(JSON.stringify(selectedCategories));
+        });
+
+    $("#add-variation").click(function(e) {
+        e.preventDefault();
+
+        var weight = $("[name=Weight]").val();
+        var type = $("[name=Unit]").val();
+        var price = $("[name=Price]").val();
+
+        var concatWeight = weight + " " + type;
+        var exit = false;
+
+        prices.forEach(function(item) {
+            if (item.weightFull === concatWeight) {
+                alert("You already have same variant");
+                exit = true;
+                return;
+            }
+        });
+
+        if (exit) return;
+
+        prices.push({
+            id: '',
+            weight: weight,
+            type: type,
+            price: price,
+            weightFull: weight + " " + type
+        });
+
+        updatePrices();
+    });
+
+    function updatePrices() {
+        var tbody = $("#variations").find("tbody");
+        tbody.empty();
+
+        function compare(a,b) {
+            if (parseInt(a.price) < parseInt(b.price))
+                return -1;
+            if (parseInt(a.price) > parseInt(b.price))
+                return 1;
+            return 0;
+        }
+
+        prices = prices.sort(compare);
+
+        $("[name=WeightSingle]").val(prices[0] ? prices[0].weight : "");
+        $("[name=UnitSingle]").val(prices[0] ? prices[0].type : "g");
+        $("[name=PriceSingle]").val(prices[0] ? prices[0].price : "");
+
+        prices.forEach(function (item, index) {
+            var select = $('<select><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option><option value="sv">serving</option><option value="cm">cm</option><option value=" ">item</option></select>');
+            select.val(item.type);
+            tbody.append("<tr data-index='" + index + "'><td class='weight'><input value='" + item.weight + "' /></td>  <td class='type'></td>  <td class='price'>" + "@ViewData["currency"]" + "<input value='" + + item.price + "' /></td><td data-del-variant><a href='#' class='tableDeleteBtn'></a></td></tr>").find("tr").eq(index).find("td.type").append(select);
+        });
+
+        $("[name=Prices]").val(JSON.stringify(prices));
+    };
+
+    $("[name=WeightSingle], [name=UnitSingle], [name=PriceSingle]").change(function(e) {
+        var elem = $(this);
+
+        if (prices.length === 0) {
+            prices.push({
+                id: '',
+                weight: "",
+                type: "g",
+                price: "",
+                weightFull: ""
+            });
+        }
+
+        switch (elem.attr("name")) {
+        case "WeightSingle":
+            prices[0].weight = elem.val();
+            break;
+        case "UnitSingle":
+            prices[0].type = elem.val();
+            break;
+        case "PriceSingle":
+            prices[0].price = elem.val();
+            break;
+        default:
+            break;
+        }
+
+        prices[0].id = "";
+        updatePrices();
+    });
+
+    $(document).on("change", "#variations input, #variations select", function() {
+        var tr = $(this).closest("tr");
+        var index = tr.attr("data-index");
+        var pricesItem = prices[index];
+        pricesItem.weight = tr.find("td.weight input").val();
+        pricesItem.type = tr.find("td.type select").val();
+        pricesItem.price = tr.find("td.price input").val();
+        pricesItem.weightFull = pricesItem.weight + " " + pricesItem.type;
+        pricesItem.id = "";
+
+        updatePrices();
+    });
+
+    $(document).on("click", "[data-del-variant]", function (e) {
+        e.preventDefault()
+        var tr = $(this).closest("tr");
+        var index = tr.attr("data-index");
+
+        prices.splice(index, 1);
+
+        updatePrices();
+    });
+
+    $("#clear-photo").click(function () {
+        var fileopen = $(".add_photo_dishes input");
+
+        var parent = fileopen.parent();
+        parent.removeAttr("style");
+
+        fileopen.remove();
+        parent.append("<input id=\"dish-photo\" name=\"PhotoFile\" type=\"file\" accept=\"image/png, image/jpeg\" />");
+
+        $("[name=PhotoLink]").val("");
+    });
+
+    $("form.my_menu").submit(function(){
+        window.parent.postMessage({
+            action: "viewMore",
+            open: false,
+            frameId: frameId
+        }, "@Context.Request.Scheme://@Context.Request.Host");
+    });
+
+    updatePrices();
+
+</script>
+
+<script>
+    var currentLocale = "ru";
+
+    function receiveMessage(event) {
+        //console.log(event);
+        if (event.data.action === "changeLang") {
+            $("div[data-locale], span[data-locale]").addClass("hidden");
+            $("div[data-locale=" + event.data.id + "], span[data-locale=" + event.data.id + "]").removeClass("hidden");
+            currentLocale = event.data.id;
+        }
+
+        if (event.data.action === "focusNameInput") {
+            $("[data-name][data-locale=" + currentLocale + "] input[type=text]").focus();
+        }
+    }
+    window.addEventListener("message", receiveMessage, false);
+    $(function() {
+        window.parent.postMessage({
+            action: "viewMore",
+            open: catVisible || moreVisible,
+            firstLoad: true,
+            frameId: frameId
+        }, "@Context.Request.Scheme://@Context.Request.Host");
+    });
+</script>

@@ -1,0 +1,26 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+
+<div class="popUpBlock popUpBlockRequestLocation">
+    <div class="popUpCloser"></div>
+    <div class="popUpBlock_inner">
+        <div class="popUpWindow popUpRequestGeolocation">
+            <span class="popUp_close"></span>
+            <div data-request-geolocation-helper-result class="hidden">
+                <div class="popUpTitle">@Localizer["AllowGeolocation"]</div>
+                <object class="loading-icon" type="image/svg+xml" data="~/images/loading.svg"></object>
+                <div class="description">
+                    <p>@Localizer["AllowGeolocationDescription1"]</p>
+                    <p>@Localizer["AllowGeolocationDescription2"]</p>
+                </div>
+            </div>
+            <div data-request-geolocation-helper-error class="hidden">
+                <div class="popUpTitle">@Localizer["ErrorGeolocationTurnedOff"]</div>
+                <div class="description">
+                    <p>@Localizer["YouPreventTipMyMenuOfUsingGeolocation1"]</p>
+                    <p>@Localizer["YouPreventTipMyMenuOfUsingGeolocation2"]</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,40 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@model IEnumerable<Menus.Abstract.Models.ICompleteDish>
+@{
+    Layout = null;
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+}
+
+
+@foreach (var dish in Model)
+{
+    <li>
+        <div class="caption">
+            <figure>
+                @if (dish.Photos.Any())
+                {
+                    <a href="@Url.Action("Dish", "Home", new { id = dish.RestaurantUrl, dishId = dish.DishUrl })" style="background-image: url(@Img.Url(dish.Photos.First(), Quality.Medium));"></a>
+                }
+                @if (dish.RestaurantDistance != null)
+                {
+                    <span>@dish.RestaurantDistance.Value.ToString("F1") km</span>
+                }
+            </figure>
+            <h3><a href="@Url.Action("Dish", "Home", new { id = dish.RestaurantUrl, dishId = dish.DishUrl })">@dish.Name.Get(culture)</a></h3>
+            <span class="resultListRating">
+                <em>@dish.RatingFloat.ToString("F1")</em>
+                @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+            </span>
+            <span class="searchResultReview">@dish.RatingsCount @Localizer["RatingCountByDishes"]</span>
+            <a href="@Url.Action("Restaurant", "Home", new { id = dish.RestaurantUrl })" class="searchResultLocation">
+                @dish.RestaurantName - @dish.RestaurantDisplayAddress.Get(culture)
+            </a>
+            <span class="searchResultPrice">
+                @dish.RestaurantCurrency @dish.Price.ToString("F2") <span>@dish.Weight @dish.WeightType</span>
+            </span>
+        </div>
+    </li>
+}

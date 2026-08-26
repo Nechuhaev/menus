@@ -1,0 +1,17 @@
+﻿@model string
+
+<div class="breadcrumbs">
+    <ul>
+        <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+        @if (!User.IsInRole("admin") && !User.IsInRole("manager"))
+        {
+            <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+        }
+
+        <li>О ресторане</li>
+        @if (!string.IsNullOrEmpty(Model))
+        {
+            <li>@Model</li>
+        }
+    </ul>
+</div>

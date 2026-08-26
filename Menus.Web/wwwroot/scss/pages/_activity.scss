@@ -1,0 +1,36 @@
+﻿@import "../_variables.scss";
+
+body {
+    .activity-container {
+
+        .username-box {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .reviews_content {
+            ul {
+
+                li {
+                    position: relative;
+
+                    .review_numbers {
+                        margin: 0 0 0.5rem 0;
+                    }
+
+                    .caption {
+                        .remove-btn-trash-container {
+                            padding: 7px 10px;
+                            bottom: 5px;
+                        }
+
+                        .write-review-btn {
+                            color: darken($grey, 20%);
+                            text-decoration: underline;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

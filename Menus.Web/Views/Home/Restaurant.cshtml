@@ -1,0 +1,1794 @@
+﻿@using Menus.Abstract.Models
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
+@model Menus.Web.Models.ViewModels.RestaurantViewModel
+@inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Domain.Core Core
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var seo = ViewData["seo"] as Menus.Abstract.Models.IRestaurantSeo;
+    ViewData["BodyClass"] = "restaurant-page";
+    int categoryIndex;
+
+    var selectedCity = ViewData["selectedCity"] as Menus.Abstract.Models.ICity;
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+    var restaurantCity = await Core.Restaurants.GetCityById(Model.Restaurant.City);
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    var title = string.IsNullOrEmpty(seo.Title.Get(culture))
+        ? string.Format(Localizer["MetaTitle"].Value, Model.Restaurant.Name, restaurantCity.Name.Get(culture))
+        : seo.Title.Get(culture);
+    ViewData["Title"] = title;
+
+    var restaurantDescription = Model.RestaurantInfo.ShortInfo.Get(culture);
+    ViewData["Description"] = string.IsNullOrEmpty(seo.Description.Get(culture))
+        ? string.Format(Localizer["MetaDescription"].Value, Model.Restaurant.Name, restaurantCity.Name.Get(culture))
+        : seo.Description.Get(culture);
+
+    var currentDay = (int)DateTime.Now.DayOfWeek;
+    currentDay = currentDay == 0 ? 6 : currentDay - 1;
+    JToken currentDayInfo = null;
+    JArray allDaysInfo = null;
+    if (Model.SchedulePerDay)
+    {
+        allDaysInfo = JsonConvert.DeserializeObject<JArray>(Model.OpenHours);
+        currentDayInfo = allDaysInfo[currentDay];
+    }
+
+    var imgAlt = $"{Localizer["Photo"].Value} {Model.Restaurant.Name} {restaurantCity.Name.Get(culture)}";
+
+    var selectedCityId = Context.Request.Cookies[".Menus.SelectedCity"];
+    selectedCityId = !string.IsNullOrEmpty(selectedCityId) ? selectedCityId : "e2655e24-92dc-4179-abf6-c3908278a4de";
+    var featuredRestaurants = Core.Restaurants.FindSimilarCuisineRestaurants(Model.RestaurantInfo.Cuisine.Get(culture).Split(",")[0], selectedCityId, Model.RestaurantInfo.RestaurantId).OrderBy(x => x.Name).Take(4).ToList();
+
+    var topDishes = ViewData["topDishes"] as List<IDishWithSeoAndRatings>;
+
+    var isMobile = UserService.IsMobileUser(Context.Request);
+    var isDesktop = !UserService.IsMobileUser(Context.Request);
+    var notEmptyCategories = Model.Menu.Categories.Count > 0;
+    var emptyCategories = Model.Menu.Categories.Count == 0;
+    var canSeeAddMenuAndAddDish = (Model.RestaurantInfo.UserAllowedAddMenu || Model.RestaurantInfo.UserAllowedOpenMenu || Model.RestaurantInfo.UserAllowedAddDishes) || !Model.Restaurant.IsModeratable;
+    var canSeeAddMenu = (Model.RestaurantInfo.UserAllowedAddMenu || Model.RestaurantInfo.UserAllowedOpenMenu) || !Model.Restaurant.IsModeratable;
+    var canSeeAddDish = (Model.RestaurantInfo.UserAllowedAddDishes) || !Model.Restaurant.IsModeratable;
+    var h1Text = !string.IsNullOrEmpty(seo.Header.Get(culture)) ? seo.Header.Get(culture): Model.Restaurant.Name;
+}
+
+@await Html.PartialAsync("_Header")
+
+<style>
+    button[data-user-id] {
+        display: none;
+    }
+
+    button[data-user-id="@User.Identity.Name"] {
+        display: initial;
+    }
+</style>
+
+<div itemscope itemtype="http://schema.org/Restaurant">
+    <div class="topSection">
+        <div class="wrapper">
+            <h1 itemprop="name">
+                <figure>
+                    <img itemprop="image" src="@Img.Url(Model.Photos.FirstOrDefault(), Quality.Low)" alt="@imgAlt" title="@imgAlt" />
+                </figure>
+                @h1Text
+                @if (Model.UserRole != null)
+                {
+                    <a href="@Url.Action("EditRestaurant", "Home", new { id = Model.RestaurantInfo.RestaurantId })"><i class="far fa-edit"></i></a>
+                }
+            </h1>
+
+            @if(Model.Restaurant.Status != RestaurantStatus.Closed)
+            {
+            
+                <p>
+                    <em @(!string.IsNullOrEmpty(Model.RestaurantInfo.GpsLatitude) ? "data-open-map" : "")>
+                        @(restaurantCity.Name.Get(culture)),
+                        @(!string.IsNullOrEmpty(Model.RestaurantInfo.DisplayAddress.Get(culture)) ? $"{Model.RestaurantInfo.DisplayAddress.Get(culture)}" : string.Empty)
+                    </em>
+                    <span itemprop="address" class="@(!string.IsNullOrEmpty(Model.RestaurantInfo.DisplayAddress.Get(culture)) ? "" : "hidden")" content="@Model.RestaurantInfo.DisplayAddress.Get(culture), @restaurantCity.Name.Get(culture)">|</span>
+                    <a itemprop="telephone" content="@Model.Restaurant.Phone" href="tel:@Model.Restaurant.Phone">@(!string.IsNullOrEmpty(Model.Restaurant.Phone) ? Model.Restaurant.Phone : string.Empty)</a>
+                    <span itemprop="servesCuisine" class="@(!string.IsNullOrEmpty(Model.Restaurant.Phone) ? "" : "hidden")" content="@Model.RestaurantInfo.Cuisine.Get(culture)">|</span> @(!string.IsNullOrEmpty(Model.RestaurantInfo.Cuisine.Get(culture)) ? Model.RestaurantInfo.Cuisine.Get(culture) : string.Empty)
+                </p>
+                @if (!Model.SchedulePerDay)
+                {
+                    <strong>@Localizer["WorkHours"]: @Model.OpenHours</strong>
+                }
+                else
+                {
+                    if (isDesktop)
+                    {
+                        <div class="work-hours">
+                            <strong>@Localizer["WorkHours"]: <em>@Localizer["Today"] (@(currentDayInfo["active"].Value<bool>() ? $"{currentDayInfo["from"].Value<string>()}-{currentDayInfo["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</em></strong>
+                            <div class="work-hours-dropdown">
+                                <span>@Localizer["Mon"] (@(allDaysInfo[0]["active"].Value<bool>() ? $"{allDaysInfo[0]["from"].Value<string>()}-{allDaysInfo[0]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</span>
+                                <span>@Localizer["Tue"] (@(allDaysInfo[1]["active"].Value<bool>() ? $"{allDaysInfo[1]["from"].Value<string>()}-{allDaysInfo[1]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</span>
+                                <span>@Localizer["Wed"] (@(allDaysInfo[2]["active"].Value<bool>() ? $"{allDaysInfo[2]["from"].Value<string>()}-{allDaysInfo[2]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</span>
+                                <span>@Localizer["Thr"] (@(allDaysInfo[3]["active"].Value<bool>() ? $"{allDaysInfo[3]["from"].Value<string>()}-{allDaysInfo[3]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</span>
+                                <span>@Localizer["Fri"] (@(allDaysInfo[4]["active"].Value<bool>() ? $"{allDaysInfo[4]["from"].Value<string>()}-{allDaysInfo[4]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</span>
+                                <span>@Localizer["Sat"] (@(allDaysInfo[5]["active"].Value<bool>() ? $"{allDaysInfo[5]["from"].Value<string>()}-{allDaysInfo[5]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</span>
+                                <span>@Localizer["Sun"] (@(allDaysInfo[6]["active"].Value<bool>() ? $"{allDaysInfo[6]["from"].Value<string>()}-{allDaysInfo[6]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <strong>
+                            @Localizer["WorkHours"]:
+                            <select>
+                                <option disabled selected>@Localizer["Today"] (@(currentDayInfo["active"].Value<bool>() ? $"{currentDayInfo["from"].Value<string>()}-{currentDayInfo["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</option>
+                                <option disabled>@Localizer["Mon"] (@(allDaysInfo[0]["active"].Value<bool>() ? $"{allDaysInfo[0]["from"].Value<string>()}-{allDaysInfo[0]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</option>
+                                <option disabled>@Localizer["Tue"] (@(allDaysInfo[1]["active"].Value<bool>() ? $"{allDaysInfo[1]["from"].Value<string>()}-{allDaysInfo[1]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</option>
+                                <option disabled>@Localizer["Wed"] (@(allDaysInfo[2]["active"].Value<bool>() ? $"{allDaysInfo[2]["from"].Value<string>()}-{allDaysInfo[2]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</option>
+                                <option disabled>@Localizer["Thr"] (@(allDaysInfo[3]["active"].Value<bool>() ? $"{allDaysInfo[3]["from"].Value<string>()}-{allDaysInfo[3]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</option>
+                                <option disabled>@Localizer["Fri"] (@(allDaysInfo[4]["active"].Value<bool>() ? $"{allDaysInfo[4]["from"].Value<string>()}-{allDaysInfo[4]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</option>
+                                <option disabled>@Localizer["Sat"] (@(allDaysInfo[5]["active"].Value<bool>() ? $"{allDaysInfo[5]["from"].Value<string>()}-{allDaysInfo[5]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</option>
+                                <option disabled>@Localizer["Sun"] (@(allDaysInfo[6]["active"].Value<bool>() ? $"{allDaysInfo[6]["from"].Value<string>()}-{allDaysInfo[6]["to"].Value<string>()}" : Localizer["Closed"].Value.ToString()))</option>
+                            </select>
+                        </strong>
+                    }
+
+                }
+
+                <ul class="icons">
+                    @if (!string.IsNullOrEmpty(Model.Restaurant.Phone))
+                    {
+                        <li>
+                            <a itemprop="url" content="@Model.Restaurant.Phone" href="tel:@Model.Restaurant.Phone">
+                                <span class="fa-fw select-all fas"></span>
+                            </a>
+                            <em>@Localizer["Phone"]</em>
+                        </li>
+                    }
+                    else if (!string.IsNullOrEmpty(Model.RestaurantInfo.Website))
+                    {
+                        <li>
+                            <a itemprop="url" content="@Model.RestaurantInfo.Website" target="_blank" rel="noopener" href="@Model.RestaurantInfo.Website">
+                                <span class="fa-fw select-all fas"></span>
+                            </a>
+                            <em>@Localizer["Website"]</em>
+                        </li>
+                    }
+                    @if (isDesktop && Model.Photos.Count > 0)
+                    {
+                        <li>
+                            <a href="#" class="galleryBtn" data-pc>
+                                <span class="fa-fw select-all fas"></span>
+                            </a>
+                            <em>@Localizer["Gallery"]</em>
+                        </li>
+                    }
+                    else if (Model.Photos.Count > 0)
+                    {
+                        <li>
+                            <a href="#mobile-carousel" class="galleryBtn" data-mobile>
+                                <span class="fa-fw select-all fas"></span>
+                            </a>
+                            <em>@Localizer["Gallery"]</em>
+                        </li>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.RestaurantInfo.GpsLatitude))
+                    {
+                        <li>
+                            <a href="#" class="mapBtn" data-open-map>
+                                <span class="fa-fw select-all fas"></span>
+                            </a>
+                            <em>@Localizer["Map"]</em>
+                        </li>
+                    }
+                    <li>
+                        <a href="#" class="search-icon-button">
+                            <span class="fa-fw select-all fas"></span>
+                        </a>
+                        <em>@Localizer["Search"]</em>
+                    </li>
+                </ul>
+            }  
+            
+            @if(Model.Restaurant.Status == RestaurantStatus.Closed)
+            {
+                <div class="restaurant-closed-container">
+                    <div class="restaurant-closed-container__restaurant-closed">
+                        <div class="restaurant-closed-container__restaurant-closed__first-line">@Localizer["RestaurantClosed"]</div>
+                        <div class="restaurant-closed-container__restaurant-closed__second-line">@Localizer["RClosed"]</div>                     
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="site-content">
+        @if (isMobile)
+        {
+            <div class="top_dishes_container__buttons">
+                @await Html.PartialAsync("_ServiceButtons", new ViewDataDictionary(ViewData) { { "IsExtented", true } })
+            </div>
+        }
+            <main>
+                <div class="breadcrumbs">
+                    <ul>
+                        <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                        <li><breadcrumb href="#">@Model.Restaurant.Name</breadcrumb></li>
+                    </ul>
+                </div>
+
+                <div class="local-menu-search hidden">
+                    <input type="text" placeholder="@Localizer["MenuSearch"]" />
+                    <a href="javascript:void(0)" class="search-icon-button-close"></a>
+                </div>
+
+                @if (isDesktop && notEmptyCategories)
+                {
+                    <div class="contentNavi disableOnMobile">
+                        <div class="contentNaviWrapper">
+
+                            @if (canSeeAddMenuAndAddDish)
+                            {
+                                <div class="restaurant-user-actions">
+                                    @if (canSeeAddMenu)
+                                    {
+                                        <div class="user-actions-manage-menu">
+                                            <i class="far fa-file-image"></i>
+                                            <label class="hidden" data-upload-photo for="photo-upload-input">@Localizer["AddMenu"]</label>
+                                            <a class="hidden" data-open-menus-photos href="#">@Localizer["ViewMenu"]</a>
+                                        </div>
+                                    }
+                                    @if (canSeeAddDish)
+                                    {
+                                        <div class="user-actions-manage-dish">
+                                            <i class="far fa-plus-square"></i>
+                                            <a asp-controller="Home" asp-action="CreateDish" asp-route-id="@ViewData["restaurantId"]">@Localizer["AddDish"]</a>
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            <ul>
+                                @{
+                                    categoryIndex = 0;
+                                }
+                                @foreach (var category in Model.Menu.Categories.OrderBy(x => x.Index))
+                                {
+                                    categoryIndex++;
+                                    <li><a href="#table_food_@categoryIndex">@((category as Menus.Abstract.Models.IMenuCategory).Name.Get(culture))</a></li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
+                else if (Model.Menu.Categories.Any())
+                {
+                    <!-- Swiper -->
+                    <div class="contentNaviCarousel disableOnDesktop">
+                        <div class="contentNaviCarouselInner">
+                            <div class="swiper-container navi-carousel">
+                                <div class="swiper-wrapper">
+                                    @{
+                                        categoryIndex = 0;
+                                    }
+                                    @foreach (var category in Model.Menu.Categories.OrderBy(x => x.Index))
+                                    {
+                                        categoryIndex++;
+                                        <div class="swiper-slide"><a href="#table_food_@categoryIndex">@((category as Menus.Abstract.Models.IMenuCategory).Name.Get(culture))</a></div>
+                                    }
+
+                                    @if (canSeeAddMenuAndAddDish)
+                                    {
+                                        <div class="restaurant-user-actions">
+                                            @if (canSeeAddMenu)
+                                            {
+                                                <div class="user-actions-manage-menu">
+                                                    <i class="far fa-file-image"></i>
+                                                    <label class="hidden" data-upload-photo for="photo-upload-input">@Localizer["AddMenu"]</label>
+                                                    <a class="hidden" data-open-menus-photos href="#">@Localizer["ViewMenu"]</a>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @if (isMobile && notEmptyCategories)
+                {
+                    @if (canSeeAddMenuAndAddDish && canSeeAddDish)
+                    {
+                        <div class="user-actions-manage-dish-fixed">
+                            <i class="far fa-plus-square"></i>
+                            <a asp-controller="Home" asp-action="CreateDish" asp-route-id="@ViewData["restaurantId"]">@Localizer["AddDish"]</a>
+                        </div>
+                    }
+                    else if (!string.IsNullOrEmpty(Model.Restaurant.Phone))
+                    {
+                        <div class="user-actions-phone-fixed">
+                            <a itemprop="url" content="@Model.Restaurant.Phone" href="tel:@Model.Restaurant.Phone">
+                                <span class="fa-fw select-all fas"></span>
+                                @Localizer["Reserv"]
+                            </a>
+                        </div>
+                    }
+                }
+
+
+                <div class="site-content-align">
+
+                    @await Html.PartialAsync("_GoogleSence",
+                    new Menus.Web.Models.Internal.GoogleSence() {
+                        GoogleSenceType = Menus.Web.Models.Internal.GoogleSenceTypes.Wide
+                    })
+
+                    <div class="top_dishes_container">
+
+                        <h2 class="top_dishes_title">
+                            @if (topDishes.Any())
+                            {
+                                @Localizer["TopDishes"]
+                            }
+                            else
+                            {
+                                @Localizer["AdditionalServices"]
+                            }
+                        </h2>
+
+                        @if (isDesktop)
+                        {
+                            <div class="top_dishes_container__buttons">
+                                @await Html.PartialAsync("_ServiceButtons", new ViewDataDictionary(ViewData) { { "IsExtented", true } })
+                            </div>
+                        }
+                    </div>
+
+
+                    @if (isDesktop && topDishes.Any())
+                    {
+                        <div class="popular_dishes disableOnMobile">
+                            @foreach (var dish in topDishes)
+                            {
+                                <div class="restaurant">
+                                    <a asp-controller="Home" asp-action="Dish" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@seo.Url" asp-route-dishId="@dish.Url">
+                                        @if (dish.Photos.Any())
+                                        {
+                                            <figure class="restaurant-image" style="background-image: url(@Img.Url(dish.Photos.FirstOrDefault(), Quality.Low));">
+                                                <figcaption>₴ @dish.Price.ToString("F2")</figcaption>
+                                            </figure>
+                                        }
+                                        else
+                                        {
+                                            <figure class="restaurant-image restaurant-image-blank">
+                                                <figcaption>₴ @dish.Price.ToString("F2")</figcaption>
+                                            </figure>
+                                        }
+                                        <p class="restaurant-name">
+                                            @dish.Name.Get(culture)
+                                        </p>
+                                        <p class="popular_dish_info">
+                                            <strong>@dish.RatingFloat.ToString("F1")</strong>
+                                            @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                            <em>(@dish.RatingCount)</em>
+                                        </p>
+                                    </a>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (topDishes.Any())
+                    {
+                        <!-- Swiper -->
+                        <div class="popular-area disableOnDesktop">
+                            <div class="swiper-container popular-container">
+                                <div class="swiper-wrapper">
+                                    @foreach (var dish in topDishes)
+                                    {
+                                        <a class="swiper-slide" asp-controller="Home" asp-action="Dish" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@seo.Url" asp-route-dishId="@dish.Url">
+
+                                            @if (dish.Photos.Any())
+                                            {
+                                                <figure class="restaurant-image" style="background-image: url(@Img.Url(dish.Photos.FirstOrDefault(), Quality.Low));">
+                                                    <figcaption>₴ @dish.Price.ToString("F2")</figcaption>
+                                                </figure>
+                                            }
+                                            else
+                                            {
+                                                <figure class="restaurant-image restaurant-image-blank">
+                                                    <figcaption>₴ @dish.Price.ToString("F2")</figcaption>
+                                                </figure>
+                                            }
+                                            <p class="restaurant-name">
+                                                @dish.Name.Get(culture)
+                                            </p>
+                                            <p class="popular_dish_info">
+                                                <strong>@dish.RatingFloat.ToString("F1")</strong>
+                                                @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                                <em>(@dish.RatingCount)</em>
+                                            </p>
+                                        </a>
+                                    }
+                                    <div class="swiper-slide"></div>
+                                </div>
+                                <!-- Add Pagination -->
+                                <div class="swiper-pagination"></div>
+                            </div>
+                        </div>
+                    }
+
+                    <div id="table_food_top"></div>
+                    @if (isDesktop)
+                    {
+                        @if (notEmptyCategories)
+                        {
+                            categoryIndex = 0;
+                            foreach (var category in Model.Menu.Categories.OrderBy(x => x.Index))
+                            {
+                                categoryIndex++;
+                                <div class="table_element @(categoryIndex == 1 ? "visible" : "")">
+                                    <table class="table_food disableOnMobile" id="table_food_@categoryIndex">
+                                        <thead>
+                                            <tr>
+                                                <td class="table_food_name"><h2>@((category as Menus.Abstract.Models.IMenuCategory).Name.Get(culture))</h2></td>
+                                                @if (categoryIndex == 1)
+                                                {
+                                                    <td class="table_food_price">@Localizer["Price"]</td>
+                                                    <td class="table_food_weight">@Localizer["Weight"]</td>
+                                                    <td class="table_food_rating">@Localizer["Rating"]</td>
+                                                }
+                                                else
+                                                {
+                                                    <td class="table_food_price"></td>
+                                                    <td class="table_food_weight"></td>
+                                                    <td class="table_food_rating"></td>
+                                                }
+                                                <td class="table_food_count"></td>
+                                                <td class="table_food_link"></td>
+                                            </tr>
+                                        </thead>
+                                        <tbody style="@(categoryIndex == 1 ? "display: table-row-group;" : "")">
+                                            @foreach (var dish in category.Dishes.OrderByDescending(x => x.RatingFloat))
+                                            {
+                                                <tr data-dish-id="@dish.Id">
+                                                    <td class="table_food_name">
+                                                        <h3>
+                                                            <a href="@Url.Action("Dish", "Home", new { id = ViewData["restaurantId"], dishId = dish.Url })">
+                                                                @(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))
+                                                                @if (dish.Photos.Any())
+                                                                {
+                                                                    <span class="show-dish-image">
+                                                                        <object class="has-pictures-icon" type="image/svg+xml" data="~/images/has_pictures.svg"></object>
+                                                                    </span>
+                                                                }
+                                                            </a>
+
+                                                        </h3>
+                                                        @if (dish.ShortDescription.Get(culture).Length > 0)
+                                                        {
+                                                            <p>@dish.ShortDescription.Get(culture)</p>
+                                                        }
+                                                    </td>
+                                                    <td class="table_food_price">
+                                                        @if (dish.IsPriceMultiple)
+                                                        {
+                                                            <span>@Localizer["From"]&nbsp;</span>
+                                                        }
+                                                        @Model.RestaurantInfo.Currency @dish.Price.ToString("F2")
+                                                    </td>
+                                                    <td class="table_food_weight">@dish.Weight @dish.WeightType</td>
+                                                    <td class="table_food_rating @(dish.UserRating > 0 ? "rated" : "")">
+                                                        @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                                        @if (User.Identity.IsAuthenticated)
+                                                        {
+                                                            <div class="hover_rating">
+                                                                @if (dish.UserRating > 0)
+                                                                {
+                                                                    <p>@Localizer["YourRate"]</p>
+                                                                    for (var i = 1; i <= 5; i++)
+                                                                    {
+                                                                        if (i <= dish.UserRating)
+                                                                        {
+                                                                            <span class="stars star_red"></span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span class="stars star_grey"></span>
+                                                                        }
+                                                                    }
+                                                                }
+                                                                else
+                                                                {
+                                                                    <p>@Localizer["RateDish"]</p>
+                                                                    for (var i = 1; i <= 5; i++)
+                                                                    {
+                                                                        if (i < dish.Rating)
+                                                                        {
+                                                                            <span class="stars star_yellow"></span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span class="stars star_grey"></span>
+                                                                        }
+                                                                    }
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </td>
+                                                    <td class="table_food_count"><em>@dish.RatingCount</em> @Localizer["Ratings"]</td>
+                                                    <td class="table_food_link"><a href="@Url.Action("Dish", "Home", new { id = ViewData["restaurantId"], dishId = dish.Url })"></a></td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                    <div class="found_mistake pc" style="@(categoryIndex == 1 ? "display: block;" : "")">
+                                        <span>@Localizer["FoundError"]?</span>
+                                        <a href="#">@Localizer["HelpUsToImproveData"]</a>
+                                    </div>
+
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <h2 class="no-dishes">@Localizer["BecomeFirstWhoWillAddDish"]</h2>
+                            <br />
+                        }
+
+                    }
+                    else if (isMobile)
+                    {
+                        @if (notEmptyCategories)
+                        {
+                            <div class="accordion_area disableOnDesktop">
+                                @{
+                                    categoryIndex = 0;
+                                }
+                                @foreach (var category in Model.Menu.Categories.OrderBy(x => x.Index))
+                                {
+                                    categoryIndex++;
+                                    <div class="accordion_item @(categoryIndex == 1 ? "open" : "")">
+                                        <div class="accordion_title" id="table_food_@categoryIndex">
+                                            <h2>@(((IMenuCategory)category).Name.Get(culture))</h2> <em>@Localizer["Rating"]</em>
+                                        </div>
+                                        <div class="accordion_content" style="@(categoryIndex == 1 ? "display: block;" : "")">
+                                            <ul class="food_list">
+                                                @foreach (var dish in category.Dishes.OrderByDescending(x => x.RatingFloat))
+                                                {
+                                                    <li data-dish-id="@dish.Id">
+                                                        <a class="food_list_dish" href="@Url.Action("Dish", "Home", new { id = ViewData["restaurantId"], dishId = dish.Url })">
+                                                            <h3>
+                                                                @(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))
+                                                                @if (dish.Photos.Any())
+                                                                {
+                                                                    <span class="show-dish-image">
+                                                                        <object class="has-pictures-icon" type="image/svg+xml" data="~/images/has_pictures.svg"></object>
+                                                                    </span>
+                                                                }
+                                                            </h3>
+                                                            @if (dish.ShortDescription.Get(culture).Length > 0)
+                                                            {
+                                                                <p>@dish.ShortDescription.Get(culture)</p>
+                                                            }
+                                                            <em>
+                                                                @if (dish.IsPriceMultiple)
+                                                                {
+                                                                    <span>@Localizer["From"]&nbsp;</span>
+                                                                }
+                                                                @Model.RestaurantInfo.Currency @dish.Price.ToString("F2") <span class="dishWeight">| @dish.Weight @dish.WeightType</span>
+                                                            </em>
+                                                            <b><span class="dish_rate_star" asp-rate="dish.Rating"></span> @dish.RatingFloat.ToString("F1")</b>
+                                                            <i><a href="@Url.Action("Dish", "Home", new { id = ViewData["restaurantId"], dishId = dish.Url })"></a></i>
+                                                            <span class="countsOfReview">@dish.RatingCount @Localizer["Ratings"]</span>
+                                                        </a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                            <div class="found_mistake">
+                                                <span>@Localizer["FoundError"]?</span>
+                                                <a asp-area="" asp-controller="Home" asp-action="MobileTypo" asp-route-url="@url">@Localizer["HelpUsToImproveData"]</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
+                            </div>
+                        }
+                        else
+                        {
+                            <h2 class="no-dishes">@Localizer["BecomeFirstWhoWillAddDish"]</h2>
+                            <br />
+                        }
+                    }
+
+                    @if (emptyCategories && canSeeAddMenuAndAddDish)
+                    {
+                        <div class="restaurant-user-actions">
+                            @if (canSeeAddMenu)
+                            {
+                                <div class="user-actions-manage-menu">
+                                    <i class="far fa-file-image"></i>
+                                    <label class="hidden" data-upload-photo for="photo-upload-input">@Localizer["AddMenu"]</label>
+                                    <a class="hidden" data-open-menus-photos href="#">@Localizer["ViewMenu"]</a>
+                                </div>
+                            }
+                            @if (canSeeAddDish)
+                            {
+                                <div class="user-actions-manage-dish">
+                                    <i class="far fa-plus-square"></i>
+                                    <a asp-controller="Home" asp-action="CreateDish" asp-route-id="@ViewData["restaurantId"]">@Localizer["AddDish"]</a>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (Model.Restaurant.IsModeratable)
+                    {
+                        <div class="rest_info">
+                            <div class="rest_info_left">
+                                @Localizer["LastMenuUpdate"] - @Model.Restaurant.UpdateDate.ToString("d")
+                            </div>
+                            <div class="rest_info_right">
+                                @if (isDesktop)
+                                {
+                                    <a href="#" class="btn_find_error pc">@Localizer["FoundError"]?</a>
+                                }
+                                else
+                                {
+                                    <a class="btn_find_error_mob" asp-area="" asp-controller="Home" asp-action="MobileTypo" asp-route-url="@url" class="btn_find_error">@Localizer["FoundError"]?</a>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="rest_info_text">
+                            @Localizer["AreYouAnOwner"]? <a class="reg-restaurant" asp-area="" asp-controller="Articles" asp-action="ForOwners">@Localizer["RegisterInOrderToHaveAccess"]</a>
+                        </div>
+
+                        @await Html.PartialAsync("_GoogleSence",
+                        new Menus.Web.Models.Internal.GoogleSence() {
+                            GoogleSenceType = Menus.Web.Models.Internal.GoogleSenceTypes.Wide
+                        })
+
+                        <div class="social_area">
+                            <p>@Localizer["ShareWithFriends"]</p>
+                            <ul>
+                                <li><a rel="noopener" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=@Uri.EscapeDataString(url)"><span class="fa-fw select-all fab"></span></a></li>
+                                <li><a href="mailto:?subject=Tipmymenu share&amp;body=Check out this page: @url"><span class="fa-fw select-all fas"></span></a></li>
+                            </ul>
+                        </div>
+
+
+                        if (!string.IsNullOrEmpty(Model.RestaurantInfo.ShortInfo.Get(culture)))
+                        {
+                            <div class="description_area">
+                                <h2>@Localizer["Description"]</h2>
+                                <p itemprop="description">@Model.RestaurantInfo.ShortInfo.Get(culture)</p>
+                            </div>
+                        }
+                    }
+
+                    @if (!string.IsNullOrEmpty(Model.RestaurantInfo.Website))
+                    {
+                        <div class="restaurant-website">
+                            <a itemprop="url" content="@Model.RestaurantInfo.Website" target="_blank" rel="noopener" href="@Model.RestaurantInfo.Website">
+                                <span class="fa-fw select-all fas"></span>
+                                <em>@Model.RestaurantInfo.Website</em>
+                            </a>
+                        </div>
+                    }
+
+                    @if (isDesktop && Model.Photos.Count > 0)
+                    {
+                        <div class="images_area disableOnMobile">
+                            <div class="images_area_left">
+                                <figure>
+                                    <a href="#">
+                                        <span class="gallery_img" style="background-image: url(@Img.Url(Model.Photos.FirstOrDefault(), Quality.Medium));">
+                                            <img src="@Img.Url(Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" />
+                                        </span>
+                                    </a>
+                                </figure>
+                                <div class="all_images">
+                                    <a href="#">@Localizer["AllPhotos"] (@Model.Photos.Count)</a>
+                                </div>
+                            </div>
+                            <div class="images_area_right">
+                                <ul class="gallery_images">
+                                    <li>
+                                        <figure>
+                                            <a href="#">
+                                                <span class="gallery_img" style="background-image: url(@Img.Url(Model.Photos.Count > 1 ? Model.Photos[1] : Model.Photos.FirstOrDefault(), Quality.Medium));">
+                                                    <img src="@Img.Url(Model.Photos.Count > 1 ? Model.Photos[1] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" />
+                                                </span>
+                                            </a>
+                                        </figure>
+                                    </li>
+                                    <li>
+                                        <figure>
+                                            <a href="#">
+                                                <span class="gallery_img" style="background-image: url(@Img.Url(Model.Photos.Count > 2 ? Model.Photos[2] : Model.Photos.FirstOrDefault(), Quality.Medium));">
+                                                    <img src="@Img.Url(Model.Photos.Count > 2 ? Model.Photos[2] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" />
+                                                </span>
+                                            </a>
+                                        </figure>
+                                    </li>
+                                    <li>
+                                        <figure>
+                                            <a href="#">
+                                                <span class="gallery_img" style="background-image: url(@Img.Url(Model.Photos.Count > 3 ? Model.Photos[3] : Model.Photos.FirstOrDefault(), Quality.Medium));">
+                                                    <img src="@Img.Url(Model.Photos.Count > 3 ? Model.Photos[3] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" />
+                                                </span>
+                                            </a>
+                                        </figure>
+                                    </li>
+                                    <li>
+                                        <figure>
+                                            <a href="#">
+                                                <span class="gallery_img" style="background-image: url(@Img.Url(Model.Photos.Count > 4 ? Model.Photos[4] : Model.Photos.FirstOrDefault(), Quality.Medium));">
+                                                    <img src="@Img.Url(Model.Photos.Count > 4 ? Model.Photos[4] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" />
+                                                </span>
+                                            </a>
+                                        </figure>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    }
+                    else if (Model.Photos.Count > 0)
+                    {
+                        <!-- Swiper -->
+                        <div class="mobile_carousel_wrapper disableOnDesktop" id="mobile-carousel">
+                            <div class="swiper-container mobile_carousel">
+                                <div class="swiper-wrapper">
+                                    @foreach (var photo in Model.Photos)
+                                    {
+                                        <div class="swiper-slide"><img src="@Img.Url(photo, Quality.High)" alt="@imgAlt" title="@imgAlt" /></div>
+                                    }
+                                </div>
+                            </div>
+                            <!-- Add Pagination -->
+                            <div class="swiper-pagination"></div>
+                            <!-- Add Arrows -->
+                            <div class="mobile_carousel-next"></div>
+                            <div class="mobile_carousel-prev"></div>
+                        </div>
+                    }
+
+
+                    @if (featuredRestaurants.Any())
+                    {
+                        <h2>@Localizer["MbYouWillBeIntrestedIn"]</h2>
+                    }
+
+                    @if (isDesktop && featuredRestaurants.Any())
+                    {
+                        <div class="restaurants-container extra disableOnMobile">
+                            @foreach (var restaurant in featuredRestaurants)
+                            {
+                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                <a class="restaurant" asp-controller="Home" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                    @if (photos.Count > 0)
+                                    {
+                                        <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Low));"></figure>
+                                    }
+                                    else
+                                    {
+                                        <figure class="restaurant-image"></figure>
+                                    }
+                                    <p class="restaurant-name">
+                                        @restaurant.Name
+                                    </p>
+                                    <p class="restaurant-kitchen">
+                                        @restaurant.Cuisine.Get()
+                                    </p>
+                                    <p class="rating-count">
+                                        @Localizer["RatingsCount"]: @restaurant.RatingsCount
+                                    </p>
+                                </a>
+                            }
+                        </div>
+                    }
+                    else if (featuredRestaurants.Any())
+                    {
+                        <!-- Swiper -->
+                        <div class="swiper-area disableOnDesktop">
+                            <div class="swiper-container featured-container">
+                                <div class="swiper-wrapper">
+                                    @foreach (var restaurant in featuredRestaurants)
+                                    {
+                                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                        <a class="swiper-slide" asp-controller="Home" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                            @if (photos.Count > 0)
+                                            {
+                                                <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Low));"></figure>
+                                            }
+                                            else
+                                            {
+                                                <figure class="restaurant-image"></figure>
+                                            }
+                                            <p class="restaurant-name">
+                                                @restaurant.Name
+                                            </p>
+                                            <p class="restaurant-kitchen">
+                                                @restaurant.Cuisine.Get()
+                                            </p>
+                                            <p class="rating-count">
+                                                @Localizer["RatingsCount"]: @restaurant.RatingsCount
+                                            </p>
+                                        </a>
+                                    }
+                                </div>
+                                <!-- Add Pagination -->
+                                <div class="swiper-pagination"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+            </main>
+    </div>
+</div>
+
+
+@await Html.PartialAsync("_Footer")
+@await Html.PartialAsync("_PcPhotoUpload", ViewData)
+
+<div class="popUpInfo">
+    <div class="popUpInfoCaption">
+        <div class="popUpInfoBlackout"></div>
+        <div class="popUpInfoContent">
+            <div class="popUpInfoClose"></div>
+            <p>@Localizer["PleaseInformUsAboutIncorrectInfo"]</p>
+            <form action="@Url.Action("SendTypo", "Home")" method="post" class="incorrect_information">
+                <input type="hidden" name="url" value="@url" />
+                <textarea required name="text" placeholder="@Localizer["IncorrectInfo"]*"></textarea>
+                @if (User.Identity.IsAuthenticated)
+                {
+                    <input required type="email" name="email" placeholder="@Localizer["EnterEmail"]*" value="@((await UserService.GetUserById(User.Identity.Name)).Email)">
+                }
+                else
+                {
+                    <input required type="email" name="email" placeholder="@Localizer["EnterEmail"]*">
+                }
+                <input type="submit" value="@Localizer["Send"]">
+            </form>
+        </div>
+    </div>
+</div>
+
+<form id="menu-photo-upload" action="/" class="hidden" method="post">
+    <input type="file" class="hidden" id="photo-upload-input" />
+    <input type="hidden" id="photo-data-url" value="" />
+</form>
+
+<div class="popUpBlock popUpBlockMain">
+    <div class="popUpCloser"></div>
+    <div class="popUpBlock_inner">
+
+        <!-- PopUp registered users -->
+
+        <div class="popUpWindow popUpReg">
+            <span class="popUp_close"></span>
+            <figure>
+                <img src="~/images/popUpImg_01.jpg" alt="@imgAlt" title="@imgAlt" />
+            </figure>
+            <div class="popUpText">@Localizer["OnlyRegisteredUser"] <span>@Localizer["CanApplyThisAction"]</span></div>
+            <div class="popUpLinks">
+                <a href="#" class="btn-primary" data-sign-in>@Localizer["Login"]</a>
+                <a href="#" class="btn-primary btn-primary--fill" data-sign-up>@Localizer["Signup"]</a>
+            </div>
+        </div>
+
+        <!-- PopUp rating -->
+
+        <div class="popUpWindow popUpRating" data-dish-id="">
+            <span class="popUp_close"></span>
+            <div class="popUpTitle">@Localizer["RateDish"]!</div>
+            <div class="popUpStars">
+                <span class="stars star_grey"></span>
+                <span class="stars star_grey"></span>
+                <span class="stars star_grey"></span>
+                <span class="stars star_grey"></span>
+                <span class="stars star_grey"></span>
+            </div>
+            <div>
+                <textarea class="form-control" rows="3" id="rating-text-element"></textarea>
+            </div>
+            <div class="popUpLinks">
+                <a href="#" class="btn-primary btn-primary--fill">@Localizer["AddReview"]</a>
+            </div>
+        </div>
+
+
+
+        <!-- PopUp thank you -->
+
+        <div class="popUpWindow popUpThanks">
+            <span class="popUp_close"></span>
+            <figure class="extra">
+                <img src="~/images/popUpImg_02.jpg" alt="@imgAlt" title="@imgAlt" />
+            </figure>
+            <div class="popUpTitle">@Localizer["ThankYouForYourRate"]!</div>
+            <div class="popUpText extra">@Localizer["YouHelpedOtherUsers"]<br /><span>@Localizer["ToMakeRightChoice"]</span></div>
+            <div class="popUpLinks">
+                <a href="#" class="btn-primary btn-primary--fill" data-popup-close>@Localizer["Continue"]</a>
+            </div>
+        </div>
+
+
+
+        <!-- PopUp thank you from form -->
+
+        <div class="popUpWindow popUpThankYou">
+            <span class="popUp_close"></span>
+            <div class="popUpThankYouMessage">
+                <div class="popUpThankYouMessageCenter">
+                    @Localizer["ThankYou"], <span>@Localizer["WeWillContactYou"]</span> @Localizer["NearestTime"]
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- PopUp map -->
+
+        <div class="popUpWindow popUpMap">
+            <span class="popUp_close"></span>
+            <!-- <iframe class="hidden" frameborder="0" style="border: 0; width: 100%; height: 450px;" id="gmaps-iframe"></iframe> -->
+            <div id="mapContainer" class="map-container"></div>
+            <div class="direction-link-position">
+                <a href="#1" target="_blank" class="direction-link">@Localizer["Directions"]</a>
+            </div>
+            <!-- <img src="~/images/location.jpg" id="gmaps-placeholder" alt="@imgAlt" title="@imgAlt" /> -->
+
+        </div>
+
+        <!-- PopUp delete -->
+
+        <div class="popUpWindow popUpConfirmationWindow">
+            <span class="popUp_close"></span>
+            <div class="popUpTitle">@Localizer["AreYouSure"]<br />@Localizer["YouWantToDeleteReview"]</div>
+
+            <div class="are_you_sure">
+                <a href="#" class="btn_yes">@Localizer["Yes"]</a>
+                <a href="#" class="btn_no">@Localizer["No"]</a>
+            </div>
+
+            <input type="hidden" name="deleteMenuId" value="" />
+        </div>
+
+
+        <!-- PopUp carousel -->
+
+        <div class="popUpCarousel popUpCarouselRestaurant">
+            <span class="popUpCarousel-close">x</span>
+            <!-- Swiper -->
+            <div class="swiper-container gallery-top">
+                <div class="swiper-wrapper">
+                    @foreach (var photo in Model.Photos)
+                    {
+                        <div class="swiper-slide" style="background-image: url(@Img.Url(photo, Quality.High))"></div>
+                    }
+                </div>
+                <!-- Add Pagination -->
+                <div class="swiper-pagination"></div>
+            </div>
+            <!-- Add Arrows -->
+            <div class="swiper-button-next"></div>
+            <div class="swiper-button-prev"></div>
+
+            <div class="swiper-container gallery-thumbs">
+                <div class="swiper-wrapper">
+                    @foreach (var photo in Model.Photos)
+                    {
+                        <div class="swiper-slide" style="background-image: url(@Img.Url(photo, Quality.Low))"></div>
+                    }
+                </div>
+            </div>
+        </div>
+
+
+
+        <div class="popUpCarousel popUpCarouselMenu fullHeight">
+
+            <div class="popUpCarousel-close-block">
+                <span class="popUpCarousel-close">x</span>
+            </div>
+
+            <div class="popUpCarouselMenu-content">
+
+                <div class="menu-user-info">
+
+                </div>
+
+                <!-- Swiper -->
+                <div class="swiper-container gallery-top">
+                    <div class="swiper-wrapper">
+                        @foreach (var photo in Model.MenuPhotos)
+                        {
+                            <div data-menu-photo-id="@photo.Id" data-menu-user-id="@photo.UserId" class="swiper-slide" style="background-image: url(@Img.Url(photo.Photos.First(), Quality.High))">
+                            </div>
+                        }
+                    </div>
+                    <!-- Add Pagination -->
+                    <div class="swiper-pagination"></div>
+                </div>
+
+            </div>
+
+            <div class="popUpCarouselMenu-buttons">
+                <label data-upload-photo for="photo-upload-input"><i class="fas fa-camera"></i><span>@Localizer["AddMore"]</span></label>
+                <button data-delete-photo type="button"><i class="far fa-trash-alt"></i><span>@Localizer["Delete"]</span></button>
+            </div>
+
+            <!-- Add Arrows -->
+            @if (isDesktop)
+            {
+                <div class="swiper-button-next"></div>
+                <div class="swiper-button-prev"></div>
+                <div class="swiper-container gallery-thumbs">
+                    <div class="swiper-wrapper">
+                        @foreach (var photo in Model.MenuPhotos)
+                        {
+                            <div data-menu-photo-id="@photo.Id" class="swiper-slide" style="background-image: url(@Img.Url(photo.Photos.First(), Quality.Low))"></div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+
+
+    </div>
+</div>
+
+<link href="~/css/swiper.min.css" rel="stylesheet" />
+@section Scripts
+    {
+    <script src="~/js/swiper.min.js"></script>
+    <script>
+        let TRANSLATION_YOU_RATE = `@Localizer["YourRate"]`;
+        let TRANSLATION_NO_ITEMS = `@Localizer["NoItems"]`;
+
+        var cityId = "@ViewData["selectedCity"]";
+        window.cropperAspectRatio = 0.75555;
+
+                var loggedIn = @User.Identity.IsAuthenticated.ToString().ToLower();
+        var restaurantId = "@Model.RestaurantInfo.RestaurantId";
+
+        var lat = "@Model.RestaurantInfo.GpsLatitude";
+        var lon = "@Model.RestaurantInfo.GpsLongitude";
+
+        var photosCount = @Model.MenuPhotos.Count();
+    </script>
+    <script src="~/js/typeahead-inner.js"></script>
+
+    <script>
+        var galleryThumbs;
+        var galleryTop;
+        var galleryMenu;
+        var galleryMenuThumbs;
+        var galleryMobileMenu;
+        var infoInfoWindow = null;
+
+        function updateMenuUserInfo(photoId) {
+            $.ajax({
+                    url: "@Url.Action("GetMenuUserInfo", "Home")",
+                    type: "GET",
+                    data: {
+                        menuPhotoId: photoId
+                    }
+                })
+                .done(function(html) {
+                    $(".menu-user-info").html(html);
+                });
+        }
+
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        function initMap() {
+            console.log('init map');
+            if (lat && lon) {
+                var mapLat = parseFloat(lat);
+                var mapLon = parseFloat(lon);
+                window.map = new google.maps.Map(document.getElementById('mapContainer'),
+                    {
+                        center: { lat: mapLat, lng: mapLon },
+                        zoom: 16
+                    });
+
+                var marker = new google.maps.Marker({
+                    position: new google.maps.LatLng(mapLat, mapLon),
+                    map: map,
+                    icon: '/images/star_for_map.png'
+                });
+                marker.directionUrl = `https://www.google.com/maps/dir/?api=1&destination=${mapLat},${mapLon}`;
+                marker.description = `<div class="restaurant_caption">
+                                    <figure>
+                                        <img src="@Img.Url(Model.Photos.FirstOrDefault(), Quality.Low)" alt="Alternate Text" />
+                                    </figure>
+                                    <div class="info-window-content">
+                                        <h3><a href="${marker.directionUrl}" target="_blank">@Model.Restaurant.Name</a></h3><span class="item_location">@Model.RestaurantInfo.DisplayAddress.Get(culture)</span></div>
+                                    </div>
+                                  `;
+                google.maps.event.addListener(marker,
+                    'click',
+                    function () {
+                        showInfoWindow(this);
+                    });
+
+                showInfoWindow(marker);
+
+                function showInfoWindow(marker) {
+                    var contentString = marker.description
+                    if (infoInfoWindow) {
+                        infoInfoWindow.close()
+                    }
+
+                    infoInfoWindow = new google.maps.InfoWindow({
+                        content: contentString,
+                        position: marker.getPosition(),
+                        pixelOffset: new google.maps.Size(0, -15)
+                    })
+
+                    $('.direction-link').attr('href', marker.directionUrl)
+                    infoInfoWindow.open(map);
+                }
+            }
+        };
+
+        /* Search popup in mobile */
+        function updateUploadMenuPhotoButtons() {
+            if (photosCount === 0) {
+                $(".restaurant-user-actions [data-upload-photo]").removeClass("hidden");
+                $(".restaurant-user-actions [data-open-menus-photos]").addClass("hidden");
+
+                $('.popUpBlockMain').removeClass('visible visible_gallery visible_map');
+                $('.popUpWindow').fadeOut();
+                $('.popUpCarousel').removeClass('visible');
+            } else {
+                $(".restaurant-user-actions [data-upload-photo]").addClass("hidden");
+                $(".restaurant-user-actions [data-open-menus-photos]").removeClass("hidden");
+            }
+        }
+
+        function uploadPhotoCallback(result) {
+            photosCount++;
+            updateUploadMenuPhotoButtons();
+
+            //show gallery
+            $('.popUpBlockMain').addClass('visible visible_gallery');
+            $('.popUpCarousel').addClass("hidden").removeClass('visible');
+            $('.popUpCarouselMenu').removeClass('hidden');
+            $('.popUpCarouselMenu').addClass('visible');
+
+            //hide upload popup
+            $('.mobileAddPhotoContainer').toggleClass("hidden", true);
+            $(".popUpBlockPhotos").removeClass("visible");
+            $(".popUpBlockPhotos").hide();
+
+            //Adding emage to gallery
+            $('.popUpCarouselMenu .gallery-top .swiper-wrapper').prepend('<div data-menu-photo-id="' + result.id + '" data-menu-user-id="@User.Identity.Name" class="swiper-slide" style="background-image:url(@Img.BaseUrl/' + result.name + ')"></div>');
+            $('.popUpCarouselMenu .gallery-thumbs .swiper-wrapper').prepend('<div data-menu-photo-id="' + result.id + '" class="swiper-slide" style="background-image:url(@Img.BaseUrl/' + result.name + ')"></div>');
+
+            let item = jQuery(".popUpCarouselMenu .swiper-wrapper [data-menu-photo-id=" + result.id + "]");
+            let index = jQuery('.popUpCarouselMenu .swiper-wrapper div').index(item);
+
+            updateMenuUserInfo(result.id);
+            $("[data-delete-photo]").removeClass("hidden");
+
+            item.css("width", "100%");
+
+            galleryMenu.update();
+            galleryMenu.slideTo(0);
+            galleryMenu.update();
+            if (galleryMenuThumbs) {
+                galleryMenuThumbs.update();
+            }
+        }
+
+        function processDeleteButton(slide) {
+            var userId = slide.attr("data-menu-user-id");
+            if (userId === "@User.Identity.Name") {
+                $("[data-delete-photo]").removeClass("hidden");
+            } else {
+                $("[data-delete-photo]").addClass("hidden");
+            }
+        }
+
+        function initFeaturedSwiper() {
+            let featuredSwiper = new Swiper('.featured-container', {
+                slidesPerView: 2,
+                spaceBetween: 15,
+                pagination: {
+                    el: '.swiper-pagination',
+                    clickable: true,
+                },
+            });
+        }
+
+        function initPopularSwiper() {
+            let popularSwiper = new Swiper('.popular-container', {
+                slidesPerView: 3,
+                spaceBetween: 15,
+            });
+        }
+
+        function processGalleryFirstImage(gallery) {
+            const canProcessGallery = Boolean(gallery.slides && gallery.slides.length);
+            if (canProcessGallery) {
+                const slide = $(gallery.slides[0]);
+                const photoId = slide.attr("data-menu-photo-id");
+                const canProcess = slide && photoId;
+                if (slide) {
+                    processDeleteButton(slide);
+                }
+                if (photoId) {
+                    updateMenuUserInfo(photoId);
+                }
+            }            
+        }
+
+        function initGalleryMobile() {
+            galleryMenu = new Swiper('.popUpCarouselMenu .gallery-top', {
+                slidesPerView: 1,
+                keyboard: {
+                    enabled: true,
+                },
+                pagination: {
+                    el: '.popUpCarouselMenu .swiper-pagination',
+                    type: 'fraction',
+                },
+            });
+            processGalleryFirstImage(galleryMenu);
+
+            console.log('Gallery Mobile');
+            galleryMobileMenu = new Swiper('.mobile_carousel_wrapper .mobile_carousel', {
+                slidesPerView: 1,
+                keyboard: {
+                    enabled: true,
+                },
+                navigation: {
+                    nextEl: '.mobile_carousel_wrapper .mobile_carousel-next',
+                    prevEl: '.mobile_carousel_wrapper .mobile_carousel-prev',
+                }
+            });
+            processGalleryFirstImage(galleryMobileMenu);
+
+            galleryMenu.on('slideChange', function () {
+                processDeleteButton($(galleryMenu.slides[galleryMenu.activeIndex]));
+            });
+            galleryMenu.on('slideNextTransitionStart', function () {
+                var elem = $(galleryMenu.slides[galleryMenu.activeIndex]);
+                var photoId = elem.attr("data-menu-photo-id");
+
+                updateMenuUserInfo(photoId);
+            });
+            galleryMenu.on('slidePrevTransitionStart', function () {
+                var elem = $(galleryMenu.slides[galleryMenu.activeIndex]);
+                var photoId = elem.attr("data-menu-photo-id");
+
+                updateMenuUserInfo(photoId);
+            });
+
+            /*Navigation carusel*/
+
+            let linksSection = jQuery('.contentNaviCarousel').length ? jQuery('.contentNaviCarousel').offset().top : 0;
+            let linksHeight = jQuery('.contentNaviCarousel').length ? jQuery('.contentNaviCarousel').innerHeight() : 0;
+            let topHeaderMobile = jQuery('.header-top').innerHeight();
+
+            jQuery(document).on('scroll', function () {
+                var currentPosition = jQuery(document).scrollTop();
+
+                if (currentPosition >= linksSection) {
+                    jQuery('.contentNaviCarousel').addClass('stickUp');
+                    jQuery('.user-actions-phone-fixed').addClass('user-actions-phone-fixed__visible');
+                }
+                else {
+                    jQuery('.contentNaviCarousel').removeClass('stickUp');
+                    jQuery('.user-actions-phone-fixed').removeClass('user-actions-phone-fixed__visible');
+                }
+            });
+
+            jQuery('.contentNaviCarousel .swiper-slide a').on('click', function (e) {
+                e.preventDefault();
+
+                var
+                    href = jQuery(this).attr('href'),
+                    top = jQuery(href).offset().top;
+
+                jQuery('.contentNaviCarousel .swiper-slide a').removeClass("active");
+                jQuery(this).addClass("active");
+                jQuery(href).closest('.accordion_item').addClass('open');
+                jQuery(href).closest('.accordion_item').find('.accordion_content').slideDown();
+
+                jQuery('html, body').animate({
+                    scrollTop: top - linksHeight - topHeaderMobile
+                }, 750);
+
+            });
+
+        }
+
+        function initGalleryDesctop() {
+            galleryMenuThumbs = new Swiper('.popUpCarouselMenu .gallery-thumbs', {
+                spaceBetween: 10,
+                slidesPerView: 9,
+                freeMode: true,
+                watchSlidesVisibility: true,
+                watchSlidesProgress: true,
+            });
+
+            galleryMenu = new Swiper('.popUpCarouselMenu .gallery-top', {
+                spaceBetween: 10,
+                keyboard: {
+                    enabled: true,
+                },
+                navigation: {
+                    nextEl: '.popUpCarouselMenu .swiper-button-next',
+                    prevEl: '.popUpCarouselMenu .swiper-button-prev',
+                },
+                pagination: {
+                    el: '.popUpCarouselMenu .swiper-pagination',
+                    type: 'fraction',
+                },
+                thumbs: {
+                    swiper: galleryMenuThumbs,
+                }
+            });
+            processGalleryFirstImage(galleryMenu);
+
+            galleryMenu.on('slideChange', function () {
+                var elem = $(galleryMenu.slides[galleryMenu.activeIndex]);
+                var userId = elem.attr("data-menu-user-id");
+                var photoId = elem.attr("data-menu-photo-id");
+                if (userId === "@User.Identity.Name") {
+                    $("[data-delete-photo]").removeClass("hidden");
+                }
+                else $("[data-delete-photo]").addClass("hidden");
+            });
+
+            galleryMenu.on('slideNextTransitionStart', function () {
+                var elem = $(galleryMenu.slides[galleryMenu.activeIndex]);
+                var photoId = elem.attr("data-menu-photo-id");
+
+                updateMenuUserInfo(photoId);
+            });
+
+            galleryMenu.on('slidePrevTransitionStart', function () {
+                var elem = $(galleryMenu.slides[galleryMenu.activeIndex]);
+                var photoId = elem.attr("data-menu-photo-id");
+
+                updateMenuUserInfo(photoId);
+            });
+
+            //*Restaraunt Gallery*/
+            galleryThumbs = new Swiper('.popUpCarouselRestaurant .gallery-thumbs', {
+                spaceBetween: 10,
+                slidesPerView: 9,
+                freeMode: true,
+                watchSlidesVisibility: true,
+                watchSlidesProgress: true,
+            });
+            galleryTop = new Swiper('.popUpCarouselRestaurant .gallery-top', {
+                spaceBetween: 10,
+                navigation: {
+                    nextEl: '.popUpCarouselRestaurant .swiper-button-next',
+                    prevEl: '.popUpCarouselRestaurant .swiper-button-prev',
+                },
+                thumbs: {
+                    swiper: galleryThumbs,
+                },
+            });
+
+            /*Sticky links*/
+
+            let linksSection = jQuery('.contentNavi').length ? jQuery('.contentNavi').offset().top : 0;
+            let linksHeight = jQuery('.contentNavi').length ? jQuery('.contentNavi').innerHeight() : 0;
+            let headHeight = jQuery('.header-top').innerHeight();
+
+            jQuery(document).on('scroll', function () {
+                let currentPosition = jQuery(document).scrollTop();
+                //linksHeight = jQuery('.contentNavi').innerHeight();
+
+                if (currentPosition >= linksSection) {
+                    jQuery('.contentNavi').addClass('stickUp');//.css({ minHeight: linksHeight });
+                }
+                else {
+                    jQuery('.contentNavi').removeClass('stickUp');
+                }
+            });
+
+            jQuery('.contentNavi ul li a').on('click', function (e) {
+                e.preventDefault();
+
+                var
+                    href = jQuery(this).attr('href'),
+                    top = jQuery(href).offset().top;
+
+                jQuery('.contentNavi ul li a').removeClass("active");
+                jQuery(this).addClass("active");
+                jQuery(href).closest('.table_element').addClass('visible');
+                jQuery(href).closest('.table_element').find('.table_food tbody').fadeIn();
+                jQuery(href).closest('.table_element').find('.found_mistake').fadeIn();
+
+                jQuery('html, body').animate({
+                    scrollTop: top - linksHeight - headHeight - 20
+                }, 750);
+
+            });
+
+        }
+
+        //Page onload
+        jQuery(document).ready(function () {
+            const localSearchParams = {
+                localSearchButtonSelector: '.search-icon-button',
+                localSearchContainerSelector: '.local-menu-search',
+                localSearchContainerInputSelector: '.local-menu-search input',
+                categoriesContainerSelector: isMobile ? '.accordion_area' : '#table_food_top',
+                localSearchCloseButtonSelector: '.search-icon-button-close',
+                categoriesSelector: isMobile ? '.accordion_item' : '.table_element',
+                categoryItemsSelector: isMobile ? 'li[data-dish-id] a.food_list_dish' : '.table_food tbody tr .table_food_name',
+                categoryItemsRowSelector: isMobile ? 'li[data-dish-id]' : '.table_food tbody tr',
+                categoriesSwiperSelector: isMobile ? '.contentNaviCarousel' : '.contentNavi',
+                topDishes: isMobile ? '.top_dishes_title, .popular-area' : '.top_dishes_title, .popular_dishes',
+                topSectionSelector: '.topSection',
+                noItemsText: TRANSLATION_NO_ITEMS
+            }
+
+            initLocalSearch(localSearchParams);
+            updateUploadMenuPhotoButtons();
+
+            /* DropDown work ours
+            =======================================================*/
+            jQuery('.work-hours strong em').on('click', function () {
+                jQuery('.work-hours-dropdown').slideToggle();
+            });
+
+            /* Accordion for desktop content menu
+            =======================================================*/
+            jQuery('.table_element .table_food thead').on('click', function () {
+                jQuery(this).closest('.table_element').toggleClass('visible');
+                jQuery(this).closest('.table_element').find('.table_food tbody').fadeToggle();
+                jQuery(this).closest('.table_element').find('.found_mistake').fadeToggle();
+            });
+
+
+            //Button found mistake
+            jQuery('.found_mistake.pc a, .btn_find_error.pc').on('click', function (e) {
+                e.preventDefault();
+
+                if (!loggedIn) {
+                    jQuery('.popUpCarousel').addClass('hidden');
+                    jQuery('.popUpBlockMain').addClass('visible');
+                    jQuery('.popUpReg').fadeIn();
+                    return false;
+                }
+
+                var section = $(this).closest(".table_element ").find("table").attr("id");
+                if (!section) section = "restaurant";
+                jQuery('.popUpInfo').find("input[name=url]").val(jQuery('.popUpInfo').find("input[name=url]").val() + "#" + section);
+                jQuery('.incorrect_information textarea').focus();
+                jQuery('.popUpInfo').fadeIn();
+            });
+            jQuery('.popUpInfoClose, .popUpInfoBlackout').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpInfo').fadeOut();
+            });
+
+            //Init top swiper
+            var swiper = new Swiper('.navi-carousel', {
+                /*slidesPerView: 3,*/
+                slidesPerView: 'auto',
+                spaceBetween: 20,
+                /*freeMode: true,*/
+            });
+
+            $(".accordion_area.disableOnDesktop .found_mistake a, .btn_find_error_mob").click(function(e) {
+                if (!loggedIn) {
+                    jQuery('.popUpCarousel').addClass('hidden');
+                    jQuery('.popUpBlockMain').addClass('visible');
+                    jQuery('.popUpReg').fadeIn();
+                    e.preventDefault();
+                }
+            });
+
+            /* popUp blocks */
+            jQuery('.table_food_rating .star-rating-container .stars').on('click', function (e) {
+                e.preventDefault();
+                var index = jQuery(this).parent().find(".stars").index(this);
+
+                window.dishId = $(this).closest("[data-dish-id]").attr("data-dish-id");
+                if (isMobile) {
+                    if (!loggedIn) {
+                        jQuery('.popUpCarousel').addClass('hidden');
+                        jQuery('.popUpBlockMain').addClass('visible');
+                        jQuery('.popUpReg').fadeIn();
+                        return false;
+                    }
+
+                    location.href = "@Url.Action("MobileRate", "Home")?dishId=" + window.dishId + "&restaurantId=" + restaurantId + "&returnUrl=" + encodeURIComponent("@($"{Context.Request.Path}{Context.Request.QueryString}")");
+                    return false;
+                }
+
+                if (loggedIn) {
+                    window.rating = index + 1;
+
+                    $.ajax({
+                        url: "@Url.Action("RateDish")",
+                        type: "POST",
+                        data: {
+                            "__RequestVerificationToken": getToken(),
+                            rating: window.rating,
+                            restaurantId: window.restaurantId,
+                            dishId: window.dishId,
+                            text: ""
+                        }
+                    }).done(function (x) {
+                        var selectedRatingElem =
+                            $("tr[data-dish-id=" + window.dishId + "] .table_food_rating .star-rating-container .stars")
+                                .removeAttr('class').addClass("stars").eq(x.ratingNum - 1);
+                        selectedRatingElem.addClass("star_yellow");
+                        if (x.ratingFloat < x.ratingNum) selectedRatingElem.addClass("star_50");
+                        selectedRatingElem.prevAll().addClass("star_yellow");
+                        selectedRatingElem.nextAll().addClass("star_grey");
+
+                        var selectedUserRatingElem =
+                            $("tr[data-dish-id=" + window.dishId + "] .table_food_rating .hover_rating .stars")
+                                .removeAttr('class').addClass("stars").eq(x.userRating - 1);
+                        selectedUserRatingElem.addClass("star_red");
+                        selectedUserRatingElem.prevAll().addClass("star_red");
+                        selectedUserRatingElem.nextAll().addClass("star_grey");
+
+                        $("tr[data-dish-id=" + window.dishId + "] .table_food_count em").text(x.ratingCount);
+                        $("tr[data-dish-id=" + window.dishId + "] .table_food_rating").addClass("rated");
+                        $("tr[data-dish-id=" + window.dishId + "] .table_food_rating .hover_rating p").text(TRANSLATION_YOU_RATE);
+                    });
+                } else {
+                    jQuery('.popUpBlockMain').addClass('visible');
+                    jQuery('.popUpCarousel').addClass('hidden');
+                    jQuery('.popUpReg').fadeIn();
+                }
+            });
+
+
+            /*Map Blocks*/
+            jQuery('[data-open-map]').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').addClass('visible visible_map');
+                jQuery('.popUpCarousel').addClass('hidden');
+                jQuery('.popUpMap').fadeIn();
+            });
+
+            $(document).on("mouseover", ".table_food_rating .star-rating-container .stars", function () {
+                $(this).addClass("star_hover");
+                $(this).prevAll().addClass("star_hover");
+                $(this).nextAll().addClass("star_not_hover");
+            });
+
+            $(".popUpStars").mouseout(function () {
+                $(".popUpStars .stars").removeClass("star_hover").removeClass("star_not_hover");
+            });
+
+            $(".popUpRating .popUpStars .stars").click(function () {
+                window.rating = $(".popUpRating .popUpStars .stars").index(this) + 1;
+                var selectedRating = $(this);
+                $(".popUpRating .stars").removeClass("star_grey").removeClass("star_yellow");
+                selectedRating.addClass("star_yellow");
+                selectedRating.prevAll().addClass("star_yellow");
+                selectedRating.nextAll().addClass("star_grey");
+            });
+
+            $(document).on("mouseout", ".table_food_rating", function () {
+                $(this).find(".stars").removeClass("star_hover").removeClass("star_not_hover");
+            });
+
+            $(".popUpRating .btn-primary").click(function (e) {
+                e.preventDefault();
+                jQuery('.popUpRating').hide();
+                jQuery('.popUpThanks').show();
+
+                var selectedRatingElem = $("tr[data-dish-id=" + window.dishId + "] .table_food_rating .stars").removeClass("star_grey").removeClass("star_yellow")
+                    .removeClass("star_red").eq(window.rating - 1);
+                selectedRatingElem.addClass("star_red");
+                selectedRatingElem.prevAll().addClass("star_red");
+                selectedRatingElem.nextAll().addClass("star_grey");
+                var ratingText = document.getElementById("rating-text-element");
+                if (ratingText) {
+                    ratingText = ratingText.value;
+                } else {
+                    ratingText = "";
+                }
+
+                $.ajax({
+                    url: "@Url.Action("RateDish")",
+                    type: "POST",
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        rating: window.rating,
+                        restaurantId: window.restaurantId,
+                        dishId: window.dishId,
+                        text: ratingText
+                    }
+                });
+            });
+
+            jQuery('.popUpReg .btn-primary').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible');
+                jQuery('.popUpWindow').fadeOut();
+            });
+
+            jQuery('.popUpWindow .popUp_close, [data-popup-close]').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible visible_gallery visible_map');
+                jQuery('.popUpWindow').fadeOut();
+            });
+
+            jQuery('.popUpCarousel-close-block, .popUpCarousel-close').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible visible_gallery visible_map custom_gallery');
+                jQuery('.popUpCarousel').addClass("hidden").removeClass('visible');
+            });
+
+            jQuery('.popUpCloser, .btn_no').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible visible_gallery visible_map');
+                jQuery('.popUpWindow').fadeOut();
+                jQuery('.popUpCarousel').removeClass('visible');
+            });
+
+
+
+            /* Table hidden content */
+
+            jQuery('.table_food tbody .table_food_name h3').on('click', function () {
+
+                if (jQuery(this).closest('tr').hasClass('visible_table_content')) {
+                    jQuery(this).closest('tr').removeClass('visible_table_content');
+                    jQuery(this).closest('td').find('.table_content').fadeOut();
+                } else {
+                    jQuery('.table_food tbody tr').removeClass('visible_table_content');
+                    jQuery('.table_food .table_content').fadeOut();
+                    jQuery(this).closest('tr').addClass('visible_table_content');
+                    jQuery(this).closest('td').find('.table_content').fadeIn();
+                }
+
+            });
+
+
+
+            /* Mobile accordion */
+
+            jQuery('.accordion_area .accordion_item .accordion_title').on('click', function () {
+                jQuery(this).closest('.accordion_item').toggleClass('open');
+                if (jQuery(this).closest('.accordion_item').hasClass('open')) {
+                    jQuery(this).closest('.accordion_item').find('.accordion_content').slideDown();
+                } else {
+                    jQuery(this).closest('.accordion_item').find('.accordion_content').slideUp();
+                }
+            });
+
+            jQuery('.search_restaurant .icon-search').on('click', function () {
+                jQuery('.mobile_content').fadeIn();
+            });
+
+            jQuery('.search_restaurant_close').on('click', function () {
+                jQuery('.mobile_content').fadeOut();
+            });
+
+            //Open menu gallery
+            $("[data-open-menus-photos]").click(function (e) {
+                e.preventDefault();
+
+                jQuery('.popUpBlockMain').addClass('visible visible_gallery custom_gallery');
+                jQuery('.popUpCarousel').addClass("hidden").removeClass('visible');
+                jQuery('.popUpCarouselMenu').removeClass('hidden');
+                jQuery('.popUpCarouselMenu').addClass('visible');
+
+                galleryMenu.slideTo(0);
+                galleryMenu.update();
+                processGalleryFirstImage(galleryMenu);
+                if(galleryMenuThumbs) {
+                    galleryMenuThumbs.update();
+                }
+
+                $(".popUpCarouselMenu .swiper-pagination-total").html(galleryMenu.slides.length);
+            });
+
+            $(document).on("click", "button[data-delete-photo]", function (e) {
+                e.preventDefault();
+
+                jQuery('.popUpConfirmationWindow').show();
+                jQuery('.popUpCarouselMenu').addClass('hidden');
+                jQuery('.popUpCarouselMenu').removeClass('visible');
+
+                var id = $(".popUpCarouselMenu .gallery-top .swiper-slide-active").attr("data-menu-photo-id");
+                $("[name=deleteMenuId]").val(id);
+            });
+
+            $(".btn_yes").click(function (e) {
+                e.preventDefault();
+
+                jQuery('.popUpConfirmationWindow').hide();
+                jQuery('.popUpCarouselMenu').toggleClass('hidden', false);
+                jQuery('.popUpCarouselMenu').toggleClass('visible', true);
+
+                var id = $("[name=deleteMenuId]").val();
+
+                photosCount--;
+                updateUploadMenuPhotoButtons();
+                $('.popUpCarouselMenu .swiper-wrapper [data-menu-photo-id="' + id + '"]').remove();
+                galleryMenu.update();
+                if (typeof (galleryMenuThumbs) !== "undefined") {
+                    galleryMenuThumbs.update();
+                }
+
+                processDeleteButton($(galleryMenu.slides[galleryMenu.activeIndex]));
+
+                if (galleryMenu.slides.length === 0) {
+                    jQuery('.popUpCarouselMenu').toggleClass('hidden', true);
+                    jQuery('.popUpCarouselMenu').toggleClass('visible', false);
+                }
+
+                $.ajax({
+                    url: "@Url.Action("DeleteMenuPhoto", "Home", new { area = "" })",
+                    method: "POST",
+                    data: {
+                        id: id
+                    }
+                }).done(function (x) {
+
+                });
+            });
+
+            jQuery('.images_area a').on('click', function (e) {
+                e.preventDefault();
+
+                var index = jQuery('.images_area a').index(this) - 1;
+
+                jQuery('.popUpBlockMain').addClass('visible visible_gallery');
+                jQuery('.popUpCarousel').addClass("hidden").removeClass('visible');
+                jQuery('.popUpCarouselRestaurant').removeClass('hidden');
+                jQuery('.popUpCarouselRestaurant').addClass('visible');
+
+                galleryTop.slideTo(index);
+                galleryTop.update();
+                galleryThumbs.update();
+             });
+
+            jQuery('.galleryBtn[data-pc]').on('click', function (e) {
+                e.preventDefault();
+
+                jQuery('.popUpBlockMain').addClass('visible visible_gallery');
+                jQuery('.popUpCarousel').addClass("hidden").removeClass('visible');
+                jQuery('.popUpCarouselRestaurant').removeClass('hidden');
+                jQuery('.popUpCarouselRestaurant').addClass('visible');
+
+                galleryTop.slideTo(0);
+                galleryTop.update();
+                galleryThumbs.update();
+            });
+
+            initFeaturedSwiper()
+            initPopularSwiper()
+
+            if (isMobile) {
+                initGalleryMobile()
+            } else {
+                initGalleryDesctop()
+            }
+
+        });
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=@ViewData["googleMapsKey"]&callback=initMap" async defer></script>
+}

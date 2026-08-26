@@ -1,0 +1,77 @@
+﻿@inject Menus.Web.Services.UserService  UserService;
+@model Menus.Web.Models.Internal.GoogleSence
+@inject Microsoft.Extensions.Configuration.IConfiguration config;
+
+@{
+    var maxRecords = 3;
+    var isTestMode = Convert.ToBoolean(config[$"GoogleSenceTestModeOn"] != null ? config[$"GoogleSenceTestModeOn"] : "false");
+    var extraClass = isTestMode ? "" : "google-sence--no-background";
+}
+
+@if (UserService.IsMobileUser(Context.Request))
+{
+    if (Model.GoogleSenceType == Menus.Web.Models.Internal.GoogleSenceTypes.Wide)
+    {
+        <div class="google-sence">
+            <div class="google-sence__google-sence-wide @extraClass">
+
+            </div>
+        </div>
+    }
+    if (Model.GoogleSenceType == Menus.Web.Models.Internal.GoogleSenceTypes.UltraWide)
+    {
+        <div class="google-sence">
+            <div class="google-sence__google-sence-wide-high @extraClass">
+
+            </div>
+        </div>
+    }
+}
+else
+{
+    if (Model.GoogleSenceType == Menus.Web.Models.Internal.GoogleSenceTypes.Wide)
+    {
+        <div class="google-sence">
+            <div class="google-sence__google-sence-wide @extraClass">
+
+            </div>
+        </div>
+
+    }
+    if (Model.GoogleSenceType == Menus.Web.Models.Internal.GoogleSenceTypes.UltraWide)
+    {
+        <div class="google-sence">
+            <div class="google-sence__google-sence-wide-high @extraClass">
+
+            </div>
+        </div>
+    }
+    if (Model.GoogleSenceType == Menus.Web.Models.Internal.GoogleSenceTypes.Vertical)
+    {
+        <div class="google-sence">
+            <div class="google-sence__google-sence-vertical @extraClass">
+
+            </div>
+        </div>
+    }
+    if (Model.GoogleSenceType == Menus.Web.Models.Internal.GoogleSenceTypes.SqueareAdaptive)
+    {
+        if (Model.CurrentRecords == maxRecords)
+        {
+            <div class="google-sence google-sence--square">
+                <div class="google-sence__google-sence-square @extraClass">
+
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="google-sence google-sence--square">
+                <div class="google-sence__google-sence-square @extraClass">
+
+                </div>
+            </div>
+        }
+    }
+}
+

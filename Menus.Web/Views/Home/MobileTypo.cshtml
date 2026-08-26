@@ -1,0 +1,43 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@inject Menus.Web.Services.UserService  UserService;
+@{
+    ViewData["Title"] = "MobileTypo";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@await Html.PartialAsync("_Header")
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs breadcrumbs-content">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["ReportAboutMistake"]</breadcrumb></li>
+            </ul>
+        </div>
+
+        <div class="incorrect_info_mobile">
+            <h3>@Localizer["ReportAboutIncorrentInfo"]</h3>
+            <form action="@Url.Action("SendTypo", "Home")" method="post" class="incorrect_information">
+                <input type="hidden" name="url" value="@ViewData["url"]" />
+                <textarea required name="text" placeholder="@Localizer["IncorrectInformation"]*"></textarea>
+                @if (User.Identity.IsAuthenticated)
+                {
+                    <input required type="email" name="email" placeholder="@Localizer["EnterEmail"]*" value="@((await UserService.GetUserById(User.Identity.Name)).Email)">
+                }
+                else
+                {
+                    <input required type="email" name="email" placeholder="@Localizer["EnterEmail"]*">
+                }
+                <input type="submit" value="@Localizer["Send"]">
+            </form>
+        </div>
+
+    </main>
+</div>
+
+<script src="~/js/typeahead-inner.js"></script>
+
+@await Html.PartialAsync("_Footer")

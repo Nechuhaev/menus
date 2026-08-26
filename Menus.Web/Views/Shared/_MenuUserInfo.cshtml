@@ -1,0 +1,19 @@
+﻿@{
+    Layout = null;
+}
+
+<figure>
+    @if (string.IsNullOrEmpty(ViewData["photo"]?.ToString()))
+    {
+        <img src="~/images/no-avatar.jpg" alt="Alternate Text" />
+    }
+    else
+    {
+        <img src="@Img.Url((string)ViewData["photo"], Quality.Low)" alt="Alternate Text" />
+    }
+</figure>
+<span>
+    <strong>@ViewData["name"]</strong>
+    <br />
+    <i class="far fa-star"></i> (@ViewData["ratingsCount"])
+</span>

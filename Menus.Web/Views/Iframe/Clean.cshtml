@@ -1,0 +1,930 @@
+﻿@using System.Text.RegularExpressions
+@using Menus.Web.Models.ViewModels
+@using Microsoft.Extensions.Configuration
+@inject Menus.Web.Services.UserService  UserService;
+@inject IConfiguration Configuration;
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@{
+    var crq = Context.Request;
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+    bool isIphone = @UserService.IsIphone(Context.Request);
+    string additionalBodyClass = isIphone ? "iphone-in-use" : "";
+    ViewData["Robots"] = "NOINDEX,FOLLOW";
+
+    IframeSettingsModel iframeSettings = ViewData["iframeSettings"] as IframeSettingsModel;
+    var locales = iframeSettings.Languages;
+    var robots = ViewData["Robots"] ?? Configuration["Meta:Robots"];
+}
+
+@using Menus.Abstract.Models
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
+@model Menus.Web.Models.ViewModels.RestaurantViewModel
+@inject Menus.Domain.Core Core
+@{
+    Layout = null;
+
+    var seo = ViewData["seo"] as Menus.Abstract.Models.IRestaurantSeo;
+    ViewData["BodyClass"] = "restaurant-page";
+    int categoryIndex;
+
+    var selectedCity = ViewData["selectedCity"] as Menus.Abstract.Models.ICity;
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+    var restaurantCity = await Core.Restaurants.GetCityById(Model.Restaurant.City);
+
+    ViewData["Title"] = string.IsNullOrEmpty(seo.Title.Get(culture))
+        ? $"Меню ресторана {Model.Restaurant.Name} в городе {restaurantCity.Name.Get(culture)} | tipmymenu"
+        : seo.Title.Get(culture);
+
+    var restaurantDescription = Model.RestaurantInfo.ShortInfo.Get(culture);
+    ViewData["Description"] = string.IsNullOrEmpty(restaurantDescription)
+        ? Model.Restaurant.Name
+        : Model.RestaurantInfo.ShortInfo.Get(culture).Substring(0, restaurantDescription.Length > 150 ? 150 : restaurantDescription.Length);
+
+    var currentDay = (int)DateTime.Now.DayOfWeek;
+    currentDay = currentDay == 0 ? 6 : currentDay - 1;
+    JToken currentDayInfo = null;
+    JArray allDaysInfo = null;
+    if (Model.SchedulePerDay)
+    {
+        allDaysInfo = JsonConvert.DeserializeObject<JArray>(Model.OpenHours);
+        currentDayInfo = allDaysInfo[currentDay];
+    }
+
+    var imgAlt = $"Фото {Model.Restaurant.Name} {restaurantCity.Name.Get(culture)}";
+
+    var selectedCityId = Context.Request.Cookies[".Menus.SelectedCity"];
+    selectedCityId = !string.IsNullOrEmpty(selectedCityId) ? selectedCityId : "e2655e24-92dc-4179-abf6-c3908278a4de";
+    var featuredRestaurants = Core.Restaurants.FindSimilarCuisineRestaurants(Model.RestaurantInfo.Cuisine.Get(culture).Split(",")[0], selectedCityId, Model.RestaurantInfo.RestaurantId).Take(4).ToList();
+
+    var topDishes = ViewData["topDishes"] as List<IDishWithSeoAndRatings>;
+
+    var isMobile = UserService.IsMobileUser(Context.Request);
+    var isDesktop = !UserService.IsMobileUser(Context.Request);
+    var notEmptyCategories = Model.Menu.Categories.Count > 0;
+    var emptyCategories = Model.Menu.Categories.Count == 0;
+    var canSeeAddMenuAndAddDish = (Model.RestaurantInfo.UserAllowedAddMenu || Model.RestaurantInfo.UserAllowedOpenMenu || Model.RestaurantInfo.UserAllowedAddDishes) || !Model.Restaurant.IsModeratable;
+    var canSeeAddMenu = (Model.RestaurantInfo.UserAllowedAddMenu || Model.RestaurantInfo.UserAllowedOpenMenu) || !Model.Restaurant.IsModeratable;
+    var canSeeAddDish = (Model.RestaurantInfo.UserAllowedAddDishes) || !Model.Restaurant.IsModeratable;
+
+    var allCategories = Model.Menu.Categories;
+    var tierThreeCategories = Model.Menu.Categories.Where(x => x.IsTopLevelCategory).OrderBy(x => x.Index);
+    var tierTwoCategories = Model.Menu.Categories.Where(x => !x.IsTopLevelCategory).OrderBy(x => x.Index);
+
+    var dishClasses = "";
+    var dishDisplayStyle = "display: table-row-group;";
+    if (iframeSettings.ShowDishImages)
+    {
+        dishClasses = "table-two-columns";
+        dishDisplayStyle = "display: flex;";
+    }
+    var showOnlyIframeLogo = iframeSettings.ShowOnlyIframeLogo;
+    var showFirstCategoryOnStart = iframeSettings.ShowFirstCategoryOnStart;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"
+          data-content-zoomable="width=device-width, initial-scale=1.0"
+          data-content-non-zoomable="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="format-detection" content="address=no">
+    <meta name="description" content="@ViewData["Description"]" />
+    <title>@ViewData["Title"]</title>
+
+    <meta name="robots" content="@robots" />
+    <link rel="canonical" href="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{crq.Path}{crq.QueryString}")" />
+
+    <meta property="og:title" content="@ViewData["Title"]" />
+    <meta property="og:description" content="@ViewData["Description"]" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="@(culture)_UA" />
+    <meta property="og:url" content="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{crq.Path}{crq.QueryString}")" />
+    <meta property="og:image" content="@(ViewData["MainImage"] ?? $"http{(crq.IsHttps ? "s" : "")}://{crq.Host}/images/site_logo_dark.svg")" />
+
+    <script>
+        var isMobile = @UserService.IsMobileUser(Context.Request).ToString().ToLowerInvariant();
+        window.isMobile = isMobile
+    </script>
+
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600&display=swap&subset=cyrillic" rel="stylesheet">
+
+    <style>
+        @Html.Raw(seo.CustomCss);
+    </style>
+</head>
+<body style="opacity: 0;" class="@ViewData["BodyClass"] @additionalBodyClass">
+
+    <style>
+        button[data-user-id] {
+            display: none;
+        }
+
+        button[data-user-id="@User.Identity.Name"] {
+            display: initial;
+        }
+    </style>
+
+    <div itemscope itemtype="http://schema.org/Restaurant">
+        <div class="site-content site-content-iframe">
+            <main>
+
+                <div class="site-content-align">
+                    <div class="iframe-top-section">
+                        @if (iframeSettings.ShowLogo)
+                        {
+                            <div class="logo">
+                                <div class="iframe-top-section-title">@Model.Restaurant.Name</div>
+                                <figure>
+                                    <img itemprop="image" src="@Img.Url(Model.Photos.FirstOrDefault(), Quality.Low)" alt="@imgAlt" title="@imgAlt" />
+                                </figure>
+                            </div>
+                        }
+                        else if (iframeSettings.ShowOnlyIframeLogo)
+                        {
+                            <div class="hidden iframe-logo">
+                                <div class="iframe-top-section-title">@Model.Restaurant.Name</div>
+                                <figure>
+                                    <img itemprop="image" src="@Img.Url(Model.Photos.FirstOrDefault(), Quality.Low)" alt="@imgAlt" title="@imgAlt" />
+                                </figure>
+                            </div>
+                        }
+
+                        @if (iframeSettings.ShowLanguages)
+                        {
+                            <div class="iframe-top-section-language">
+                                <ul>
+                                    @foreach (var lang in locales)
+                                    {
+                                        <li class="@(lang.Id == culture ? "current" : "")"><a href="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{Regex.Replace(crq.Path, "/(ru|uk|en)", $"/{lang.Id}")}{crq.QueryString}")">@lang.Id</a></li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+
+                        @if (iframeSettings.ShowPhone)
+                        {
+                            <div class="iframe-top-section-phone">
+                                <button class="iframe-top-section-phone-button">@Localizer["ReserveTable"]</button>
+
+                                <a target="_parent" href="tel:@Model.Restaurant.Phone" class="iframe-top-section-phone-href">
+                                    <span class="iframe-top-section-phone-title">
+                                        @Localizer["ReserveTable"]
+                                    </span>
+                                    <span class="iframe-top-section-phone-phone">
+                                        @Model.Restaurant.Phone
+                                    </span>
+                                </a>
+                            </div>
+                        }
+
+                    </div>
+                </div>
+
+                @if (iframeSettings.ShowTheardLevelCategories)
+                {
+                    @if (isDesktop && tierThreeCategories.Count() > 0)
+                    {
+                        <div class="contentNavi disableOnMobile theardLevelMenuContainer">
+                            <div class="contentNaviWrapper">
+                                <ul>
+                                    @foreach (var category in tierThreeCategories)
+                                    {
+                                        <li>
+                                            <a class="theard-level-menu theard-level-menu-navi" href="#@category.Id" data-category-id="@category.Id">@((category as Menus.Abstract.Models.IMenuCategory).Name.Get(culture))</a>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                    }
+                    else if (tierThreeCategories.Count() > 0)
+                    {
+                        <!-- Swiper -->
+                        <div class="contentNaviCarousel disableOnDesktop theardLevelMenuContainer">
+                            <div class="contentNaviCarouselInner">
+                                <div class="swiper-container navi-carousel">
+                                    <div class="swiper-wrapper">
+                                        @foreach (var category in tierThreeCategories)
+                                        {
+                                            <div class="swiper-slide">
+                                                <a href="#@category.Id" class="theard-level-menu-navi" data-category-id="@category.Id">@((category as Menus.Abstract.Models.IMenuCategory).Name.Get(culture))</a>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+
+                @if (iframeSettings.ShowCategories)
+                {
+                    @if (isDesktop && notEmptyCategories)
+                    {
+                        <div class="contentNavi disableOnMobile">
+                            <div class="contentNaviWrapper">
+                                <ul>
+                                    @{
+                                        categoryIndex = 0;
+                                    }
+                                    @foreach (var category in tierTwoCategories)
+                                    {
+                                        categoryIndex++;
+                                        <li><a href="#table_food_@categoryIndex">@((category as Menus.Abstract.Models.IMenuCategory).Name.Get(culture))</a></li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                    }
+                    else if (Model.Menu.Categories.Any())
+                    {
+                        <!-- Swiper -->
+                        <div class="contentNaviCarousel disableOnDesktop">
+                            <div class="contentNaviCarouselInner">
+                                <div class="swiper-container navi-carousel">
+                                    <div class="swiper-wrapper">
+                                        @{
+                                            categoryIndex = 0;
+                                        }
+                                        @foreach (var category in tierTwoCategories)
+                                        {
+                                            categoryIndex++;
+                                            <div class="swiper-slide"><a href="#table_food_@categoryIndex">@((category as Menus.Abstract.Models.IMenuCategory).Name.Get(culture))</a></div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+
+                <div class="site-content-align">
+                    <div id="table_food_top"></div>
+                    @if (isDesktop && notEmptyCategories)
+                    {
+                        categoryIndex = 0;
+                        foreach (var category in allCategories)
+                        {
+                            if (category.IsTopLevelCategory)
+                            {
+                                <div class="theard-level-menu" id="@category.Id">
+                                    @((category as Menus.Abstract.Models.IMenuCategory).Name.Get(culture))
+                                    @if (!string.IsNullOrEmpty((category as Menus.Abstract.Models.IMenuCategory).Description.Get(culture)))
+                                    {
+                                        <div class="theard-level-category-description">
+                                            @((category as Menus.Abstract.Models.IMenuCategory).Description.Get(culture))
+                                        </div>
+                                    }
+
+                                </div>
+                            }
+                            else
+                            {
+                                categoryIndex++;
+                                <div data-theard-level-category-id="@category.CurrentParentCategoryId" class="table_element @(categoryIndex == 1 ? "visible" : "")">
+                                    <table class="table_food disableOnMobile" id="table_food_@categoryIndex">
+                                        <thead>
+                                            <tr>
+                                                <td class="table_food_name"><h2>@((category as Menus.Abstract.Models.IMenuCategory).Name.Get(culture))</h2></td>
+                                                @if (categoryIndex == 1)
+                                                {
+                                                    <td class="table_food_price">@Localizer["Price"]</td>
+                                                    <td class="table_food_weight">@Localizer["Weight"]</td>
+                                                    @if (iframeSettings.ShowRating)
+                                                    {
+                                                        <td class="table_food_rating">@Localizer["Rating"]</td>
+                                                    }
+
+                                                }
+                                                else
+                                                {
+                                                    <td class="table_food_price"></td>
+                                                    <td class="table_food_weight"></td>
+                                                    @if (iframeSettings.ShowRating)
+                                                    {
+                                                        <td class="table_food_rating"></td>
+                                                    }
+
+                                                }
+                                                @if (iframeSettings.ShowRating)
+                                                {
+                                                    <td class="table_food_count"></td>
+                                                }
+                                                <td class="table_food_link"></td>
+                                            </tr>
+                                        </thead>
+                                        <tbody style="@(categoryIndex == 1 ? dishDisplayStyle : "")" class="@dishClasses">
+                                            <!-- for two columns add class "table-two-columns" in tbody and use "display: flex;" on click -->
+                                            @foreach (var dish in category.Dishes.OrderByDescending(x => x.RatingFloat))
+                                            {
+                                                <tr data-dish-id="@dish.Id">
+                                                    @{ 
+                                                        var dishContainerClasses = "table_food_name dish-container";
+                                                        if(!dish.Photos.Any() && iframeSettings.ShowDishImages)
+                                                        {
+                                                            dishContainerClasses = dishContainerClasses + " has_no_image";
+                                                        }
+                                                    }
+                                                    <td class="@dishContainerClasses">
+                                                        @if (dish.Photos.Any() && iframeSettings.ShowDishImages)
+                                                        {
+                                                            var dishWeight = dish.Weight == "0" ? "" : string.Format("{0} {1}", dish.Weight, dish.WeightType);
+                                                            var dishPrice = dish.Price == 0 ? "" : string.Format("{0} {1}", Model.RestaurantInfo.Currency, dish.Price.ToString("F2"));
+                                                            var separator = !string.IsNullOrEmpty(dishWeight) && !string.IsNullOrEmpty(dishPrice) ? "|" : "";
+
+                                                            var fullDishInfo = string.Format(@"<span class='dish-image-name'>{0}</span> <span class='dish-image-description'>{1}</span> <span class='dish-image-price'>{2}</span> {4} <span class='dish-image-weight'>{3}</span>",
+                                                                dish.Name.Get(culture),
+                                                                dish.ShortDescription.Get(culture),
+                                                                dishPrice,
+                                                                dishWeight,
+                                                                separator
+                                                            );
+
+                                                            <input type="hidden" data-dish-text-info="@fullDishInfo" />
+                                                            <input type="hidden" data-dish-image-url="@Img.Url(dish.Photos.FirstOrDefault(), Quality.Medium)" />
+                                                            <div class="dish-image show-dish-image" style="background-image: url(@Img.Url(dish.Photos.FirstOrDefault(), Quality.Low));">
+                                                            </div>
+                                                        }
+                                                        <h3>
+                                                            @if (dish.Photos.Any() && iframeSettings.ShowDishImages)
+                                                            {
+                                                                <a class="show-dish-image"
+                                                                   href="javascript:void(0);"
+                                                                   data-image-url="@Img.Url(dish.Photos.FirstOrDefault(), Quality.Low)">
+                                                                    @(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))
+                                                                </a>
+                                                                @if (iframeSettings.ShowDishImagesIcons)
+                                                                {
+                                                                    <span class="show-dish-image">
+                                                                        <object class="has-pictures-icon" type="image/svg+xml" data="~/images/has_pictures.svg"></object>
+                                                                    </span>
+                                                                }
+                                                                @if (iframeSettings.ShowTags)
+                                                                {
+                                                                    <span class="dish-tags">
+                                                                        @foreach (var tag in dish.Tags)
+                                                                        {
+                                                                            <span class="@tag"></span>
+                                                                        }
+                                                                    </span>
+                                                                }
+                                                            }
+                                                            else
+                                                            {
+                                                                <a href="javascript:void(0);">@(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))</a>
+                                                            }
+                                                        </h3>
+                                                        @if (dish.ShortDescription.Get(culture).Length > 0)
+                                                        {
+                                                            <p>@dish.ShortDescription.Get(culture)</p>
+                                                        }
+                                                        <div class="table_food_data">
+                                                            <div class="table_food_price">
+                                                                @if (dish.IsPriceMultiple)
+                                                                {
+                                                                    <span>@Localizer["From"]&nbsp;</span>
+                                                                }
+                                                                @if (dish.Price == 0)
+                                                                {
+                                                                    <span></span>
+                                                                }
+                                                                else
+                                                                {
+                                                                    @Model.RestaurantInfo.Currency @dish.Price.ToString("F2")
+                                                                }
+                                                            </div>
+                                                            
+                                                            @if (dish.Weight != "0")
+                                                            {
+                                                                <div class="table_food_weight">
+                                                                    @dish.Weight @dish.WeightType
+                                                                </div>                                                                    
+                                                            }                                                            
+                                                        </div>
+                                                    </td>
+                                                    @if (iframeSettings.ShowRating)
+                                                    {
+                                                        <td class="table_food_rating @(dish.UserRating > 0 ? "rated" : "")">
+                                                            @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                                            @if (User.Identity.IsAuthenticated)
+                                                            {
+                                                                <div class="hover_rating">
+                                                                    @if (dish.UserRating > 0)
+                                                                    {
+                                                                        <p>@Localizer["YourRate"]</p>
+                                                                        for (var i = 1; i <= 5; i++)
+                                                                        {
+                                                                            if (i <= dish.UserRating)
+                                                                            {
+                                                                                <span class="stars star_red"></span>
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <span class="stars star_grey"></span>
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <p>@Localizer["RateDish"]</p>
+                                                                        for (var i = 1; i <= 5; i++)
+                                                                        {
+                                                                            if (i < dish.Rating)
+                                                                            {
+                                                                                <span class="stars star_yellow"></span>
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <span class="stars star_grey"></span>
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                </div>
+                                                            }
+                                                        </td>
+                                                        <td class="table_food_count"><em>@dish.RatingCount</em> @Localizer["Ratings"]</td>
+                                                    }
+                                                    <td class="table_food_link">
+                                                        <a href="@Url.Action("Dish", "Home", new { id = ViewData["restaurantId"], dishId = dish.Url })"></a>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                    @if (iframeSettings.ShowError)
+                                    {
+                                        <div class="found_mistake pc" style="@(categoryIndex == 1 ? "display: block;" : "")">
+                                            <span>@Localizer["FoundError"]?</span>
+                                            <a href="#">@Localizer["HelpUsToImproveData"]</a>
+                                        </div>
+                                    }
+
+                                </div>
+                            }
+                        }
+                    }
+                    else if (isMobile && notEmptyCategories)
+                    {
+                        <div class="accordion_area disableOnDesktop">
+                            @{
+                                categoryIndex = 0;
+                            }
+                            @foreach (var category in allCategories)
+                            {
+                                if (category.IsTopLevelCategory)
+                                {
+                                    <div class="theard-level-menu" id="@category.Id">
+                                        @((category as Menus.Abstract.Models.IMenuCategory).Name.Get(culture))
+                                        @if (!string.IsNullOrEmpty((category as Menus.Abstract.Models.IMenuCategory).Description.Get(culture)))
+                                        {
+                                            <div class="theard-level-category-description">
+                                                @((category as Menus.Abstract.Models.IMenuCategory).Description.Get(culture))
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    categoryIndex++;
+                                    <div data-theard-level-category-id="@category.CurrentParentCategoryId" class="accordion_item @(categoryIndex == 1 ? "open" : "")">
+                                        <div class="accordion_title" id="table_food_@categoryIndex">
+                                            <h2>@(((IMenuCategory)category).Name.Get(culture))</h2> <em>@Localizer["Rating"]</em>
+                                        </div>
+                                        <div class="accordion_content" style="@(categoryIndex == 1 ? "display: block;" : "")">
+                                            <ul class="food_list">
+                                                @foreach (var dish in category.Dishes.OrderByDescending(x => x.RatingFloat))
+                                                {
+                                                    <li data-dish-id="@dish.Id" class="dish-container">
+                                                        @{
+                                                            var dishUrl = "javascript:void(0);";
+                                                            var dishClass = dish.Photos.Any() && iframeSettings.ShowDishImages ? "show-dish-image" : "";
+                                                            var dishUrlAttr = dish.Photos.Any() && iframeSettings.ShowDishImages ? @Img.Url(dish.Photos.FirstOrDefault(), Quality.Low) : "";
+                                                        }
+                                                        <a href="@dishUrl"
+                                                           class="@dishClass"
+                                                           data-image-url="@dishUrlAttr">
+                                                            @if (dish.Photos.Any() && iframeSettings.ShowDishImages)
+                                                            {
+                                                                var dishWeight = dish.Weight == "0" ? "" : string.Format("{0} {1}", dish.Weight, dish.WeightType);
+                                                                var dishPrice = dish.Price == 0 ? "" : string.Format("{0} {1}", Model.RestaurantInfo.Currency, dish.Price.ToString("F2"));
+                                                                var separator = !string.IsNullOrEmpty(dishWeight) && !string.IsNullOrEmpty(dishPrice) ? "|" : "";
+
+                                                                var fullDishInfo = string.Format(@"<span class='dish-image-name'>{0}</span> <span class='dish-image-description'>{1}</span> <span class='dish-image-price'>{2}</span> {4} <span class='dish-image-weight'>{3}</span>",
+                                                                    dish.Name.Get(culture),
+                                                                    dish.ShortDescription.Get(culture),
+                                                                    dishPrice,
+                                                                    dishWeight,
+                                                                    separator
+                                                                );
+                                                                <input type="hidden" data-dish-text-info="@fullDishInfo" />
+                                                                <input type="hidden" data-dish-image-url="@Img.Url(dish.Photos.FirstOrDefault(), Quality.Medium)" />
+
+                                                                <div class="dish-image show-dish-image" style="background-image: url(@Img.Url(dish.Photos.FirstOrDefault(), Quality.Low));">
+                                                                </div>
+                                                            }
+                                                            <h3>
+                                                                @(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))
+                                                                @if (iframeSettings.ShowDishImagesIcons && dish.Photos.Any())
+                                                                {
+                                                                    <span class="show-dish-image">
+                                                                        <object class="has-pictures-icon" type="image/svg+xml" data="~/images/has_pictures.svg"></object>
+                                                                    </span>
+                                                                }
+                                                                @if (iframeSettings.ShowTags)
+                                                                {
+                                                                    <span class="dish-tags">
+                                                                        @foreach (var tag in dish.Tags)
+                                                                        {
+                                                                            <span class="@tag"></span>
+                                                                        }
+                                                                    </span>
+                                                                }
+                                                            </h3>
+                                                            @if (dish.ShortDescription.Get(culture).Length > 0)
+                                                            {
+                                                                <p>@dish.ShortDescription.Get(culture)</p>
+                                                            }
+                                                                <em>
+                                                                    @if (dish.IsPriceMultiple)
+                                                                    {
+                                                                        <span>@Localizer["From"]&nbsp;</span>
+                                                                    }
+                                                                    @if (dish.Price == 0)
+                                                                    {
+                                                                        <span></span>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        @Model.RestaurantInfo.Currency @dish.Price.ToString("F2")
+                                                                        
+                                                                    }
+
+                                                                    @if (dish.Weight == "0")
+                                                                    {
+                                                                        <span></span>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <span class="dishWeight">| @dish.Weight @dish.WeightType</span>
+                                                                    }
+                                                                </em>
+                                                            @if (iframeSettings.ShowRating)
+                                                            {
+                                                                <b><span class="dish_rate_star" asp-rate="dish.Rating"></span> @dish.RatingFloat.ToString("F1")</b>
+                                                                <i><a href="@dishUrl"></a></i>
+                                                                <span class="countsOfReview">@dish.RatingCount @Localizer["Ratings"]</span>
+                                                            }
+                                                        </a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                            @if (iframeSettings.ShowError)
+                                            {
+                                                <div class="found_mistake">
+                                                    <span>@Localizer["FoundError"]?</span>
+                                                    <a asp-area="" asp-controller="Home" asp-action="MobileTypo" asp-route-url="@url">@Localizer["HelpUsToImproveData"]</a>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+
+                            }
+
+                        </div>
+                    }
+
+                    @if (iframeSettings.ShowTags)
+                    {
+                        <div class="dish-tags-list">
+                            <div class="dish-tags-list-description">
+                                @Localizer["TagsDescription"]
+                            </div>
+                            <div class="dish-tags-list-items">
+                                @foreach (var tag in seo.Tags)
+                                {
+                                    <span class="@tag">@Localizer[tag]</span>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <div class="iframe-bottom-section">
+                        <a href="https://tipmymenu.com/ru/articles/forowners" target="_blank">
+                            <p>Powered By Tip<span>mymenu</span></p>
+                        </a>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div class="popUpBlock popUpBlockMain popUpBlockIframe">
+        <div class="popUpBlock_inner">
+            <!-- PopUp dish image -->
+            <div class="popUpWindow popUpDishDesription">
+                <!-- Add popUpDishDesriptionDark class for dark popup -->
+                <span class="popUp_close"></span>
+                <div class="dish-image"></div>
+                <div class="dish-description"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Initialize Swiper -->
+    <link href="~/css/swiper.min.css" rel="stylesheet" />
+    <script src="~/js/jquery.js" asp-append-version="true"></script>
+
+    @if (UserService.IsMobileUser(Context.Request))
+    {
+        <link href="~/css/iframe-clean-mobile.css" rel="stylesheet" asp-append-version="true" />
+    }
+    else
+    {
+        <link href="~/css/iframe-clean.css" rel="stylesheet" asp-append-version="true" />
+    }
+    <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />
+    <link href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" rel="stylesheet" />
+
+    <script src="~/js/promise.min.js" async></script>
+    <script src="~/js/fetch.min.js" async></script>
+    <script src="~/js/index.js" async></script>
+    <script src="~/js/common.js" asp-append-version="true"></script>
+
+    <script src="~/js/swiper.min.js"></script>
+    <script>
+        let additionalPopupPositionCorrection = 50;
+        let additionalIframeScrollCorrection = 0;
+        let allcategoriesMobileSelector = '.accordion_area .accordion_item, .accordion_area .theard-level-menu';
+        let allcategoriesDesktopSelector = '.site-content-align .theard-level-menu, .site-content-align .table_element';
+        const $modalMainBlock = $('.popUpBlockMain');
+        const $modalMainWindow = $('.popUpWindow');
+        const modalBackgroundClass = 'popUpBlock_inner';
+        const modalBackgroundSelector = `.${modalBackgroundClass}`;
+        const theardLevelCategrorySelector = '.theard-level-menu-navi';
+        const currentTheardLevelCategory = 'data-theard-level-category-id';
+        const $imagePopup = jQuery('.popUpDishDesription');
+        const $mainPopupContainer = jQuery('.popUpBlockMain');
+        const $mainPopupImageContainer = jQuery('.popUpWindow');
+        const reserveTableBtnSelector = '.iframe-top-section-phone-button';
+        const reserveTableHrefSelector = '.iframe-top-section-phone-href';
+        const isInIframe = isInsideIframe();
+        const showOnlyIframeLogo = Boolean('@showOnlyIframeLogo') && isInIframe;
+        const showFirstCategoryOnStart = Boolean('@showFirstCategoryOnStart');
+        const promoUrl = '@Url.Action("Get", "Promo", new { id = Model.Restaurant.Id, locale = culture })';
+
+        //Page onload
+        jQuery(document).ready(function () {
+            postLoadedMessage();
+            postPageHeight();
+            document.querySelector("body").style.opacity = "1";
+
+            /* Accordion for desktop content menu
+            =======================================================*/
+            jQuery('.table_element .table_food thead').on('click', function () {
+                jQuery(this).closest('.table_element').toggleClass('visible');
+                //jQuery(this).closest('.table_element').find('.table_food tbody').fadeToggle();
+                jQuery(this).closest('.table_element').find('.found_mistake').fadeToggle();
+                postPageHeight();
+            });
+
+            /*Dish images*/
+            jQuery('.show-dish-image').on('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                showDishImage(e);
+            });
+
+            /* Mobile accordion */
+
+            jQuery('.accordion_area .accordion_item .accordion_title').on('click', function () {
+                jQuery(this).closest('.accordion_item').toggleClass('open');
+                if (jQuery(this).closest('.accordion_item').hasClass('open')) {
+                    jQuery(this).closest('.accordion_item').find('.accordion_content').slideDown();
+                } else {
+                    jQuery(this).closest('.accordion_item').find('.accordion_content').slideUp();
+                }
+                postPageHeight();
+            });
+
+            jQuery('.popUpWindow .popUp_close').on('click', function (e) {
+                e.preventDefault();
+                closePopup();
+            });
+
+            if (!isInIframe) {
+                jQuery(modalBackgroundSelector).on('click', function (e) {
+                    e.preventDefault();
+                    const classes = [...e.target.classList];
+                    const hasBackgroundClass = classes.some(clName => {
+                        return clName === modalBackgroundClass;
+                    });
+                    if (hasBackgroundClass) {
+                        closePopup();
+                    }
+                });
+            } else {
+                $mainPopupContainer.toggleClass('popUpBlockMainIframe', true);
+            }            
+
+            jQuery(theardLevelCategrorySelector).on('click', function (e) {
+                e.preventDefault();
+                let { target: selectedCategory } = e;
+                selectedCategory = $(selectedCategory);
+                showTheardLevelCategory(selectedCategory);
+            });
+
+
+            jQuery(reserveTableBtnSelector).on('click', function (e) {
+                e.preventDefault();
+                jQuery(reserveTableBtnSelector).hide();
+                jQuery(reserveTableHrefSelector).fadeIn();
+                
+            });
+
+            initPromo();
+            if (showFirstCategoryOnStart) {
+                initFirstTheardLevelCategory();
+            }
+            if (showOnlyIframeLogo) {
+                showIframeLogo();
+            }
+
+        });
+
+        function showDishImage(e) {
+            const $element = $(e.target);
+            const $infoContainer = $element.closest('.dish-container');
+            const $text = $infoContainer.find('[data-dish-text-info]');
+            const text = $text.data('dishTextInfo');
+            const $imageUrl = $infoContainer.find('[data-dish-image-url]');
+            const imageUrl = $imageUrl.data('dishImageUrl');
+
+            $mainPopupContainer.toggleClass('visible', true);
+            $mainPopupContainer.show();
+            $imagePopup.show();
+
+            jQuery('.popUpDishDesription .dish-image').css('background-image', `url('${imageUrl}')`);
+            jQuery('.popUpDishDesription .dish-description').html(text);
+
+            if (isInIframe) {
+                const position = $element.offset().top + additionalPopupPositionCorrection;
+                $imagePopup.css({ top: `${position}px`, position: 'absolute' });
+            }            
+
+            postElementPosition($element);
+        }
+
+        function closePopup() {
+            $mainPopupContainer.removeClass('visible');
+            $mainPopupContainer.hide();
+            $mainPopupImageContainer.hide();
+        }
+
+        function postPageHeight() {
+            setTimeout(() => {
+                const html = document.documentElement;
+                parent.postMessage({ contentHeight: html.offsetHeight }, "*");
+            }, 500);
+        }
+
+        function postElementPosition(element) {
+            setTimeout(() => {
+                const offset = element.offset();
+                const position = {
+                    top: offset.top + additionalIframeScrollCorrection,
+                    left: offset.left,
+                };
+                parent.postMessage({ elementPosition: position }, "*");
+            }, 100);
+        }
+
+        function postLoadedMessage() {
+            setTimeout(() => {
+                const html = document.documentElement;
+                parent.postMessage({ contantLoaded: true }, "*");
+            }, 500);
+        }
+
+        function showTheardLevelCategory(selectedCategoryNavigationItem) {
+            const categoryId = selectedCategoryNavigationItem.data('categoryId');
+            const $theardLevelCategroryNavigationItems = $(theardLevelCategrorySelector);
+            const $selectedCategory = $(`[id=${categoryId}]`);
+            const $selectedSubcategories = $(`[${currentTheardLevelCategory}=${categoryId}]`);
+
+            $theardLevelCategroryNavigationItems.toggleClass('active', false);
+            selectedCategoryNavigationItem.toggleClass('active', true);
+
+            if (isMobile) {
+                $(allcategoriesMobileSelector).hide();
+                $selectedCategory.show();
+                $selectedSubcategories.show();
+                if ($selectedSubcategories.length > 0) {
+                    let $firstSubcategory = $selectedSubcategories[0];
+                    if ($firstSubcategory) {
+                        $firstSubcategory = $($firstSubcategory);
+                        $firstSubcategory.toggleClass('open', true);
+                        $firstSubcategory.find('.accordion_content').show();
+                    }
+                }
+            } else {
+                $(allcategoriesDesktopSelector).hide();
+                $selectedCategory.show();
+                $selectedSubcategories.show();
+                if ($selectedSubcategories.length > 0) {
+                    let $firstSubcategory = $selectedSubcategories[0];
+                    if ($firstSubcategory) {
+                        $firstSubcategory = $($firstSubcategory);
+                        $firstSubcategory.toggleClass('visible', true);
+                        $firstSubcategory.find('.table_food').show();
+                    }
+                }
+            }
+
+            postPageHeight();
+        }
+
+        function initFirstTheardLevelCategory() {
+            let $theardLevelCategrories = $(theardLevelCategrorySelector);
+            if ($theardLevelCategrories.length) {
+                selectedCategory = $($theardLevelCategrories[0]);
+                showTheardLevelCategory(selectedCategory);
+            }            
+        }
+
+        function showIframeLogo() {
+            $('.iframe-logo').show();
+        }
+
+        function initPromo() {
+            $.ajax({
+                    url: promoUrl,
+                    type: "GET"
+                })
+                .done(function (promo) {
+                    if (promo) {
+                        loadPromo(promo);
+                    }
+                    
+                });
+        }
+
+        function loadPromo(promo) {
+            const {
+                image,
+                action
+            } = promo;
+
+            setTimeout(() => {
+                showPromoBanner({ image });
+            }, 500);
+        }
+
+        function showPromoBanner({image}) {
+            jQuery('.popUpDishDesription .dish-image').css('background-image', `url('${image}')`);
+
+            $mainPopupContainer.toggleClass('visible', true);
+            $mainPopupContainer.show();
+            $imagePopup.show();
+        }
+
+
+        function isInsideIframe() {
+            try {
+                return window.self !== window.top;
+            } catch (e) {
+                return true;
+            }
+        }
+
+        @Html.Raw(seo.CustomScript);
+
+
+    </script>
+
+    <!-- Google Tag Manager -->
+    <script>
+        (function (w, d, s, l, i) {
+            w[l] = w[l] || []; w[l].push({
+                'gtm.start':
+                    new Date().getTime(), event: 'gtm.js'
+            }); var f = d.getElementsByTagName(s)[0],
+                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
+                    'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+        })(window, document, 'script', 'dataLayer', 'GTM-P5WP82B');
+    </script>
+    <!-- End Google Tag Manager -->
+    <!-- Google Tag Manager (noscript) -->
+    <noscript>
+        <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-P5WP82B"
+                height="0" width="0" style="display:none;visibility:hidden"></iframe>
+    </noscript>
+    <!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

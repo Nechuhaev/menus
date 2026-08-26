@@ -1,0 +1,109 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@inject Menus.Web.Services.UserService  UserService;
+@{
+    var user = await UserService.GetUserById(User.Identity.Name);
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+}
+
+<header class="site-header site-header__restaurant" id="site-header">
+
+    <div class="site-header--left">
+        <div class="site-logo">
+            @if (User.IsInRole("admin") || User.IsInRole("manager"))
+            {
+                <a asp-area="" asp-controller="admin" asp-action="restaurants">
+                    <img src="~/images/site_logo.svg" alt="Site Logo" />
+                </a>
+            }
+            else
+            {
+                <a asp-area="" asp-controller="restaurants" asp-action="manage">
+                    <img src="~/images/site_logo.svg" alt="Site Logo" />
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="site-header--right">
+        @if (!UserService.IsMobileUser(Context.Request))
+        {
+            <div class="user header-user-controls-box">
+                <a href="javascript:;" onclick="this.classList.toggle('active')" class="js-desctop-profile">@user.Email</a>
+                <div class="user-controls-container">
+                    <div class="user-controls-header">
+                        <div class="user-avatar-box" style="background-image: url(@(!string.IsNullOrEmpty(user.ImageUrl) ? Img.Url(user.ImageUrl, Quality.Low) : "/images/no-avatar.jpg")"></div>
+                        <div class="user-controls-info">
+                            <div>
+                                <a class="go-to-profile-button" asp-area="" asp-controller="Account" asp-action="Index">Профиль</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="user-controls-route">
+                        <a asp-area="" asp-controller="Home" asp-action="Index">Главная</a>
+                    </div>
+                    <div class="user-controls-route">
+                        <a asp-area="" asp-controller="Account" asp-action="Activity">Моя активность</a>
+                    </div>
+                    <div class="user-controls-route">
+                        <a asp-area="" asp-controller="Account" asp-action="Password">Пароль</a>
+                    </div>
+                    @if (User.IsInRole("restaurant") || User.IsInRole("restaurant-manager"))
+                    {
+                        <div class="user-controls-route">
+                            <a asp-route-culture="@culture" asp-area="" asp-controller="Restaurants" asp-action="Manage">
+                                Мои рестораны
+                            </a>
+                        </div>
+                    }
+                    <div class="user-logout">
+                        <a asp-area="" asp-controller="Account" asp-action="Logout">Выйти</a>
+                    </div>
+
+                </div>
+            </div>
+        }
+        else
+        {
+            var crq = Context.Request;
+            <div class="user header-user-controls-box">
+                <a href="javascript:;" onclick="this.classList.toggle('active')" class="js-mobile-profile">@user.Email</a>
+                <div class="user-controls-container">
+                    <span class="profile_close"></span>
+                    <div class="user-controls-header">
+                        <div class="user-avatar-box" style="background-image: url(@(!string.IsNullOrEmpty(user.ImageUrl) ? Img.Url(user.ImageUrl, Quality.Low) : "/images/no-avatar.jpg")"></div>
+                        <div class="user-controls-info">
+                            <div>
+                                <a class="go-to-profile-button" asp-area="" asp-controller="Account" asp-action="Index">Профиль</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="user-controls-route">
+                        <a asp-area="" asp-controller="Home" asp-action="Index">Главная</a>
+                    </div>
+                    <div class="user-controls-route">
+                        <a asp-area="" asp-controller="Account" asp-action="Activity">Моя активность</a>
+                    </div>
+                    <div class="user-controls-route">
+                        <a asp-area="" asp-controller="Account" asp-action="Password">Пароль</a>
+                    </div>
+                    @if (User.IsInRole("restaurant") || User.IsInRole("restaurant-manager"))
+                    {
+                        <div class="user-controls-route">
+                            <a asp-route-culture="@culture" asp-area="" asp-controller="Restaurants" asp-action="Manage">
+                                Мои рестораны
+                            </a>
+                        </div>
+                    }
+                    <div class="user-logout">
+                        <a asp-area="" asp-controller="Account" asp-action="Logout">Выйти</a>
+                    </div>
+                </div>
+            </div>
+        }
+        <div class="header_info">
+            технічна підтримка: <a href="mailto:info@tipmymenu.com"><span class="fa-fw select-all fas"></span>info@tipmymenu.com</a>
+        </div>
+    </div>
+</header>

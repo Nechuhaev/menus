@@ -1,0 +1,235 @@
+﻿@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@model Menus.Abstract.Models.IPage
+
+@{
+    ViewData["Title"] = "View";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+
+    var Locales = LocaleSrvc.GetLocales();
+    ViewData["area"] = "Admin";
+    ViewData["controller"] = "Pages";
+    ViewData["action"] = "UploadBase64Photo";
+    ViewData["valueName"] = "val";
+}
+
+<script src="~/lib/ckeditor/ckeditor.js"></script>
+<script>
+    CKEDITOR.config.language = 'en';
+</script>
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                <li><a asp-area="Admin" asp-controller="Pages" asp-action="Index">Страницы</a></li>
+                <li>Создать страницу</li>
+            </ul>
+        </div>
+
+
+
+        <div class="site-content-wrapper site-content-wrapper--indent">
+
+            <div class="language_and_text">
+                <div class="column_left">
+                    <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
+                </div>
+                <div class="column_right">
+                    <ul class="content_language">
+                        @{
+                            var firstLocale = true;
+                        }
+                        @foreach (var locale in Locales)
+                        {
+                            <li class="@(firstLocale ? "current" : "")"><a data-locale="@locale.Id" href="#">@locale.ShortName</a></li>
+                            firstLocale = false;
+                        }
+                    </ul>
+                </div>
+            </div>
+
+
+
+            <form method="post" asp-action="Create" class="">
+                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="Photo" />
+
+                <div class="editUser">
+                    <div class="editUser--left">
+                        <div class="form-group">
+                            <label for="photo-upload-input">
+                                <img id="page-img" style="width: 100%; background-color: #eee;" src="~/images/image_add_img.png" alt="Alternate Text" />
+                            </label>
+                            <button data-remove-photo>Remove photo</button>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label">Заголовок</label>
+                            @{
+                                var localeIndex = 0;
+                            }
+                            @foreach (var locale in Locales)
+                            {
+                                <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                    <input type="hidden" name="Title[@localeIndex].Locale" value="@locale.Id" />
+                                    <input type="text" name="Title[@localeIndex].Value" value="" placeholder="" />
+                                </span>
+                                localeIndex++;
+                            }
+                        </div>
+
+                    </div>
+
+                    <div class="editUser--right">
+                        <div class="form-group">
+                            <label class="control-label">Статус</label>
+                            <select class="form-control" asp-for="Status"
+                                    asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.PageStatus>()"></select>
+                        </div>
+                        <input type="hidden" asp-for="Category" />
+                        <div class="form-group">
+                            <label class="control-label">Url</label>
+                            <input asp-for="Url" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label">Seo title</label>
+                            @{
+                                localeIndex = 0;
+                            }
+                            @foreach (var locale in Locales)
+                            {
+                                <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                    <input type="hidden" name="SeoTitle[@localeIndex].Locale" value="@locale.Id" />
+                                    <input type="text" id="SeoTitle[@localeIndex].Value" name="SeoTitle[@localeIndex].Value" class="form-control" />
+                                </span>
+                                localeIndex++;
+                            }
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label">Seo description</label>
+                            @{
+                                localeIndex = 0;
+                            }
+                            @foreach (var locale in Locales)
+                            {
+                                <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                    <input type="hidden" name="SeoDescription[@localeIndex].Locale" value="@locale.Id" />
+                                    <input type="text" id="SeoDescription[@localeIndex].Value" name="SeoDescription[@localeIndex].Value" class="form-control" />
+                                </span>
+                                localeIndex++;
+                            }
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label">Seo keywords</label>
+                            @{
+                                localeIndex = 0;
+                            }
+                            @foreach (var locale in Locales)
+                            {
+                                <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                    <input type="hidden" name="SeoKeywords[@localeIndex].Locale" value="@locale.Id" />
+                                    <input type="text" id="SeoKeywords[@localeIndex].Value" name="SeoKeywords[@localeIndex].Value" class="form-control" />
+                                </span>
+                                localeIndex++;
+                            }
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label">Seo text</label>
+                            @{
+                                localeIndex = 0;
+                            }
+                            @foreach (var locale in Locales)
+                            {
+                                <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                                    <input type="hidden" name="SeoText[@localeIndex].Locale" value="@locale.Id" />
+                                    <textarea class="form-control" id="SeoText[@localeIndex].Value" name="SeoText[@localeIndex].Value"></textarea>
+                                </span>
+                                localeIndex++;
+                            }
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="control-label">Краткое описание</label>
+                    @{
+                        localeIndex = 0;
+                    }
+                    @foreach (var locale in Locales)
+                    {
+                        <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                            <input type="hidden" name="ShortContent[@localeIndex].Locale" value="@locale.Id" />
+                            <textarea type="text" id="ShortContent[@localeIndex].Value" name="ShortContent[@localeIndex].Value" placeholder=""></textarea>
+                            <script>CKEDITOR.replace('ShortContent[@localeIndex].Value');</script>
+                        </span>
+                        localeIndex++;
+                    }
+                </div>
+                <div class="form-group">
+                    <label class="control-label">Контент</label>
+                    @{
+                        localeIndex = 0;
+                    }
+                    @foreach (var locale in Locales)
+                    {
+                        <span data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                            <input type="hidden" name="Content[@localeIndex].Locale" value="@locale.Id" />
+                            <textarea type="text" id="Content[@localeIndex].Value" name="Content[@localeIndex].Value" value="" placeholder=""></textarea>
+                            <script>CKEDITOR.replace('Content[@localeIndex].Value');</script>
+                        </span>
+                        localeIndex++;
+                    }
+                </div>
+                <div class="form-group form-group--submit">
+                    <input type="submit" value="Сохранить" class="btn btn-default" />
+                </div>
+
+            </form>
+
+
+
+        </div>
+
+
+
+    </main>
+</div>
+
+@await Html.PartialAsync("_PcPhotoUpload", ViewData)
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        window.loggedIn = true;
+        window.uploadPhotoCallback = function (data) {
+            $("input[name=Photo]").val(data.name);
+            $("#page-img").attr("src", "@Img.BaseUrl/" + data.name);
+        }
+
+
+        $("[data-remove-photo]").click(function (e) {
+            e.preventDefault();
+
+            $("input[name=Photo]").val("");
+            $("#page-img").attr("src", "/images/image_add_img.png");
+        });
+
+    }, false);
+</script>
+
+<script src="~/js/jquery.js"></script>
+
+<script>
+    $("a[data-locale]").click(function (e) {
+        e.preventDefault();
+        $("a[data-locale]").parent().removeClass("current");
+        $(this).parent().addClass("current");
+
+        $("div[data-locale], span[data-locale]").addClass("hidden");
+        var id = $(this).attr("data-locale");
+        $("div[data-locale=" + id + "], span[data-locale=" + id + "]").removeClass("hidden");
+    });
+
+
+</script>

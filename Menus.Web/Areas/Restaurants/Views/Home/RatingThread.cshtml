@@ -1,0 +1,92 @@
+﻿@model Menus.Abstract.Models.IRating
+
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+}
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                <li><a asp-action="Ratings">Отзывы</a></li>
+            </ul>
+        </div>
+
+        <div class="site-content-wrapper">
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Отзывы</h2>
+                </div>
+            </div>
+
+            <div>
+                <p style="background: #eee;">
+                    @Model.Text
+                </p>
+                @foreach (var item in Model.ChildRatings.OrderBy(x => x.UpdateDate))
+                {
+                    if (item.UserId == Model.UserId)
+                    {
+                        <p style="background: #eee;">
+                            @item.Text
+                        </p>
+                    }
+                    else
+                    {
+                        <p>
+                            @item.Text
+                        </p>
+                    }
+                }
+
+                <div>
+                    <h5>Ответить</h5>
+                    <form method="post">
+                        <input type="hidden" name="Id" value="@Model.Id" />
+                        <textarea name="Response"></textarea>
+                        <button type="submit">Отправить</button>
+                    </form>
+                    
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+</div>
+
+<script src="~/js/jquery.js"></script>
+
+<script>
+
+     function getToken() {
+        var token = '@Html.AntiForgeryToken()';
+        token = $(token).val();
+        return token;
+    }
+
+    function saveStatus(id, context) {
+        const status = $(context).val();
+         $.ajax({
+                url: "@Url.Action("ChangeRatingStatus")",
+                type: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id,
+                    status: status
+                },
+             success: () => {
+                 const iconElement = $($($(context).parent()).siblings(".tableStatusIcon"));
+                 if (iconElement) {
+                     iconElement.removeClass();
+                     iconElement.addClass("tableStatusIcon");
+                     iconElement.addClass(status === "1" ? "StatusIconOnApproval" : "StatusIconBlock");
+                 }
+             }
+            });
+    }
+</script>

@@ -1,0 +1,186 @@
+﻿@using Newtonsoft.Json
+@model Promo
+@inject LocaleService Locales;
+
+@{
+    ViewBag.Title = "Promo";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+
+    var uiLocales = JsonConvert.SerializeObject(Locales.GetLocales().Select(x => new { id = x.Id, shortName = x.ShortName }));
+}
+
+<div class="site-content">
+    <main id="vue">
+
+        <partial name="_AboutBreadcrumbs" model="@("Добавить промо")" />
+
+        <div class="site-content-wrapper">
+
+            <partial name="_AboutSubheader" />
+
+            <div class="language_and_text">
+                <div class="column_left">
+                    <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
+                </div>
+                <div class="column_right">
+                    <ul class="content_language">
+                        <li v-for="uiLocale in uiLocales" v-bind:class="{'current': uiLocale.id === selectedUiLocale.id}">
+                            <a v-on:click="setUiLocale(uiLocale)" style="cursor: pointer">{{uiLocale.shortName}}</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <form method="post" class="registerRestaurant" enctype="multipart/form-data" action="@Url.Action("SavePromo")">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id"/>
+                <input type="hidden" name="Image" value='@Html.Raw(Model.Image.ToString())'/>
+                <div class="restaurant_columns">
+                    <div class="restaurant_left">
+                        <div class="input-group">
+                            <label>Название <span>*</span></label>
+                            <input required asp-for="Name"/>
+                        </div>
+                        <div class="input-group">
+                            <label>Время начала <span>*</span></label>
+                            <input asp-for="StartDate"/>
+                        </div>
+                        <div class="input-group">
+                            <label>Время окончания <span>*</span></label>
+                            <input asp-for="EndDate"/>
+                        </div>
+                        <div class="input-group">
+                            <label>HTML Action</label>
+                            <textarea asp-for="Action"></textarea>
+                        </div>
+                    </div>
+                    <div class="restaurant_right">
+                        <div class="input-group">
+                            <label>Изображение <span>*</span></label>
+                            <input id="imgFileInput" v-on:change="fileChange" type="file" style="color: #000000; color: rgba(0, 0, 0, 0)" accept="image/png, image/jpeg"/>
+                            <img alt="Изображение не выбрано (можно выбирать файлы *.png/*.jpg размером до 5 МБ)" style="width: 100%" v-bind:src="selectedImage.Value.startsWith('data') || selectedImage.Value.length === 0 ? selectedImage.Value : '@Img.BaseUrl/' + selectedImage.Value" alt="Alternate Text"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group input-group--submit">
+                    <input type="submit" value="сохранить"/>
+                </div>
+            </form>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+@section Scripts
+{
+    <script src="~/js/jquery.js"></script>
+    <script src="~/lib/vue.js"></script>
+
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        function selectLocalizableStringValueByLocale(locale, obj) {
+            var str = obj.Values.find(function(x) { return x.Locale === data.selectedUiLocale.id });
+            if (!str) {
+                str = { "Locale": locale, "Value": "" };
+                obj.Values.push(str);
+            }
+
+            return str;
+        }
+
+        function readFileAsBase64(fileInput) {
+            var readAsDataUrl = function(fileInput) {
+                return new Promise((resolve, reject) => {
+                    var reader = new FileReader();
+                    reader.onerror = () => {
+                        reader.abort();
+                        reject(new Error("Error reading file."));
+                    };
+                    reader.addEventListener("load",
+                        () => {
+                            resolve(reader.result);
+                        },
+                        false);
+                    reader.readAsDataURL(fileInput.files[0]);
+                });
+            };
+
+            return readAsDataUrl(fileInput);
+        };
+
+        var data = {
+            uiLocales: @Html.Raw(uiLocales),
+            image: Object.assign({}, { "Values": [] }, @Html.Raw(Model.Image.ToString())),
+            test: ""
+        };
+
+        data.selectedUiLocale = data.uiLocales[0];
+        data.selectedImage = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.image);
+
+        var app = new Vue({
+            el: '#vue',
+            data: data,
+            methods: {
+                setUiLocale: function(locale) {
+                    data.selectedUiLocale = locale;
+                    data.selectedImage = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.image);
+                },
+                fileChange: function(e) {
+                    readFileAsBase64(e.target).then(function(dataUrl) {
+                        data.selectedImage.Value = dataUrl;
+                        $("#imgFileInput").val(null);
+                    });
+                }
+            }
+        });
+
+        var formSubmitted = false;
+        $(".registerRestaurant").submit(function(e) {
+            e.preventDefault();
+            if (formSubmitted) return;
+
+            formSubmitted = true;
+
+            var imagesToUpload = data.image.Values.filter(function(x) {return x.Value.startsWith('data')});
+            var imagesToUploadCount = imagesToUpload.length;
+
+            if (imagesToUploadCount === 0) {
+                $("[name=Image]").val(JSON.stringify(data.image));
+                $(".registerRestaurant").unbind('submit');
+                $(".registerRestaurant").submit();
+            }
+
+            imagesToUpload.forEach(function (img) {
+                $.ajax({
+                        url: "@Url.Action("UploadBase64Photo")",
+                        method: "POST",
+                        data: {
+                            "__RequestVerificationToken": getToken(),
+                            base64: img.Value
+                        }
+                    })
+                    .done(function (response) {
+                        imagesToUploadCount--;
+                        img.Value = response.name;
+
+                        if (imagesToUploadCount === 0) {
+                            $("[name=Image]").val(JSON.stringify(data.image));
+                            $(".registerRestaurant").unbind('submit');
+                            $(".registerRestaurant").submit();
+                        }
+                    })
+                    .fail(function (data) {
+                        window.Logger.logTextError("UPLOAD Base64 img action failed");
+                    });
+            });
+        });
+    </script>
+}

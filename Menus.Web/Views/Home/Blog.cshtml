@@ -1,0 +1,68 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@model System.Collections.Generic.IEnumerable<Menus.Abstract.Models.IPage>
+
+@{
+    ViewData["Title"] = "Blog";
+    ViewData["Description"] = "Description";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+}
+
+
+@await Html.PartialAsync("_Header")
+<div class="site-content">
+    <main>
+        <div class="breadcrumbs breadcrumbs-content">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["Blog"]</breadcrumb></li>
+            </ul>
+        </div>
+
+        <div class="site-content-align">
+            <!-- BLOG page START -->
+            <div class="blog_page">
+
+                @foreach (var item in Model)
+                {
+                    <div class="blog_page_item">
+                        <figure>
+                            <a asp-controller="Home" asp-action="NewsPage" asp-route-id="@item.Url">
+                                <span><img src="@Img.Url(item.Photo, Quality.Medium)" alt="" /></span>
+                                <figcaption>@item.Title.Get(culture)</figcaption>
+                            </a>
+                        </figure>
+                        <div class="post_date">@item.Timestamp.ToString("f")</div>
+                    </div>
+                }
+            </div>
+
+            @*<div class="pagination_area pagination_area--margin">
+                    <ul>
+                        <li class="current"><a href="#">1</a></li>
+                        <li><a href="#">2</a></li>
+                        <li><a href="#">3</a></li>
+                        <li><a href="#">4</a></li>
+                        <li><span>...</span></li>
+                        <li class="next"><a href="#"></a></li>
+                    </ul>
+                </div>*@
+
+            <!-- BLOG page END -->
+
+        </div>
+    </main>
+</div>
+
+
+
+@await Html.PartialAsync("_Footer")
+
+@section Scripts
+    {
+    <script src="~/js/typeahead-inner.js"></script>
+}

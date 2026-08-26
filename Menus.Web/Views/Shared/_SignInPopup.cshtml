@@ -1,0 +1,171 @@
+﻿@using System.Net
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@inject Menus.Web.Services.UserService  UserService;
+
+@{
+    var showResetPassword = !string.IsNullOrEmpty(Context.Request.Query["token"]);
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+    var crq = Context.Request;
+    var url = $"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{crq.Path}{crq.QueryString}";
+}
+<div class="signin-modal-container modal-container @(showResetPassword ? "" : "hidden")">
+    <div class="modal-background"></div>
+    <div class="modal user-mode @(showResetPassword ? "hidden" : "")">
+        <button type="button" class="close-modal">X</button>
+        <div class="clearfix"></div>
+        <div class="modal-tab" id="user-mode-tab">
+            <p class="form-header">@Localizer["ContinueAs"]</p>
+            <div>
+                <button type="submit" class="contunue-as-user" data-sign-in data-usermode="user">@Localizer["ContinueAsClient"]</button>
+                <button type="submit" class="contunue-as-restaraunt" data-sign-in data-usermode="restaurant">@Localizer["ContinueAsManager"]</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal sign-in @(showResetPassword ? "hidden" : "")">
+        <button type="button" class="close-modal">X</button>
+        <a class="tab-choose tab-choose-sign-in active" href="#">@Localizer["SignIn"]</a>
+        <a class="tab-choose tab-choose-sign-up" href="#">@Localizer["SignUp"]</a>
+        <div class="clearfix"></div>
+        <div class="modal-tab hidden" id="signin-tab">
+            <div class="modal-tab-external-auth">
+                @if (UserService.IsIosWebView(Context.Request))
+                {
+                    <a href="@url" target="_blank" class="external-sign-in sign-in-with-fb">@Localizer["SignInWithFacebook"]</a>
+                    <a href="@url" target="_blank" class="external-sign-in sign-in-with-google">@Localizer["SignInWithGoogle"]</a>
+                }
+                else
+                {
+                    <a href="#" class="external-sign-in sign-in-with-fb">@Localizer["SignInWithFacebook"]</a>
+                    <a href="#" class="external-sign-in sign-in-with-google">@Localizer["SignInWithGoogle"]</a>
+                }
+                <p class="form-header">@Localizer["Or"]</p>
+            </div>
+            <div class="modal-tab-continue-as-restaurant">
+                <p class="form-header">@Localizer["SignInAsRestaurant"]</p>
+            </div>
+            <form class="signin-form">
+                @Html.AntiForgeryToken()
+                <input autocomplete="username" required type="email" name="username" value="" placeholder="@Localizer["UsernamePlaceholder"]" />
+                <input autocomplete="current-password" required type="password" name="password" minlength="6" value="" placeholder="@Localizer["PasswordPlaceholder"]" />
+                <div class="remember-me-input-group">
+                    <input id="remember-sign-in" type="checkbox" checked name="remember" />
+                    <span class="checkbox checked"></span>
+                    <label>@Localizer["RememberMe"]</label>
+                </div>
+                <a class="forgot-password" href="#">@Localizer["ForgotPassword"]</a>
+                <div class="clearfix"></div>
+                <button type="submit">@Localizer["SignIn"]</button>
+                <p class="disclaimer-error hidden wrong-pwd-error">
+                    @Localizer["WrongLoginPassword"]
+                </p>
+                <p class="disclaimer">
+                    @Localizer["PolicyText"] <a href="/@culture/content/privacy">@Localizer["PrivacyPolicy"]</a> и <a href="/@culture/content/agreement">@Localizer["TermsOfUse"]</a>.
+                </p>
+            </form>
+        </div>
+        <div class="modal-tab hidden" id="signup-tab">
+            <div class="modal-tab-external-auth">
+                @if (UserService.IsIosWebView(Context.Request))
+                {
+                    <a href="@url" target="_blank" class="external-sign-in sign-in-with-fb">@Localizer["SignUpWithFacebook"]</a>
+                    <a href="@url" target="_blank" class="external-sign-in sign-in-with-google">@Localizer["SignUpWithGoogle"]</a>
+                }
+                else
+                {
+                    <a href="#" class="external-sign-in sign-in-with-fb">@Localizer["SignUpWithFacebook"]</a>
+                    <a href="#" class="external-sign-in sign-in-with-google">@Localizer["SignUpWithGoogle"]</a>
+                }
+                <p class="form-header">@Localizer["Or"]</p>
+            </div>   
+            <div class="modal-tab-continue-as-restaurant">
+                <p class="form-header">@Localizer["SignUpAsRestaurant"]</p>
+            </div>
+            <form class="signin-form">
+                @Html.AntiForgeryToken()
+                <input required autocomplete="username" type="email" name="username" value="" placeholder="@Localizer["UsernamePlaceholder"]" />
+                <input required autocomplete="current-password" type="password" name="password" minlength="6" value="" placeholder="@Localizer["PasswordPlaceholder"]" />
+                <div class="remember-me-input-group">
+                    <input id="remember-sign-up" type="checkbox" checked name="remember" />
+                    <span class="checkbox checked"></span>
+                    <label>@Localizer["RememberMe"]</label>
+                </div>
+                @*<a class="forgot-password" href="#">@Localizer["ForgotPassword"]</a>*@
+                <div class="clearfix"></div>
+                <button type="submit">@Localizer["SignUp"]</button>
+                <p class="disclaimer-error hidden user-exist-error">
+                    @Localizer["UserAlreadyExists"]
+                </p>
+                <p class="disclaimer">
+                    @Localizer["PolicyText"] <a href="/@culture/content/privacy">@Localizer["PrivacyPolicy"]</a> @Localizer["And"] <a href="/@culture/content/agreement">@Localizer["TermsOfUse"]</a>.
+                </p>
+                <p class="disclaimer hidden register-pwd-sent">
+                    @Localizer["WeveSentYouConfirmationLink"]
+                </p>
+                <input type="hidden" value="" name="usermode" />
+            </form>
+        </div>
+    </div>
+    <div class="modal hidden restore-pwd">
+        <button type="button" class="close-modal">X</button>
+        <div class="modal-tab">
+            <form class="restore-form">
+                @Html.AntiForgeryToken()
+                <p class="disclaimer disclaimer-top">
+                    @Localizer["RecoverPasswordText"]
+                </p>
+                <input autocomplete="email" required type="email" name="email" value="" placeholder="@Localizer["UsernamePlaceholder"]" />
+                <button type="submit">@Localizer["Send"]</button>
+                <p class="disclaimer hidden restore-pwd-sent">
+                    @Localizer["WeSentYouPasswordRecovery"]
+                </p>
+                <p class="disclaimer-error hidden restore-pwd-error">
+                    @Localizer["YouveEnteredWrongEmail"] <a href="#" data-sign-up>@Localizer["Register"]</a>
+                </p>
+            </form>
+        </div>
+    </div>
+    <div class="modal hidden email-pwd">
+        <button type="button" class="close-modal">X</button>
+        <div class="modal-tab">
+            <figure>
+                <img src="~/images/icon_success.png" alt="Alternate Text" />
+            </figure>
+            <p>@Localizer["WeveSentYouConfirmationLink"]</p>
+        </div>
+    </div>
+    <div class="modal hidden webview-error">
+        <button type="button" class="close-modal">X</button>
+        <div class="modal-tab">
+            <p>@Localizer["RegisterHelpMessage"]</p>
+        </div>
+    </div>
+    <div class="modal input-restore-pwd @(showResetPassword ? "" : "hidden")">
+        <button type="button" class="close-modal">X</button>
+        <div class="modal-tab" id="signin-tab">
+            <form class="restore-form-save" method="post" asp-area="" asp-controller="Account" asp-action="UpdatePassword">
+                @Html.AntiForgeryToken()
+                <p class="disclaimer">
+                    @Localizer["PleaseEnterNewPasswordToReplaceOld"]
+                </p>
+                <input autocomplete="current-password" required type="password" name="password" minlength="6" value="" placeholder="@Localizer["EnterNewPassword"]" />
+                <input type="hidden" name="token" value="@Context.Request.Query["token"]" />
+                <input type="hidden" name="email" value="@Context.Request.Query["email"]" />
+                <button type="submit">@Localizer["Save"]</button>
+            </form>
+        </div>
+    </div>
+</div>
+<form id="external-login" class="hidden" asp-controller="Account" asp-action="ExternalLogin" method="post">
+    <input id="external-login-provider" type="hidden" name="provider" value="" />
+</form>
+
+<form id="external-login-webview" class="hidden" target="_blank" method="post">
+    <input type="hidden" name="webview" value="true" />
+</form>
+
+
+<script src="~/js/signin-popups.js" asp-append-version="true" defer></script>

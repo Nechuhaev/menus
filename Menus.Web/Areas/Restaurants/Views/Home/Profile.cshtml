@@ -1,0 +1,102 @@
+﻿
+@{
+    ViewData["Title"] = "Profile";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+}
+
+
+
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                <li>Профиль</li>
+            </ul>
+        </div>
+
+
+
+        <div class="site-content-wrapper">
+
+
+
+            <div class="language_and_text">
+                <div class="column_left">
+                    <div class="avatarBlock">
+                        <figure></figure>
+                        <p>Ваш аватар</p>
+                        <div class="avatar_btns">
+                            <a href="#" class="btn_download">Загрузить</a>
+                            <a href="#" class="btn_download btn_download_fb">Загрузить через Facebook</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="column_right">
+                    <ul class="content_language">
+                        <li class="current"><a href="#">Рус</a></li>
+                        <li><a href="#">Укр</a></li>
+                        <li><a href="#">Eng</a></li>
+                    </ul>
+                </div>
+            </div>
+
+
+
+            <form class="form_profile">
+                <div class="form_profile_columns">
+                    <div class="form_profile_left">
+                        <div class="input-group">
+                            <label>Название ресторана</label>
+                            <input type="text" />
+                        </div>
+                        <div class="input-group">
+                            <label>E-mail</label>
+                            <input type="email" />
+                        </div>
+                        <div class="input-group">
+                            <label>Телефон</label>
+                            <input type="tel" />
+                        </div>
+                        <div class="input-group">
+                            <label>Адрес</label>
+                            <input type="text" />
+                        </div>
+                        <div class="input-group">
+                            <label>Город</label>
+                            <input type="text" />
+                        </div>
+                        <div class="input-group">
+                            <label>Кухня ресторана</label>
+                            <input type="text" placeholder="например:  Морепродукты, Европейская, Русская" />
+                        </div>
+                    </div>
+                    <div class="form_profile_right">
+                        <div class="input-group">
+                            <label>Описание ресторана</label>
+                            <textarea placeholder="например:  Морепродукты, Европейская, Русская"></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label>Добавить  фото ресторана <em>( вы можете дабавить до 10 фото )</em></label>
+                            <div class="add_file">
+                                <input type="file" value="" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group input-group-submit">
+                    <input type="submit" value="сохранить" />
+                </div>
+            </form>
+
+
+
+        </div>
+
+
+
+    </main>
+</div>

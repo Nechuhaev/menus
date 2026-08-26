@@ -1,0 +1,251 @@
+﻿@inject LocaleService Locales;
+@inject Menus.Web.Services.DishTagsService DishTags;
+@using Newtonsoft.Json
+@model Menus.Abstract.Models.IRestaurantSeo
+@{
+    ViewData["Title"] = "Register";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+
+    var definedModel = Model as RestaurantSeo;
+
+    if (string.IsNullOrWhiteSpace(Model.CustomIframeSettings))
+    {
+        Model.CustomIframeSettings = @"{
+
+}";
+    }
+
+    var uiLocales = JsonConvert.SerializeObject(Locales.GetLocales().Select(x => new { id = x.Id, shortName = x.ShortName }));
+
+    var locales = new Dictionary<string, bool>();
+    foreach (var locale in Locales.GetLocales())
+    {
+        locales.Add(locale.Id, true);
+    }
+
+    var header = definedModel?.Header ?? "{}";
+    var title = definedModel?.Title ?? "{}";
+    var description = definedModel?.Description ?? "{}";
+
+    if (string.IsNullOrWhiteSpace(Model.CustomLanguages))
+    {
+        Model.CustomLanguages = JsonConvert.SerializeObject(locales, Formatting.Indented);
+    }
+    else
+    {
+        var selectedLanguages = JsonConvert.DeserializeObject<Dictionary<string, bool>>(Model.CustomLanguages);
+        foreach (var locale in locales.ToList())
+        {
+            if (selectedLanguages.ContainsKey(locale.Key))
+            {
+                locales[locale.Key] = selectedLanguages[locale.Key];
+            }
+        }
+        Model.CustomLanguages = JsonConvert.SerializeObject(locales, Formatting.Indented);
+    }
+}
+
+<div class="site-content">
+    <main id="vue">
+
+        <partial name="_AboutBreadcrumbs" model="@("SEO")" />
+
+        <div class="site-content-wrapper">
+
+            <partial name="_AboutSubheader" />
+
+            <div class="language_and_text">
+                <div class="column_left">
+                    <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
+                </div>
+                <div class="column_right">
+                    <ul class="content_language">
+                        <li v-for="uiLocale in uiLocales" v-bind:class="{'current': uiLocale.id === selectedUiLocale.id}">
+                            <a v-on:click="setUiLocale(uiLocale)" style="cursor: pointer">{{uiLocale.shortName}}</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <form method="post" class="registerRestaurant extra" enctype="multipart/form-data">
+                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="ItemId" />
+                <input type="hidden" name="Header" value='@header' />
+                <input type="hidden" name="Title" value='@title' />
+                <input type="hidden" name="Description" value='@description' />
+                <div class="restaurant_columns">
+                    <div class="restaurant_left">
+                        <div class="input-group">
+                            <label>Url <span>*</span></label>
+                            <input asp-for="Url" />
+                            @if (ViewData["urlExist"] != null)
+                            {
+                                <p style="color: red">Url уже существует</p>
+                            }
+                        </div>
+                        <div class="input-group">
+                            <label>Header <span>*</span></label>
+                            <input type="text" v-model="selectedHeader.Value" />
+                        </div>
+                        <div class="input-group">
+                            <label>Title <span>*</span></label>
+                            <input type="text" v-model="selectedTitle.Value" />
+                        </div>
+                        <div class="input-group">
+                            <label>Description <span>*</span></label>
+                            <input type="text" v-model="selectedDescription.Value" />
+                        </div>
+                        <div class="input-group">
+                            <label>Tags <span>*</span></label>
+                            <input type="text" name="Tags" value="@(((RestaurantSeo) Model).Tags)" />
+                        </div>
+                        <div class="input-group">
+                            <label>Keywords <span>*</span></label>
+                            <input asp-for="Keywords" />
+                        </div>
+                        <div class="input-group">
+                            <label>Search terms <span></span></label>
+                            <input asp-for="SearchTerms" />
+                        </div>
+                        @foreach (var locale in Locales.GetLocales())
+                        {
+                            <p>
+                                <a href="@($"https://frm.tipmymenu.com/{locale.Id}/kyiv/iframe/{Model.Url}")">Iframe @locale.Id</a>
+                            </p>
+                        }
+                    </div>
+                    <div class="restaurant_right">
+                        <div class="input-group">
+                            <label>SEO text <span>*</span></label>
+                            <textarea asp-for="SeoText"></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label>Custom CSS <span>*</span></label>
+                            <textarea asp-for="CustomCss"></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label>Custom script <span>*</span></label>
+                            <textarea asp-for="CustomScript"></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label>Custom Iframe <span>*</span></label>
+                            <textarea class="hidden" asp-for="CustomIframeSettings"></textarea>
+                            <label v-for="(value, propertyName) in iframeSettings">
+                                <input type="checkbox" v-model="iframeSettings[propertyName]" />
+                                {{propertyName}}
+                            </label>
+                        </div>
+                        <div class="input-group">
+                            <label>Custom Languages <span>*</span></label>
+                            <textarea class="hidden" asp-for="CustomLanguages"></textarea>
+                            <label v-for="(value, propertyName) in languages">
+                                <input type="checkbox" v-model="languages[propertyName]" />
+                                {{propertyName}}
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group input-group--submit">
+                    <input type="submit" value="сохранить" />
+                </div>
+            </form>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+<script src="~/js/jquery.js"></script>
+<script src="~/lib/vue.js"></script>
+
+<link href="~/lib/tagify.css" rel="stylesheet" />
+<script src="~/lib/tagify.min.js"></script>
+
+<script>
+    function selectLocalizableStringValueByLocale(locale, obj) {
+        var str = obj.Values.find(function (x) { return x.Locale === data.selectedUiLocale.id });
+        if (!str) {
+            str = { "Locale": locale, "Value": "" };
+            obj.Values.push(str);
+        }
+
+        return str;
+    }
+
+    var DEFAULT_IFRAME_SETTINGS = {
+        'ShowHeader': false,
+        'ShowInfo': false,
+        'ShowBreadcrump': false,
+        'ShowTop': false,
+        'ShowRating': false,
+        'ShowError': false,
+        'ShowSocial': false,
+        'ShowFavourites': false,
+        'ShowSimilar': false,
+        'ShowFooter': false,
+        'ShowCategories': false,
+        'ShowFooterDescription': false,
+        'ShowLogo': true,
+        'ShowLanguages': true,
+        'ShowPoweredBy': true,
+        'ShowExternalUrl': false,
+        'ShowDishImages': false,
+        'ShowDishImagesPreview': false,
+        'ShowDishImagesIcons': false,
+        'ShowTheardLevelCategories': false,
+        'ShowTags': false,
+        'ShowOnlyCategories': false,
+        'ShowPhone': false,
+        'ShowFirstCategoryOnStart': false,  
+        'ShowOnlyIframeLogo': false,  
+    };
+
+    var iframeSettings = @Html.Raw(Model.CustomIframeSettings);
+    iframeSettings = Object.assign({}, DEFAULT_IFRAME_SETTINGS, iframeSettings);
+
+    var data = {
+        iframeSettings: iframeSettings,
+        languages: @Html.Raw(Model.CustomLanguages),
+        uiLocales: @Html.Raw(uiLocales),
+        header: Object.assign({}, { "Values": [] }, @Html.Raw(header)),
+        title: Object.assign({}, { "Values": [] }, @Html.Raw(title)),
+        description: Object.assign({}, { "Values": [] }, @Html.Raw(description))
+    };
+
+    data.selectedUiLocale = data.uiLocales[0];
+    data.selectedHeader = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.header);
+    data.selectedTitle = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.title);
+    data.selectedDescription = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.description);
+
+    var app = new Vue({
+        el: '#vue',
+        data: data,
+        methods: {
+            setUiLocale: function(locale) {
+                data.selectedUiLocale = locale;
+                data.selectedHeader = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.header);
+                data.selectedTitle = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.title);
+                data.selectedDescription = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.description);
+            }
+        }
+    });
+
+    $('input[name=Tags]').tagify({
+        autocomplete: true,
+        enforceWhitelist: true,
+        whitelist: @Html.Raw(DishTags.Autocomplete),
+        dropdown: {
+            enabled: 0
+        }
+    });
+
+    $(".input-group--submit input").click(function() {
+        $("[name=CustomIframeSettings]").val(JSON.stringify(data.iframeSettings, null, 2));
+        $("[name=CustomLanguages]").val(JSON.stringify(data.languages, null, 2));
+        $("[name=Header]").val(JSON.stringify(data.header));
+        $("[name=Title]").val(JSON.stringify(data.title));
+        $("[name=Description]").val(JSON.stringify(data.description));
+    });
+</script>

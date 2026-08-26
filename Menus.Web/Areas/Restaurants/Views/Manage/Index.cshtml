@@ -1,0 +1,55 @@
+﻿@model IEnumerable<Menus.Abstract.Models.IRestaurant>
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+}
+
+
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs">
+            <ul>
+                <li>Мои рестораны</li>
+            </ul>
+        </div>
+
+        <div class="site-content-align">
+
+            @if (!User.IsInRole("restaurant-manager"))
+            {
+                <div class="list-restaurant-commands">
+                    <div class="add-item add-item--with-padding" @(!Model.Any() ? Html.Raw("style=\"border: none;\"") : Html.Raw(""))>
+                        <a asp-action="Register">добавить ресторан</a>
+                    </div>
+                    <div class="add-item" @(!Model.Any() ? Html.Raw("style=\"border: none;\"") : Html.Raw(""))>
+                        <a asp-action="RequestAccess">Получить доступ к ресторану</a>
+                    </div>
+                </div>
+            }
+
+            <ul class="list-restaurant">
+                @foreach (var item in Model)
+                {
+                    <li class="@(item.Status == Menus.Abstract.Models.RestaurantStatus.Pending ? "onApproval" : "")">
+                        <figure>
+                            <a asp-action="SelectRestaurant" asp-route-id="@item.Id">
+                                <img src="~/images/restaurant_01.jpg" alt="Alternate Text" />
+                            </a>
+                            @if (item.Status == Menus.Abstract.Models.RestaurantStatus.Pending)
+                            {
+                                <figcaption>На утверждении</figcaption>
+                            }
+                        </figure>
+                        <h3><a asp-action="SelectRestaurant" asp-route-id="@item.Id">@item.Name</a></h3>
+                    </li>
+                }
+            </ul>
+
+        </div>
+
+    </main>
+</div>
+
+<script src="~/js/jquery.js"></script>

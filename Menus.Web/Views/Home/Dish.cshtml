@@ -1,0 +1,1201 @@
+@using Menus.Abstract.Models
+@model Menus.Abstract.Models.IDishWithSeoAndRatings
+@inject Menus.Web.Services.UserService  UserService;
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@inject Menus.Domain.Core Core
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var restaurant = ViewData["restaurant"] as Menus.Abstract.Models.IRestaurant;
+    var restaurantInfo = ViewData["restaurantInfo"] as Menus.Abstract.Models.IRestaurantInfo;
+    var photos = ViewData["photos"] as List<string>;
+    var menu = ViewData["menu"] as Menus.Web.Models.ViewModels.DishesListViewModel;
+    var ratings = ViewData["ratings"] as IEnumerable<Menus.Web.Models.DishRatingWithUser>;
+    var page = (int)ViewData["page"];
+    ratings = ratings.Where(x => !string.IsNullOrEmpty(x.Text)).Skip(page * 12).Take(12);
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    ViewData["Title"] = string.Format(Localizer["MetaTitle"].Value, Model.Name.Get(culture), restaurant.Name);
+    ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, Model.Name.Get(culture), restaurant.Name, ViewData["selectedCityName"]);
+
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+
+    var imgAlt = $"{Localizer["Photo"].Value} {Model.Name.Get(culture)} {Localizer["In"].Value} {restaurant.Name}";
+    var crq = Context.Request;
+
+    var images = ViewData["images"] as IEnumerable<IDishPhoto>;
+    var similarDishes = ViewData["similarDishes"] as List<IDishWithSeoAndRatings>;
+
+    var review = ViewData["review"] as IRating;
+    var isMobile = UserService.IsMobileUser(Context.Request);
+    var isDesktop = !UserService.IsMobileUser(Context.Request);
+}
+
+@await Html.PartialAsync("_Header")
+
+<div class="site-content">
+    <main>
+        <div class="breadcrumbs breadcrumbs-content breadcrumbs-content-position">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@ViewData["restaurantId"]">@restaurant.Name</breadcrumb></li>
+                <li><breadcrumb href="#">@(Char.ToUpper(Model.Name.Get(culture)[0]) + Model.Name.Get(culture).Substring(1))</breadcrumb></li>
+            </ul>
+        </div>
+
+        <div class="site-content-align" itemscope itemtype="http://schema.org/Product">
+            <div class="btn-view-full-restaurant-menu">
+                <a class="btn-view-full-restaurant-menu-link" href="@Url.Action("Restaurant", "Home", new {id = Model.RestaurantId})" title="@Localizer["ViewFullRestaurantMenu"] @restaurant.Name">
+                    @Localizer["ViewFullRestaurantMenu"] @restaurant.Name
+                </a>
+            </div>
+
+            @await Html.PartialAsync("_GoogleSence",
+                    new Menus.Web.Models.Internal.GoogleSence() {
+                        GoogleSenceType = Menus.Web.Models.Internal.GoogleSenceTypes.Wide
+                    })
+
+            <div class="dishSingle">
+
+                <div class="dishSingleLeft">
+
+                    @if (isDesktop)
+                    {
+                        <article>
+                            <div class="article_top">
+                                <div class="article_top_left">
+                                    <h1 itemprop="name">@Model.Name.Get(culture)</h1>
+                                    <div class="food_info">
+                                        <h2>
+                                            @if (Model.IsPriceMultiple)
+                                            {
+                                                <span>@Localizer["From"]&nbsp;</span>
+                                            }
+                                            @restaurantInfo.Currency @Model.Price.ToString("F2")
+                                        </h2> | @Model.Weight @Model.WeightType
+                                    </div>
+                                </div>
+                                <div class="article_top_right">
+                                    <div class="article_data">
+                                        <div class="article_rating">
+                                            @if (Model.UserRating > 0)
+                                            {
+                                                for (var i = 1; i <= 5; i++)
+                                                {
+                                                    if (i <= Model.UserRating)
+                                                    {
+                                                        <span class="stars star_red"></span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="stars star_grey"></span>
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                @await Html.PartialAsync("_StarRating", Model.RatingFloat)
+                                            }
+                                        </div>
+                                    </div>
+                                    <span class="food_value">@Model.RatingFloat.ToString("F1")</span>
+                                    <span class="food_count"><em>@Model.RatingCount</em> @Localizer["Rates"]</span>
+                                </div>
+                            </div>
+
+                            <div class="article_description" itemprop="description">
+                                @Model.Description.Get(culture)
+                            </div>
+
+                            @if (!Model.Ingredients.IsEmpty() || !Model.ShortDescription.IsEmpty())
+                            {
+                                <div class="article_ingredients">
+                                    <h2>@Localizer["Composition"]:</h2>
+                                    <p>@(Model.Ingredients.IsEmpty() ? Model.ShortDescription.Get(culture) : Model.Ingredients.Get(culture))</p>
+                                </div>
+                            }
+
+                            @{
+                                var numberOfPhotos = Model.Photos.Count() < 4 ? Model.Photos.Count() : 4;
+                                var additionalClass = numberOfPhotos == 0 ? "article_photos_one" : "";
+                            }
+
+                            <div class="article_photos @additionalClass">
+                                <!-- for one image add class "article_photos_one" -->
+                                @for (int photoCounter = 0; photoCounter < numberOfPhotos; photoCounter++)
+                                {
+                                    <div class="dish-photo" style="background-image: url(@Img.Url(Model.Photos.Skip(photoCounter).First(), Quality.Medium));">
+                                        <img itemprop="image" src="@Img.Url(Model.Photos.Skip(photoCounter).First(), Quality.Medium)" alt="@imgAlt" title="@imgAlt" data-image-id="@Model.Photos.Skip(photoCounter).First()" />
+                                    </div>
+                                }
+                                <div class="add-dish-photo">
+                                    <label data-upload-photo for="photo-upload-input" style="display: block; width: 100%; height: 100%; cursor: pointer;">
+                                        Добавить фото
+                                    </label>
+                                    <a style="display: none;" data-show-photos href="#">@Localizer["ViewAllPhotos"]</a>
+                                </div>
+                            </div>
+
+                        </article>
+                    }
+                    else
+                    {
+                        <article class="mobileDish">
+                            <div class="mobileDishTop">
+                                <h1 itemprop="name">@Model.Name.Get(culture)</h1>
+                                <span class="mobileDishData">
+                                    @if (Model.IsPriceMultiple)
+                                    {
+                                        <span>@Localizer["From"]&nbsp;</span>
+                                    }
+                                    @restaurantInfo.Currency @Model.Price.ToString("F2") <span>| @Model.Weight @Model.WeightType</span>
+                                </span>
+                                <span class="mobileDishRating">
+                                    <span class="dish_rate_star" asp-rate="Model.Rating"></span> <em>@Model.RatingFloat.ToString("F1")</em>
+                                    <br />
+                                    <span class="food_count"><em>@Model.RatingCount</em> @Localizer["Rates"]</span>
+                                </span>
+                            </div>
+                            <div class="mobileDishPicture">
+                                @if (Model.Photos.Any())
+                                {
+                                    <img itemprop="image" src="@Img.Url(Model.Photos.First(), Quality.Medium)" alt="@imgAlt" title="@imgAlt" />
+                                }
+                                else
+                                {
+                                    <label data-upload-photo for="photo-upload-input"><img src="~/images/image_add_img_mobile.png" alt="@imgAlt" title="@imgAlt" /></label>
+                                }
+                                @if (Model.Photos.Any())
+                                {
+                                    <div class="mobile-dish-picture-data">
+                                        <span class="picture-data-icon"></span>
+                                        <span class="picture-data-count">1 / @Model.Photos.Count()</span>
+                                    </div>
+                                }
+                            </div>
+                            <div class="mobileDishRate">
+                                @if (Model.UserRating > 0)
+                                {
+                                    <em>@Localizer["YourRate"]</em>
+                                }
+                                else
+                                {
+                                    <em>@Localizer["RateDish"]!</em>
+                                }
+                                <span class="mobileStarsRate">
+                                    @if (Model.UserRating > 0)
+                                    {
+                                        for (var i = 1; i <= 5; i++)
+                                        {
+                                            if (i <= Model.UserRating)
+                                            {
+                                                <span class="stars star_red"></span>
+                                            }
+                                            else
+                                            {
+                                                <span class="stars star_grey"></span>
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="stars star_grey"></span>
+                                        <span class="stars star_grey"></span>
+                                        <span class="stars star_grey"></span>
+                                        <span class="stars star_grey"></span>
+                                        <span class="stars star_grey"></span>
+                                    }
+                                </span>
+                                <a href="#" data-rate-dish>@Localizer["WriteReview"]</a>
+                            </div>
+                        </article>
+                    }
+
+                    <div class="social_area">
+                        <p>@Localizer["ShareDishWithYourFriends"]</p>
+                        <ul>
+                            <li><a rel="noopener" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=@Uri.EscapeDataString(url)"><span class="fa-fw select-all fab"></span></a></li>
+                            <li><a href="mailto:?subject=Tipmymenu share&amp;body=Check out this page: @url"><span class="fa-fw select-all fas"></span></a></li>
+                        </ul>
+                    </div>
+
+                    <div class="reviews">
+                        @if (ratings.Count() > 0 || !UserService.IsMobileUser(Context.Request))
+                        {
+                            <div class="reviews_top">
+                                <div class="reviews_top_left">
+                                    <h2>@Localizer["UsersRates"] <span class="reviews_counter">(@ratings.Count())</span></h2>
+                                    @if (ratings.Count() == 0 && !UserService.IsMobileUser(Context.Request))
+                                    {
+                                        <span class="review_first">@Localizer["BecomeFirstWhoWillAddReview"]</span>
+                                    }
+                                </div>
+                                <div class="reviews_top_right">
+                                    @if (review != null && !string.IsNullOrEmpty(review.Text))
+                                    {
+                                        <a href="#" data-rate-dish>@Localizer["EditReview"]</a>
+                                    }
+                                    else
+                                    {
+                                        <a href="#" data-rate-dish>@Localizer["AddReview"]</a>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <div class="reviews_content">
+                            <ul class="reviews_list" data-load-more-container>
+                                @await Html.PartialAsync("_DishRatingsAjax", Model)
+                            </ul>
+                            <div class="reviews_link_all">
+                                @if (!UserService.IsMobileUser(Context.Request) && ratings.Count() == 12)
+                                {
+                                    <a data-load-more href="#">@Localizer["LoadMore"]</a>
+                                }
+                                else if (ratings.Count() == 12)
+                                {
+                                    <a data-load-more href="#">@Localizer["LoadMore"]</a>
+                                }
+                            </div>
+
+                            @if (ratings.Count() == 0 && UserService.IsMobileUser(Context.Request))
+                            {
+                                <div class="no_reviews">
+                                    <strong>@Localizer["BecomeFirstWhoWillAddReview"]</strong>
+                                    <a href="#" data-rate-dish>@Localizer["WriteReview"]</a>
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+
+                    @await Html.PartialAsync("_GoogleSence",
+                    new Menus.Web.Models.Internal.GoogleSence() {
+                        GoogleSenceType = Menus.Web.Models.Internal.GoogleSenceTypes.Wide
+                    })
+
+                    @if (similarDishes.Any())
+                    {
+                        <h2 class="top_dishes_title">@Localizer["OtherDishes"]</h2>
+
+                        <ul class="list_of_dishes">
+                            @foreach (var dish in similarDishes)
+                            {
+                                <li>
+                                    <div class="caption">
+
+                                        <div class="caption_image">
+                                            <figure>
+                                                @if (dish.Photos.Any())
+                                                {
+                                                    <a href="@Url.Action("Dish", "Home", new {id = ViewData["restaurantId"], dishId = dish.Url})" style="background-image: url(@Img.Url(dish.Photos.First(), Quality.Low))"></a>
+                                                    @*<figcaption>@Localizer["Advertisment"]</figcaption>*@
+                                                }
+                                            </figure>
+                                        </div>
+
+                                        <div class="caption_content">
+                                            <h3><a href="@Url.Action("Dish", "Home", new {id = ViewData["restaurantId"], dishId = dish.Url})">@dish.Name.Get()</a></h3>
+                                            <p class="excerpt">@dish.ShortDescription.Get(culture)</p>
+                                            <p class="dish_info">
+                                                <strong>@dish.RatingFloat.ToString("F1")</strong>
+                                                @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                                <em>(@dish.RatingCount)</em>
+                                            </p>
+                                            <p class="location">@restaurant.Name, @restaurant.Address <b>0.9 км</b></p>
+                                        </div>
+
+                                        <div class="caption_info">
+                                            <span class="price">₴ @dish.Price.ToString("F2")</span>
+                                            <span class="weight">@dish.Weight @dish.WeightType</span>
+                                        </div>
+
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+
+                </div>
+
+
+                @if (!UserService.IsMobileUser(Context.Request))
+                {
+                    <div class="dishSingleRight">
+                        <div class="restaurant-menu">
+                            @foreach (var category in menu.Categories)
+                            {
+                                <div class="restaurant-menu-category">
+                                    <div class="header">@(((Menus.Abstract.Models.IMenuCategory)category).Name.Get(culture))</div>
+                                    <div class="items" style="display: none;">
+                                        @foreach (var dish in category.Dishes)
+                                        {
+                                            <div class="item">
+                                                <div class="item-title">
+                                                    <a href="@Url.Action("Dish", "Home", new { id = ViewData["restaurantId"], dishId = dish.Url })">
+                                                        @(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))
+                                                    </a>
+                                                    <span>@restaurantInfo.Currency @dish.Price.ToString("F2")</span>
+                                                </div>
+                                                <div class="item-rating">
+                                                    <span>
+                                                        @await Html.PartialAsync("_StarRating", @dish.RatingFloat)
+                                                    </span>
+                                                    <strong>@dish.RatingFloat.ToString("F1")</strong>
+                                                    @dish.RatingCount @Localizer["Rates"]
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+                }
+
+            </div><!-- .dishSingle -->
+
+        </div>
+    </main>
+</div>
+
+@await Html.PartialAsync("_Footer")
+@await Html.PartialAsync("_PcPhotoUpload", ViewData)
+
+<div class="popUpBlock popUpBlockMain">
+    <div class="popUpCloser"></div>
+    <div class="popUpBlock_inner">
+
+        <!-- PopUp registered users -->
+
+        <div class="popUpWindow popUpReg">
+            <span class="popUp_close"></span>
+            <figure>
+                <img src="~/images/popUpImg_01.jpg" alt="@imgAlt" title="@imgAlt" />
+            </figure>
+            <div class="popUpText">@Localizer["OnlyRegisteredUser"] <span>@Localizer["CanRateDishOrAddPhoto"]</span></div>
+            <div class="popUpLinks">
+                <a href="#" class="btn-primary" data-sign-in>@Localizer["Login"]</a>
+                <a href="#" class="btn-primary btn-primary--fill" data-sign-up>@Localizer["Signup"]</a>
+            </div>
+        </div>
+
+
+
+        <!-- PopUp rating -->
+
+        <div class="popUpWindow popUpRating" data-dish-id="">
+            <span class="popUp_close"></span>
+            <div class="popUpTitle">@Localizer["RateDish"]!</div>
+            <div class="popUpStars">
+                <span class="stars star_grey"></span>
+                <span class="stars star_grey"></span>
+                <span class="stars star_grey"></span>
+                <span class="stars star_grey"></span>
+                <span class="stars star_grey"></span>
+            </div>
+            <div>
+                <textarea class="form-control" rows="3" id="rating-text-element">@(review?.Text)</textarea>
+            </div>
+            <div class="popUpLinks">
+                @if (review != null && !string.IsNullOrEmpty(review.Text))
+                {
+                    <a href="#" class="btn-primary btn-primary--fill btn-process-review">
+                        @Localizer["EditReview"]
+                    </a>
+                }
+                else
+                {
+                    <a href="#" class="btn-primary btn-primary--fill btn-process-review">
+                        @Localizer["AddReview"]
+                    </a>
+                }
+            </div>
+        </div>
+
+
+        <!-- PopUp thank you -->
+
+        <div class="popUpWindow popUpThanksRating">
+            <span class="popUp_close"></span>
+            <figure class="extra">
+                <img src="~/images/popUpImg_02.jpg" alt="@imgAlt" title="@imgAlt" />
+            </figure>
+            <div class="rating-loading">
+                <object class="loading-icon" type="image/svg+xml" data="~/images/loading.svg"></object>
+            </div>
+            <div class="rating-text">
+                <div class="popUpTitle">@Localizer["ThankYouForYourRate"]!</div>
+                <div class="popUpText extra">@Localizer["YouHelpedOtherUsers"]<br /><span>@Localizer["ToMakeRightChoice"]</span></div>
+                <div class="popUpLinks">
+                    <a href="javascript:void()" class="btn-primary btn-primary--fill" data-popup-close>@Localizer["Continue"]</a>
+                </div>
+
+                <div class="popupReturnLink">
+                    <a href="@Url.Action("Restaurant", "Home", new {id = ViewData["restaurantId"]})">@Localizer["ReturnToMenu"]</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="popUpWindow popUpRateIt">
+            <span class="popUp_close"></span>
+            <figure class="popUpHands">
+                <img src="~/images/popup_hands.png" alt="" />
+            </figure>
+            <div class="popUpTitle">@Localizer["DontForgetToRateDish"]</div>
+            <p>@Localizer["YouAreHelpingOtherPeopleToMakeRightChoice"]</p>
+            <figure class="popup_stars">
+                <img src="~/images/popup_stars.png" alt="" />
+            </figure>
+            <figure class="popup_big_hand">
+                <img src="~/images/popup_big_hand.png" alt="" />
+            </figure>
+        </div>
+
+        <div class="popUpWindow popup-thank-you-rating">
+            <span class="popUp_close"></span>
+            <figure class="popup-image">
+                <img src="~/images/popup_thanks.png" alt="" />
+            </figure>
+            <div class="popup-title">@Localizer["ThankYouForYourRate"]!</div>
+            <p>@Localizer["YouAreHelpingOtherPeopleToMakeRightChoice"]</p>
+            <div class="popup-links">
+                <a href="@url" class="btn-primary btn-primary--fill">@Localizer["Continue"]</a>
+                <span><a href="#">@Localizer["ReturnToMenu"]</a></span>
+            </div>
+        </div>
+
+        <!-- PopUp delete -->
+
+        <div class="popUpWindow popUpConfirmationWindow">
+            <span class="popUp_close"></span>
+            <div class="popUpTitle">@Localizer["AreYouSure"]<br />@Localizer["YouWantToDeletePhoto"]</div>
+
+            <div class="are_you_sure">
+                <a href="#" class="btn_yes">@Localizer["Yes"]</a>
+                <a href="#" class="btn_no">@Localizer["No"]</a>
+            </div>
+
+            <input type="hidden" name="deleteMenuId" value="" />
+        </div>
+
+        <!-- PopUp carousel -->
+
+        <div class="popUpCarousel popUpCarouselMenu popUpCarouselMenuNew fullHeight">
+            <div class="popUpCarousel-close-block">
+                <span class="popUpCarousel-close">x</span>
+            </div>
+
+            <div class="popUpCarouselMenu-content">
+
+                <div class="menu-user-info">
+
+                </div>
+
+                <!-- Swiper -->
+                <div class="swiper-container gallery-top">
+                    <div class="swiper-wrapper">
+                        @foreach (var photo in Model.Photos)
+                        {
+                            var image = images.FirstOrDefault(x => x.ImageUrl == photo);
+                            if (image != null)
+                            {
+                                <div data-menu-photo-id="@image.Id" data-menu-user-id="@image.UserId" class="swiper-slide" style="background-image: url(@Img.Url(photo, Quality.High))">
+                                </div>
+                            }
+
+                        }
+                    </div>
+                    <!-- Add Pagination -->
+                    <div class="swiper-pagination"></div>
+                </div>
+
+            </div>
+
+            <div class="popUpCarouselMenu-buttons">
+                <label data-upload-photo for="photo-upload-input"><i class="fas fa-camera"></i><span>@Localizer["AddOneMore"]</span></label>
+                <button data-delete-photo type="button"><i class="far fa-trash-alt"></i><span>@Localizer["Delete"]</span></button>
+            </div>
+
+            <!-- Add Arrows -->
+            @if (!UserService.IsMobileUser(Context.Request))
+            {
+                <div class="swiper-button-next"></div>
+                <div class="swiper-button-prev"></div>
+            }
+        </div>
+
+    </div>
+</div>
+
+@section Scripts
+    {
+    <!-- Initialize Swiper -->
+    <link href="~/css/swiper.min.css" rel="stylesheet" />
+
+    <script src="~/js/jquery.js"></script>
+    <script src="~/js/swiper.min.js"></script>
+    <script>
+        let TRANSLATION_YOU_RATE = `@Localizer["YourRate"]`;
+        let TRANSLATION_YOU_CANT_ADD_REVIEW_WITHOUT_RATE = `@Localizer["YouCantAddReviewWithoutRate"]`;
+
+        window.customViewMode = 3;
+        var cityId = "@ViewData["selectedCity"]";
+        var allowRateDishAnonymous = @ViewData["AllowRateDishAnonymous"].ToString().ToLower();
+        var dishRating = @Model.Rating;
+
+        var loggedIn = @User.Identity.IsAuthenticated.ToString().ToLower();
+        var restaurantId = "@restaurantInfo.RestaurantId";
+        window.rating = @Model.UserRating;
+
+        var lat = "@restaurantInfo.GpsLatitude";
+        var lon = "@restaurantInfo.GpsLongitude";
+
+        var dataLoadMorePage = 0;
+
+        var galleryTop;
+    </script>
+    <script src="~/js/typeahead-inner.js"></script>
+
+    <script>
+        //--Page load--
+        $(document).ready(function () {
+            //--Init bot gallery--
+            if (isMobile) {
+                initMobileGallery();
+                initSetMobileRating();
+            } else {
+                initDesktopGallery();
+                initDesktopRestaurantsSideList();
+                initSetDesktopRating();
+            }
+
+            initDeletePhoto();
+            initUpdateRatingAndReview();
+            initRegistrtionPopup();
+            initLoadMore();
+        });
+
+        function initMobileGallery() {
+            initMobileSlider();
+            initGalleryOnSlideChange();
+            initGalleryOnImageClick();
+            initGalleryOnCloseClick();
+            initGalleryShowAllButton();
+            initGalleryOtherFunctions();
+        }
+
+        function initDesktopGallery() {
+            initDesktopSlider();
+            initGalleryOnSlideChange();
+            initGalleryOnImageClick();
+            initGalleryOnCloseClick();
+            initGalleryShowAllButton();
+            initGalleryOtherFunctions();
+        }
+
+        function initDesktopSlider() {
+            galleryTop = new Swiper('.popUpCarousel .gallery-top', {
+                spaceBetween: 10,
+                navigation: {
+                    nextEl: '.popUpCarousel .swiper-button-next',
+                    prevEl: '.popUpCarousel .swiper-button-prev',
+                },
+                pagination: {
+                    el: '.popUpCarousel .swiper-pagination',
+                    type: 'fraction',
+                },
+                keyboard: {
+                    enabled: true,
+                },
+                init: () => {
+                    const $slide = $(galleryTop.slides[0]);
+                    processDeleteButton($slide);
+                }
+            });
+        }
+
+        function initMobileSlider() {
+            galleryTop = new Swiper('.popUpCarousel .gallery-top', {
+                spaceBetween: 10,
+                navigation: {
+                    nextEl: '.popUpCarousel .swiper-button-next',
+                    prevEl: '.popUpCarousel .swiper-button-prev',
+                },
+                pagination: {
+                    el: '.popUpCarousel .swiper-pagination',
+                    type: 'fraction',
+                },
+                keyboard: {
+                    enabled: true,
+                },
+                init: () => {
+                    const $slide = $(galleryTop.slides[0]);
+                    processDeleteButton($slide);
+                }
+            });
+        }
+
+        function initGalleryShowAllButton() {
+            jQuery("[data-show-photos]").click(function (e) {
+                e.preventDefault();
+                let numberOfPhotos = galleryTop.slides.length;
+
+                if (numberOfPhotos > 0) {
+                    jQuery('.popUpBlockMain').addClass('visible visible_gallery');
+                    jQuery('.popUpCarousel').removeClass('hidden');
+                    jQuery('.popUpCarousel').addClass('visible');
+
+                    galleryTop.slideTo(0);
+                    galleryTop.update();
+
+                    $(".popUpCarouselMenu .swiper-pagination-total").html(galleryTop.slides.length);
+                }
+            });
+        }
+
+        function initGalleryOnCloseClick() {
+            jQuery('.popUpCarousel-close-block, .popUpCarousel-close').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible visible_gallery visible_map');
+                jQuery('.popUpCarousel').removeClass('visible');
+            });
+        }
+
+        function initGalleryOnSlideChange() {
+            galleryTop.on('slideChange', function () {
+                let elem = $(galleryTop.slides[galleryTop.activeIndex]);
+                processDeleteButton(elem);
+            });
+        }
+
+        function initGalleryOnImageClick() {
+            jQuery('.article_photos, .mobileDishPicture').on('click', 'img[itemprop="image"], .picture-data-icon', function (e) {
+                e.preventDefault();
+                let index = jQuery('.article_photos img').index(this);
+                jQuery('.popUpBlockMain').addClass('visible visible_gallery');
+                jQuery('.popUpCarousel').removeClass('hidden');
+                jQuery('.popUpCarousel').addClass('visible');
+
+                galleryTop.slideTo(index);
+                galleryTop.update();
+
+                let elem
+                if (isMobile) {
+                    elem = $(galleryTop.slides[0]);
+                } else {
+                    elem = $(galleryTop.slides[index]);
+                }
+                processDeleteButton(elem);
+            });
+        }
+
+        function initGalleryOtherFunctions() {
+            jQuery('.table_food_count, .food_list li strong').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpCarousel').addClass('hidden');
+                jQuery('.popUpThanks').fadeIn();
+            });
+
+            jQuery('.popUpThanks .popUp_close').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible');
+                jQuery('.popUpThanks').fadeOut();
+            });
+
+            jQuery('.mapBtn').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpCarousel').addClass('hidden');
+                jQuery('.popUpMap').fadeIn();
+            });
+
+            jQuery('.popUpMap .popUp_close').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible');
+                jQuery('.popUpMap').fadeOut();
+            });
+
+            jQuery('.images_area a').on('click', function (e) {
+                e.preventDefault();
+                var index = jQuery('.images_area a').index(this);
+
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpCarousel').removeClass('hidden');
+                jQuery('.popUpCarousel').addClass('visible');
+
+                galleryTop.slideTo(index);
+                galleryTop.update();
+            });
+
+            jQuery('.galleryBtn').on('click', function (e) {
+                e.preventDefault();
+
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpCarousel').removeClass('hidden');
+                jQuery('.popUpCarousel').addClass('visible');
+
+                galleryTop.slideTo(0);
+                galleryTop.update();
+            });
+
+            jQuery('.popUpCarousel-close-block, .popUpCarousel-close').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible');
+                jQuery('.popUpCarousel').removeClass('visible');
+            });
+        }
+
+        function initDeletePhoto() {
+            $(document).on("click", "button[data-delete-photo]", function (e) {
+                e.preventDefault();
+                jQuery('.popUpConfirmationWindow').show();
+                jQuery('.popUpCarouselMenu').addClass('hidden');
+                jQuery('.popUpCarouselMenu').removeClass('visible');
+
+                var id = $(".popUpCarouselMenu .gallery-top .swiper-slide-active").attr("data-menu-photo-id");
+                $("[name=deleteMenuId]").val(id);
+            });
+
+            $(".btn_yes").click(function (e) {
+                e.preventDefault();
+
+                jQuery('.popUpConfirmationWindow').hide();
+                jQuery('.popUpCarouselMenu').toggleClass('hidden', false);
+                jQuery('.popUpCarouselMenu').toggleClass('visible', false);
+
+                var id = $("[name=deleteMenuId]").val();
+
+                $('.popUpCarouselMenu .swiper-wrapper [data-menu-photo-id="' + id + '"]').remove();
+                galleryTop.update();
+
+                if (galleryTop.slides.length === 0) {
+                    jQuery('.popUpBlockMain').toggleClass('visible', false);
+                    jQuery('.popUpBlockMain').toggleClass('visible_gallery', false);
+                    jQuery('.popUpBlockMain .popUpCarouselMenu').toggleClass('visible', false);
+                } else {
+                    jQuery('.popUpBlockMain .popUpCarouselMenu').toggleClass('visible', true);
+                }
+
+                let elem = $(galleryTop.slides[galleryTop.activeIndex]);
+                processDeleteButton(elem);
+
+                $.ajax({
+                    url: "@Url.Action("DeleteDishPhoto", "Home", new { area = "" })",
+                    method: "POST",
+                    data: {
+                        id: id
+                    }
+                }).done(function (x) {
+                    rebuildDishPhotos();
+                });
+            });
+
+            jQuery('.popUpCloser, .btn_no').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible visible_gallery visible_map');
+                jQuery('.popUpWindow').fadeOut();
+                jQuery('.popUpCarousel').removeClass('visible');
+            });
+        }
+
+        function initDesktopRestaurantsSideList() {
+            $('.restaurant-menu-category .header').on('click', function () {
+                $(this).closest('.restaurant-menu-category').toggleClass('opened');
+                $(this).closest('.restaurant-menu-category').find('.items').slideToggle();
+            });
+        }
+
+        function initSetMobileRating() {
+            jQuery('.mobileStarsRate .stars, [data-rate-dish]').on('click', function (e) {
+                e.preventDefault();
+                if (!loggedIn && !allowRateDishAnonymous) {
+                    jQuery('.popUpBlockMain').addClass('visible');
+                    jQuery('.popUpReg').fadeIn();
+                    return false;
+                }
+
+                var rateDishUrl = loggedIn ? "@Url.Action("RateDish")" : "@Url.Action("RateDishAnonymous")";
+                var indexMob = jQuery(this).parent().find(".stars").index(this);
+                indexMob = indexMob ? indexMob : 0;
+
+                if (indexMob === -1) {
+                    location.href = "@Html.Raw(Url.Action("MobileRate", "Home", new { dishId = Model.Id, restaurantId = Model.RestaurantId, returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}" }))";
+                    return false;
+                }
+
+                window.rating = indexMob + 1;
+                window.dishRating = window.rating;
+                window.dishId = $(this).closest("[data-dish-id]").attr("data-dish-id");
+
+                $(".popUpBlockMain").toggleClass('visible', true);
+                $(".popUpBlockMain .popUpThanksRating").show();
+
+                $.ajax({
+                    url: rateDishUrl,
+                    type: "POST",
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        rating: window.rating,
+                        restaurantId: window.restaurantId,
+                        dishId: "@Model.Id",
+                        text: ""
+                    },
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                        $(".popUpBlockMain").toggleClass('visible', false);
+                        $(".popUpBlockMain .popUpThanksRating").hide();
+                    }
+                }).done(function (x) {
+                    var selectedRatingElem = jQuery('.mobileStarsRate .stars').eq(window.rating - 1);
+                    jQuery('.mobileStarsRate .stars').removeAttr('class').addClass("stars");
+                    selectedRatingElem.addClass("star_red");
+                    selectedRatingElem.prevAll().addClass("star_red");
+                    selectedRatingElem.nextAll().addClass("star_grey");
+
+                    $(".mobileDishRating em").text(x.rating);
+                    $(".mobileDishRate em").text(TRANSLATION_YOU_RATE);
+                    $(".dish_rate_star").attr("class", "dish_rate_star").addClass("rate_" + (parseInt(x.rating) * 20));
+                    $(".food_value").text(x.rating);
+                    $(".food_count em").text(x.ratingCount);
+
+                    $(".popUpBlockMain .popUpThanksRating .rating-loading").hide();
+                    $(".popUpBlockMain .popUpThanksRating .rating-text").show();
+                    loadOrUpdateCurrentUserRating();
+                });
+
+                return false;
+            });
+
+            jQuery('.article_rating .stars').on('click', function (e) {
+                e.preventDefault();
+
+                if (!loggedIn) {
+                    jQuery('.popUpBlockMain').addClass('visible');
+                    jQuery('.popUpReg').fadeIn();
+                    return false;
+                }
+
+                location.href = "@Html.Raw(Url.Action("MobileRate", "Home", new { dishId = Model.Id, restaurantId = Model.RestaurantId, returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}" }))";
+                return false;
+            });
+        }
+
+        function initSetDesktopRating() {
+            jQuery('[data-rate-dish]').on('click', function (e) {
+                e.preventDefault();
+                var index = jQuery(this).parent().find(".stars").index(this);
+                //index = window.dishRating - 1;
+
+                jQuery('.popUpBlockMain').addClass('visible');
+                jQuery('.popUpCarousel').addClass('hidden');
+                if (loggedIn) {
+                    //window.rating = index + 1;
+                    window.dishId = $(this).closest("[data-dish-id]").attr("data-dish-id");
+                    $(".popUpRating .stars").removeClass("star_grey").removeClass("star_yellow");
+                    if (window.rating > 0) {
+                        var selectedRating = $(".popUpRating .stars").eq(window.rating - 1);
+                        selectedRating.addClass("star_yellow");
+                        selectedRating.prevAll().addClass("star_yellow");
+                        selectedRating.nextAll().addClass("star_grey");
+                    } else {
+                        $(".popUpRating .stars").addClass("star_grey");
+                    }
+                    jQuery('.popUpRating').fadeIn();
+                    $("#rating-text-element").focus();
+                } else {
+                    jQuery('.popUpReg').fadeIn();
+                }
+            });
+
+            jQuery('.article_rating .stars').on('click', function (e) {
+                e.preventDefault();
+
+                var index = jQuery(this).parent().find(".stars").index(this);
+                index = index || 0;
+
+                if (loggedIn) {
+                    window.rating = index + 1;
+                    window.dishRating = window.rating;
+                    window.dishId = $(this).closest("[data-dish-id]").attr("data-dish-id");
+
+                    $.ajax({
+                        url: "@Url.Action("RateDish")",
+                        type: "POST",
+                        data: {
+                            "__RequestVerificationToken": getToken(),
+                            rating: window.rating,
+                            restaurantId: window.restaurantId,
+                            dishId: "@Model.Id",
+                            text: ""
+                        }
+                    })
+                        .done(function (x) {
+                            var selectedRatingElem = jQuery('.article_rating .stars').eq(window.rating - 1);
+                            jQuery('.article_rating .stars').removeClass("star_grey").removeClass("star_yellow")
+                                .removeClass("star_red");
+                            selectedRatingElem.addClass("star_red");
+                            selectedRatingElem.prevAll().addClass("star_red");
+                            selectedRatingElem.nextAll().addClass("star_grey");
+
+                            $(".food_value").text(x.rating);
+                            $(".food_count em").text(x.ratingCount);
+                            loadOrUpdateCurrentUserRating();
+                        });
+                } else {
+                    jQuery('.popUpBlockMain').addClass('visible');
+                    jQuery('.popUpCarousel').addClass('hidden');
+                    jQuery('.popUpReg').fadeIn();
+                }
+            });
+
+            $(document).on("mouseover", ".article_rating .stars, .popUpRating .stars", function () {
+                $(this).addClass("star_hover");
+                $(this).prevAll().addClass("star_hover");
+                $(this).nextAll().addClass("star_not_hover");
+            });
+
+            $(".popUpStars").mouseout(function () {
+                $(".popUpStars .stars").removeClass("star_hover").removeClass("star_not_hover");
+            });
+
+            $(".article_rating").mouseout(function () {
+                $(".article_rating .stars").removeClass("star_hover").removeClass("star_not_hover");
+            });
+        }
+
+        function initUpdateRatingAndReview() {
+            $(".popUpRating .popUpStars .stars").click(function () {
+                window.rating = $(".popUpRating .popUpStars .stars").index(this) + 1;
+                var selectedRating = $(this);
+                $(".popUpRating .stars").removeClass("star_grey").removeClass("star_yellow");
+                selectedRating.addClass("star_yellow");
+                selectedRating.prevAll().addClass("star_yellow");
+                selectedRating.nextAll().addClass("star_grey");
+            });
+
+            $(".popUpRating .btn-primary").click(function (e) {
+                e.preventDefault();
+                if (window.rating === 0) {
+                    alert(TRANSLATION_YOU_CANT_ADD_REVIEW_WITHOUT_RATE);
+                    return;
+                }
+                jQuery('.popUpRating').hide();
+                jQuery('.popUpThanksRating').show();
+
+                var selectedRatingElem = jQuery('.article_rating .stars').eq(window.rating - 1);
+                jQuery('.article_rating .stars').removeClass("star_grey").removeClass("star_yellow")
+                    .removeClass("star_red");
+                selectedRatingElem.addClass("star_red");
+                selectedRatingElem.prevAll().addClass("star_red");
+                selectedRatingElem.nextAll().addClass("star_grey");
+
+                var selectedRatingElemMob = jQuery('.mobileStarsRate .stars').eq(window.rating - 1);
+                jQuery('.mobileStarsRate .stars').removeClass("star_grey").removeClass("star_yellow")
+                    .removeClass("star_red");
+                selectedRatingElemMob.addClass("star_red");
+                selectedRatingElemMob.prevAll().addClass("star_red");
+                selectedRatingElemMob.nextAll().addClass("star_grey");
+                var ratingText = document.getElementById("rating-text-element");
+                if (ratingText) {
+                    ratingText = ratingText.value;
+                } else {
+                    ratingText = "";
+                }
+
+                $(".popUpBlockMain .popUpThanksRating .popupReturnLink").hide();
+
+                $.ajax({
+                    url: "@Url.Action("RateDish")",
+                    type: "POST",
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        rating: window.rating,
+                        restaurantId: window.restaurantId,
+                        dishId: "@Model.Id",
+                        text: ratingText
+                    }
+                })
+                    .done(function (x) {
+                        if (ratingText.length > 0) $(".popUpThanks [data-popup-close]").attr("data-popup-close", "false");
+                        var selectedRatingElem = jQuery('.article_rating .stars').eq(window.rating - 1);
+                        jQuery('.article_rating .stars').removeClass("star_grey").removeClass("star_yellow")
+                            .removeClass("star_red");
+                        selectedRatingElem.addClass("star_red");
+                        selectedRatingElem.prevAll().addClass("star_red");
+                        selectedRatingElem.nextAll().addClass("star_grey");
+
+                        $(".food_value").text(x.rating);
+                        $(".food_count em").text(x.ratingCount);
+
+                        $(".popUpBlockMain .popUpThanksRating .rating-loading").hide();
+                        $(".popUpBlockMain .popUpThanksRating .rating-text").show();
+                        loadOrUpdateCurrentUserRating();
+                    });
+            });
+        }
+
+        function initRegistrtionPopup() {
+            jQuery('.popUpReg .btn-primary').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible');
+                jQuery('.popUpWindow').fadeOut();
+            });
+
+            jQuery('.popUpWindow .popUp_close, [data-popup-close]').on('click', function (e) {
+                e.preventDefault();
+                jQuery('.popUpBlockMain').removeClass('visible');
+                jQuery('.popUpWindow').fadeOut();
+
+                //if ($(this).attr("data-popup-close") === "false") location.reload();
+            });
+        }
+
+        function initLoadMore() {
+            $("[data-load-more]").click(function (e) {
+                e.preventDefault();
+                dataLoadMorePage++;
+                $("[data-load-more]").addClass("hidden");
+
+                $.ajax({
+                    url: location.url,
+                    type: "GET",
+                    data: {
+                        page: dataLoadMorePage
+                    },
+                    success: function (data) {
+                        if (data.length > 20) {
+                            $("[data-load-more-container]").append(data);
+                            $("[data-load-more]").removeClass("hidden");
+                        }
+                    }
+                });
+            });
+        }
+
+        //--Page functions--
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        function uploadPhotoCallback(result) {
+            jQuery('.popUpBlockMain').toggleClass('visible visible_gallery', true);
+            jQuery('.popUpBlockMain .popUpCarousel').toggleClass('visible', true);
+            jQuery('.popUpBlockPhotos, .photoUploadContainer').hide();
+
+            let photoUrl = '@Img.BaseUrl/' + result.name;
+            let photoId = result.id;
+
+            jQuery('.popUpCarouselMenu .gallery-top .swiper-wrapper').prepend('<div data-menu-photo-id="' + result.id + '" data-menu-user-id="@User.Identity.Name" class="swiper-slide" style="background-image:url(@Img.BaseUrl/' + result.name + ')"></div>');
+
+            let item = jQuery(".popUpCarouselMenu .swiper-wrapper [data-menu-photo-id=" + result.id + "]");
+            let index = jQuery('.popUpCarouselMenu .swiper-wrapper div').index(item);
+            index = index + 1;
+
+            $("[data-delete-photo]").removeClass("hidden");
+
+            item.css("width", "100%");
+
+            galleryTop.update();
+            galleryTop.slideTo(0);
+            galleryTop.update();
+
+            rebuildDishPhotos();
+        }
+
+        function rebuildDishPhotos() {
+            if (isMobile) {
+                let galleryItem = [...$('.gallery-top .swiper-wrapper .swiper-slide')].shift()
+                if (galleryItem) {
+                    let galleryItemUrl = $(galleryItem).css('background-image').replace('url(', '').replace(')', '').replace(/\"/gi, "");
+                    $('.dishSingleLeft .mobileDishPicture').html(`
+                                <img itemprop="image" src="${galleryItemUrl}" alt="image" title="image">
+                                <div class="mobile-dish-picture-data">
+                                    <span class="picture-data-icon"></span>
+                                    <span class="picture-data-count">1 /${galleryTop.slides.length}</span>
+                                </div>
+                            `);
+                } else {
+                    $('.dishSingleLeft .mobileDishPicture').html(`<label data-upload-photo for="photo-upload-input"><img src="/images/image_add_img_mobile.png" alt="image" title="image"></label>`);
+                }
+            } else {
+                const $dishPhotosContainer = $('.article_photos');
+                const $dishPhotos = $('.article_photos .dish-photo');
+                $dishPhotos.remove();
+
+                let listOfPageItems = [...$('.article_photos li')].slice(0, 4);
+                let listOfGalleryItems = [...$('.gallery-top .swiper-wrapper .swiper-slide')].slice(0, 4).reverse();
+                const { length: numberOfPhotos } = listOfGalleryItems;
+                $dishPhotosContainer.toggleClass("article_photos_one", !numberOfPhotos);
+                for (let imageCounter = 0; imageCounter < numberOfPhotos; imageCounter++) {
+                    const galleryItemUrl = $(listOfGalleryItems[imageCounter]).css('background-image').replace('url(', '').replace(')', '').replace(/\"/gi, "");
+                    $dishPhotosContainer.prepend(`
+                                <div class="dish-photo" style='background-image: url(${galleryItemUrl}  )'>
+                                    <img itemprop="image" src="${galleryItemUrl}" alt="image" title="image" />
+                                </div>
+                            `);
+                }
+            }
+        }
+
+        function processDeleteButton(slide) {
+            var userId = slide.attr("data-menu-user-id");
+            if (userId === "@User.Identity.Name") {
+                $("[data-delete-photo]").removeClass("hidden");
+            } else {
+                $("[data-delete-photo]").addClass("hidden");
+            }
+        }
+
+        function loadOrUpdateCurrentUserRating() {
+            if (location.url) {
+                $.ajax({
+                    url: location.url,
+                    type: "GET",
+                    data: {
+                        page: -1
+                    }
+                }).done(function (rating) {
+                    var reviewsCount = Number(/\d+/g.exec($('.reviews_top_left .reviews_counter').html())[0]);
+                    if (reviewsCount === 0) {
+                        $('.no_reviews').remove();
+                        $('.review_first').remove();
+                        reviewsCount++;
+                        $('.reviews_top_left .reviews_counter').html('(' + reviewsCount + ')');
+                    }
+
+                    $("[data-current-user-comment]").remove();
+                    $("[data-load-more-container]").prepend(rating);
+                });
+            }
+        }
+
+    </script>
+
+    @if (UserService.IsMobileUser(Context.Request))
+    {
+        <script>
+            $(function () {
+                let rateItTimestamp = localStorage.getItem("rateItTimestamp");
+                rateItTimestamp = rateItTimestamp ? Number(rateItTimestamp) : 0;
+
+                var date = Date.now();
+                if (!rateItTimestamp || date - rateItTimestamp > 1000 * 60 * 60 * 24 * 7) {
+                    localStorage.setItem("rateItTimestamp", date);
+
+                    jQuery('.popUpBlockMain').addClass('visible');
+                    jQuery('.popUpCarousel').addClass('hidden');
+                    jQuery('.popUpRateIt').show();
+                }
+            });
+        </script>
+    }
+}

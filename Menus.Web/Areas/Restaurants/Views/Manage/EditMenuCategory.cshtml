@@ -1,0 +1,102 @@
+﻿@model Menus.Abstract.Models.IMenuCategory
+@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@{
+    ViewData["Title"] = "EditMenuCategory";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+    var Locales = LocaleSrvc.GetLocales();
+}
+
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                <li><a asp-controller="Manage" asp-action="Menu">Мое меню</a></li>
+                <li>Редактировать раздел меню</li>
+            </ul>
+        </div>
+
+
+
+        <div class="site-content-wrapper">
+
+            <h1>Редактировать раздел меню</h1>
+
+            <div class="language_and_text">
+                <div class="column_left">
+                    <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
+                </div>
+                <div class="column_right">
+                    <ul class="content_language">
+                        @{
+                            var firstLocale = true;
+                        }
+                        @foreach (var locale in Locales)
+                        {
+                            <li class="@(firstLocale ? "current" : "")"><a data-locale="@locale.Id" href="#">@locale.ShortName</a></li>
+                            firstLocale = false;
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <form method="post" class="form_details">
+                <input type="hidden" name="Id" value="@Model.Id" />
+                <div class="form_group">
+                    <label>Название <span>*</span></label>
+                    @{
+                        var localeIndex = 0;
+                    }
+                    @foreach (var locale in Locales)
+                    {
+                        <div data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                            <input type="hidden" name="Name[@localeIndex].Locale" value="@locale.Id" />
+                            <input type="text" name="Name[@localeIndex].Value" value="@Model.Name.Get(locale.Id)" />
+                        </div>
+                        localeIndex++;
+                    }
+                </div>
+                <div class="form_group">
+                    <label>Описание <span>*</span></label>
+                    @{
+                        localeIndex = 0;
+                    }
+                    @foreach (var locale in Locales)
+                    {
+                        <div data-locale="@locale.Id" class="@(localeIndex > 0 ? "hidden" : "")">
+                            <input type="hidden" name="Description[@localeIndex].Locale" value="@locale.Id" />
+                            <input type="text" name="Description[@localeIndex].Value" value="@Model.Description.Get(locale.Id)" />
+                        </div>
+                        localeIndex++;
+                    }
+                </div>
+                <div class="form_group form_group_submit">
+                    <input type="submit" value="сохранить" />
+                </div>
+            </form>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+
+@section Scripts {
+    <script src="~/js/jquery.js"></script>
+    <script>
+        $("a[data-locale]").click(function (e) {
+            e.preventDefault();
+            $("a[data-locale]").parent().removeClass("current");
+            $(this).parent().addClass("current");
+
+            $("div[data-locale]").addClass("hidden");
+            var id = $(this).attr("data-locale");
+            $("div[data-locale=" + id + "]").removeClass("hidden");
+        });
+    </script>
+}

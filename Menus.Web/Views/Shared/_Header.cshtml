@@ -1,0 +1,150 @@
+﻿@using System.Text.RegularExpressions
+@inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Domain.Core Core
+@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer
+@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@{
+    var user = await UserService.GetUserById(User.Identity.Name);
+
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    var selectedCity = Context.Request.Cookies[".Menus.SelectedCity"];
+    selectedCity = string.IsNullOrEmpty(selectedCity) ? "e2655e24-92dc-4179-abf6-c3908278a4de" : selectedCity;
+
+    var locales = LocaleSrvc.GetLocales();
+
+    //var cultures = UserService.
+}
+
+<header id="site-header" class="site-header header-white fixed_header">
+
+    <div class="header-top">
+
+        <div class="site-header--left">
+            <a class="site-logo" asp-area="" asp-controller="Home" asp-action="Index" asp-route-culture="@culture">
+                <img src="~/images/site_logo_dark.svg" alt="Logo" />
+            </a>
+        </div>
+
+        <div class="site-header--right">
+            @await Html.PartialAsync("_SignInButtons")
+
+            @if (!UserService.IsMobileUser(Context.Request))
+            {
+                <form class="search_restaurant locationBlock sub_search" method="get" asp-area="" asp-controller="Home" asp-action="FindRestaurant" asp-route-culture="@culture">
+                    <div id="choose-city-container" class="hidden" onclick="event.stopPropagation()">
+                        <div id="choose-city-container-input" class="autocomplete" style="width: auto;">
+                            <input type="text" id="search_cities_input" name="search_cities_input" placeholder="@Localizer["EnterCityName"]" />
+                        </div>
+                    </div>
+                    <button id="chosen-city-button" type="button">@((await Core.Restaurants.GetCityById(selectedCity)).Name.Get(culture))</button>
+                    <span class="search_form_btn"></span>
+
+                    <div class="desktop_search_block">
+                        <span class="desktop_search_close"></span>
+                        <div class="desktop_search_fields desktop_search_restaurant" data-search="restaurant">
+                            <input type="hidden" name="search_cities_input_id" value="" />
+                            <input type="text" name="q" autocomplete="off" value="" id="search_restaurants_input" placeholder="@Localizer["EnterRestarauntName"]" />
+                            <input type="hidden" name="q_id" value="" />
+                            <input type="submit" value="" />
+                        </div>
+                        <div class="desktop_search_fields desktop_search_dish hidden" data-search="dish">
+                            <input type="text" name="dish_q" autocomplete="off" value="" id="search_dishes_input" placeholder="@Localizer["EnterDishName"]" />
+                            <object class="loading-icon hidden" type="image/svg+xml" data="~/images/loading.svg"></object>
+                            <input type="hidden" name="dish_q_id" value="" />
+                            <input type="submit" data-search-dish value="" />
+                        </div>
+                        <div class="search_restaurant-radio">
+                            <ul>
+                                <li data-select-search="restaurant" class="current">@Localizer["RestarauntSearch"]</li>
+                                <li data-select-search="dish">@Localizer["DishSearch"]</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </form>
+            }
+            else
+            {
+                <form class="search_restaurant locationBlock sub_search" method="get" asp-area="" asp-controller="Home" asp-action="FindRestaurant" asp-route-culture="@culture">
+                    <button id="chosen-city-button" type="button">@((await Core.Restaurants.GetCityById(selectedCity)).Name.Get())</button>
+                    <span class="mobile_search_open"></span>
+
+
+                    <div id="choose-city-container" class="hidden" onclick="event.stopPropagation()">
+                        <span class="choose_city_close"></span>
+                        <div id="choose-city-container-input" class="autocomplete" style="width: auto;">
+                            <input type="text" id="search_cities_input" name="search_cities_input" placeholder="@Localizer["EnterCityName"]" />
+                        </div>
+                    </div>
+                    <input type="hidden" name="search_cities_input_id" value="" />
+
+                    <div class="mobile_search_block">
+                        <span class="mobile_search_close"></span>
+                        <span class="selected-city"><i class="fas fa-map-marker-alt"></i> <em>@((await Core.Restaurants.GetCityById(selectedCity)).Name.Get())</em></span>
+                        <div class="inner inner_restaurant" data-search="restaurant">
+                            <input type="text" name="q" autocomplete="off" value="" id="search_restaurants_input" placeholder="@Localizer["EnterRestarauntName"]" />
+                            <input type="hidden" name="q_id" value="" />
+                            <input type="submit" value="" />
+                        </div>
+                        <div class="inner inner_dish hidden" data-search="dish">
+                            <input type="text" name="dish_q" autocomplete="off" value="" id="search_dishes_input" placeholder="@Localizer["EnterDishName"]" />
+                            <object class="loading-icon hidden" type="image/svg+xml" data="~/images/loading.svg"></object>
+                            <a href="javascript:void(0);" target="_blank" class="view-all-dish-search-result-top view-all-dishes-button">
+                                <object class="view-all-icon" type="image/svg+xml" data="~/images/viewall.svg"></object>
+                            </a>
+                            <input type="hidden" name="dish_q_id" value="" />
+                            <input type="submit" data-search-dish value="" />
+                            <div class="view-all-dish-search-result">
+                                <a href="javascript:void(0);" target="_blank" class="view-all-dishes-button">@Localizer["ViewAllDishes"]</a>
+                            </div>
+                        </div>
+                        <div class="search_restaurant-radio">
+                            <ul>
+                                <li data-select-search="restaurant" class="current">@Localizer["RestarauntSearch"]</li>
+                                <li data-select-search="dish">@Localizer["DishSearch"]</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </form>
+            }
+
+
+
+            @if (!UserService.IsMobileUser(Context.Request))
+            {
+                @await Html.PartialAsync("_LanguagesDropdown")
+            }
+
+        </div>
+
+    </div>
+
+</header>
+
+<script>
+    var cityId = "@selectedCity";
+
+    document.addEventListener("DOMContentLoaded", function () {
+        params = {
+            searchSelectRadioButtonDataAttribute: 'data-select-search',
+            searchSelectContainerAttribute: 'data-search',
+            findRestaurantsPath: '@Url.Action("FindRestaurant", "Home", new { culture = culture })',
+            findDishesPath: '@Url.Action("SearchDish", "Home", new { culture = culture })',
+            formSelector: 'form.search_restaurant',
+            dishQueryDataAttribute: 'dish_q',
+            buttonSeachDishSelector: '[data-search-dish]',
+            formContentSelector: '.desktop_search_block, .mobile_search_block',
+            viewAllDishesSelector: '.view-all-dishes-button',
+        }
+
+        initSearchEvents(params)
+    })
+
+</script>

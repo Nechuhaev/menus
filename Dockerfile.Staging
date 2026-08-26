@@ -1,0 +1,30 @@
+FROM mcr.microsoft.com/dotnet/aspnet:2.1 AS base
+WORKDIR /app
+ENV ASPNETCORE_URLS https://*:5000
+ENV ASPNETCORE_Kestrel__Certificates__Default__Path=/app/https/menus.pfx
+ARG CERT_PASSWORD
+ENV ASPNETCORE_Kestrel__Certificates__Default__Password=$CERT_PASSWORD
+EXPOSE 5000
+
+FROM mcr.microsoft.com/dotnet/sdk:2.1 AS build
+WORKDIR /src
+COPY *.sln ./
+COPY Menus.Web/Menus.Web.csproj Menus.Web/
+COPY Menus.Abstract/Menus.Abstract.csproj Menus.Abstract/
+COPY Menus.Domain/Menus.Domain.csproj Menus.Domain/
+COPY Menus.TelegramBot/Menus.TelegramBot.csproj Menus.TelegramBot/
+COPY Menus.Files/Menus.Files.csproj Menus.Files/
+RUN dotnet restore
+COPY . .
+WORKDIR /src/Menus.Web
+RUN dotnet build -c Release -o /app
+
+FROM build AS publish
+RUN dotnet publish -c Release -o /app
+ARG CERT_PASSWORD
+RUN dotnet dev-certs https -ep /app/https/menus.pfx -p $CERT_PASSWORD
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app .
+ENTRYPOINT ["dotnet", "Menus.Web.dll", "--environment=Staging"]

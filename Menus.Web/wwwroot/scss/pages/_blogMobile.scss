@@ -1,0 +1,388 @@
+﻿/* Blog page START */
+
+.blog_page {
+    margin: 0;
+    padding: mvw(9) 0 mvw(12) 0;
+
+    .blog_page_item {
+        margin: 0 0 mvw(66) 0;
+        padding: 0;
+
+        figure {
+            margin: 0 0 mvw(16) 0;
+            padding: 0;
+
+            a {
+                display: block;
+                overflow: hidden;
+            }
+
+            span {
+                display: block;
+                position: relative;
+                margin: 0 0 mvw(23) 0;
+
+                img {
+                    width: 100%;
+                    vertical-align: top;
+                }
+            }
+
+            figcaption {
+                display: block;
+                margin: 0;
+                padding: 0;
+                letter-spacing: mvw(-0.5);
+                line-height: mvw(30);
+                font-size: mvw(30);
+                font-weight: 500;
+                text-transform: none;
+                color: #000;
+            }
+        }
+
+        .post_date {
+            line-height: mvw(22);
+            font-size: mvw(20);
+            color: #8a8a88;
+
+            &:before {
+                display: inline-block;
+                margin: mvw(-3) mvw(12) 0 0;
+                vertical-align: top;
+                font-family: "Font Awesome 5 Free";
+                font-weight: 400;
+                content: '\f073';
+            }
+        }
+    }
+}
+
+/* Blog page END */
+
+
+
+
+
+
+
+
+
+/* Blog single START */
+
+.blog_single {
+    display: block;
+
+    .blog_single_content {
+        padding: 0 0 mvw(16) 0;
+        line-height: mvw(46);
+        font-size: mvw(26);
+
+        h2 {
+            margin: 0 0 mvw(9) 0;
+            padding: 0;
+            line-height: mvw(40);
+            font-size: mvw(30);
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #000;
+        }
+
+        p {
+            margin: 0 0 mvw(32) 0;
+
+            & + img {
+                margin-top: mvw(15);
+            }
+
+            a {
+                text-decoration: underline;
+                color: #004eff;
+            }
+        }
+
+        img {
+            max-width: 100%;
+            margin-bottom: mvw(38);
+            vertical-align: top;
+        }
+
+        blockquote {
+            margin: 0 0 mvw(56) 0;
+            padding: mvw(49) mvw(80) mvw(49) mvw(90);
+            border-top: 1px solid #454545;
+            border-bottom: 1px solid #454545;
+            letter-spacing: mvw(-0.5);
+            line-height: mvw(50);
+            font-size: mvw(40);
+            font-weight: normal;
+            font-style: italic;
+            color: #000;
+
+            p {
+                margin: 0;
+                padding: 0;
+
+                &:before {
+                    content: '"';
+                }
+
+                &:after {
+                    content: '"';
+                }
+            }
+        }
+    }
+
+    .blog_single_aside {
+        padding: mvw(54) 0 0 0;
+        border-top: 1px solid #ededed;
+    }
+
+    .blog_single_info {
+        padding: 0 0 mvw(57) 0;
+
+        h1 {
+            margin: 0 0 mvw(33) 0;
+            padding: 0;
+            line-height: mvw(40);
+            font-size: mvw(30);
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #222;
+        }
+
+        .blog_single_caption {
+            display: flex;
+            justify-content: space-between;
+
+            .blog_single_date {
+                padding: mvw(12) 0 0 0;
+                line-height: mvw(22);
+                font-size: mvw(20);
+                color: #8a8a88;
+
+                &:before {
+                    display: inline-block;
+                    margin: mvw(-1) mvw(12) 0 0;
+                    vertical-align: top;
+                    font-family: "Font Awesome 5 Free";
+                    font-weight: 400;
+                    content: '\f073';
+                }
+            }
+
+            .blog_single_social {
+                line-height: 0;
+                font-size: 0;
+
+                a {
+                    background: #49a1eb;
+                    display: inline-block;
+                    width: mvw(37);
+                    height: mvw(37);
+                    overflow: hidden;
+                    margin: 0 0 0 mvw(5);
+                    vertical-align: top;
+                    line-height: mvw(37);
+                    font-size: mvw(18);
+                    text-align: center;
+                    color: #fff;
+
+                    &.social_facebook {
+                        background: #405a93;
+
+                        &:before {
+                            font-family: "Font Awesome 5 Brands";
+                            content: '\f39e';
+                        }
+                    }
+
+                    &.social_twitter {
+
+                        &:before {
+                            font-family: "Font Awesome 5 Brands";
+                            content: '\f099';
+                        }
+                    }
+
+                    &.social_telegram {
+                        background: #3888c6;
+
+                        &:before {
+                            font-family: "Font Awesome 5 Brands";
+                            content: '\f3fe';
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    .single_post_img {
+        margin: 0 mvw(-40) mvw(36) mvw(-40);
+
+        img {
+            width: 100%;
+            margin: 0;
+            vertical-align: top;
+        }
+    }
+
+    .widget {
+        padding-bottom: mvw(50);
+
+        .widget_title {
+            margin: 0 0 mvw(28) 0;
+            line-height: mvw(32);
+            font-size: mvw(30);
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #333;
+        }
+
+        &.widget_news {
+
+            .widget_content {
+
+                ul {
+                    margin: 0;
+                    padding: 0;
+
+                    li {
+                        width: 100%;
+                        overflow: hidden;
+                        margin: 0 0 mvw(10) 0;
+                        padding: 0 0 mvw(5) 0;
+                        list-style: none;
+                        border-bottom: 1px solid #ededed;
+
+                        &:last-child {
+                            border: none;
+                        }
+
+                        figure {
+                            float: left;
+                            width: mvw(224);
+                            margin: 0 mvw(20) mvw(5) 0;
+
+                            a {
+                                display: block;
+                                position: relative;
+                            }
+
+                            img {
+                                width: 100%;
+                                vertical-align: top;
+                            }
+                        }
+
+                        h3 {
+                            margin: 0 0 mvw(8) 0;
+                            padding: mvw(1) 0 0 0;
+                            list-style: none;
+                            line-height: mvw(30);
+                            font-size: mvw(26);
+                            font-weight: 500;
+                            color: #333;
+                        }
+
+                        .widget_news_date {
+                            line-height: mvw(22);
+                            font-size: mvw(20);
+                            font-weight: normal;
+                            color: #8a8a88;
+
+                            &:before {
+                                display: inline-block;
+                                margin: mvw(-1) mvw(7) 0 0;
+                                vertical-align: top;
+                                font-family: "Font Awesome 5 Free";
+                                font-weight: 400;
+                                content: '\f073';
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* Blog single END */
+
+
+
+
+
+
+
+
+
+.pagination_area {
+
+    &.pagination_area--margin {
+        margin: 0 0 mvw(82) 0;
+    }
+
+    ul {
+        display: flex;
+        justify-content: center;
+        margin: 0;
+        padding: 0;
+
+        li {
+            margin: 0;
+            padding: 0 mvw(6);
+            list-style: none;
+
+            &.current {
+
+                a {
+                    background: #c42228;
+                    border-color: #c42228;
+                    color: #fff;
+                }
+            }
+
+            &.prev {
+
+                a {
+
+                    &:before {
+                        font-family: "Font Awesome 5 Free";
+                        font-weight: 900;
+                        content: '\f104';
+                    }
+                }
+            }
+
+            &.next {
+
+                a {
+
+                    &:before {
+                        font-family: "Font Awesome 5 Free";
+                        font-weight: 900;
+                        content: '\f105';
+                    }
+                }
+            }
+
+            a,
+            span {
+                display: block;
+                min-width: mvw(80);
+                min-height: mvw(80);
+                padding: mvw(24) mvw(10) mvw(24) mvw(10);
+                border: 1px solid #898989;
+                box-sizing: border-box;
+                vertical-align: top;
+                line-height: mvw(30);
+                font-size: mvw(30);
+                text-align: center;
+                color: #222;
+            }
+        }
+    }
+}

@@ -1,0 +1,156 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@using Menus.Abstract.Models
+
+@{
+    ViewData["Title"] = "MobileRate";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var dish = ViewData["dish"] as IDishWithSeoAndRatings;
+    var restaurantSeo = ViewData["restaurantSeo"] as IRestaurantSeo;
+    var restaurant = ViewData["restaurant"] as IRestaurant;
+    var restaurantInfo = ViewData["restaurantInfo"] as IRestaurantInfo;
+    var review = ViewData["review"] as IRating;
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+}
+
+@await Html.PartialAsync("_Header")
+
+
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs breadcrumbs-content breadcrumbs-content-position">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurantSeo.Url">@restaurant.Name</breadcrumb></li>
+                <li><breadcrumb asp-action="Dish" asp-route-id="@restaurantSeo.Url" asp-route-dishId="@dish.Url">@(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["Review"]</breadcrumb></li>
+            </ul>
+        </div>
+
+        <div class="mobileReview">
+            <div class="mobileReviewHeader">
+                <div class="mobileReviewHeaderLeft">
+                    <h2>@(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))</h2>
+                    <strong>
+                        @if (dish.IsPriceMultiple)
+                        {
+                            <span>@Localizer["From"]&nbsp;</span>
+                        }
+                        @restaurantInfo.Currency @dish.Price.ToString("F2") <em>| @dish.Weight @dish.WeightType</em>
+                    </strong>
+                </div>
+                <div class="mobileReviewHeaderRight">
+                    <b><span class="dish_rate_star" asp-rate="dish.Rating"></span> <em>@dish.RatingFloat.ToString("F1")</em></b>
+                </div>
+            </div>
+            <div class="mobileReviewContent">
+                <div class="popUpStars">
+                    @if (dish.UserRating > 0)
+                    {
+                        for (var i = 1; i <= 5; i++)
+                        {
+                            if (i <= dish.UserRating)
+                            {
+                                <span class="stars star_yellow"></span>
+                            }
+                            else
+                            {
+                                <span class="stars star_grey"></span>
+                            }
+                        }
+                    }
+                    else
+                    {
+                        <span class="stars star_grey"></span>
+                        <span class="stars star_grey"></span>
+                        <span class="stars star_grey"></span>
+                        <span class="stars star_grey"></span>
+                        <span class="stars star_grey"></span>
+                    }
+                </div>
+                <div>
+                    <textarea class="form-control" rows="3" id="rating-text-element" placeholder="@Localizer["YouReviewWillHelp"]">@(review?.Text)</textarea>
+                </div>
+                <div class="popUpLinks">
+                    @if (review != null && !string.IsNullOrEmpty(review.Text))
+                    {
+                        <a href="#" class="btn-primary btn-primary--fill">
+                            @Localizer["AddReview"]
+                        </a>
+                    }
+                    else
+                    {
+                        <a href="#" class="btn-primary btn-primary--fill">
+                            @Localizer["EditReview"]
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+
+
+@await Html.PartialAsync("_Footer")
+
+@section Scripts
+    {
+    <script src="~/js/typeahead-inner.js"></script>
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        window.rating = @dish.UserRating;
+
+        $(".mobileReview .popUpStars .stars").click(function() {
+            window.rating = $(".mobileReview .popUpStars .stars").index(this) + 1;
+            var selectedRating = $(this);
+            $(".mobileReview .stars").removeClass("star_grey").removeClass("star_yellow");
+            selectedRating.addClass("star_yellow");
+            selectedRating.prevAll().addClass("star_yellow");
+            selectedRating.nextAll().addClass("star_grey");
+        });
+
+        $(".mobileReview .btn-primary").click(function (e) {
+            e.preventDefault();
+
+            if (window.rating === 0) {
+                alert("Нельзя отправить отзыв без оценки");
+                return;
+            }
+
+            var ratingText = document.getElementById("rating-text-element");
+            if (ratingText) {
+                ratingText = ratingText.value;
+            } else {
+                ratingText = "";
+            }
+
+            $.ajax({
+                url: "@Url.Action("RateDish")",
+                type: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    rating: window.rating,
+                    restaurantId: "@dish.RestaurantId",
+                    dishId: "@dish.Id",
+                    text: ratingText
+                }
+            }).done(function () {
+                @*location.href = "@ViewData["returnUrl"]";*@
+                history.back();
+            });
+        });
+    </script>
+}

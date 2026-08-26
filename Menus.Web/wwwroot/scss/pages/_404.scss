@@ -1,0 +1,430 @@
+﻿.page_404 {
+    display: flex;
+    justify-content: space-between;
+    padding: vw(84) 0 vw(68) 0;
+
+    @media (min-width: 2000px) {
+        padding: 84px 0 68px 0;
+    }
+
+    .page_404_left {
+        width: vw(700);
+
+        @media (min-width: 2000px) {
+            width: 700px;
+        }
+    }
+
+    .page_404_right {
+        width: vw(676);
+        padding: 0 vw(85) 0 0;
+        box-sizing: border-box;
+
+        @media (min-width: 2000px) {
+            width: 676px;
+            padding: 0 85px 0 0;
+        }
+    }
+
+    h2 {
+        margin: 0 0 vw(51) 0;
+        padding: 0;
+        line-height: vw(40);
+        font-size: vw(30);
+        text-transform: none;
+        color: #000;
+
+        @media (min-width: 2000px) {
+            margin: 0 0 51px 0;
+            line-height: 40px;
+            font-size: 30px;
+        }
+
+        span {
+            display: block;
+        }
+    }
+
+    h3 {
+        margin: 0 0 vw(9) 0;
+        padding: 0;
+        line-height: vw(30);
+        font-size: vw(22);
+        color: #000;
+
+        @media (min-width: 2000px) {
+            margin: 0 0 9px 0;
+            line-height: 30px;
+            font-size: 22px;
+        }
+    }
+
+    ul {
+        margin: 0;
+        padding: 0 0 vw(40) 0;
+
+        @media (min-width: 2000px) {
+            padding: 0 0 40px 0;
+        }
+
+        li {
+            position: relative;
+            margin: 0 0 vw(8) 0;
+            padding: 0 0 0 vw(12);
+            list-style: none;
+
+            @media (min-width: 2000px) {
+                margin: 0 0 8px 0;
+                padding: 0 0 0 12px;
+            }
+
+            &:before {
+                background: #000;
+                display: block;
+                width: vw(5);
+                height: vw(5);
+                overflow: hidden;
+                position: absolute;
+                top: vw(14);
+                left: 0;
+                border-radius: vw(4);
+                content: '';
+
+                @media (min-width: 2000px) {
+                    width: 5px;
+                    height: 5px;
+                    top: 14px;
+                    border-radius: 4px;
+                }
+            }
+        }
+    }
+
+    .page_404_btns {
+        display: flex;
+        align-items: center;
+
+        .btn-default {
+            margin: 0 vw(44) 0 0;
+
+            @media (min-width: 2000px) {
+                margin: 0 44px 0 0;
+            }
+        }
+    }
+
+    .img_404 {
+        margin: 0;
+
+        img {
+            width: 100%;
+            margin: vw(-106) 0 0 0;
+
+            @media (min-width: 2000px) {
+                margin: -106px 0 0 0;
+            }
+
+            &.mobile_404_image {
+                display: none;
+            }
+        }
+    }
+}
+
+
+
+.btn-link {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+    vertical-align: top;
+    line-height: vw(22);
+    font-size: vw(20);
+    text-decoration: underline;
+    color: #000;
+
+    @media (min-width: 2000px) {
+        line-height: 22px;
+        font-size: 20px;
+    }
+
+    &:hover {
+
+        @media (min-width: 992px) {
+            text-decoration: none;
+        }
+    }
+}
+
+
+
+.page_oops {
+    display: flex;
+    justify-content: space-between;
+    padding: vw(22) 0 vw(36) 0;
+
+    @media (min-width: 2000px) {
+        padding: 22px 0 36px 0;
+    }
+
+    .page_oops_left {
+        width: vw(750);
+        padding: vw(103) 0 0 0;
+
+        @media (min-width: 2000px) {
+            width: 750px;
+            padding: 103px 0 0 0;
+        }
+    }
+
+    .page_oops_right {
+        width: vw(750);
+
+        @media (min-width: 2000px) {
+            width: 750px;
+        }
+    }
+
+    p {
+        margin: 0 0 vw(61) 0;
+        padding: 0;
+        letter-spacing: vw(-0.5);
+        line-height: vw(50);
+        font-size: vw(30);
+
+        @media (min-width: 2000px) {
+            margin: 0 0 61px 0;
+            letter-spacing: -0.5px;
+            line-height: 50px;
+            font-size: 30px;
+        }
+
+        strong {
+            color: #000;
+        }
+
+        span {
+            display: block;
+        }
+    }
+
+    .page_oops_btns {
+        display: inline-block;
+        vertical-align: top;
+        text-align: center;
+
+        .btn-default {
+            display: block;
+            margin: 0 0 vw(37) 0;
+
+            @media (min-width: 2000px) {
+                margin: 0 0 37px 0;
+            }
+        }
+    }
+
+    figure {
+        margin: 0;
+        text-align: center;
+
+        img {
+            width: vw(430);
+
+            @media (min-width: 2000px) {
+                width: 430px;
+            }
+        }
+    }
+}
+
+
+
+/*.error-page {
+    display: flex;
+    justify-content: space-between;
+
+    .error-page--left {
+        width: vw(650);
+        padding: vw(96) 0 0 0;
+
+        @media (min-width: 2000px) {
+            width: 650px;
+            padding: 96px 0 0 0;
+        }
+    }
+
+    .error-page--right {
+        width: vw(776);
+        text-align: center;
+
+        @media (min-width: 2000px) {
+            width: 776px;
+        }
+    }
+
+    h2 {
+        margin: 0 0 vw(42) 0;
+        padding: 0;
+        letter-spacing: normal;
+        line-height: vw(40);
+        font-size: vw(30);
+        text-transform: none;
+
+        @media (min-width: 2000px) {
+            margin: 0 0 42px 0;
+            line-height: 40px;
+            font-size: 30px;
+        }
+
+        span {
+            display: block;
+        }
+    }
+
+    h3 {
+        margin: 0 0 vw(13) 0;
+        padding: 0;
+        line-height: vw(24);
+        font-size: vw(22);
+        color: #000;
+
+        @media (min-width: 2000px) {
+            margin: 0 0 13px 0;
+            line-height: 24px;
+            font-size: 22px;
+        }
+    }
+
+    ul {
+        margin: 0 0 vw(76) 0;
+        padding: 0;
+
+        @media (min-width: 2000px) {
+            margin: 0 0 76px 0;
+        }
+
+        li {
+            position: relative;
+            margin: 0 0 vw(10) 0;
+            padding: 0 0 0 vw(12);
+            list-style: none;
+            line-height: vw(30);
+            font-size: vw(22);
+
+            @media (min-width: 2000px) {
+                margin: 0 0 10px 0;
+                padding: 0 0 0 12px;
+                line-height: 30px;
+                font-size: 22px;
+            }
+
+            &:before {
+                background: #000;
+                display: block;
+                width: vw(5);
+                height: vw(5);
+                overflow: hidden;
+                border-radius: 50%;
+                position: absolute;
+                top: vw(13);
+                left: 0;
+                content: '';
+
+                @media (min-width: 2000px) {
+                    width: 5px;
+                    height: 5px;
+                    top: 13px;
+                }
+            }
+        }
+    }
+
+    figure {
+        margin: vw(4) 0 vw(60) 0;
+
+        @media (min-width: 2000px) {
+            margin: 4px 0 60px 0;
+        }
+
+        img {
+            width: vw(591);
+
+            @media (min-width: 2000px) {
+                width: 591px;
+            }
+        }
+    }
+
+    .error-text {
+        line-height: vw(60);
+        font-size: vw(60);
+        font-weight: 900;
+
+        @media (min-width: 2000px) {
+            line-height: 60px;
+            font-size: 60px;
+        }
+    }
+}
+
+
+
+.btn-default {
+    background: #ffb80e;
+    display: inline-block;
+    margin: 0;
+    padding: vw(15) vw(28) vw(15) vw(28);
+    border-radius: vw(24);
+    vertical-align: top;
+    line-height: vw(21);
+    font-size: vw(18);
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #000;
+
+    @media (min-width: 2000px) {
+        padding: 15px 28px 15px 28px;
+        border-radius: 24px;
+        line-height: 21px;
+        font-size: 18px;
+    }
+
+    &:hover {
+
+        @media (min-width: 992px) {
+            background: #2d2728;
+            color: #fff;
+        }
+    }
+}
+
+
+.error-page.not-found-restaurant {
+    figure img {
+        width: vw(470);
+    }
+
+    p {
+        margin: 0 0 vw(80);
+    }
+
+    a {
+        display: block;
+        width: vw(340);
+        text-align: center;
+
+        &:not(.btn-default) {
+            text-decoration: underline;
+        }
+    }
+
+    .error-page--left {
+        width: vw(650);
+        padding: vw(96) 0 0 vw(150);
+
+        @media (min-width: 2000px) {
+            width: 650px;
+            padding: 96px 0 0 150px;
+        }
+    }
+}*/

@@ -1,0 +1,59 @@
+﻿@inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Domain.Core Core
+@inject IViewLocalizer Localizer
+@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@using Microsoft.AspNetCore.Mvc.Localization
+@model Menus.Abstract.Models.IRestaurant
+@{
+    ViewData["Title"] = "Получить доступ";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+
+    var user = await UserService.GetUserById(User.Identity.Name);
+
+    var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    var selectedCity = Context.Request.Cookies[".Menus.SelectedCity"];
+    selectedCity = string.IsNullOrEmpty(selectedCity) ? "e2655e24-92dc-4179-abf6-c3908278a4de" : selectedCity;
+
+    var locales = LocaleSrvc.GetLocales();
+}
+
+<div class="site-content">
+    <main>
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                <li>Запрос отправлен</li>
+            </ul>
+        </div>
+        <div class="site-content-wrapper register-success">
+            <h1>Запрос успешно отправлен!</h1>
+            <p>Заведение будет доступно для редактирования, после верификации. </p>
+            <p>Ожидайте уведомления на почту.</p>
+
+            <a asp-controller="Manage" asp-action="Index" class="href-button">мои рестораны</a>
+        </div>
+    </main>
+</div>
+
+
+@section Scripts {
+    <script>
+        window.isMobile = @UserService.IsMobileUser(Context.Request).ToString().ToLowerInvariant();
+        window.culture = '@culture';
+    </script>
+    <script src="~/js/jquery.js"></script>
+    <script src="~/js/promise.min.js" async></script>
+    <script src="~/js/fetch.min.js" async></script>
+    <script src="~/js/index.js" async></script>
+    <environment include="Development">
+        <script src="~/js/common.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/js/common.js" asp-append-version="true"></script>
+    </environment>
+}

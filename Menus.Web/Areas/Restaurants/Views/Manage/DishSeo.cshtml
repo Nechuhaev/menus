@@ -1,0 +1,151 @@
+﻿@inject LocaleService Locales;
+@using Newtonsoft.Json
+@model Menus.Abstract.Models.IDishSeo
+@{
+    ViewData["Title"] = "DishSeo";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+
+    var definedModel = Model as DishSeo;
+
+    var uiLocales = JsonConvert.SerializeObject(Locales.GetLocales().Select(x => new { id = x.Id, shortName = x.ShortName }));
+
+    var header = definedModel?.Header ?? "{}";
+    var title = definedModel?.Title ?? "{}";
+    var description = definedModel?.Description ?? "{}";
+}
+
+<div class="site-content">
+    <main id="vue">
+
+
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                <li><a asp-action="DishesList">Список блюд</a></li>
+                <li>Редактировать блюдо</li>
+            </ul>
+        </div>
+
+
+
+        <div class="site-content-wrapper">
+
+            <ul class="content_nav">
+                <li asp-is-active-route asp-controller="Manage" asp-action="EditDish"><a asp-controller="Manage" asp-action="EditDish" asp-route-id="@Model.ItemId">Общая информация</a></li>
+                <li asp-is-active-route asp-controller="Manage" asp-action="DishSeo"><a asp-controller="Manage" asp-action="DishSeo" asp-route-id="@Model.ItemId">SEO</a></li>
+            </ul>
+
+            <div class="language_and_text">
+                <div class="column_left">
+                    <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
+                </div>
+                <div class="column_right">
+                    <ul class="content_language">
+                        <li v-for="uiLocale in uiLocales" v-bind:class="{'current': uiLocale.id === selectedUiLocale.id}">
+                            <a v-on:click="setUiLocale(uiLocale)" style="cursor: pointer">{{uiLocale.shortName}}</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <form method="post" class="registerRestaurant extra" enctype="multipart/form-data">
+                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="ItemId" />
+                <input type="hidden" asp-for="RestaurantId" />
+                <input type="hidden" name="Header" value='@header' />
+                <input type="hidden" name="Title" value='@title' />
+                <input type="hidden" name="Description" value='@description' />
+                <div class="restaurant_columns">
+                    <div class="restaurant_left">
+                        <div class="input-group">
+                            <label>Url <span>*</span></label>
+                            <input asp-for="Url" />
+                            @if (ViewData["urlExist"] != null)
+                            {
+                                <p style="color: red">Url уже существует</p>
+                            }
+                        </div>
+                        <div class="input-group">
+                            <label>Header <span>*</span></label>
+                            <input type="text" v-model="selectedHeader.Value" />
+                        </div>
+                        <div class="input-group">
+                            <label>Title <span>*</span></label>
+                            <input type="text" v-model="selectedTitle.Value" />
+                        </div>
+                        <div class="input-group">
+                            <label>Description <span>*</span></label>
+                            <input type="text" v-model="selectedDescription.Value" />
+                        </div>
+                        <div class="input-group">
+                            <label>Keywords <span>*</span></label>
+                            <input asp-for="Keywords" />
+                        </div>
+                        <div class="input-group">
+                            <label>Search terms <span></span></label>
+                            <input asp-for="SearchTerms" />
+                        </div>
+                    </div>
+                    <div class="restaurant_right">
+                        <div class="input-group">
+                            <label>SEO text <span>*</span></label>
+                            <textarea asp-for="SeoText"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group input-group--submit">
+                    <input type="submit" value="сохранить" />
+                </div>
+            </form>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+<script src="~/js/jquery.js"></script>
+<script src="~/lib/vue.js"></script>
+<script>
+    function selectLocalizableStringValueByLocale(locale, obj) {
+        var str = obj.Values.find(function (x) { return x.Locale === data.selectedUiLocale.id });
+        if (!str) {
+            str = { "Locale": locale, "Value": "" };
+            obj.Values.push(str);
+        }
+
+        return str;
+    }
+
+    var data = {
+        uiLocales: @Html.Raw(uiLocales),
+        header: Object.assign({}, { "Values": [] }, @Html.Raw(header)),
+        title: Object.assign({}, { "Values": [] }, @Html.Raw(title)),
+        description: Object.assign({}, { "Values": [] }, @Html.Raw(description))
+    };
+
+    data.selectedUiLocale = data.uiLocales[0];
+    data.selectedHeader = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.header);
+    data.selectedTitle = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.title);
+    data.selectedDescription = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.description);
+
+    var app = new Vue({
+        el: '#vue',
+        data: data,
+        methods: {
+            setUiLocale: function(locale) {
+                data.selectedUiLocale = locale;
+                data.selectedHeader = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.header);
+                data.selectedTitle = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.title);
+                data.selectedDescription = selectLocalizableStringValueByLocale(data.selectedUiLocale.id, data.description);
+            }
+        }
+    });
+
+    $(".input-group--submit input").click(function() {
+        $("[name=Header]").val(JSON.stringify(data.header));
+        $("[name=Title]").val(JSON.stringify(data.title));
+        $("[name=Description]").val(JSON.stringify(data.description));
+    });
+</script>

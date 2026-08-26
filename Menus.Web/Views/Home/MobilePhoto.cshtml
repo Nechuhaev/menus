@@ -1,0 +1,171 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@inject IViewLocalizer Localizer;
+@using Menus.Abstract.Models
+
+@{
+    ViewData["Title"] = "MobilePhoto";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var dish = ViewData["dish"] as IDishWithSeoAndRatings;
+    var restaurantSeo = ViewData["restaurantSeo"] as IRestaurantSeo;
+    var restaurant = ViewData["restaurant"] as IRestaurant;
+
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+}
+
+@await Html.PartialAsync("_Header")
+
+<script>
+    if (typeof (window.cropperAspectRatio) === "undefined") {
+        window.cropperAspectRatio = 1.333333;
+    }
+</script>
+
+<div class="site-content">
+    <main>
+
+        <div class="breadcrumbs breadcrumbs-content breadcrumbs-content-position">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurantSeo.Url">@restaurant.Name</breadcrumb></li>
+                <li><breadcrumb asp-action="Dish" asp-route-id="@restaurantSeo.Url" asp-route-dishId="@dish.Url">@(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))</breadcrumb></li>
+                <li><breadcrumb href="#">@Localizer["AddPhoto"]</breadcrumb></li>
+            </ul>
+        </div>
+
+        <div class="addPhoto">
+
+            <h2>@(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1)) <strong><span class="dish_rate_star" asp-rate="dish.Rating"></span> <em>@dish.RatingFloat.ToString("F1")</em></strong></h2>
+            <div class="addPhotoImage">
+                <figure>
+                    <img id="cropper-img" src="~/images/add_photo_empty.jpg" alt="Alternate Text" />
+                </figure>
+            </div>
+
+            <div class="addPhotoContent" id="add-photo">
+                <div class="addPhotoBtn">
+                    <label for="photo-upload-input">@Localizer["AddPhoto"]</label>
+                </div>
+            </div>
+
+            <div class="addPhotoContent hidden" id="confirm-photo">
+                <div class="addPhotoBtn">
+                    <a href="#">@Localizer["Load"]</a>
+                </div>
+            </div>
+
+            <div class="addPhotoContent hidden" id="upload-progress">
+                <div class="addPhotoProgress">
+                    <strong>@Localizer["Loading"]</strong>
+                    <p>
+                        <em>
+                            <i></i>
+                        </em>
+                        25%
+                        <b></b>
+                    </p>
+                </div>
+            </div>
+
+            <div class="addPhotoContent hidden" id="success">
+                <div class="addPhotoTnx">
+                    <h2>@Localizer["ThankYou"] !</h2>
+                    <p>@Localizer["PhotoWillAppearAfterModeration"] <span>@Localizer["Moderator"]</span></p>
+                    <a asp-action="Dish" asp-route-id="@restaurantSeo.Url" asp-route-dishId="@dish.Url">@Localizer["Continue"]</a>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+</div>
+
+<form action="/" method="post" class="hidden" id="photo-upload-form">
+    <input type="file" id="photo-upload-input" value="" />
+</form>
+
+@section Scripts
+    {
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        $("body").append('<link href="/css/cropper.min.css" rel="stylesheet" \/>');
+        $("body").append('<script src="/js/cropper.min.js"><\/script>');
+        $("body").append('<script src="/js/jquery-cropper.min.js"><\/script>');
+
+
+        var $image = $("#cropper-img");
+        $(document).on("change", "#photo-upload-input", function() {
+
+            var oFReader = new FileReader();
+
+            oFReader.readAsDataURL(this.files[0]);
+
+            oFReader.onload = function () {
+
+                // Destroy the old cropper instance
+                $image.cropper('destroy');
+
+                // Replace url
+                $image.attr('src', this.result);
+
+                // Start cropper
+                $image.cropper({
+                    aspectRatio: window.cropperAspectRatio,
+                    viewMode: 3,
+                    dragMode: 'move',
+                    autoCropArea: 1,
+                    restore: false,
+                    cropBoxMovable: false,
+                    cropBoxResizable: false,
+                    movable: true,
+                    zoomable: true,
+                    guides: false,
+                    center: false
+                });
+
+                $("#add-photo").addClass("hidden");
+                $("#confirm-photo").removeClass("hidden");
+            };
+        });
+
+        //$(".popUpPhotos .popUp_close, .popUpPhotos .discard").click(function (e) {
+        //    e.preventDefault();
+
+        //    $("#photo-upload-input").remove();
+        //    $("#photo-upload-form").append('<input type="file" id="photo-upload-input"/>');
+        //});
+
+        //$("#confirm-photo").click(function (e) {
+        //    e.preventDefault();
+        //    $(".popUpBlockPhotos").removeClass("visible");
+        //    $(".popUpThanksPhoto").hide();
+        //});
+
+        $("#confirm-photo a").click(function (e) {
+            e.preventDefault();
+            var dataUrl = $image.cropper('getCroppedCanvas', { maxWidth: 700, maxHeight: 700 }).toDataURL();
+
+            $.ajax({
+                    url: "@Url.Action("UploadDishPhoto", "Home", new { area = "" })",
+                    method: "POST",
+                    data: {
+                        base64: dataUrl,
+                        dishId: "@dish.Id"
+                    }
+                })
+                .done(function (x) {
+                    if (x.approved) location.href = $("#success a").attr("href");
+                    else {
+                        $("#confirm-photo").addClass("hidden");
+                        $("#success").removeClass("hidden");
+                    }
+                });
+        });
+    }, false);
+    </script>
+}
+
+@await Html.PartialAsync("_Footer")

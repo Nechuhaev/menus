@@ -1,0 +1,39 @@
+﻿.rating_recommendations {
+    padding: mvw(13) 0 0 0;
+
+    h2 {
+        margin: 0 0 mvw(43) 0;
+        padding: 0;
+        line-height: mvw(50);
+        font-size: mvw(40);
+        text-transform: none;
+    }
+
+    ul {
+        margin: 0;
+        padding: 0;
+
+        li {
+            margin: 0;
+            padding: mvw(27) 0 mvw(27) 0;
+            border-top: 1px solid #ededed;
+            list-style: none;
+            line-height: mvw(34);
+            font-size: mvw(30);
+            color: #000;
+
+            strong {
+                display: block;
+                margin: 0 0 mvw(26) 0;
+                line-height: 0;
+                font-size: 0;
+
+                img {
+                    width: mvw(47);
+                    margin: 0 mvw(3) 0 0;
+                    vertical-align: top;
+                }
+            }
+        }
+    }
+}

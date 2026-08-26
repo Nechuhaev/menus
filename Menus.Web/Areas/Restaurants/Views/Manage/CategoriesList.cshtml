@@ -1,0 +1,100 @@
+﻿@using Menus.Abstract.Models
+@model IEnumerable<Menus.Abstract.Models.IMenuCategory>
+@{
+    ViewData["Title"] = "DishesList";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture;
+
+    var parentCategory = ViewData["parentCategory"] as IMenuCategory;
+}
+
+<style>
+    .dishes_price input {
+        border: none;
+        background: none;
+        width: 100%;
+    }
+</style>
+
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs">
+            <ul>
+                <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                <li>Мое меню</li>
+            </ul>
+        </div>
+
+
+
+        <div class="site-content-wrapper">
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Категории меню</h2>
+                </div>
+            </div>
+
+            <table class="dishes_list">
+                <thead>
+                    <tr>
+                        <td class="dishes_checkbox"></td>
+                        <td class="dishes_category">Категория</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var category in Model.OrderBy(x => x.Index))
+                    {
+                        var hasParentCategory = category.ParentCategories.Any(x => x.Id == parentCategory.Id);
+                        <tr class="category" data-category-id="@category.Id">
+                            <td class="dishes_checkbox">@Html.EditorFor(model => hasParentCategory)</td>
+                            <td class="dishes_category_name">@(category.Name.Get(culture.TwoLetterISOLanguageName))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+@section Scripts
+{
+    <script src="~/js/jquery.js"></script>
+    <script src="~/js/jquery-ui.min.js"></script>
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        $(document).on("change", "tbody .dishes_checkbox input", function () {
+            var childCategoryId = $(this).closest("tr").attr("data-category-id");
+
+            $.ajax({
+                    url: "@Url.Action("ToggleChildCategory")",
+                    method: "POST",
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        categoryId: '@parentCategory.Id',
+                        childCategoryId: childCategoryId
+                    }
+                })
+                .done(function (data) {
+                    
+                })
+                .fail(function (data) {
+                    window.Logger.logTextError("TOGGLE Menu category relation action failed");
+                });
+        });
+    </script>
+}

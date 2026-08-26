@@ -1,0 +1,327 @@
+﻿@using System.Globalization
+@model Menus.Web.Models.ViewModels.DishesListViewModel
+@{
+    ViewData["Title"] = "DishesList";
+    Layout = "~/Areas/Restaurants/Views/Shared/_LayoutInner.cshtml";
+    var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    // Culture contains the information of the requested culture
+    var culture = rqf.RequestCulture.Culture;
+    var displayData = Model.Categories.ToList();
+    if (!string.IsNullOrEmpty((ViewData["dishCategoryId"] as string)))
+    {
+        displayData = Model.Categories.Where(x => x.Id == ViewData["dishCategoryId"] as string).ToList();
+    }
+    var disableLanguagePrefill = string.IsNullOrEmpty(Context.Request.Cookies[".Menus.DisableLanguagePrefill"]);
+}
+
+<style>
+    .dishes_price input {
+        border: none;
+        background: none;
+        width: 100%;
+    }
+</style>
+
+<div class="site-content">
+    <main>
+
+
+
+        <div class="breadcrumbs">
+            <ul>
+                @if (!User.IsInRole("admin") && !User.IsInRole("manager"))
+                {
+                    <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                } else
+                {
+                    <li><a asp-controller="Manage" asp-action="Index">Мои рестораны</a></li>
+                }
+                <li>Мое меню</li>
+            </ul>
+        </div>
+
+
+
+        <div class="site-content-wrapper">
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Меню</h2>
+                </div>
+                <div class="title-section--right">
+                    <form class="hidden" id="filter">
+                        <input type="hidden" name="dishCategoryId" value="@ViewData["dishCategoryId"]" />
+                    </form>
+                    <form method="post" class="filter-form">
+                        @*<div class="create_dish">
+                            <label for="prefill-lang">
+                                <input id="prefill-lang" @(disableLanguagePrefill ? "checked" : "") type="checkbox" name="name" value="" />
+                                заполнять друг. яз.
+                            </label>
+                        </div>*@
+                        <div class="create_dish">
+                            <a asp-action="CreateDish"><span>+</span> Добавить блюдо</a>
+                        </div>
+                        <div class="filter-form--title">Фильтр:</div>
+                        <p>
+                            <select id="category-filter">
+                                <option value="">Категория</option>
+                                @foreach (var category in Model.Categories.Where(x => !string.IsNullOrEmpty(x.Id)))
+                                {
+                                    var categoryName = ((Menus.Abstract.Models.IMenuCategory) category).Name.Get(culture.TwoLetterISOLanguageName);
+                                    <option value="@category.Id">@(Char.ToUpper(categoryName[0]) + categoryName.Substring(1))</option>
+                                }
+                            </select>
+                        </p>
+                        @*<p>
+                                <select class="form-control" asp-for="@ViewData["status"]"
+                                        asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.RestaurantStatus>()">
+                                    <option value="">Все статусы</option>
+                                </select>
+                            </p>*@
+                        <p>
+                            <select name="multiaction">
+                                <option value="">Действие</option>
+                                <option value="delete">Удалить</option>
+                            </select>
+                        </p>
+                        <input type="submit" name="name" value="Применить"/>
+                    </form>
+                </div>
+            </div>
+
+            <table class="dishes_list">
+                <thead>
+                    <tr>
+                        <td class="dishes_checkbox"><input id="checkAll" type="checkbox" value="" /></td>
+                        <td class="dishes_category">Категория/блюдо</td>
+                        <td class="dishes_weight">Вес</td>
+                        <td class="dishes_price">Цена</td>
+                        <td class="dishes_btn"></td>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var category in displayData.OrderBy(x => x.Index))
+                    {
+                        <tr class="category" data-category-id="@category.Id">
+                            <td class="dishes_checkbox"></td>
+                            <td class="dishes_category_name">@(((Menus.Abstract.Models.IMenuCategory) category).Name.Get(culture.TwoLetterISOLanguageName))</td>
+                        </tr>
+                        foreach (var dish in category.Dishes)
+                        {
+                        <tr data-id="@dish.Id" data-category-id="@category.Id">
+                            <td class="dishes_checkbox"><input type="checkbox" value="" /></td>
+                            <td class="dishes_name">@dish.Name.Get(culture.TwoLetterISOLanguageName)</td>
+                            <td class="dishes_weight">@dish.Weight @dish.WeightType</td>
+                            <td class="dishes_price">
+                                @if (dish.IsPriceMultiple)
+                                {
+                                    <span>от&nbsp;</span>
+                                }
+                                <span data-price>@ViewData["currency"] @dish.Price.ToString("F2")</span>
+                                <input type="text" data-price-input data-value="@dish.Price.ToString("F0")" value="@dish.Price.ToString("F0")" />
+                            </td>
+                            <td class="dishes_btn"><a class="tableEditBtn" asp-action="EditDish" asp-route-id="@dish.Id">Edit</a></td>
+                            <td class="dishes_btn"><a class="" data-copy-dish>cp</a></td>
+                        </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+
+        </div>
+
+
+
+    </main>
+</div>
+
+@section Scripts
+{
+    <script src="~/js/jquery.js"></script>
+    <script src="~/js/jquery-ui.min.js"></script>
+    <script>
+        function getToken() {
+            var token = '@Html.AntiForgeryToken()';
+            token = $(token).val();
+            return token;
+        }
+
+        $("[data-price-input]").hide();
+
+        $("[data-price]").click(function(e) {
+            $(this)
+                .hide()
+                .next()
+                .show()
+                .focus();
+
+            var input = $(this).next();
+            var val = input.val();
+            input.val("");
+            input.val(val);
+        });
+
+        $("[data-price-input]").blur(function(e) {
+            $(this)
+                .hide()
+                .prev()
+                .show();
+
+            var val = $(this).val();
+            if (val === $(this).attr("data-val")) return;
+
+            var dishId = $(this).closest("tr").attr("data-id");
+
+            var displayElem = $(this).prev();
+
+            $.ajax({
+                url: "@Url.Action("ChangeDishPrice")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    dishId: dishId,
+                    price: val
+                }
+            })
+                .done(function (data) {
+                    displayElem.html("@ViewData["currency"] " + data.price);
+                })
+                .fail(function (data) {
+                    window.Logger.logTextError("CHANGE Dish price failed");
+                });
+        });
+
+        $("#category-filter").val("@ViewData["dishCategoryId"]");
+
+        $("#category-filter").change(function () {
+            $("[name=dishCategoryId]").val($(this).val());
+            $("#filter").submit();
+        });
+
+        $(document).on("change", "tbody .dishes_checkbox input", function () {
+            $(this).parent().parent().toggleClass("selected");
+        });
+
+        $(document).on("change", "#checkAll", function () {
+            $("tbody .dishes_checkbox input").prop('checked', $(this).is(":checked"));
+            if ($(this).is(":checked")) $("tbody tr[data-id]").addClass("selected");
+            else $("tbody tr[data-id]").removeClass("selected");
+        });
+
+        $(".filter-form").submit(function (e) {
+            e.preventDefault();
+
+            if ($("[name=multiaction]").val() !== "delete") return;
+            if (!confirm("Are you sure?")) return;
+
+            var ids = [];
+            $("tbody .dishes_checkbox input[type=checkbox]").each(function () {
+                if ($(this).is(":checked")) {
+                    ids.push($(this).closest("tr[data-id]").attr("data-id"));
+                }
+            });
+
+
+            $.ajax({
+                url: "@Url.Action("DeleteDishes")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    dishes: ids
+                }
+            })
+                .done(function () {
+                    $("tbody .dishes_checkbox input[type=checkbox]").each(function () {
+                        if ($(this).is(":checked")) {
+                            $(this).closest("tr[data-id]").remove();
+                        }
+                    });
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("MULTI DELETE Dishes action failed");
+                 });
+        });
+
+        $("[data-copy-dish]").click(function () {
+            var id = $(this).closest("tr[data-id]").attr("data-id");
+
+            $.ajax({
+                url: "@Url.Action("CopyDish")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id
+                }
+            })
+                .done(function (data) {
+                    location.href = "@Url.Action("EditDish")/" + data.dishId;
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("COPY Dish action failed");
+                 });
+        });
+
+        $("#prefill-lang").change(function() {
+            $.ajax({
+                url: "@Url.Action("ToogleLanguagePrefill")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken()
+                }
+            })
+                .done(function (data) {
+
+                })
+                .fail(function (data) {
+                    window.Logger.logTextError("TOGGLE Language prefill action failed");
+                });
+        });
+
+        $(".dishes_list tbody").sortable({
+            update: function (e, ui) {
+                var draggedItem = $(ui.item[0]);
+                var menuCategoryId = draggedItem.attr("data-category-id");
+                if (draggedItem.hasClass("category")) {
+                    $(".dishes_list tbody").sortable("cancel");
+                    return;
+                }
+                if (menuCategoryId === "") {
+                    $(".dishes_list tbody").sortable("cancel");
+                    return;
+                }
+                if (draggedItem.prev().attr("data-category-id") !== menuCategoryId) {
+                    $(".dishes_list tbody").sortable("cancel");
+                    return;
+                }
+
+                var data = [];
+                var index = 0;
+                $(".dishes_list tbody tr[data-category-id=" + menuCategoryId + "]").not(".category").each(function () {
+                    var id = $(this).attr("data-id");
+                    data.push({
+                        Id: id,
+                        Index: index
+                    });
+                    index++;
+                });
+
+                $.ajax({
+                    url: '@Url.Action("ChangeDishesOrder")',
+                    type: 'POST',
+                    data: {
+                        "__RequestVerificationToken": getToken(),
+                        menuCategory: menuCategoryId,
+                        dishes: data
+                    }
+                })
+                    .done(function () {
+
+                    })
+                    .fail(function () {
+                        window.Logger.logTextError("UPDATE Dishes order failed, menu category id = " + menuCategoryId);
+                    });
+            }
+        }).disableSelection();
+    </script>
+}

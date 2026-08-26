@@ -1,0 +1,94 @@
+﻿@{
+    Layout = "_Layout";
+}
+
+<h1>Dish Seo</h1>
+
+<div style="padding: 10px;">
+    <p><a href="#1" class="run-dish-seo">Run</a></p>
+    <p><a href="#1" class="run-dish-cancel">Cancel</a></p>
+</div>
+<div class="result-container">
+
+
+</div>
+
+
+
+@section Scripts
+    {
+<script>
+    let restarauntCounter = 0;
+    let totalRestarauntsCount = 0;
+    let listOfRestaraunts = [];
+    let processCancelled = false;
+
+    $(document).ready(function () {
+        $('.run-dish-seo').click((e) => {
+            console.log('started');
+            processCancelled = false;
+            runDishSeo();
+            return false;
+        });
+
+        $('.run-dish-cancel').click((e) => {
+            console.log('cancelled');
+            processCancelled = true;
+            return false;
+        });
+    });
+
+    function runDishSeo() {
+        $.ajax({
+                url: "@Url.Action("GetListOfRestaraunts", "SiteMap", new { pwd = "Eakz8KSKEHH6ykJTzpRo" })",
+                method: "POST",
+                error: function (XMLHttpRequest, textStatus, errorThrown) {
+
+                }
+        }).done(function (result) {
+            //console.log(x)
+            listOfRestaraunts = result;
+            totalRestarauntsCount = listOfRestaraunts.length;
+
+            processArrayOfRestaraunts();
+
+        });
+    }
+
+    function processArrayOfRestaraunts(){
+
+        if((restarauntCounter < totalRestarauntsCount) && !processCancelled ){
+            let restaraunt = listOfRestaraunts[restarauntCounter];
+            let {id} = restaraunt
+
+            let urlForUpdate = "@Url.Action("ProcessDishSeoForRestaraunt", "SiteMap", new { restarauntId = "__restarauntId__" })";
+            urlForUpdate = urlForUpdate.replace("__restarauntId__", id);
+
+            $.ajax({
+                    url: urlForUpdate,
+                    method: "POST",
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                        console.log(XMLHttpRequest);
+                        $('.result-container').append(`
+                            <div>
+                                ${textStatus} ${errorThrown}
+                            </div>
+                        `);
+                    }
+            }).done(function (result) {
+                //console.log(x)
+                $('.result-container').append(`
+                    <div>
+                        ${restarauntCounter} ${result}
+                    </div>
+                `);
+
+                restarauntCounter++;
+                processArrayOfRestaraunts();
+
+            });
+        }
+    }
+</script>
+
+    }

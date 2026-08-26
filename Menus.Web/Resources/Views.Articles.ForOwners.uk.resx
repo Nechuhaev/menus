@@ -1,0 +1,469 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Home" xml:space="preserve">
+    <value>Головна</value>
+  </data>
+  <data name="MetaTitle" xml:space="preserve">
+    <value>Власникам ресторанів - залучайте більше відвідувачів ⭐ TipMyMenu</value>
+  </data>
+  <data name="MetaDescription" xml:space="preserve">
+    <value>Електронне меню - унікальна пропозиція для власників ресторанів в Києві 🍽️ TipMyMenu (ТіпМайМеню) ✅ Керуйте репутацією закладу, залучайте нових відвідувачів, дізнайтеся, що клієнти думають про ваш меню</value>
+  </data>
+  <data name="MetaH1" xml:space="preserve">
+    <value>Реєструйся та керуй своєю репутацією!</value>
+  </data>
+  <data name="ForOwners" xml:space="preserve">
+    <value>Власники об'єктів</value>
+  </data>
+  <data name="FirstBlockTitle" xml:space="preserve">
+    <value>&lt;strong&gt;Керуй своїм меню&lt;br&gt;на всіх платформах&lt;br&gt;в одному місці&lt;/strong&gt;</value>
+  </data>
+  <data name="FirstBlockText" xml:space="preserve">
+    <value>Клієнти дивляться меню онлайн, перш ніж вибрати&lt;br&gt;ресторан. Залучайте більше клієнтів та економте час&lt;br&gt;працюючи з Tip&lt;span&gt;mymenu&lt;/span&gt;. Заповнивши інформацію про вас в одному&lt;br&gt;місці, ви опублікуєте її там, де клієнти шукають вас: &lt;br&gt;Facebook, Tripadvisor, Instagram Ваш сайт і багато іншого.</value>
+  </data>
+  <data name="WantToJoin" xml:space="preserve">
+    <value>хочу приєднатися</value>
+  </data>
+  <data name="SecondBlockTitle" xml:space="preserve">
+    <value>допомагає меню ресторану бути</value>
+  </data>
+  <data name="SecondBlockText" xml:space="preserve">
+    <value>Наша мета - розмістити ваше меню і ділову інформацію скрізь, де це необхідно,&lt;br&gt;щоб &lt;strong&gt;залучити нових клієнтів&lt;/strong&gt;.</value>
+  </data>
+  <data name="SecondBlockFirstPointTitle" xml:space="preserve">
+    <value>&lt;strong&gt;Аналіз меню і кожної страви&lt;/strong&gt;</value>
+  </data>
+  <data name="SecondBlockFirstPointText" xml:space="preserve">
+    <value>Продуктивність - ключовий показник вашого бізнесу, вимірюйте її з Tip&lt;span&gt;mymenu&lt;/span&gt;. Хіба ви не хочете знати де проглядається ваше меню і як часто? Ми оцінимо роботу вашого меню, ефективність розміщення на різних платформах і як люди його знаходять.</value>
+  </data>
+  <data name="SecondBlockSecondPointTitle" xml:space="preserve">
+    <value>&lt;strong&gt;Управління меню з однієї платформи&lt;/strong&gt;</value>
+  </data>
+  <data name="SecondBlockSecondPointText" xml:space="preserve">
+    <value>Швидке редагування власного меню, включаючи всі дані про ресторан. Виправити, прибрати зайве і додати потрібнe - можна тут.</value>
+  </data>
+  <data name="SecondBlockThirdPointTitle" xml:space="preserve">
+    <value>&lt;strong&gt;Охоплення сконцентрованої аудиторії шанувальників їжі&lt;/strong&gt;</value>
+  </data>
+  <data name="SecondBlockThirdPointText" xml:space="preserve">
+    <value>93% гостей вивчають меню online, вам потрібно переконатися, що меню ресторану видно для пошуку. PDF не може бути знайдений.&lt;br&gt;
+Tip&lt;span&gt;mymenu&lt;/span&gt; вирішує цю проблему, ми зробимо ваше меню доступним для пошуку, люди знайдуть його на таких сайтах як Google.</value>
+  </data>
+  <data name="ServicesAndRates" xml:space="preserve">
+    <value>послуги і тарифи</value>
+  </data>
+  <data name="Basic" xml:space="preserve">
+    <value>Базовий</value>
+  </data>
+  <data name="Free" xml:space="preserve">
+    <value>безкоштовний</value>
+  </data>
+  <data name="GetAccess" xml:space="preserve">
+    <value>Отримай доступ до своєї сторінки на TipMyMenu</value>
+  </data>
+  <data name="CreateElectronicMenu" xml:space="preserve">
+    <value>Створи електронне меню ресторану,</value>
+  </data>
+  <data name="YourClientWillFind" xml:space="preserve">
+    <value> яке швидко знайде твій клієнт в пошуковику</value>
+  </data>
+  <data name="ManageInformation" xml:space="preserve">
+    <value>Керуй інформацією і меню в одному місці</value>
+  </data>
+  <data name="ChooseHowYouWant" xml:space="preserve">
+    <value>Обери, як ти хочеш керувати своєю сторінкою - самостійно або наш менеджер зробить це за тебе</value>
+  </data>
+  <data name="PlaceTheElectronic" xml:space="preserve">
+    <value>Розміщуй електронне (кастомізоване) меню на укр, рус і англ мовами на топових сайтах: TripAdvisor, Facebook *, Instagram, Telegram bot TipMyMenu та ін.</value>
+  </data>
+  <data name="SeoPromotion" xml:space="preserve">
+    <value>Пріоритетне SEO-просування в пошукових системах</value>
+  </data>
+  <data name="TechSupport" xml:space="preserve">
+    <value>Тех. підтримка 24/7</value>
+  </data>
+  <data name="Activate" xml:space="preserve">
+    <value>Підключити</value>
+  </data>
+  <data name="Recommended" xml:space="preserve">
+    <value>Рекомендуємо</value>
+  </data>
+  <data name="Premium" xml:space="preserve">
+    <value>Преміум</value>
+  </data>
+  <data name="Price" xml:space="preserve">
+    <value>500 грн/міс</value>
+  </data>
+  <data name="Buy" xml:space="preserve">
+    <value>Купити</value>
+  </data>
+  <data name="SendRequest" xml:space="preserve">
+    <value>Якщо ви не знайшли свій ресторан на нашій платформі, відправте нам запит на</value>
+  </data>
+  <data name="AdditionalServices" xml:space="preserve">
+    <value>Додаткові послуги</value>
+  </data>
+  <data name="AdditionalServices1" xml:space="preserve">
+    <value>При використанні "базового" і "преміум" пакета, ресторан може окремо</value>
+  </data>
+  <data name="AdditionalServices2" xml:space="preserve">
+    <value>замовити будь-які з наступних послуг:</value>
+  </data>
+  <data name="AddingPage" xml:space="preserve">
+    <value>Введення сторінки на</value>
+  </data>
+  <data name="FillingMenu" xml:space="preserve">
+    <value>Заповнення меню</value>
+  </data>
+  <data name="PhotoGallery" xml:space="preserve">
+    <value>Ведення фото галереї</value>
+  </data>
+  <data name="TextPreparation" xml:space="preserve">
+    <value>Підготовка текстової інформації</value>
+  </data>
+  <data name="EditsAndChanges" xml:space="preserve">
+    <value>Своєчасні правки і зміни</value>
+  </data>
+  <data name="UserInteractions" xml:space="preserve">
+    <value>Взаємодії з користувачами</value>
+  </data>
+  <data name="PersonalManager" xml:space="preserve">
+    <value>Доступ до Персонального менеджера</value>
+  </data>
+  <data name="ReadMore" xml:space="preserve">
+    <value>Детальніше</value>
+  </data>
+  <data name="PersonalDesign" xml:space="preserve">
+    <value>Персональний дизайн своєї сторінки</value>
+  </data>
+  <data name="PersonalDesignText" xml:space="preserve">
+    <value>Сторінка вашого ресторану може вигідно відрізнятися від інших. Ви зможете сповіщати користувачів про новинки та акції в вашому закладі</value>
+  </data>
+  <data name="WatchAnExample" xml:space="preserve">
+    <value>Дивіться приклад</value>
+  </data>
+  <data name="Placement" xml:space="preserve">
+    <value>Розміщення в Топ, в кожному окремому Блоці</value>
+  </data>
+  <data name="PlacementText" xml:space="preserve">
+    <value>Ваш ресторан буде розміщений першим в розділі "наші рекомендації", тим самим ви отримаєте максимальне охоплення відвідувачів.</value>
+  </data>
+  <data name="SMMPromotionPage" xml:space="preserve">
+    <value>SMM просування персональної сторінки</value>
+  </data>
+  <data name="StylisticDesign" xml:space="preserve">
+    <value>Стилістичне оформлення сторінок в соцмережах</value>
+  </data>
+  <data name="RegularAddition" xml:space="preserve">
+    <value>Регулярне додавання тематичних постів</value>
+  </data>
+  <data name="WorkingWithTheAudience" xml:space="preserve">
+    <value>Робота з аудиторією і настройка зворотного зв'язку</value>
+  </data>
+  <data name="SEOPromotionOfPageOrDish" xml:space="preserve">
+    <value>SEO просування сторінки або конкретного блюда</value>
+  </data>
+  <data name="ContentUpdates" xml:space="preserve">
+    <value>Регулярне оновлення контенту</value>
+  </data>
+  <data name="SEOOptimization" xml:space="preserve">
+    <value>SEO оптимізація всіх основних сторінок ресторану</value>
+  </data>
+  <data name="GoogleAds" xml:space="preserve">
+    <value>Просування в google ads</value>
+  </data>
+  <data name="IncreaseConversion" xml:space="preserve">
+    <value>Підвищення конверсії зі сторінок ресторану</value>
+  </data>
+  <data name="MonthlyReport" xml:space="preserve">
+    <value>Щомісячний звіт</value>
+  </data>
+  <data name="PlacingOnAdvertisingPlatforms" xml:space="preserve">
+    <value>Розміщення на рекламних майданчиках сайту</value>
+  </data>
+  <data name="ContactOurManagers" xml:space="preserve">
+    <value>З питань розміщення на нашому сайті зв'яжіться з нашими менеджерами, ми приготуємо пропозиції для вашого бізнесу.</value>
+  </data>
+  <data name="Services" xml:space="preserve">
+    <value>Мене цікавлять послуги</value>
+  </data>
+  <data name="JoinTheService" xml:space="preserve">
+    <value>Приєднуйтесь до сервісу</value>
+  </data>
+  <data name="Call" xml:space="preserve">
+    <value>телефонуйте</value>
+  </data>
+  <data name="LeaveYourContacts" xml:space="preserve">
+    <value>або залиште свої контактні дані</value>
+  </data>
+  <data name="RestarauntName" xml:space="preserve">
+    <value>Назва ресторану</value>
+  </data>
+  <data name="Phone" xml:space="preserve">
+    <value>Телефон</value>
+  </data>
+  <data name="Package" xml:space="preserve">
+    <value>Пакет</value>
+  </data>
+  <data name="ChoosePackage" xml:space="preserve">
+    <value>Оберіть пакет</value>
+  </data>
+  <data name="Send" xml:space="preserve">
+    <value>Відправити</value>
+  </data>
+  <data name="Thanks" xml:space="preserve">
+    <value>Дякуємо,</value>
+  </data>
+  <data name="WeWillContact" xml:space="preserve">
+    <value>ми зв'яжемося з вами</value>
+  </data>
+  <data name="Soon" xml:space="preserve">
+    <value>найближчим часом</value>
+  </data>
+  <data name="LeaveYourContacts2" xml:space="preserve">
+    <value>Залиште свої контактні дані і ми зв'яжемося з Вами</value>
+  </data>
+  <data name="SendRequest2" xml:space="preserve">
+    <value>Відправити запит</value>
+  </data>
+  <data name="WhyUsTitle" xml:space="preserve">
+    <value>Чому вам варто співпрацювати з нами?</value>
+  </data>
+  <data name="WhyUsText" xml:space="preserve">
+    <value>Ви отримуєте унікальний набір інструментів, який допоможе вашому ресторану залучити нових клієнтів.</value>
+  </data>
+  <data name="WhyUsPar1" xml:space="preserve">
+    <value>Управління меню з &lt;strong&gt;однієї платформи&lt;/strong&gt;</value>
+  </data>
+  <data name="WhyUsPar2" xml:space="preserve">
+    <value>Зручне розміщення акцій і унікальних пропозицій</value>
+  </data>
+  <data name="WhyUsPar3" xml:space="preserve">
+    <value>Розміщення меню на &lt;strong&gt;TripAdvisor, Facebook, Instagram, Instagram і ваш персональний сайт&lt;/strong&gt;</value>
+  </data>
+  <data name="WhyUsPar4" xml:space="preserve">
+    <value>&lt;strong&gt;Багатомовність&lt;/strong&gt; - ваше меню буде доступно на декількох мовах, це допоможе виділити вас  &lt;strong&gt;іноземному туристу.&lt;/strong&gt;</value>
+  </data>
+  <data name="WhyUsPar5" xml:space="preserve">
+    <value>Ми працюємо за принципом &lt;strong&gt;Do it for me&lt;/strong&gt; (заповнюємо ваше меню за вас, розміщуємо меню на інших платформах)</value>
+  </data>
+  <data name="WhyUsPar6" xml:space="preserve">
+    <value>&lt;strong&gt;QR code меню&lt;/strong&gt; (Гість буде готовий до замовлення до підходу офіціанта, Підвищуйте швидкість оборотності столів)</value>
+  </data>
+  <data name="WantToTry" xml:space="preserve">
+    <value>Хочу спробувати</value>
+  </data>
+  <data name="Rotator" xml:space="preserve">
+    <value>&lt;div class="content"&gt;
+                        &lt;div class="content__container"&gt;
+                            &lt;ul class="content__container__list"&gt;
+                                &lt;li class="content__container__list__item"&gt;актуальним!&lt;/li&gt;
+                                &lt;li class="content__container__list__item"&gt;яскравим!&lt;/li&gt;
+                                &lt;li class="content__container__list__item"&gt;зручним!&lt;/li&gt;
+                                &lt;li class="content__container__list__item"&gt;швидким!&lt;/li&gt;
+                            &lt;/ul&gt;
+                        &lt;/div&gt;
+                    &lt;/div&gt;</value>
+  </data>
+  <data name="WhatMatters" xml:space="preserve">
+    <value>Розміщення реклами &lt;br /&gt; або оновлення меню.</value>
+  </data>
+  <data name="WePlaceYourMenu" xml:space="preserve">
+    <value>Заповніть форму, ящко ви бажаєте резмістити свою рекламу або потрібно оновити меню вашого закладу!</value>
+  </data>
+  <data name="OurClients" xml:space="preserve">
+    <value>наші клієнти</value>
+  </data>
+  <data name="Section1Container1" xml:space="preserve">
+    <value>93% гостей починають свій похід в ресторан з пошуку меню в Інтернеті</value>
+  </data>
+  <data name="Section1Container2" xml:space="preserve">
+    <value>Ваше меню має бути «видно» для пошуку. Меню в форматі PDF не може бути знайдено пошуковою системою, а також незручно для користувача. TipMyMenu вирішує цю проблему. Крім того, ми розмістимо ваше online меню на Інтернет-ресурсах, де його шукають ваші потенційні гості.</value>
+  </data>
+  <data name="PersonalSite" xml:space="preserve">
+    <value>Персональний сайт</value>
+  </data>
+  <data name="Section2Container1" xml:space="preserve">
+    <value>Ви отримуєте унікальний набір інструментів, який може залучити вам більше гостей</value>
+  </data>
+  <data name="ManagingMenu" xml:space="preserve">
+    <value>&lt;span class="bold"&gt;Одночасне керування меню на всіх ресурсах, де воно присутнє&lt;/span&gt;</value>
+  </data>
+  <data name="MultilingualMenu" xml:space="preserve">
+    <value>&lt;span class = "bold"&gt; Багатомовність. &lt;/ span&gt; Ваше меню буде доступно українською, російською та англійською мовами. Це допоможе іноземному туристу ознайомитися з ним.</value>
+  </data>
+  <data name="DoItForMe" xml:space="preserve">
+    <value>заповнюємо ваше меню замість вас, розміщуємо меню на інших ресурсах: &lt;span class = "bold"&gt; TripAdvisor, Facebook, Instagram і ваш персональний сайт &lt;/ span&gt;</value>
+  </data>
+  <data name="CustomizeYourMenu" xml:space="preserve">
+    <value>&lt;span class = "bold"&gt; Кастомізація (персоналізація) вашого меню (шрифт, фото, розділи) і маркетинг &lt;/ span&gt;</value>
+  </data>
+  <data name="Section4Header1" xml:space="preserve">
+    <value>Звідки нові відвідувачі?</value>
+  </data>
+  <data name="Section4Text1" xml:space="preserve">
+    <value>Імовірність того що користувач вибере ваш заклад на 73% вище якщо ваше меню добре презентовано, не тільки у вас на сайті, але і на зовнішніх інтернет ресурсах</value>
+  </data>
+  <data name="Section4Text2" xml:space="preserve">
+    <value>Ми гарантуємо, що ваше меню буде добре і зрозуміло виглядати на всіх заявлених інтернет-ресурсах</value>
+  </data>
+  <data name="Section4Header2" xml:space="preserve">
+    <value>Як ми працюємо?</value>
+  </data>
+  <data name="HowDoWeWork1" xml:space="preserve">
+    <value>Вы высылаете нам меню, фотографии блюд и информацию о ресторане</value>
+  </data>
+  <data name="HowDoWeWork2" xml:space="preserve">
+    <value>Наша команда заповнює меню і висилає вам на затвердження</value>
+  </data>
+  <data name="HowDoWeWork3" xml:space="preserve">
+    <value>Імплементація оцифрованого меню на всі платформи, зазначені вами</value>
+  </data>
+  <data name="Section4Header3" xml:space="preserve">
+    <value>Як я зрозумію, що ваш ресурс приносить мені відвідувачів?</value>
+  </data>
+  <data name="AccessToAnalytics" xml:space="preserve">
+    <value>Ми надаємо доступ до аналітики вашого закладу на нашому сайті, де ви зможете відслідковувати перегляди і цільові дії</value>
+  </data>
+  <data name="Section3Header" xml:space="preserve">
+    <value>Повідомляйте про свої акції та пропозиції</value>
+  </data>
+  <data name="Section3Text" xml:space="preserve">
+    <value>Розміщуйте акції/пропозиції/знижки і будь-яку маркетингову інформацію. Їх побачать на всіх ресурсах, де встановлено наше online меню.</value>
+  </data>
+  <data name="Section5Header" xml:space="preserve">
+    <value>ПРИЄДНУЙТЕСЬ &lt;br /&gt; ДО СЕРВІСУ TIP &lt;span class = "red"&gt; MYMENU &lt;/span&gt;</value>
+  </data>
+  <data name="PlaceholderName" xml:space="preserve">
+    <value>Ім'я</value>
+  </data>
+  <data name="PlaceholderPhone" xml:space="preserve">
+    <value>Телефон</value>
+  </data>
+  <data name="ThankYouForm" xml:space="preserve">
+    <value>Ми зв'яжемося з вами найближчим часом.</value>
+  </data>
+  <data name="AllRightsReserved" xml:space="preserve">
+    <value>Всі права захищені</value>
+  </data>
+  <data name="PrivacyPolicy" xml:space="preserve">
+    <value>Політика конфіденційності</value>
+  </data>
+</root>
