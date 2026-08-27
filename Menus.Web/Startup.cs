@@ -23,6 +23,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Localization.Routing;
@@ -181,7 +182,7 @@ namespace Menus.Web
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, IServiceProvider provider)
         {
             //env.EnvironmentName = EnvironmentName.Staging;
-
+app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto, KnownNetworks = { }, KnownProxies = { } });
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
