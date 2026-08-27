@@ -182,7 +182,7 @@ namespace Menus.Web
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, IServiceProvider provider)
         {
             //env.EnvironmentName = EnvironmentName.Staging;
-app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto, KnownNetworks = { }, KnownProxies = { } });
+var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto }; forwardedHeadersOptions.KnownNetworks.Clear(); forwardedHeadersOptions.KnownProxies.Clear(); app.UseForwardedHeaders(forwardedHeadersOptions);
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
