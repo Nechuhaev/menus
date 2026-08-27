@@ -12,6 +12,7 @@ import time
 import uuid
 from datetime import datetime
 
+import boto3
 import mysql.connector
 import requests
 from anthropic import Anthropic
@@ -22,6 +23,9 @@ load_dotenv()
 CLAUDE_API_KEY = os.environ["CLAUDE_API_KEY"]
 SERPSTAT_API_KEY = os.environ["SERPSTAT_API_KEY"]
 UNSPLASH_ACCESS_KEY = os.environ["UNSPLASH_ACCESS_KEY"]
+DO_SPACES_KEY = os.environ["DO_SPACES_KEY"]
+DO_SPACES_SECRET = os.environ["DO_SPACES_SECRET"]
+DO_SPACES_BUCKET = os.environ.get("DO_SPACES_BUCKET", "cdn-tipmymenus-com")
 
 DB_HOST = os.environ.get("DB_HOST", "127.0.0.1")
 DB_PORT = int(os.environ.get("DB_PORT", "3306"))
@@ -123,7 +127,7 @@ def pick_next_keyword(db):
     cur.execute("SELECT Id, Keyword FROM ContentPlan WHERE Used = 0 ORDER BY CreatedAt ASC LIMIT 1")
     row = cur.fetchone()
     cur.close()
-    return row  # (Id, Keyword) or None
+    return row
 
 
 def mark_keyword_used(db, plan_id, page_id):
@@ -181,21 +185,45 @@ def search_unsplash_photos(query, count=3):
     return [r["urls"]["regular"] for r in results[:count]]
 
 
-def download_and_store_photo(db, image_url):
+def download_and_store_photo(image_url):
+    """Download an Unsplash photo and upload it to the DigitalOcean Spaces bucket the app
+    already reads images from (files/{id}(-large|-medium|-small).jpg), so it renders through
+    the site's existing Img.Url() helper with no other code changes needed."""
     resp = requests.get(image_url, timeout=30)
     resp.raise_for_status()
-    file_id = str(uuid.uuid4())
-    mime = resp.headers.get("Content-Type", "image/jpeg")
-    ext = ".jpg" if "jpeg" in mime else ".png" if "png" in mime else ".jpg"
 
-    cur = db.cursor()
-    cur.execute(
-        "INSERT INTO Files (Id, Data, Mime, Size) VALUES (%s, %s, %s, %s)",
-        (file_id, resp.content, mime, len(resp.content)),
+    file_id = str(uuid.uuid4())
+    from PIL import Image
+    import io
+
+    source = Image.open(io.BytesIO(resp.content)).convert("RGB")
+
+    s3 = boto3.client(
+        "s3",
+        region_name="fra1",
+        endpoint_url="https://fra1.digitaloceanspaces.com",
+        aws_access_key_id=DO_SPACES_KEY,
+        aws_secret_access_key=DO_SPACES_SECRET,
     )
-    db.commit()
-    cur.close()
-    return file_id + ext
+
+    def upload_variant(img, key):
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=80)
+        buf.seek(0)
+        s3.put_object(Bucket=DO_SPACES_BUCKET, Key=key, Body=buf.getvalue(), ACL="public-read", ContentType="image/jpeg")
+
+    upload_variant(source, f"files/{file_id}.jpg")
+    upload_variant(_resized(source, 1000), f"files/{file_id}-large.jpg")
+    upload_variant(_resized(source, 600), f"files/{file_id}-medium.jpg")
+    upload_variant(_resized(source, 300), f"files/{file_id}-small.jpg")
+
+    return file_id
+
+
+def _resized(img, max_height):
+    ratio = max_height / img.height
+    new_width = int(img.width * ratio)
+    return img.resize((new_width, max_height))
 
 
 TRANSLIT_MAP = {
@@ -250,15 +278,15 @@ def publish_article(db, article, photo_filename):
         """,
         (
             page_id,
-            1,  # PageCategory.News
+            1,
             localizable_json(article["content"]["uk"], article["content"]["ru"]),
             photo_filename,
             localizable_json(article["seo_description"]["uk"], article["seo_description"]["ru"]),
             localizable_json(article["seo_keywords"]["uk"], article["seo_keywords"]["ru"]),
-            localizable_json("", ""),  # SeoText, not generated for now
+            localizable_json("", ""),
             localizable_json(article["seo_title"]["uk"], article["seo_title"]["ru"]),
             localizable_json(article["short_content"]["uk"], article["short_content"]["ru"]),
-            1,  # PageStatus.Published
+            1,
             datetime.now(),
             localizable_json(article["title"]["uk"], article["title"]["ru"]),
             url,
@@ -287,7 +315,7 @@ def main():
         photo_urls = search_unsplash_photos(photo_query, count=1)
         photo_filename = None
         if photo_urls:
-            photo_filename = download_and_store_photo(db, photo_urls[0])
+            photo_filename = download_and_store_photo(photo_urls[0])
 
         page_id = publish_article(db, article, photo_filename)
         mark_keyword_used(db, plan_id, page_id)
