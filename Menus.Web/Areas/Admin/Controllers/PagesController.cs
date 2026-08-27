@@ -1,4 +1,4 @@
-﻿// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 using System;
@@ -115,6 +115,11 @@ namespace Menus.Web.Areas.Admin.Controllers
 
             page.Timestamp = DateTime.Now;
 
+            if (string.IsNullOrWhiteSpace(page.Url))
+            {
+                page.Url = await GenerateUniqueUrl(page.Title.Get());
+            }
+
             if (page.Photo != null && page.Photo.StartsWith("data"))
             {
                 page.Photo = await UploadPhoto(page.Photo);
@@ -123,6 +128,28 @@ namespace Menus.Web.Areas.Admin.Controllers
             await _core.Pages.Create(page);
 
             return page.Category == PageCategory.Content ? RedirectToAction("Content") : RedirectToAction("Blog");
+        }
+
+        private async Task<string> GenerateUniqueUrl(string title)
+        {
+            var baseUrl = Services.UrlGenerateService.Translit(title);
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                baseUrl = "page-" + Guid.NewGuid().ToString().Substring(0, 8);
+            }
+
+            var existingPages = await _core.Pages.GetAll();
+            var existingUrls = existingPages.Select(x => x.Url).ToHashSet();
+
+            var candidate = baseUrl;
+            var attempt = 1;
+            while (existingUrls.Contains(candidate))
+            {
+                candidate = $"{baseUrl}-{attempt}";
+                attempt++;
+            }
+
+            return candidate;
         }
 
         private async Task<string> UploadPhoto(string base64)
@@ -194,6 +221,11 @@ namespace Menus.Web.Areas.Admin.Controllers
                 page.Photo = null;
             }
             page.Timestamp = DateTime.Now;
+
+            if (string.IsNullOrWhiteSpace(page.Url))
+            {
+                page.Url = await GenerateUniqueUrl(page.Title.Get());
+            }
 
             await _core.Pages.Update(page);
 
