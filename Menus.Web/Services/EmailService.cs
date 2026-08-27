@@ -1,4 +1,4 @@
-﻿// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 using System;
@@ -8,16 +8,19 @@ using Menus.Domain;
 using Menus.Web.Models;
 using MimeKit;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace Menus.Web.Services
 {
     public class EmailService
     {
         private readonly Core _core;
+        private readonly IConfiguration _configuration;
 
-        public EmailService(Core core)
+        public EmailService(Core core, IConfiguration configuration)
         {
             _core = core;
+            _configuration = configuration;
         }
 
         public void SendEmail(string email, string subject, string message)
@@ -33,9 +36,9 @@ namespace Menus.Web.Services
             string BodyContent = message;
 
             //Smtp Server 
-            string SmtpServer = "smtp.elasticemail.com";
+            string SmtpServer = _configuration["Smtp:Server"];
             //Smtp Port Number 
-            int SmtpPortNumber = 2525;
+            int SmtpPortNumber = int.Parse(_configuration["Smtp:Port"]);
 
             var mimeMessage = new MimeMessage();
             mimeMessage.From.Add(new MailboxAddress(FromAdressTitle, FromAddress));
@@ -62,7 +65,7 @@ namespace Menus.Web.Services
                     client.Connect(SmtpServer, SmtpPortNumber, false);
                     // Note: only needed if the SMTP server requires authentication 
                     // Error 5.5.1 Authentication  
-                    client.Authenticate("juzzzt.dev@gmail.com", "5b4d383b-6553-4e75-a516-619837ecbd2c");
+                    client.Authenticate(_configuration["Smtp:User"], _configuration["Smtp:Password"]);
                     client.Send(mimeMessage);
                     client.Disconnect(true);
                 }
