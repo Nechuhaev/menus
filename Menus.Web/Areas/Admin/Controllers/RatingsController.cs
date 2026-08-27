@@ -49,11 +49,20 @@ namespace Menus.Web.Areas.Admin.Controllers
             var restaurants = (await _core.Ratings.GetRestaurantsByDishes(dishes)).ToList();
             List<UserRating> ratings = new List<UserRating>();
 
-            foreach (IAnonymousRating anonymousRating in anonymousRatings)
+                        foreach (IAnonymousRating anonymousRating in anonymousRatings)
             {
                 UserRating ur = new UserRating();
                 var dish = dishes.FirstOrDefault(x => x.Id == anonymousRating.DishId);
+                if (dish == null)
+                {
+                    // Orphaned rating: the dish it references no longer exists. Skip it instead of crashing the page.
+                    continue;
+                }
                 var restaurant = restaurants.FirstOrDefault(x => x.Id == dish.RestaurantId);
+                if (restaurant == null)
+                {
+                    continue;
+                }
 
                 ur.RestaurantId = anonymousRating.RestaurantId;
                 ur.Rate = anonymousRating.Rate;
