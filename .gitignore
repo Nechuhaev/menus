@@ -283,3 +283,4 @@ Menus.Web/spreadsheet-api.json
 .env.*.local
 *.secrets.json
 .DS_Store
+content-bot/.env
