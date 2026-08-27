@@ -3,16 +3,17 @@
 @model Menus.Abstract.Models.IPage
 
 @{
-    ViewData["Title"] = "Blog";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
     var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
     // Culture contains the information of the requested culture
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
 
+    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.SeoTitle?.Get(culture)) ? Model.Title.Get(culture) : Model.SeoTitle.Get(culture);
+    ViewData["Description"] = string.IsNullOrWhiteSpace(Model.SeoDescription?.Get(culture)) ? Model.ShortContent?.Get(culture) : Model.SeoDescription.Get(culture);
+
     var otherBlogs = ViewData["otherBlogs"] as IEnumerable<Menus.Abstract.Models.IPage>;
 }
-
 
 @await Html.PartialAsync("_Header")
 <div class="site-content">
