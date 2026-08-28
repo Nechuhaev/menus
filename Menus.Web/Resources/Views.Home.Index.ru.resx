@@ -150,6 +150,9 @@
 	<data name="NewlyAdded" xml:space="preserve">
     <value>Новые заведения</value>
   </data>
+	<data name="NewBlogArticles" xml:space="preserve">
+    <value>Новые статьи в блоге</value>
+  </data>
 	<data name="MayBeYouAreAtTheCurrentPlace" xml:space="preserve">
     <value>Возможно вы находитесь в этом ресторане</value>
   </data>
