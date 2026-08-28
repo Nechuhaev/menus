@@ -150,6 +150,9 @@
 	<data name="NewlyAdded" xml:space="preserve">
     <value>New places</value>
   </data>
+	<data name="NewBlogArticles" xml:space="preserve">
+    <value>New blog articles</value>
+  </data>
 	<data name="MayBeYouAreAtTheCurrentPlace" xml:space="preserve">
     <value>May be you are the current place</value>
   </data>
