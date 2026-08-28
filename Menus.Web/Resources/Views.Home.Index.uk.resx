@@ -133,7 +133,7 @@
     <value>Знайти меню</value>
   </data>
 	<data name="SearchPlaceholder" xml:space="preserve">
-    <value>Введіть назву реторану</value>
+    <value>Введіть назву ресторану</value>
   </data>
 	<data name="SeenRecently" xml:space="preserve">
     <value>Ви дивилися нещодавно</value>
