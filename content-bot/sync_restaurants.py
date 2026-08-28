@@ -73,9 +73,11 @@ def fetch_restaurants_due_for_check(db, batch_size):
         """
         SELECT r.Id, r.Name, r.Address, r.City,
                ri.Id AS InfoId, ri.Website, ri.OpenHours, ri.Contacts, ri.Photos,
-               ri.Cuisine, ri.ShortInfo, ri.GpsLatitude, ri.GpsLongitude
+               ri.Cuisine, ri.ShortInfo, ri.GpsLatitude, ri.GpsLongitude,
+               rs.Id AS SeoId, rs.Title AS SeoTitle, rs.Description AS SeoDescription, rs.Keywords AS SeoKeywords
         FROM Restaurants r
         JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
+        JOIN RestaurantSeo rs ON rs.ItemId = r.Id
         LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = r.Id
         WHERE r.Status = %s
           AND (l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY))
@@ -174,14 +176,15 @@ EXTRACT_PROMPT = """Ось текст, витягнутий із сайту ре
 {text}
 
 Витягни з цього тексту (якщо інформації немає на сторінці — постав null, не вигадуй):
-- години роботи (у форматі "Пн-Нд 10:00-22:00" або подібному, якщо вказано по днях — так і залиш)
-- тип кухні / короткий опис закладу (1 фраза)
+- години роботи (у форматі "Пн-Нд 10:00-22:00" або подібному, якщо вказано по днях — так і залиш; мовно-нейтрально, одне значення)
+- тип кухні / короткий опис закладу — окремо українською (cuisine_uk) і російською (cuisine_ru), 1 фраза кожною мовою
 - контактний телефон
 
 Поверни ЛИШЕ валідний JSON:
 {{
   "opening_hours": "..." or null,
-  "cuisine": "..." or null,
+  "cuisine_uk": "..." or null,
+  "cuisine_ru": "..." or null,
   "phone": "..." or null
 }}
 """
@@ -201,6 +204,41 @@ def extract_from_website(name, text):
         return json.loads(raw)
     except Exception as e:
         print(f"    Website extraction failed: {e}")
+        return {}
+
+
+SEO_PROMPT = """Згенеруй SEO-метадані для сторінки ресторану на сайті tipmymenu.com.
+
+Назва: {name}
+Місто: {city}
+Адреса: {address}
+Кухня/опис: {cuisine}
+
+Поверни ЛИШЕ валідний JSON, з полями окремо українською (uk) та російською (ru):
+{{
+  "title": {{"uk": "SEO title до 60 символів", "ru": "..."}},
+  "description": {{"uk": "SEO description до 160 символів", "ru": "..."}},
+  "keywords": {{"uk": "5-8 фраз через кому", "ru": "..."}}
+}}
+"""
+
+
+def generate_seo(name, city, address, cuisine_uk, cuisine_ru):
+    try:
+        cuisine_text = f"{cuisine_uk or ''} / {cuisine_ru or ''}".strip(" /") or "ресторан"
+        message = anthropic_client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=600,
+            messages=[{
+                "role": "user",
+                "content": SEO_PROMPT.format(name=name, city=city, address=address, cuisine=cuisine_text),
+            }],
+        )
+        raw = message.content[0].text.strip()
+        raw = re.sub(r"^```json\s*|\s*```$", "", raw)
+        return json.loads(raw)
+    except Exception as e:
+        print(f"    SEO generation failed: {e}")
         return {}
 
 
@@ -271,9 +309,11 @@ def process_restaurant(db, restaurant):
         updates["Website"] = places_website
         notes.append("website filled")
 
-    if not restaurant["Cuisine"] and website_data.get("cuisine"):
+    if not restaurant["Cuisine"] and (website_data.get("cuisine_uk") or website_data.get("cuisine_ru")):
+        cuisine_uk = website_data.get("cuisine_uk") or website_data.get("cuisine_ru")
+        cuisine_ru = website_data.get("cuisine_ru") or website_data.get("cuisine_uk")
         updates["Cuisine"] = json.dumps(
-            {"Values": [{"Locale": "uk", "Value": website_data["cuisine"]}, {"Locale": "ru", "Value": website_data["cuisine"]}]},
+            {"Values": [{"Locale": "uk", "Value": cuisine_uk}, {"Locale": "ru", "Value": cuisine_ru}]},
             ensure_ascii=False,
         )
         notes.append("cuisine filled from website")
@@ -302,6 +342,33 @@ def process_restaurant(db, restaurant):
         cur.execute(f"UPDATE RestaurantInfo SET {set_clause} WHERE RestaurantId = %s", (*updates.values(), restaurant["Id"]))
         db.commit()
         cur.close()
+
+    seo_needs_filling = not restaurant["SeoTitle"] or not restaurant["SeoDescription"] or not restaurant["SeoKeywords"]
+    if seo_needs_filling:
+        cuisine_uk_for_seo = website_data.get("cuisine_uk")
+        cuisine_ru_for_seo = website_data.get("cuisine_ru")
+        seo_data = generate_seo(name, restaurant["City"], restaurant["Address"], cuisine_uk_for_seo, cuisine_ru_for_seo)
+        seo_updates = {}
+        if seo_data.get("title") and not restaurant["SeoTitle"]:
+            seo_updates["Title"] = json.dumps(
+                {"Values": [{"Locale": "uk", "Value": seo_data["title"]["uk"]}, {"Locale": "ru", "Value": seo_data["title"]["ru"]}]},
+                ensure_ascii=False,
+            )
+        if seo_data.get("description") and not restaurant["SeoDescription"]:
+            seo_updates["Description"] = json.dumps(
+                {"Values": [{"Locale": "uk", "Value": seo_data["description"]["uk"]}, {"Locale": "ru", "Value": seo_data["description"]["ru"]}]},
+                ensure_ascii=False,
+            )
+        if seo_data.get("keywords") and not restaurant["SeoKeywords"]:
+            seo_updates["Keywords"] = f"{seo_data['keywords']['uk']}, {seo_data['keywords']['ru']}"
+
+        if seo_updates:
+            set_clause = ", ".join(f"{col} = %s" for col in seo_updates)
+            cur = db.cursor()
+            cur.execute(f"UPDATE RestaurantSeo SET {set_clause} WHERE ItemId = %s", (*seo_updates.values(), restaurant["Id"]))
+            db.commit()
+            cur.close()
+            notes.append("SEO meta filled")
 
     summary = "; ".join(notes) if notes else "no changes needed"
     log_check(db, restaurant["Id"], summary, closed_detected=False)
