@@ -382,7 +382,7 @@
                 </div>
             }
 
-            else if (latestRestaurants.Any())
+                        else if (latestRestaurants.Any())
             {
                 <!-- Swiper -->
                 <div class="swiper-area disableOnDesktop">
@@ -410,6 +410,78 @@
                                         @Localizer["RatingCount"]: @restaurant.RatingsCount
                                     </p>
                                     @await Html.PartialAsync("_ServiceButtons")
+                                </a>
+                            }
+                        </div>
+                        <!-- Add Pagination -->
+                        <div class="swiper-pagination"></div>
+                    </div>
+                </div>
+            }
+
+            @{
+                var latestBlogArticles = ViewData["latestBlogArticles"] as List<IPage> ?? new List<IPage>();
+            }
+
+            @if (latestBlogArticles.Any())
+            {
+                <div class="title_section">
+                    <h2>@Localizer["NewBlogArticles"]</h2>
+                    <span>
+                        <a asp-area="" asp-controller="Home" asp-action="Blog">@Localizer["ViewAll"]</a>
+                    </span>
+                </div>
+            }
+
+            @if (latestBlogArticles.Any() && !isMobileUser)
+            {
+                <div class="restaurants-container disableOnMobile">
+                    @foreach (var article in latestBlogArticles)
+                    {
+                        <div class="restaurant">
+                            <a class="restaurant" asp-controller="Home" asp-action="NewsPage" asp-route-id="@article.Url">
+                                @if (!string.IsNullOrEmpty(article.Photo))
+                                {
+                                    <figure class="restaurant-image" style="background-image: url(@Img.Url(article.Photo, Quality.Medium));"></figure>
+                                }
+                                else
+                                {
+                                    <figure class="restaurant-image"></figure>
+                                }
+                                <p class="restaurant-name">
+                                    @article.Title.Get()
+                                </p>
+                                <p class="restaurant-kitchen">
+                                    @article.Timestamp.ToString("d")
+                                </p>
+                            </a>
+                        </div>
+                    }
+                </div>
+            }
+            else if (latestBlogArticles.Any())
+            {
+                <!-- Swiper -->
+                <div class="swiper-area disableOnDesktop">
+                    <div class="swiper-container">
+                        <div class="swiper-wrapper">
+                            @foreach (var article in latestBlogArticles)
+                            {
+                                <a class="swiper-slide" asp-controller="Home" asp-action="NewsPage" asp-route-id="@article.Url">
+                                    @if (!string.IsNullOrEmpty(article.Photo))
+                                    {
+                                        <figure class="restaurant-image" style="background-image: url(@Img.Url(article.Photo, Quality.Low));"></figure>
+                                    }
+                                    else
+                                    {
+                                        <figure class="restaurant-image"></figure>
+                                    }
+                                    <p class="restaurant-name">
+                                        @article.Title.Get()
+                                    </p>
+                                    <p class="restaurant-kitchen">
+                                        @article.Timestamp.ToString("d")
+                                    </p>
                                 </a>
                             }
                         </div>
