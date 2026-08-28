@@ -23,7 +23,7 @@ namespace Menus.Web.Models
         public string SeoDescription { get; set; }
         public string SeoKeywords { get; set; }
         public string SeoText { get; set; }
-
+        public int Views { get; set; }
 
         [NotMapped]
         private LocalizableString _title
