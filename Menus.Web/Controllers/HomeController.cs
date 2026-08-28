@@ -133,6 +133,11 @@ namespace Menus.Web.Controllers
 
             ViewData["nearestRestaurants"] = latestAddedRestaurants;
             //ViewData["nearestRestaurants"] = (await _core.Restaurants.FindNearest(lat, lon)).Take(4).ToList();
+            ViewData["latestBlogArticles"] = (await _core.Pages.GetBlog())
+                .Where(x => x.Status == PageStatus.Published)
+                .OrderByDescending(x => x.Timestamp)
+                .Take(4)
+                .ToList();
             ViewData["cities"] = JsonConvert.SerializeObject(cities.Select(x => new { name = x.Name.Get(culture), id = x.Id, terms = "" }).OrderBy(x => x.name));
             ViewData["selectedCity"] = cities.First(x => x.Id == selectedCity);
 
