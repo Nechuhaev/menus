@@ -23,6 +23,7 @@ namespace Menus.Abstract.Models
         ILocalizableString SeoDescription { get; set; }
         ILocalizableString SeoKeywords { get; set; }
         ILocalizableString SeoText { get; set; }
+        int Views { get; set; }
     }
 
     public enum PageCategory
