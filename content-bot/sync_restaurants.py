@@ -242,6 +242,19 @@ def generate_seo(name, city, address, cuisine_uk, cuisine_ru):
         return {}
 
 
+def is_localizable_empty(json_str):
+    """SeoTitle/SeoDescription often already contain an empty '{"Values":[]}' placeholder
+    rather than NULL, so a plain truthiness check on the raw string is not enough."""
+    if not json_str:
+        return True
+    try:
+        parsed = json.loads(json_str)
+        values = parsed.get("Values", [])
+        return not any((v.get("Value") or "").strip() for v in values)
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        return True
+
+
 def log_check(db, restaurant_id, notes, closed_detected):
     cur = db.cursor()
     cur.execute(
@@ -309,7 +322,7 @@ def process_restaurant(db, restaurant):
         updates["Website"] = places_website
         notes.append("website filled")
 
-    if not restaurant["Cuisine"] and (website_data.get("cuisine_uk") or website_data.get("cuisine_ru")):
+    if is_localizable_empty(restaurant["Cuisine"]) and (website_data.get("cuisine_uk") or website_data.get("cuisine_ru")):
         cuisine_uk = website_data.get("cuisine_uk") or website_data.get("cuisine_ru")
         cuisine_ru = website_data.get("cuisine_ru") or website_data.get("cuisine_uk")
         updates["Cuisine"] = json.dumps(
@@ -343,23 +356,26 @@ def process_restaurant(db, restaurant):
         db.commit()
         cur.close()
 
-    seo_needs_filling = not restaurant["SeoTitle"] or not restaurant["SeoDescription"] or not restaurant["SeoKeywords"]
+    seo_title_empty = is_localizable_empty(restaurant["SeoTitle"])
+    seo_description_empty = is_localizable_empty(restaurant["SeoDescription"])
+    seo_keywords_empty = not restaurant["SeoKeywords"]
+    seo_needs_filling = seo_title_empty or seo_description_empty or seo_keywords_empty
     if seo_needs_filling:
         cuisine_uk_for_seo = website_data.get("cuisine_uk")
         cuisine_ru_for_seo = website_data.get("cuisine_ru")
         seo_data = generate_seo(name, restaurant["City"], restaurant["Address"], cuisine_uk_for_seo, cuisine_ru_for_seo)
         seo_updates = {}
-        if seo_data.get("title") and not restaurant["SeoTitle"]:
+        if seo_data.get("title") and seo_title_empty:
             seo_updates["Title"] = json.dumps(
                 {"Values": [{"Locale": "uk", "Value": seo_data["title"]["uk"]}, {"Locale": "ru", "Value": seo_data["title"]["ru"]}]},
                 ensure_ascii=False,
             )
-        if seo_data.get("description") and not restaurant["SeoDescription"]:
+        if seo_data.get("description") and seo_description_empty:
             seo_updates["Description"] = json.dumps(
                 {"Values": [{"Locale": "uk", "Value": seo_data["description"]["uk"]}, {"Locale": "ru", "Value": seo_data["description"]["ru"]}]},
                 ensure_ascii=False,
             )
-        if seo_data.get("keywords") and not restaurant["SeoKeywords"]:
+        if seo_data.get("keywords") and seo_keywords_empty:
             seo_updates["Keywords"] = f"{seo_data['keywords']['uk']}, {seo_data['keywords']['ru']}"
 
         if seo_updates:
