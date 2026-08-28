@@ -11,6 +11,8 @@ using Menus.Web.Models;
 using Menus.Web.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using MySql.Data.MySqlClient;
 
 namespace Menus.Web.Areas.Admin.Controllers
 {
@@ -18,10 +20,12 @@ namespace Menus.Web.Areas.Admin.Controllers
     public class PagesController : Controller
     {
         private readonly Core _core;
+        private readonly IConfiguration _configuration;
 
-        public PagesController(Core core)
+        public PagesController(Core core, IConfiguration configuration)
         {
             _core = core;
+            _configuration = configuration;
         }
 
         [Authorize(Roles = "admin, manager")]
@@ -61,11 +65,41 @@ namespace Menus.Web.Areas.Admin.Controllers
             if (string.IsNullOrEmpty(q) && status == null) pages = await _core.Pages.GetBlog();
             else pages = await _core.Pages.Search(q, status, category);
 
+            pages = pages.OrderByDescending(x => x.Timestamp);
+
             ViewData["q"] = q;
             ViewData["status"] = status;
             ViewData["category"] = category;
+            ViewData["seoStatus"] = GetSeoStatuses();
 
             return View(pages.Take(50));
+        }
+
+        private Dictionary<string, string> GetSeoStatuses()
+        {
+            var result = new Dictionary<string, string>();
+            try
+            {
+                using (var connection = new MySqlConnection(_configuration.GetConnectionString("DefaultConnection")))
+                {
+                    connection.Open();
+                    using (var command = new MySqlCommand("SELECT PageId, Fixed FROM ContentOptimizationLog", connection))
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var pageId = reader.GetString(0);
+                            var fixedFlag = reader.GetBoolean(1);
+                            result[pageId] = fixedFlag ? "Виправлено" : "Перевірено, без проблем";
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Optimization log table may not exist yet if the content bot hasn't run; treat as "not checked".
+            }
+            return result;
         }
 
         [HttpGet]
