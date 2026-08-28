@@ -10,8 +10,8 @@ marketing copy, not a factual claim. Photo: taken from the site if an image is
 clearly associated with that dish name; otherwise a relevant Google Places photo
 of the restaurant is used as a fallback illustration.
 
-Run daily via cron. Processes a batch of restaurants (with all their needy dishes)
-per run.
+Run daily via cron. Processes a batch of restaurants (with all their needy dishes,
+chunked into groups of 25 per Claude call to stay within safe output limits) per run.
 """
 import json
 import os
@@ -174,25 +174,34 @@ MATCH_PROMPT = """Ось HTML-фрагмент сторінки меню рес�
 """
 
 
+def chunked(items, size):
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
+
+
 def match_dishes_on_site(restaurant_name, base_url, html, dishes):
-    dish_list = "\n".join(f"- id={d['Id']}: {get_localizable_value(d['Name'], 'uk')}" for d in dishes)
-    try:
-        message = anthropic_client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=2000,
-            messages=[{
-                "role": "user",
-                "content": MATCH_PROMPT.format(
-                    restaurant_name=restaurant_name, base_url=base_url, html=html, dish_list=dish_list
-                ),
-            }],
-        )
-        raw = message.content[0].text.strip()
-        raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-        return json.loads(raw)
-    except Exception as e:
-        print(f"    Site matching failed: {e}")
-        return []
+    all_matches = {}
+    for chunk in chunked(dishes, 25):
+        dish_list = "\n".join(f"- id={d['Id']}: {get_localizable_value(d['Name'], 'uk')}" for d in chunk)
+        try:
+            message = anthropic_client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=2000,
+                messages=[{
+                    "role": "user",
+                    "content": MATCH_PROMPT.format(
+                        restaurant_name=restaurant_name, base_url=base_url, html=html, dish_list=dish_list
+                    ),
+                }],
+            )
+            raw = message.content[0].text.strip()
+            raw = re.sub(r"^```json\s*|\s*```$", "", raw)
+            for m in json.loads(raw):
+                if m.get("dish_id"):
+                    all_matches[m["dish_id"]] = m
+        except Exception as e:
+            print(f"    Site matching failed for a batch: {e}")
+    return all_matches
 
 
 DESCRIPTION_PROMPT = """Напиши коротку апетитну маркетингову назву-опис для кожної страви зі списку нижче (ресторан "{restaurant_name}", кухня: {cuisine}).
@@ -210,26 +219,29 @@ DESCRIPTION_PROMPT = """Напиши коротку апетитну марке�
 
 
 def generate_descriptions_batch(restaurant_name, cuisine, dishes_needing_description):
-    dish_list = "\n".join(
-        f"- id={d['Id']}: {get_localizable_value(d['Name'], 'uk') or get_localizable_value(d['Name'], 'ru')}"
-        for d in dishes_needing_description
-    )
-    try:
-        message = anthropic_client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=4000,
-            messages=[{
-                "role": "user",
-                "content": DESCRIPTION_PROMPT.format(restaurant_name=restaurant_name, cuisine=cuisine or "змішана", dish_list=dish_list),
-            }],
+    all_results = {}
+    for chunk in chunked(dishes_needing_description, 25):
+        dish_list = "\n".join(
+            f"- id={d['Id']}: {get_localizable_value(d['Name'], 'uk') or get_localizable_value(d['Name'], 'ru')}"
+            for d in chunk
         )
-        raw = message.content[0].text.strip()
-        raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-        results = json.loads(raw)
-        return {r["dish_id"]: r for r in results if r.get("dish_id")}
-    except Exception as e:
-        print(f"    Batch description generation failed: {e}")
-        return {}
+        try:
+            message = anthropic_client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=4000,
+                messages=[{
+                    "role": "user",
+                    "content": DESCRIPTION_PROMPT.format(restaurant_name=restaurant_name, cuisine=cuisine or "змішана", dish_list=dish_list),
+                }],
+            )
+            raw = message.content[0].text.strip()
+            raw = re.sub(r"^```json\s*|\s*```$", "", raw)
+            for r in json.loads(raw):
+                if r.get("dish_id"):
+                    all_results[r["dish_id"]] = r
+        except Exception as e:
+            print(f"    Batch description generation failed for a batch: {e}")
+    return all_results
 
 
 def resolve_url(base_url, maybe_relative):
@@ -329,8 +341,7 @@ def process_restaurant(db, restaurant):
     if restaurant["Website"]:
         html, base_url = fetch_website_html(restaurant["Website"])
         if html:
-            matches = match_dishes_on_site(restaurant["Name"], base_url, html, dishes)
-            site_matches = {m["dish_id"]: m for m in matches if m.get("dish_id")}
+            site_matches = match_dishes_on_site(restaurant["Name"], base_url, html, dishes)
 
     dishes_needing_description = [d for d in dishes if is_localizable_empty(d["Description"])]
     description_batch = {}
