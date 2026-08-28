@@ -258,6 +258,78 @@ def unique_url(db, title):
     return candidate
 
 
+def fetch_published_articles(db, exclude_title=None):
+    """Fetch existing published blog articles (Url + bilingual titles) for internal linking."""
+    cur = db.cursor()
+    cur.execute("SELECT Url, Title FROM Pages WHERE Category = 1 AND Status = 1")
+    rows = cur.fetchall()
+    cur.close()
+
+    articles = []
+    for url, title_json in rows:
+        try:
+            parsed = json.loads(title_json)
+            titles = {v["Locale"]: v["Value"] for v in parsed.get("Values", [])}
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if titles.get("uk") == exclude_title:
+            continue
+        articles.append({"url": url, "titles": titles})
+    return articles
+
+
+STOPWORDS = {
+    "де", "як", "що", "для", "від", "в", "на", "з", "і", "та", "або", "цей", "яка", "який",
+    "где", "как", "что", "для", "от", "в", "на", "с", "и", "или", "этот", "какая", "какой",
+    "the", "a", "an", "in", "on", "of", "for", "to",
+}
+
+
+def _keywords(text):
+    words = re.findall(r"[а-щьюяєіїґ'a-z]+", text.lower())
+    return {w for w in words if len(w) > 3 and w not in STOPWORDS}
+
+
+def pick_related_articles(candidates, new_title_uk, new_keywords_uk, count=3):
+    """Score existing articles by keyword overlap with the new article's title/keywords."""
+    target_words = _keywords(new_title_uk) | _keywords(new_keywords_uk or "")
+    scored = []
+    for article in candidates:
+        title_uk = article["titles"].get("uk", "")
+        overlap = len(_keywords(title_uk) & target_words)
+        if overlap > 0:
+            scored.append((overlap, article))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [a for _, a in scored[:count]]
+
+
+LINK_SENTENCES = {
+    "uk": 'Читайте також: <a href="/uk/news/{url}">{title}</a>.',
+    "ru": 'Читайте также: <a href="/ru/news/{url}">{title}</a>.',
+}
+
+
+def insert_internal_links(html_content, related_articles, locale):
+    """Insert 2-3 natural internal links after paragraphs spread through the article body."""
+    if not related_articles:
+        return html_content
+
+    paragraphs = html_content.split("</p>")
+    if len(paragraphs) < 3:
+        return html_content
+
+    usable_positions = list(range(1, len(paragraphs) - 1))
+    step = max(1, len(usable_positions) // (len(related_articles) + 1))
+    insertion_points = usable_positions[step - 1 :: step][: len(related_articles)]
+
+    for idx, pos in zip(insertion_points, related_articles):
+        title = pos["titles"].get(locale) or pos["titles"].get("uk", "")
+        sentence = LINK_SENTENCES[locale].format(url=pos["url"], title=title)
+        paragraphs[idx] += f"</p><p>{sentence}</p>"
+
+    return "</p>".join(paragraphs)
+
+
 def localizable_json(uk_value, ru_value):
     return json.dumps(
         {"Values": [{"Locale": "uk", "Value": uk_value}, {"Locale": "ru", "Value": ru_value}]},
@@ -269,6 +341,12 @@ def publish_article(db, article, photo_filename):
     page_id = str(uuid.uuid4())
     url = unique_url(db, article["title"]["uk"])
 
+    candidates = fetch_published_articles(db, exclude_title=article["title"]["uk"])
+    related = pick_related_articles(candidates, article["title"]["uk"], article["seo_keywords"].get("uk"))
+
+    content_uk = insert_internal_links(article["content"]["uk"], related, "uk")
+    content_ru = insert_internal_links(article["content"]["ru"], related, "ru")
+
     cur = db.cursor()
     cur.execute(
         """
@@ -279,7 +357,7 @@ def publish_article(db, article, photo_filename):
         (
             page_id,
             1,
-            localizable_json(article["content"]["uk"], article["content"]["ru"]),
+            localizable_json(content_uk, content_ru),
             photo_filename,
             localizable_json(article["seo_description"]["uk"], article["seo_description"]["ru"]),
             localizable_json(article["seo_keywords"]["uk"], article["seo_keywords"]["ru"]),
