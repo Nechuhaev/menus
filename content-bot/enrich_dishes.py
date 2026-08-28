@@ -1,0 +1,400 @@
+#!/usr/bin/env python3
+"""
+Dish enrichment: for dishes missing price/weight/description/photo, fetches the
+restaurant's own website menu page and asks Claude to match each dish by name and
+extract only what's genuinely present on the page — price and weight are NEVER
+guessed (wrong price/weight on a menu is a real customer-facing problem), only
+copied when found on the restaurant's own site. Description can be generated
+generically from the dish name when the site has nothing, since that's just
+marketing copy, not a factual claim. Photo: taken from the site if an image is
+clearly associated with that dish name; otherwise a relevant Google Places photo
+of the restaurant is used as a fallback illustration.
+
+Run weekly via cron. Processes one restaurant (with all its needy dishes) per run
+to keep the site-fetch + Claude-matching cost bounded; increase batch size later
+if needed.
+"""
+import json
+import os
+import re
+import time
+from datetime import datetime
+
+import boto3
+import mysql.connector
+import requests
+from anthropic import Anthropic
+from dotenv import load_dotenv
+
+load_dotenv()
+
+CLAUDE_API_KEY = os.environ["CLAUDE_API_KEY"]
+GOOGLE_PLACES_API_KEY = os.environ["GOOGLE_PLACES_API_KEY"]
+DO_SPACES_KEY = os.environ["DO_SPACES_KEY"]
+DO_SPACES_SECRET = os.environ["DO_SPACES_SECRET"]
+DO_SPACES_BUCKET = os.environ.get("DO_SPACES_BUCKET", "cdn-tipmymenus-com")
+
+DB_HOST = os.environ.get("DB_HOST", "127.0.0.1")
+DB_PORT = int(os.environ.get("DB_PORT", "3306"))
+DB_USER = os.environ.get("DB_USER", "root")
+DB_PASSWORD = os.environ["DB_PASSWORD"]
+DB_NAME = os.environ.get("DB_NAME", "menus")
+
+RESTAURANTS_PER_RUN = 5
+
+anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
+
+
+def get_db():
+    return mysql.connector.connect(
+        host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, database=DB_NAME
+    )
+
+
+def ensure_log_table(db):
+    cur = db.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS DishEnrichLog (
+            RestaurantId VARCHAR(255) PRIMARY KEY,
+            LastCheckedAt DATETIME NOT NULL,
+            Notes TEXT NULL
+        )
+        """
+    )
+    db.commit()
+    cur.close()
+
+
+def is_localizable_empty(json_str):
+    if not json_str:
+        return True
+    try:
+        parsed = json.loads(json_str)
+        values = parsed.get("Values", [])
+        return not any((v.get("Value") or "").strip() for v in values)
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        return True
+
+
+def get_localizable_value(json_str, locale="uk"):
+    if not json_str:
+        return ""
+    try:
+        parsed = json.loads(json_str)
+        for v in parsed.get("Values", []):
+            if v.get("Locale") == locale:
+                return v.get("Value") or ""
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        pass
+    return ""
+
+
+def localizable_json(uk_value, ru_value):
+    return json.dumps(
+        {"Values": [{"Locale": "uk", "Value": uk_value}, {"Locale": "ru", "Value": ru_value}]},
+        ensure_ascii=False,
+    )
+
+
+def fetch_restaurants_with_needy_dishes(db, limit):
+    ensure_log_table(db)
+    cur = db.cursor(dictionary=True)
+    cur.execute(
+        """
+        SELECT r.Id, r.Name, r.City, ri.Website, ri.Cuisine
+        FROM Restaurants r
+        JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
+        LEFT JOIN DishEnrichLog l ON l.RestaurantId = r.Id
+        WHERE r.Status = 0
+          AND (l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL 30 DAY))
+          AND EXISTS (
+              SELECT 1 FROM Dishes d
+              WHERE d.RestaurantId = r.Id
+                AND (d.Price = 0 OR d.Weight IS NULL OR d.Weight = ''
+                     OR d.Description IS NULL OR d.PhotoLink IS NULL OR d.PhotoLink = '[]')
+          )
+        ORDER BY l.LastCheckedAt IS NOT NULL, l.LastCheckedAt ASC
+        LIMIT %s
+        """,
+        (limit,),
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+
+def fetch_needy_dishes(db, restaurant_id):
+    cur = db.cursor(dictionary=True)
+    cur.execute(
+        """
+        SELECT Id, Name, Description, Price, Weight, WeightType, PhotoLink
+        FROM Dishes
+        WHERE RestaurantId = %s
+          AND (Price = 0 OR Weight IS NULL OR Weight = ''
+               OR Description IS NULL OR PhotoLink IS NULL OR PhotoLink = '[]')
+        """,
+        (restaurant_id,),
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+
+def fetch_website_html(url, max_chars=12000):
+    try:
+        resp = requests.get(
+            url, timeout=15, headers={"User-Agent": "Mozilla/5.0 (compatible; TipMyMenuBot/1.0)"}
+        )
+        resp.raise_for_status()
+        html = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>", " ", resp.text)
+        html = re.sub(r"\s+", " ", html).strip()
+        return html[:max_chars], resp.url
+    except Exception as e:
+        print(f"    Website fetch failed for {url}: {e}")
+        return None, None
+
+
+MATCH_PROMPT = """Ось HTML-фрагмент сторінки меню ресторану "{restaurant_name}" (базовий URL: {base_url}):
+
+{html}
+
+Ось список страв цього ресторану в нашій базі, яким бракує даних:
+{dish_list}
+
+Для КОЖНОЇ страви зі списку спробуй знайти на сторінці ТОЧНО ЦЮ страву (за назвою, можливі незначні відмінності у формулюванні) і витягни:
+- ціну (тільки число, як вказано на сторінці)
+- грамотуру/вихід (наприклад "250 г", як вказано на сторінці)
+- URL зображення, якщо він явно прив'язаний саме до цієї страви (src з тегу img поруч із назвою)
+
+ВАЖЛИВО: якщо конкретної страви немає на сторінці, або дані не вказані явно — постав null. НЕ вигадуй ціну, грамотуру чи фото. Це критично: неточна ціна чи вага введе відвідувачів в оману.
+
+Поверни ЛИШЕ валідний JSON, масив об'єктів у тому ж порядку, що й список страв:
+[
+  {{"dish_id": "...", "price": число або null, "weight": "..." або null, "image_url": "..." або null}}
+]
+"""
+
+
+def match_dishes_on_site(restaurant_name, base_url, html, dishes):
+    dish_list = "\n".join(f"- id={d['Id']}: {get_localizable_value(d['Name'], 'uk')}" for d in dishes)
+    try:
+        message = anthropic_client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=2000,
+            messages=[{
+                "role": "user",
+                "content": MATCH_PROMPT.format(
+                    restaurant_name=restaurant_name, base_url=base_url, html=html, dish_list=dish_list
+                ),
+            }],
+        )
+        raw = message.content[0].text.strip()
+        raw = re.sub(r"^```json\s*|\s*```$", "", raw)
+        return json.loads(raw)
+    except Exception as e:
+        print(f"    Site matching failed: {e}")
+        return []
+
+
+DESCRIPTION_PROMPT = """Напиши коротку апетитну маркетингову назву-опис страви для меню ресторану.
+
+Страва: "{name}"
+Кухня ресторану: {cuisine}
+
+Це загальний опис на основі назви страви (не претензія на точний рецепт конкретного закладу) — 1-2 речення, привабливо, без перебільшень.
+
+Поверни ЛИШЕ валідний JSON:
+{{"description_uk": "...", "description_ru": "..."}}
+"""
+
+
+def generate_description(name, cuisine):
+    try:
+        message = anthropic_client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=300,
+            messages=[{"role": "user", "content": DESCRIPTION_PROMPT.format(name=name, cuisine=cuisine or "змішана")}],
+        )
+        raw = message.content[0].text.strip()
+        raw = re.sub(r"^```json\s*|\s*```$", "", raw)
+        return json.loads(raw)
+    except Exception as e:
+        print(f"    Description generation failed: {e}")
+        return {}
+
+
+def resolve_url(base_url, maybe_relative):
+    if maybe_relative.startswith("http"):
+        return maybe_relative
+    from urllib.parse import urljoin
+    return urljoin(base_url, maybe_relative)
+
+
+def upload_photo_to_spaces(image_bytes):
+    from PIL import Image
+    import io
+    import uuid
+
+    file_id = str(uuid.uuid4())
+    source = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+
+    s3 = boto3.client(
+        "s3",
+        region_name="fra1",
+        endpoint_url="https://fra1.digitaloceanspaces.com",
+        aws_access_key_id=DO_SPACES_KEY,
+        aws_secret_access_key=DO_SPACES_SECRET,
+    )
+
+    def upload_variant(img, key):
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=80)
+        buf.seek(0)
+        s3.put_object(Bucket=DO_SPACES_BUCKET, Key=key, Body=buf.getvalue(), ACL="public-read", ContentType="image/jpeg")
+
+    def resized(img, max_height):
+        ratio = max_height / img.height
+        return img.resize((int(img.width * ratio), max_height))
+
+    upload_variant(source, f"files/{file_id}.jpg")
+    upload_variant(resized(source, 1000), f"files/{file_id}-large.jpg")
+    upload_variant(resized(source, 600), f"files/{file_id}-medium.jpg")
+    upload_variant(resized(source, 300), f"files/{file_id}-small.jpg")
+
+    return file_id
+
+
+def places_food_photo(restaurant_name, city):
+    """Fallback: a generic photo of food from the restaurant's Google Places listing,
+    used only when the site has no dish-specific photo. Not guaranteed to depict this
+    exact dish, so this is an illustrative fallback, not a factual claim."""
+    try:
+        url = "https://places.googleapis.com/v1/places:searchText"
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+            "X-Goog-FieldMask": "places.photos",
+        }
+        resp = requests.post(url, headers=headers, json={"textQuery": f"{restaurant_name}, {city}"}, timeout=20)
+        resp.raise_for_status()
+        places = resp.json().get("places", [])
+        if not places or not places[0].get("photos"):
+            return None
+        photo_name = places[0]["photos"][0]["name"]
+        photo_resp = requests.get(
+            f"https://places.googleapis.com/v1/{photo_name}/media",
+            params={"maxWidthPx": 800, "key": GOOGLE_PLACES_API_KEY},
+            timeout=20,
+        )
+        photo_resp.raise_for_status()
+        return photo_resp.content
+    except Exception as e:
+        print(f"    Places photo fallback failed: {e}")
+        return None
+
+
+def log_check(db, restaurant_id, notes):
+    cur = db.cursor()
+    cur.execute(
+        """
+        INSERT INTO DishEnrichLog (RestaurantId, LastCheckedAt, Notes)
+        VALUES (%s, %s, %s)
+        ON DUPLICATE KEY UPDATE LastCheckedAt = VALUES(LastCheckedAt), Notes = VALUES(Notes)
+        """,
+        (restaurant_id, datetime.now(), notes),
+    )
+    db.commit()
+    cur.close()
+
+
+def process_restaurant(db, restaurant):
+    dishes = fetch_needy_dishes(db, restaurant["Id"])
+    if not dishes:
+        log_check(db, restaurant["Id"], "no needy dishes")
+        return
+
+    print(f"Restaurant: {restaurant['Name']} ({len(dishes)} dish(es) need data)")
+
+    site_matches = {}
+    base_url = None
+    if restaurant["Website"]:
+        html, base_url = fetch_website_html(restaurant["Website"])
+        if html:
+            matches = match_dishes_on_site(restaurant["Name"], base_url, html, dishes)
+            site_matches = {m["dish_id"]: m for m in matches if m.get("dish_id")}
+
+    updated_count = 0
+    for dish in dishes:
+        dish_name_uk = get_localizable_value(dish["Name"], "uk") or get_localizable_value(dish["Name"], "ru")
+        match = site_matches.get(dish["Id"], {})
+
+        updates = {}
+
+        if (not dish["Price"] or dish["Price"] == 0) and match.get("price"):
+            updates["Price"] = match["price"]
+
+        if not dish["Weight"] and match.get("weight"):
+            updates["Weight"] = match["weight"]
+
+        if is_localizable_empty(dish["Description"]):
+            cuisine_text = get_localizable_value(restaurant.get("Cuisine"), "uk")
+            desc = generate_description(dish_name_uk, cuisine_text)
+            if desc.get("description_uk"):
+                updates["Description"] = localizable_json(desc["description_uk"], desc.get("description_ru", desc["description_uk"]))
+
+        current_photos = dish["PhotoLink"]
+        has_photo = current_photos and current_photos != "[]"
+        if not has_photo:
+            image_bytes = None
+            if match.get("image_url") and base_url:
+                try:
+                    img_resp = requests.get(resolve_url(base_url, match["image_url"]), timeout=15)
+                    img_resp.raise_for_status()
+                    image_bytes = img_resp.content
+                except Exception as e:
+                    print(f"    Dish image download failed: {e}")
+
+            if not image_bytes:
+                image_bytes = places_food_photo(restaurant["Name"], restaurant["City"])
+
+            if image_bytes:
+                try:
+                    file_id = upload_photo_to_spaces(image_bytes)
+                    updates["PhotoLink"] = json.dumps([file_id])
+                except Exception as e:
+                    print(f"    Dish photo upload failed: {e}")
+
+        if updates:
+            set_clause = ", ".join(f"{col} = %s" for col in updates)
+            cur = db.cursor()
+            cur.execute(f"UPDATE Dishes SET {set_clause} WHERE Id = %s", (*updates.values(), dish["Id"]))
+            db.commit()
+            cur.close()
+            updated_count += 1
+            print(f"  {dish_name_uk}: {', '.join(updates.keys())}")
+
+        time.sleep(0.5)
+
+    log_check(db, restaurant["Id"], f"{updated_count}/{len(dishes)} dishes updated")
+
+
+def main():
+    db = get_db()
+    try:
+        restaurants = fetch_restaurants_with_needy_dishes(db, RESTAURANTS_PER_RUN)
+        if not restaurants:
+            print("No restaurants with needy dishes due for check.")
+            return
+
+        for restaurant in restaurants:
+            try:
+                process_restaurant(db, restaurant)
+            except Exception as e:
+                print(f"ERROR processing {restaurant['Name']}: {e}")
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    main()
