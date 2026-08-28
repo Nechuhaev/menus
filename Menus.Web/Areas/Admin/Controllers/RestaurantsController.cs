@@ -1,4 +1,4 @@
-﻿// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 using Menus.Abstract.Models;
@@ -12,6 +12,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Configuration;
+using MySql.Data.MySqlClient;
 
 namespace Menus.Web.Areas.Admin.Controllers
 {
@@ -20,10 +22,12 @@ namespace Menus.Web.Areas.Admin.Controllers
     public class RestaurantsController : Controller
     {
         private readonly Core _core;
+        private readonly IConfiguration _configuration;
 
-        public RestaurantsController(Core core)
+        public RestaurantsController(Core core, IConfiguration configuration)
         {
             _core = core;
+            _configuration = configuration;
         }
 
         public async Task<IActionResult> Index(string q, RestaurantStatus? status, RestaurantCreatedBy? createdBy, int page = 0)
@@ -36,8 +40,59 @@ namespace Menus.Web.Areas.Admin.Controllers
             ViewData["status"] = status;
             ViewData["createdBy"] = createdBy;
             ViewData["pageSize"] = pageSize;
+            ViewData["restaurantMeta"] = GetRestaurantMeta();
 
             return View(restaurants);
+        }
+
+        private Dictionary<string, (bool SeoFilled, DateTime? LastChecked)> GetRestaurantMeta()
+        {
+            var result = new Dictionary<string, (bool, DateTime?)>();
+            try
+            {
+                using (var connection = new MySqlConnection(_configuration.GetConnectionString("DefaultConnection")))
+                {
+                    connection.Open();
+                    using (var command = new MySqlCommand(
+                        @"SELECT rs.ItemId, rs.Title, rs.Description, rs.Keywords, l.LastCheckedAt
+                          FROM RestaurantSeo rs
+                          LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = rs.ItemId",
+                        connection))
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var restaurantId = reader.GetString(0);
+                            var title = reader.IsDBNull(1) ? null : reader.GetString(1);
+                            var description = reader.IsDBNull(2) ? null : reader.GetString(2);
+                            var keywords = reader.IsDBNull(3) ? null : reader.GetString(3);
+                            var lastChecked = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4);
+
+                            var seoFilled = IsLocalizableFilled(title) && IsLocalizableFilled(description) && !string.IsNullOrWhiteSpace(keywords);
+                            result[restaurantId] = (seoFilled, lastChecked);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // RestaurantSyncLog may not exist yet if the sync bot hasn't run.
+            }
+            return result;
+        }
+
+        private static bool IsLocalizableFilled(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return false;
+            try
+            {
+                var parsed = JsonConvert.DeserializeObject<LocalizableString>(json);
+                return parsed?.Values?.Any(v => !string.IsNullOrWhiteSpace(v.Value)) == true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         [HttpPost]
