@@ -766,13 +766,19 @@ namespace Menus.Web.Controllers
             return page == null ? View("NotFound") : View(page);
         }
 
-        public async Task<IActionResult> NewsPage(string id)
+                public async Task<IActionResult> NewsPage(string id)
         {
             var page = await _core.Pages.GetPublishedByUrl(id, PageCategory.News);
 
             if(string.IsNullOrEmpty(id))
             {
                 return View("Blog", (await _core.Pages.GetBlog()).Where(x => x.Status == PageStatus.Published));
+            }
+
+            if (page != null)
+            {
+                page.Views += 1;
+                await _core.Pages.Update(page);
             }
 
             ViewData["otherBlogs"] = (await _core.Pages.GetBlog())
