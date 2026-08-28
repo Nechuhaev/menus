@@ -1,4 +1,4 @@
-﻿@model IEnumerable<Menus.Abstract.Models.IRestaurant>
+@model IEnumerable<Menus.Abstract.Models.IRestaurant>
 
 @inject Menus.Web.Services.UserService UserService
 @{
@@ -74,6 +74,12 @@
                             Адрес
                         </th>
                         <th>
+                            SEO meta
+                        </th>
+                        <th>
+                            Актуальність даних
+                        </th>
+                        <th>
                             Статус
                         </th>
                         <th>
@@ -86,15 +92,24 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @{
+                        var restaurantMeta = ViewData["restaurantMeta"] as System.Collections.Generic.Dictionary<string, (bool SeoFilled, System.DateTime? LastChecked)>;
+                    }
                     @foreach (var item in Model)
                     {
+                        (bool SeoFilled, System.DateTime? LastChecked) meta = (false, null);
+                        restaurantMeta?.TryGetValue(item.Id, out meta);
+
+                        var statusIconClass = item.Status == Menus.Abstract.Models.RestaurantStatus.Blocked ? "StatusIconBlocked"
+                            : item.Status == Menus.Abstract.Models.RestaurantStatus.Closed ? "StatusIconBlock"
+                            : item.Status == Menus.Abstract.Models.RestaurantStatus.Pending ? "StatusIconOnApproval"
+                            : "";
+
                         <tr data-id="@item.Id">
                             <td class="tableCheckbox">
                                 <input type="checkbox" value="" />
                             </td>
-                            <td class="tableStatusIcon
-                            @(item.Status == Menus.Abstract.Models.RestaurantStatus.Blocked ? "StatusIconBlock" : "" )
-                            @(item.Status == Menus.Abstract.Models.RestaurantStatus.Pending ? "StatusIconOnApproval" : "" )">
+                            <td class="tableStatusIcon @statusIconClass">
                                 <span>+</span>
                             </td>
                             <td>
@@ -105,6 +120,12 @@
                             </td>
                             <td>
                                 @Html.DisplayFor(modelItem => item.Address)
+                            </td>
+                            <td>
+                                <span>@(meta.SeoFilled ? "Заповнено" : "Не заповнено")</span>
+                            </td>
+                            <td>
+                                <span>@(meta.LastChecked.HasValue ? meta.LastChecked.Value.ToString("dd.MM.yyyy") : "Ще не перевірено")</span>
                             </td>
                             <td>
                                 <select class="form-control" asp-for="@item.Status"
@@ -284,10 +305,11 @@
                     var tr = $("tr[data-id=" + id + "]");
                     var icon = tr.find(".tableStatusIcon");
 
-                    icon.removeClass("StatusIconBlock").removeClass("StatusIconOnApproval");
+                    icon.removeClass("StatusIconBlock").removeClass("StatusIconOnApproval").removeClass("StatusIconBlocked");
 
-                    if (status === 1) icon.addClass("StatusIconOnApproval");
-                    if (status === 2) icon.addClass("StatusIconBlock");
+                    if (status === "1") icon.addClass("StatusIconOnApproval");
+                    if (status === "2") icon.addClass("StatusIconBlocked");
+                    if (status === "3") icon.addClass("StatusIconBlock");
                  })
                 .fail(function (data) {
                     window.Logger.logTextError("STATUS CHANGE Restaurant action failed, id = " + id);
