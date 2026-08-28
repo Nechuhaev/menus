@@ -766,7 +766,7 @@ namespace Menus.Web.Controllers
             return page == null ? View("NotFound") : View(page);
         }
 
-                public async Task<IActionResult> NewsPage(string id)
+                        public async Task<IActionResult> NewsPage(string id)
         {
             var page = await _core.Pages.GetPublishedByUrl(id, PageCategory.News);
 
