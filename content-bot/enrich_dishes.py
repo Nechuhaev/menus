@@ -10,14 +10,12 @@ marketing copy, not a factual claim. Photo: taken from the site if an image is
 clearly associated with that dish name; otherwise a relevant Google Places photo
 of the restaurant is used as a fallback illustration.
 
-Run weekly via cron. Processes one restaurant (with all its needy dishes) per run
-to keep the site-fetch + Claude-matching cost bounded; increase batch size later
-if needed.
+Run daily via cron. Processes a batch of restaurants (with all their needy dishes)
+per run.
 """
 import json
 import os
 import re
-import time
 from datetime import datetime
 
 import boto3
@@ -40,7 +38,7 @@ DB_USER = os.environ.get("DB_USER", "root")
 DB_PASSWORD = os.environ["DB_PASSWORD"]
 DB_NAME = os.environ.get("DB_NAME", "menus")
 
-RESTAURANTS_PER_RUN = 5
+RESTAURANTS_PER_RUN = 20
 
 anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
 
@@ -197,30 +195,40 @@ def match_dishes_on_site(restaurant_name, base_url, html, dishes):
         return []
 
 
-DESCRIPTION_PROMPT = """Напиши коротку апетитну маркетингову назву-опис страви для меню ресторану.
+DESCRIPTION_PROMPT = """Напиши коротку апетитну маркетингову назву-опис для кожної страви зі списку нижче (ресторан "{restaurant_name}", кухня: {cuisine}).
 
-Страва: "{name}"
-Кухня ресторану: {cuisine}
+Список страв:
+{dish_list}
 
-Це загальний опис на основі назви страви (не претензія на точний рецепт конкретного закладу) — 1-2 речення, привабливо, без перебільшень.
+Для кожної страви — 1-2 речення українською і 1-2 речення російською, привабливо, без перебільшень. Це загальний опис на основі назви (не претензія на точний рецепт закладу).
 
-Поверни ЛИШЕ валідний JSON:
-{{"description_uk": "...", "description_ru": "..."}}
+Поверни ЛИШЕ валідний JSON, масив у тому ж порядку:
+[
+  {{"dish_id": "...", "description_uk": "...", "description_ru": "..."}}
+]
 """
 
 
-def generate_description(name, cuisine):
+def generate_descriptions_batch(restaurant_name, cuisine, dishes_needing_description):
+    dish_list = "\n".join(
+        f"- id={d['Id']}: {get_localizable_value(d['Name'], 'uk') or get_localizable_value(d['Name'], 'ru')}"
+        for d in dishes_needing_description
+    )
     try:
         message = anthropic_client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=300,
-            messages=[{"role": "user", "content": DESCRIPTION_PROMPT.format(name=name, cuisine=cuisine or "змішана")}],
+            max_tokens=4000,
+            messages=[{
+                "role": "user",
+                "content": DESCRIPTION_PROMPT.format(restaurant_name=restaurant_name, cuisine=cuisine or "змішана", dish_list=dish_list),
+            }],
         )
         raw = message.content[0].text.strip()
         raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-        return json.loads(raw)
+        results = json.loads(raw)
+        return {r["dish_id"]: r for r in results if r.get("dish_id")}
     except Exception as e:
-        print(f"    Description generation failed: {e}")
+        print(f"    Batch description generation failed: {e}")
         return {}
 
 
@@ -324,6 +332,12 @@ def process_restaurant(db, restaurant):
             matches = match_dishes_on_site(restaurant["Name"], base_url, html, dishes)
             site_matches = {m["dish_id"]: m for m in matches if m.get("dish_id")}
 
+    dishes_needing_description = [d for d in dishes if is_localizable_empty(d["Description"])]
+    description_batch = {}
+    if dishes_needing_description:
+        cuisine_text = get_localizable_value(restaurant.get("Cuisine"), "uk")
+        description_batch = generate_descriptions_batch(restaurant["Name"], cuisine_text, dishes_needing_description)
+
     updated_count = 0
     for dish in dishes:
         dish_name_uk = get_localizable_value(dish["Name"], "uk") or get_localizable_value(dish["Name"], "ru")
@@ -338,9 +352,8 @@ def process_restaurant(db, restaurant):
             updates["Weight"] = match["weight"]
 
         if is_localizable_empty(dish["Description"]):
-            cuisine_text = get_localizable_value(restaurant.get("Cuisine"), "uk")
-            desc = generate_description(dish_name_uk, cuisine_text)
-            if desc.get("description_uk"):
+            desc = description_batch.get(dish["Id"])
+            if desc and desc.get("description_uk"):
                 updates["Description"] = localizable_json(desc["description_uk"], desc.get("description_ru", desc["description_uk"]))
 
         current_photos = dish["PhotoLink"]
@@ -373,8 +386,6 @@ def process_restaurant(db, restaurant):
             cur.close()
             updated_count += 1
             print(f"  {dish_name_uk}: {', '.join(updates.keys())}")
-
-        time.sleep(0.5)
 
     log_check(db, restaurant["Id"], f"{updated_count}/{len(dishes)} dishes updated")
 
