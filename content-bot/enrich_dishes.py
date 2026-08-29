@@ -184,15 +184,18 @@ def match_dishes_on_site(restaurant_name, base_url, html, dishes):
     for chunk in chunked(dishes, 25):
         dish_list = "\n".join(f"- id={d['Id']}: {get_localizable_value(d['Name'], 'uk')}" for d in chunk)
         try:
+            prompt = MATCH_PROMPT.format(
+                restaurant_name=restaurant_name, base_url=base_url, html=html, dish_list=dish_list
+            )
+        except Exception as e:
+            print(f"    Prompt formatting failed for a batch (likely stray {{}} in page HTML): {e}")
+            continue
+
+        try:
             message = anthropic_client.messages.create(
                 model="claude-sonnet-4-5",
                 max_tokens=2000,
-                messages=[{
-                    "role": "user",
-                    "content": MATCH_PROMPT.format(
-                        restaurant_name=restaurant_name, base_url=base_url, html=html, dish_list=dish_list
-                    ),
-                }],
+                messages=[{"role": "user", "content": prompt}],
             )
             raw = message.content[0].text.strip()
             raw = re.sub(r"^```json\s*|\s*```$", "", raw)
@@ -201,6 +204,10 @@ def match_dishes_on_site(restaurant_name, base_url, html, dishes):
                     all_matches[m["dish_id"]] = m
         except Exception as e:
             print(f"    Site matching failed for a batch: {e}")
+            try:
+                print(f"    DEBUG stop_reason={message.stop_reason} content_blocks={len(message.content)} raw_len={len(raw)} raw_preview={raw[:300]!r}")
+            except Exception:
+                pass
     return all_matches
 
 
