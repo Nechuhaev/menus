@@ -95,7 +95,7 @@ def call_llm(prompt, max_tokens):
             response = gemini_client.models.generate_content(
                 model="gemini-3.6-flash",
                 contents=prompt,
-                config=genai_types.GenerateContentConfig(max_output_tokens=max_tokens),
+                config=genai_types.GenerateContentConfig(max_output_tokens=max_tokens + 500),
             )
             return response.text
         except Exception as e:
