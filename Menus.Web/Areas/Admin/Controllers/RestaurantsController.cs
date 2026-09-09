@@ -1,21 +1,19 @@
 // This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
-extern alias MySqlConnectorAlias;
-
 using Menus.Abstract.Models;
 using Menus.Domain;
+using Menus.Web.Data;
 using Menus.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Microsoft.Extensions.Configuration;
-using MySqlConnectorAlias::MySqlConnector;
 
 namespace Menus.Web.Areas.Admin.Controllers
 {
@@ -24,12 +22,12 @@ namespace Menus.Web.Areas.Admin.Controllers
     public class RestaurantsController : Controller
     {
         private readonly Core _core;
-        private readonly IConfiguration _configuration;
+        private readonly EfDbContext _dbContext;
 
-        public RestaurantsController(Core core, IConfiguration configuration)
+        public RestaurantsController(Core core, EfDbContext dbContext)
         {
             _core = core;
-            _configuration = configuration;
+            _dbContext = dbContext;
         }
 
         public async Task<IActionResult> Index(string q, RestaurantStatus? status, RestaurantCreatedBy? createdBy, int page = 0)
@@ -52,30 +50,38 @@ namespace Menus.Web.Areas.Admin.Controllers
             var result = new Dictionary<string, (bool, DateTime?, string)>();
             try
             {
-                using (var connection = new MySqlConnection(_configuration.GetConnectionString("DefaultConnection")))
-                {
-                    connection.Open();
-                    using (var command = new MySqlCommand(
-                        @"SELECT rs.ItemId, rs.Title, rs.Description, rs.Keywords, l.LastCheckedAt, ri.Website
-                          FROM RestaurantSeo rs
-                          JOIN RestaurantInfo ri ON ri.RestaurantId = rs.ItemId
-                          LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = rs.ItemId",
-                        connection))
-                    using (var reader = command.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            var restaurantId = reader.GetString(0);
-                            var title = reader.IsDBNull(1) ? null : reader.GetString(1);
-                            var description = reader.IsDBNull(2) ? null : reader.GetString(2);
-                            var keywords = reader.IsDBNull(3) ? null : reader.GetString(3);
-                            var lastChecked = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4);
-                            var website = reader.IsDBNull(5) ? null : reader.GetString(5);
+                var connection = _dbContext.Database.GetDbConnection();
+                var wasClosed = connection.State != ConnectionState.Open;
+                if (wasClosed) connection.Open();
 
-                            var seoFilled = IsLocalizableFilled(title) && IsLocalizableFilled(description) && !string.IsNullOrWhiteSpace(keywords);
-                            result[restaurantId] = (seoFilled, lastChecked, website);
+                try
+                {
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = @"SELECT rs.ItemId, rs.Title, rs.Description, rs.Keywords, l.LastCheckedAt, ri.Website
+                                                 FROM RestaurantSeo rs
+                                                 JOIN RestaurantInfo ri ON ri.RestaurantId = rs.ItemId
+                                                 LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = rs.ItemId";
+                        using (var reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                var restaurantId = reader.GetString(0);
+                                var title = reader.IsDBNull(1) ? null : reader.GetString(1);
+                                var description = reader.IsDBNull(2) ? null : reader.GetString(2);
+                                var keywords = reader.IsDBNull(3) ? null : reader.GetString(3);
+                                var lastChecked = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4);
+                                var website = reader.IsDBNull(5) ? null : reader.GetString(5);
+
+                                var seoFilled = IsLocalizableFilled(title) && IsLocalizableFilled(description) && !string.IsNullOrWhiteSpace(keywords);
+                                result[restaurantId] = (seoFilled, lastChecked, website);
+                            }
                         }
                     }
+                }
+                finally
+                {
+                    if (wasClosed) connection.Close();
                 }
             }
             catch (Exception ex)
