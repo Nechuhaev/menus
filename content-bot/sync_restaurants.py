@@ -73,7 +73,7 @@ def call_llm(prompt, max_tokens):
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
                 json={
-                    "model": "anthropic/claude-sonnet-4.5",
+                    "model": "openrouter/auto",
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": max_tokens,
                 },
