@@ -45,17 +45,18 @@ namespace Menus.Web.Areas.Admin.Controllers
             return View(restaurants);
         }
 
-        private Dictionary<string, (bool SeoFilled, DateTime? LastChecked)> GetRestaurantMeta()
+        private Dictionary<string, (bool SeoFilled, DateTime? LastChecked, string Website)> GetRestaurantMeta()
         {
-            var result = new Dictionary<string, (bool, DateTime?)>();
+            var result = new Dictionary<string, (bool, DateTime?, string)>();
             try
             {
                 using (var connection = new MySqlConnection(_configuration.GetConnectionString("DefaultConnection")))
                 {
                     connection.Open();
                     using (var command = new MySqlCommand(
-                        @"SELECT rs.ItemId, rs.Title, rs.Description, rs.Keywords, l.LastCheckedAt
+                        @"SELECT rs.ItemId, rs.Title, rs.Description, rs.Keywords, l.LastCheckedAt, ri.Website
                           FROM RestaurantSeo rs
+                          JOIN RestaurantInfo ri ON ri.RestaurantId = rs.ItemId
                           LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = rs.ItemId",
                         connection))
                     using (var reader = command.ExecuteReader())
@@ -67,9 +68,10 @@ namespace Menus.Web.Areas.Admin.Controllers
                             var description = reader.IsDBNull(2) ? null : reader.GetString(2);
                             var keywords = reader.IsDBNull(3) ? null : reader.GetString(3);
                             var lastChecked = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4);
+                            var website = reader.IsDBNull(5) ? null : reader.GetString(5);
 
                             var seoFilled = IsLocalizableFilled(title) && IsLocalizableFilled(description) && !string.IsNullOrWhiteSpace(keywords);
-                            result[restaurantId] = (seoFilled, lastChecked);
+                            result[restaurantId] = (seoFilled, lastChecked, website);
                         }
                     }
                 }
