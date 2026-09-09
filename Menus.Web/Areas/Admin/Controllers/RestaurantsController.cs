@@ -76,9 +76,9 @@ namespace Menus.Web.Areas.Admin.Controllers
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // RestaurantSyncLog may not exist yet if the sync bot hasn't run.
+                Console.WriteLine($"GetRestaurantMeta FAILED: {ex}");
             }
             return result;
         }
