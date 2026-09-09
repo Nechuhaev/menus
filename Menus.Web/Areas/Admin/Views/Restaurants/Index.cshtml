@@ -74,6 +74,9 @@
                             Адрес
                         </th>
                         <th>
+                            Сайт
+                        </th>
+                        <th>
                             SEO meta
                         </th>
                         <th>
@@ -93,11 +96,11 @@
                 </thead>
                 <tbody>
                     @{
-                        var restaurantMeta = ViewData["restaurantMeta"] as System.Collections.Generic.Dictionary<string, (bool SeoFilled, System.DateTime? LastChecked)>;
+                        var restaurantMeta = ViewData["restaurantMeta"] as System.Collections.Generic.Dictionary<string, (bool SeoFilled, System.DateTime? LastChecked, string Website)>;
                     }
                     @foreach (var item in Model)
                     {
-                        (bool SeoFilled, System.DateTime? LastChecked) meta = (false, null);
+                        (bool SeoFilled, System.DateTime? LastChecked, string Website) meta = (false, null, null);
                         restaurantMeta?.TryGetValue(item.Id, out meta);
 
                         var statusIconClass = item.Status == Menus.Abstract.Models.RestaurantStatus.Blocked ? "StatusIconBlocked"
@@ -120,6 +123,16 @@
                             </td>
                             <td>
                                 @Html.DisplayFor(modelItem => item.Address)
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(meta.Website))
+                                {
+                                    <a href="@meta.Website" target="_blank" rel="noopener">@meta.Website</a>
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
                             </td>
                             <td>
                                 <span>@(meta.SeoFilled ? "Заповнено" : "Не заповнено")</span>
