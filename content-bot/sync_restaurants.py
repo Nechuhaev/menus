@@ -93,7 +93,7 @@ def call_llm(prompt, max_tokens):
             from google.genai import types as genai_types
             gemini_client = genai.Client(api_key=GEMINI_KEY)
             response = gemini_client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-3.6-flash",
                 contents=prompt,
                 config=genai_types.GenerateContentConfig(max_output_tokens=max_tokens),
             )
