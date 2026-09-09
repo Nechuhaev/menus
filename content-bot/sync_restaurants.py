@@ -72,8 +72,8 @@ def call_llm(prompt, max_tokens):
             resp = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-                json={
-                    "model": "openrouter/auto",
+                                json={
+                    "model": "anthropic/claude-sonnet-4.5",
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": max_tokens,
                 },
@@ -82,7 +82,10 @@ def call_llm(prompt, max_tokens):
             if resp.status_code >= 400:
                 print(f"    [LLM] OpenRouter HTTP {resp.status_code}: {resp.text[:300]}")
             resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+            content = resp.json()["choices"][0]["message"]["content"]
+            if not content:
+                raise ValueError("OpenRouter returned empty content")
+            return content
         except Exception as e:
             last_error = e
             print(f"    [LLM] OpenRouter failed, trying Gemini: {e}")
