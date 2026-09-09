@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Content combine: plans topics via Serpstat, generates bilingual articles via Claude,
-picks photos via Unsplash, publishes to the Pages table (Blog/News category).
+Content combine: plans topics via Serpstat, generates bilingual articles via Claude
+(falling back to OpenRouter, then Gemini directly if Claude is unavailable), picks
+photos via Unsplash (falling back to Pexels, then Pixabay), and publishes to the
+Pages table (Blog/News category) with internal links to related existing articles.
 
 Run daily via cron at 10:00 Europe/Kyiv.
 """
@@ -21,8 +23,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CLAUDE_API_KEY = os.environ["CLAUDE_API_KEY"]
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+GEMINI_KEY = os.environ.get("GEMINI_KEY")
 SERPSTAT_API_KEY = os.environ["SERPSTAT_API_KEY"]
-UNSPLASH_ACCESS_KEY = os.environ["UNSPLASH_ACCESS_KEY"]
+UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY")
+PEXELS_KEY = os.environ.get("PEXELS_KEY")
+PIXABAY_KEY = os.environ.get("PIXABAY_KEY")
 DO_SPACES_KEY = os.environ["DO_SPACES_KEY"]
 DO_SPACES_SECRET = os.environ["DO_SPACES_SECRET"]
 DO_SPACES_BUCKET = os.environ.get("DO_SPACES_BUCKET", "cdn-tipmymenus-com")
@@ -37,6 +43,63 @@ SITE_THEME = "ресторани, меню, доставка їжі, відгу�
 SEED_KEYWORDS = ["ресторани київ", "меню ресторану", "де поїсти в києві", "доставка їжі"]
 
 anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
+
+
+def call_llm(prompt, max_tokens):
+    """Try Claude first; fall back to OpenRouter, then Gemini directly, so a
+    depleted balance or outage on one provider doesn't stall publishing."""
+    last_error = None
+
+    try:
+        message = anthropic_client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return message.content[0].text
+    except Exception as e:
+        last_error = e
+        print(f"    [LLM] Claude failed, trying OpenRouter: {e}")
+
+    if OPENROUTER_API_KEY:
+        try:
+            resp = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": "anthropic/claude-sonnet-4.5",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                },
+                timeout=90,
+            )
+            if resp.status_code >= 400:
+                print(f"    [LLM] OpenRouter HTTP {resp.status_code}: {resp.text[:300]}")
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            if not content:
+                raise ValueError("OpenRouter returned empty content")
+            return content
+        except Exception as e:
+            last_error = e
+            print(f"    [LLM] OpenRouter failed, trying Gemini: {e}")
+
+    if GEMINI_KEY:
+        try:
+            from google import genai
+            from google.genai import types as genai_types
+            gemini_client = genai.Client(api_key=GEMINI_KEY)
+            response = gemini_client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(max_output_tokens=max_tokens + 500),
+            )
+            return response.text
+        except Exception as e:
+            last_error = e
+            print(f"    [LLM] Gemini failed too: {e}")
+
+    raise last_error
 
 
 def get_db():
@@ -64,7 +127,6 @@ def ensure_content_plan_table(db):
 
 
 def fetch_serpstat_keywords(seed_keyword, limit=30):
-    """Pull related keyword suggestions from Serpstat for a seed keyword."""
     url = "https://api.serpstat.com/v4"
     payload = {
         "id": str(uuid.uuid4()),
@@ -166,37 +228,94 @@ ARTICLE_PROMPT = """Ти — контент-редактор для сайту t
 
 
 def generate_article(keyword):
-    message = anthropic_client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=16000,
-        messages=[{"role": "user", "content": ARTICLE_PROMPT.format(keyword=keyword)}],
-    )
-    raw = message.content[0].text.strip()
-    raw = re.sub(r"^```json\s*|\s*```$", "", raw.strip())
+    raw = call_llm(ARTICLE_PROMPT.format(keyword=keyword), max_tokens=16000).strip()
+    raw = re.sub(r"^```json\s*|\s*```$", "", raw)
     return json.loads(raw)
 
 
-def search_unsplash_photos(query, count=3):
-    url = "https://api.unsplash.com/search/photos"
-    headers = {"Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}"}
-    resp = requests.get(url, headers=headers, params={"query": query, "per_page": count}, timeout=30)
-    resp.raise_for_status()
-    results = resp.json().get("results", [])
-    return [r["urls"]["regular"] for r in results[:count]]
+def search_unsplash_photo(query):
+    if not UNSPLASH_ACCESS_KEY:
+        return None
+    try:
+        url = "https://api.unsplash.com/search/photos"
+        headers = {"Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}"}
+        resp = requests.get(url, headers=headers, params={"query": query, "per_page": 1}, timeout=30)
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+        if not results:
+            return None
+        image_resp = requests.get(results[0]["urls"]["regular"], timeout=30)
+        image_resp.raise_for_status()
+        return image_resp.content
+    except Exception as e:
+        print(f"    Unsplash search failed: {e}")
+        return None
 
 
-def download_and_store_photo(image_url):
-    """Download an Unsplash photo and upload it to the DigitalOcean Spaces bucket the app
-    already reads images from (files/{id}(-large|-medium|-small).jpg), so it renders through
-    the site's existing Img.Url() helper with no other code changes needed."""
-    resp = requests.get(image_url, timeout=30)
-    resp.raise_for_status()
+def search_pexels_photo(query):
+    if not PEXELS_KEY:
+        return None
+    try:
+        resp = requests.get(
+            "https://api.pexels.com/v1/search",
+            headers={"Authorization": PEXELS_KEY},
+            params={"query": query, "per_page": 1},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        photos = resp.json().get("photos", [])
+        if not photos:
+            return None
+        image_resp = requests.get(photos[0]["src"]["large"], timeout=30)
+        image_resp.raise_for_status()
+        return image_resp.content
+    except Exception as e:
+        print(f"    Pexels search failed: {e}")
+        return None
 
-    file_id = str(uuid.uuid4())
+
+def search_pixabay_photo(query):
+    if not PIXABAY_KEY:
+        return None
+    try:
+        resp = requests.get(
+            "https://pixabay.com/api/",
+            params={"key": PIXABAY_KEY, "q": query, "image_type": "photo", "per_page": 3},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        hits = resp.json().get("hits", [])
+        if not hits:
+            return None
+        image_resp = requests.get(hits[0]["largeImageURL"], timeout=30)
+        image_resp.raise_for_status()
+        return image_resp.content
+    except Exception as e:
+        print(f"    Pixabay search failed: {e}")
+        return None
+
+
+def get_article_photo(query):
+    """Unsplash first, then Pexels, then Pixabay, so a missing/rate-limited key on
+    one provider doesn't leave the article without a photo."""
+    for search_fn, name in (
+        (search_unsplash_photo, "Unsplash"),
+        (search_pexels_photo, "Pexels"),
+        (search_pixabay_photo, "Pixabay"),
+    ):
+        image_bytes = search_fn(query)
+        if image_bytes:
+            return image_bytes
+        print(f"    {name} had no result for '{query}', trying next source")
+    return None
+
+
+def upload_photo_to_spaces(image_bytes):
     from PIL import Image
     import io
 
-    source = Image.open(io.BytesIO(resp.content)).convert("RGB")
+    file_id = str(uuid.uuid4())
+    source = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
     s3 = boto3.client(
         "s3",
@@ -212,18 +331,16 @@ def download_and_store_photo(image_url):
         buf.seek(0)
         s3.put_object(Bucket=DO_SPACES_BUCKET, Key=key, Body=buf.getvalue(), ACL="public-read", ContentType="image/jpeg")
 
+    def resized(img, max_height):
+        ratio = max_height / img.height
+        return img.resize((int(img.width * ratio), max_height))
+
     upload_variant(source, f"files/{file_id}.jpg")
-    upload_variant(_resized(source, 1000), f"files/{file_id}-large.jpg")
-    upload_variant(_resized(source, 600), f"files/{file_id}-medium.jpg")
-    upload_variant(_resized(source, 300), f"files/{file_id}-small.jpg")
+    upload_variant(resized(source, 1000), f"files/{file_id}-large.jpg")
+    upload_variant(resized(source, 600), f"files/{file_id}-medium.jpg")
+    upload_variant(resized(source, 300), f"files/{file_id}-small.jpg")
 
     return file_id
-
-
-def _resized(img, max_height):
-    ratio = max_height / img.height
-    new_width = int(img.width * ratio)
-    return img.resize((new_width, max_height))
 
 
 TRANSLIT_MAP = {
@@ -356,7 +473,7 @@ def publish_article(db, article, photo_filename):
         """,
         (
             page_id,
-            1,
+            1,  # PageCategory.News
             localizable_json(content_uk, content_ru),
             photo_filename,
             localizable_json(article["seo_description"]["uk"], article["seo_description"]["ru"]),
@@ -364,7 +481,7 @@ def publish_article(db, article, photo_filename):
             localizable_json("", ""),
             localizable_json(article["seo_title"]["uk"], article["seo_title"]["ru"]),
             localizable_json(article["short_content"]["uk"], article["short_content"]["ru"]),
-            1,
+            1,  # PageStatus.Published
             datetime.now(),
             localizable_json(article["title"]["uk"], article["title"]["ru"]),
             url,
@@ -390,10 +507,8 @@ def main():
         article = generate_article(keyword)
 
         photo_query = article.get("photo_search_query", keyword)
-        photo_urls = search_unsplash_photos(photo_query, count=1)
-        photo_filename = None
-        if photo_urls:
-            photo_filename = download_and_store_photo(photo_urls[0])
+        image_bytes = get_article_photo(photo_query)
+        photo_filename = upload_photo_to_spaces(image_bytes) if image_bytes else None
 
         page_id = publish_article(db, article, photo_filename)
         mark_keyword_used(db, plan_id, page_id)
