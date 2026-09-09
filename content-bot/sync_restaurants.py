@@ -28,6 +28,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CLAUDE_API_KEY = os.environ["CLAUDE_API_KEY"]
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+GEMINI_KEY = os.environ.get("GEMINI_KEY")
 DO_SPACES_KEY = os.environ["DO_SPACES_KEY"]
 DO_SPACES_SECRET = os.environ["DO_SPACES_SECRET"]
 DO_SPACES_BUCKET = os.environ.get("DO_SPACES_BUCKET", "cdn-tipmymenus-com")
@@ -46,6 +48,60 @@ RESTAURANT_STATUS_ACTIVE = 0
 RESTAURANT_STATUS_CLOSED = 3
 
 anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
+
+
+def call_llm(prompt, max_tokens):
+    """Try Claude first; fall back to OpenRouter, then Gemini directly, so a
+    depleted Anthropic balance or a transient outage on one provider doesn't
+    stall the whole pipeline. Raises the last error if all three fail."""
+    last_error = None
+
+    try:
+        message = anthropic_client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return message.content[0].text
+    except Exception as e:
+        last_error = e
+        print(f"    [LLM] Claude failed, trying OpenRouter: {e}")
+
+    if OPENROUTER_API_KEY:
+        try:
+            resp = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": "anthropic/claude-3.5-sonnet",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            last_error = e
+            print(f"    [LLM] OpenRouter failed, trying Gemini: {e}")
+
+    if GEMINI_KEY:
+        try:
+            resp = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_KEY}",
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"maxOutputTokens": max_tokens},
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            last_error = e
+            print(f"    [LLM] Gemini failed too: {e}")
+
+    raise last_error
 
 
 def get_db():
@@ -215,12 +271,7 @@ RESTAURANT_INFO_PROMPT = """Ось HTML-фрагмент сайту рестор
 
 def extract_restaurant_info(restaurant_name, html):
     try:
-        message = anthropic_client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=500,
-            messages=[{"role": "user", "content": RESTAURANT_INFO_PROMPT.format(restaurant_name=restaurant_name, html=html)}],
-        )
-        raw = message.content[0].text.strip()
+        raw = call_llm(RESTAURANT_INFO_PROMPT.format(restaurant_name=restaurant_name, html=html), max_tokens=500).strip()
         raw = re.sub(r"^```json\s*|\s*```$", "", raw)
         return json.loads(raw)
     except Exception as e:
@@ -247,15 +298,8 @@ SEO_PROMPT = """Згенеруй SEO-метадані для сторінки р
 def generate_seo(name, city, address, cuisine_uk, cuisine_ru):
     try:
         cuisine_text = f"{cuisine_uk or ''} / {cuisine_ru or ''}".strip(" /") or "ресторан"
-        message = anthropic_client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=600,
-            messages=[{
-                "role": "user",
-                "content": SEO_PROMPT.format(name=name, city=city, address=address, cuisine=cuisine_text),
-            }],
-        )
-        raw = message.content[0].text.strip()
+        prompt = SEO_PROMPT.format(name=name, city=city, address=address, cuisine=cuisine_text)
+        raw = call_llm(prompt, max_tokens=600).strip()
         raw = re.sub(r"^```json\s*|\s*```$", "", raw)
         return json.loads(raw)
     except Exception as e:
@@ -301,12 +345,7 @@ def match_dishes_on_site(restaurant_name, base_url, html, dishes):
             print(f"    Prompt formatting failed for a batch: {e}")
             continue
         try:
-            message = anthropic_client.messages.create(
-                model="claude-sonnet-4-5",
-                max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            raw = message.content[0].text.strip()
+            raw = call_llm(prompt, max_tokens=2000).strip()
             raw = re.sub(r"^```json\s*|\s*```$", "", raw)
             for m in json.loads(raw):
                 if m.get("dish_id"):
@@ -338,15 +377,8 @@ def generate_descriptions_batch(restaurant_name, cuisine, dishes_needing_descrip
             for d in chunk
         )
         try:
-            message = anthropic_client.messages.create(
-                model="claude-sonnet-4-5",
-                max_tokens=4000,
-                messages=[{
-                    "role": "user",
-                    "content": DESCRIPTION_PROMPT.format(restaurant_name=restaurant_name, cuisine=cuisine or "змішана", dish_list=dish_list),
-                }],
-            )
-            raw = message.content[0].text.strip()
+            prompt = DESCRIPTION_PROMPT.format(restaurant_name=restaurant_name, cuisine=cuisine or "змішана", dish_list=dish_list)
+            raw = call_llm(prompt, max_tokens=4000).strip()
             raw = re.sub(r"^```json\s*|\s*```$", "", raw)
             for r in json.loads(raw):
                 if r.get("dish_id"):
