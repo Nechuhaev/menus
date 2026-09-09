@@ -73,12 +73,14 @@ def call_llm(prompt, max_tokens):
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
                 json={
-                    "model": "anthropic/claude-3.5-sonnet",
+                    "model": "anthropic/claude-sonnet-4.5",
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": max_tokens,
                 },
                 timeout=60,
             )
+            if resp.status_code >= 400:
+                print(f"    [LLM] OpenRouter HTTP {resp.status_code}: {resp.text[:300]}")
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"]
         except Exception as e:
@@ -87,16 +89,15 @@ def call_llm(prompt, max_tokens):
 
     if GEMINI_KEY:
         try:
-            resp = requests.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_KEY}",
-                json={
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"maxOutputTokens": max_tokens},
-                },
-                timeout=60,
+            from google import genai
+            from google.genai import types as genai_types
+            gemini_client = genai.Client(api_key=GEMINI_KEY)
+            response = gemini_client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(max_output_tokens=max_tokens),
             )
-            resp.raise_for_status()
-            return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+            return response.text
         except Exception as e:
             last_error = e
             print(f"    [LLM] Gemini failed too: {e}")
