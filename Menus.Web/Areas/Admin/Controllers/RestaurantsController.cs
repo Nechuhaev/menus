@@ -1,6 +1,8 @@
 // This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
+extern alias MySqlConnectorAlias;
+
 using Menus.Abstract.Models;
 using Menus.Domain;
 using Menus.Web.Models;
@@ -13,7 +15,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Microsoft.Extensions.Configuration;
-using MySql.Data.MySqlClient;
+using MySqlConnectorAlias::MySqlConnector;
 
 namespace Menus.Web.Areas.Admin.Controllers
 {
