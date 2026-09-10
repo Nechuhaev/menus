@@ -94,7 +94,7 @@ def call_llm(prompt, max_tokens):
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
                 json={
-                    "model": "llama-3.3-70b-versatile",
+                    "model": "openai/gpt-oss-20b",
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": max_tokens,
                 },
@@ -117,7 +117,7 @@ def call_llm(prompt, max_tokens):
                 f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}", "Content-Type": "application/json"},
                 json={
-                    "model": "@cf/meta/llama-3.3-70b-instruct",
+                    "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": max_tokens,
                 },
