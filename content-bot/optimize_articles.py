@@ -25,6 +25,9 @@ load_dotenv()
 
 CLAUDE_API_KEY = os.environ["CLAUDE_API_KEY"]
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+CLOUDFLARE_ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
+CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN")
 GEMINI_KEY = os.environ.get("GEMINI_KEY")
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY")
 PEXELS_KEY = os.environ.get("PEXELS_KEY")
@@ -46,7 +49,9 @@ anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
 
 
 def call_llm(prompt, max_tokens):
-    """Try Claude first; fall back to OpenRouter, then Gemini directly."""
+    """Try Claude first; fall back to OpenRouter, then Groq, then Cloudflare
+    Workers AI, then Gemini directly (Gemini last — its free tier caps at only
+    20 requests/day, the most restrictive of the five)."""
     last_error = None
 
     try:
@@ -81,7 +86,53 @@ def call_llm(prompt, max_tokens):
             return content
         except Exception as e:
             last_error = e
-            print(f"    [LLM] OpenRouter failed, trying Gemini: {e}")
+            print(f"    [LLM] OpenRouter failed, trying Groq: {e}")
+
+    if GROQ_API_KEY:
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                },
+                timeout=60,
+            )
+            if resp.status_code >= 400:
+                print(f"    [LLM] Groq HTTP {resp.status_code}: {resp.text[:300]}")
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            if not content:
+                raise ValueError("Groq returned empty content")
+            return content
+        except Exception as e:
+            last_error = e
+            print(f"    [LLM] Groq failed, trying Cloudflare: {e}")
+
+    if CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN:
+        try:
+            resp = requests.post(
+                f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}", "Content-Type": "application/json"},
+                json={
+                    "model": "@cf/meta/llama-3.3-70b-instruct",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                },
+                timeout=60,
+            )
+            if resp.status_code >= 400:
+                print(f"    [LLM] Cloudflare HTTP {resp.status_code}: {resp.text[:300]}")
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            if not content:
+                raise ValueError("Cloudflare returned empty content")
+            return content
+        except Exception as e:
+            last_error = e
+            print(f"    [LLM] Cloudflare failed, trying Gemini: {e}")
 
     if GEMINI_KEY:
         try:
