@@ -69,9 +69,9 @@ namespace Menus.Web.Services
                     client.Send(mimeMessage);
                     client.Disconnect(true);
                 }
-                catch (MailKit.Security.AuthenticationException)
+                catch (Exception ex)
                 {
-                    
+                    Console.WriteLine($"EmailService SEND FAILED to {ToAddress}: {ex}");
                 }
             }
         }
