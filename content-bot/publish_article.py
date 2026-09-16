@@ -287,9 +287,7 @@ ARTICLE_PROMPT = """Ти — контент-редактор для сайту t
 
 
 def generate_article(keyword):
-    raw = call_llm(ARTICLE_PROMPT.format(keyword=keyword), max_tokens=16000).strip()
-    raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-    return json.loads(raw)
+    return call_llm_json(ARTICLE_PROMPT.format(keyword=keyword), max_tokens=16000)
 
 
 def search_unsplash_photo(query):
