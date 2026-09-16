@@ -13,6 +13,7 @@ Run manually for now (not yet scheduled in cron).
 import json
 import os
 import re
+import time
 from datetime import datetime
 
 import mysql.connector
