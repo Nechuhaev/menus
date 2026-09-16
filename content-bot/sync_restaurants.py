@@ -333,9 +333,7 @@ RESTAURANT_INFO_PROMPT = """Ось HTML-фрагмент сайту рестор
 
 def extract_restaurant_info(restaurant_name, html):
     try:
-        raw = call_llm(RESTAURANT_INFO_PROMPT.format(restaurant_name=restaurant_name, html=html), max_tokens=500).strip()
-        raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-        return json.loads(raw)
+        return call_llm_json(RESTAURANT_INFO_PROMPT.format(restaurant_name=restaurant_name, html=html), max_tokens=500)
     except Exception as e:
         print(f"    Restaurant info extraction failed: {e}")
         return {}
@@ -361,9 +359,7 @@ def generate_seo(name, city, address, cuisine_uk, cuisine_ru):
     try:
         cuisine_text = f"{cuisine_uk or ''} / {cuisine_ru or ''}".strip(" /") or "ресторан"
         prompt = SEO_PROMPT.format(name=name, city=city, address=address, cuisine=cuisine_text)
-        raw = call_llm(prompt, max_tokens=600).strip()
-        raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-        return json.loads(raw)
+        return call_llm_json(prompt, max_tokens=600)
     except Exception as e:
         print(f"    SEO generation failed: {e}")
         return {}
@@ -407,9 +403,7 @@ def match_dishes_on_site(restaurant_name, base_url, html, dishes):
             print(f"    Prompt formatting failed for a batch: {e}")
             continue
         try:
-            raw = call_llm(prompt, max_tokens=2000).strip()
-            raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-            for m in json.loads(raw):
+            for m in call_llm_json(prompt, max_tokens=2000):
                 if m.get("dish_id"):
                     all_matches[m["dish_id"]] = m
         except Exception as e:
@@ -440,9 +434,7 @@ def generate_descriptions_batch(restaurant_name, cuisine, dishes_needing_descrip
         )
         try:
             prompt = DESCRIPTION_PROMPT.format(restaurant_name=restaurant_name, cuisine=cuisine or "змішана", dish_list=dish_list)
-            raw = call_llm(prompt, max_tokens=4000).strip()
-            raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-            for r in json.loads(raw):
+            for r in call_llm_json(prompt, max_tokens=4000):
                 if r.get("dish_id"):
                     all_results[r["dish_id"]] = r
         except Exception as e:
