@@ -40,106 +40,115 @@ RECENT_PAGES_LIMIT = 30
 anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
 
 
-def call_llm(prompt, max_tokens):
-    """Try Claude first; fall back to OpenRouter, then Groq, then Cloudflare
-    Workers AI, then Gemini directly (Gemini last — its free tier caps at only
-    20 requests/day, the most restrictive of the five)."""
-    last_error = None
+def _extract_json(raw_text):
+    """Strip markdown code fences and parse JSON. Raises on empty/invalid content —
+    some free-tier models return HTTP 200 with an empty or garbage body, which must
+    be treated as a failure so the chain moves on to the next provider."""
+    if not raw_text or not raw_text.strip():
+        raise ValueError("empty response")
+    cleaned = re.sub(r"^```json\s*|\s*```$", "", raw_text.strip())
+    if not cleaned:
+        raise ValueError("empty response after stripping code fences")
+    parsed = json.loads(cleaned)
+    if not parsed:
+        raise ValueError("parsed to an empty JSON object/array")
+    return parsed
 
-    try:
+
+def call_llm_json(prompt, max_tokens):
+    """Try Claude, then OpenRouter, then Groq, then Cloudflare Workers AI, then
+    Gemini directly (Gemini last — its free tier caps at only 20 requests/day).
+    Each provider's raw response is validated as usable JSON before being accepted,
+    so a 200 OK with empty/garbage content doesn't get treated as success."""
+
+    def try_claude():
         message = anthropic_client.messages.create(
             model="claude-sonnet-4-5",
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
         return message.content[0].text
-    except Exception as e:
-        last_error = e
-        print(f"    [LLM] Claude failed, trying OpenRouter: {e}")
 
+    def try_openrouter():
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": "anthropic/claude-sonnet-4.5",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            },
+            timeout=90,
+        )
+        if resp.status_code >= 400:
+            print(f"    [LLM] OpenRouter HTTP {resp.status_code}: {resp.text[:300]}")
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+    def try_groq():
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": "openai/gpt-oss-20b",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            },
+            timeout=60,
+        )
+        if resp.status_code >= 400:
+            print(f"    [LLM] Groq HTTP {resp.status_code}: {resp.text[:300]}")
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+    def try_cloudflare():
+        resp = requests.post(
+            f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}", "Content-Type": "application/json"},
+            json={
+                "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            },
+            timeout=60,
+        )
+        if resp.status_code >= 400:
+            print(f"    [LLM] Cloudflare HTTP {resp.status_code}: {resp.text[:300]}")
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+    def try_gemini():
+        from google import genai
+        from google.genai import types as genai_types
+        gemini_client = genai.Client(api_key=GEMINI_KEY)
+        response = gemini_client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(max_output_tokens=max_tokens + 500),
+        )
+        return response.text
+
+    providers = [("Claude", try_claude)]
     if OPENROUTER_API_KEY:
-        try:
-            resp = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-                json={
-                    "model": "anthropic/claude-sonnet-4.5",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": max_tokens,
-                },
-                timeout=90,
-            )
-            if resp.status_code >= 400:
-                print(f"    [LLM] OpenRouter HTTP {resp.status_code}: {resp.text[:300]}")
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"]
-            if not content:
-                raise ValueError("OpenRouter returned empty content")
-            return content
-        except Exception as e:
-            last_error = e
-            print(f"    [LLM] OpenRouter failed, trying Groq: {e}")
-
+        providers.append(("OpenRouter", try_openrouter))
     if GROQ_API_KEY:
-        try:
-            resp = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
-                json={
-                    "model": "openai/gpt-oss-20b",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": max_tokens,
-                },
-                timeout=60,
-            )
-            if resp.status_code >= 400:
-                print(f"    [LLM] Groq HTTP {resp.status_code}: {resp.text[:300]}")
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"]
-            if not content:
-                raise ValueError("Groq returned empty content")
-            return content
-        except Exception as e:
-            last_error = e
-            print(f"    [LLM] Groq failed, trying Cloudflare: {e}")
-
+        providers.append(("Groq", try_groq))
     if CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN:
-        try:
-            resp = requests.post(
-                f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}", "Content-Type": "application/json"},
-                json={
-                    "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": max_tokens,
-                },
-                timeout=60,
-            )
-            if resp.status_code >= 400:
-                print(f"    [LLM] Cloudflare HTTP {resp.status_code}: {resp.text[:300]}")
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"]
-            if not content:
-                raise ValueError("Cloudflare returned empty content")
-            return content
-        except Exception as e:
-            last_error = e
-            print(f"    [LLM] Cloudflare failed, trying Gemini: {e}")
-
+        providers.append(("Cloudflare", try_cloudflare))
     if GEMINI_KEY:
+        providers.append(("Gemini", try_gemini))
+
+    last_error = None
+    for i, (name, fn) in enumerate(providers):
         try:
-            from google import genai
-            from google.genai import types as genai_types
-            gemini_client = genai.Client(api_key=GEMINI_KEY)
-            response = gemini_client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=prompt,
-                config=genai_types.GenerateContentConfig(max_output_tokens=max_tokens + 500),
-            )
-            return response.text
+            return _extract_json(fn())
         except Exception as e:
             last_error = e
-            print(f"    [LLM] Gemini failed too: {e}")
+            next_name = providers[i + 1][0] if i + 1 < len(providers) else None
+            if next_name:
+                print(f"    [LLM] {name} failed, trying {next_name}: {e}")
+            else:
+                print(f"    [LLM] {name} failed too: {e}")
 
     raise last_error
 
