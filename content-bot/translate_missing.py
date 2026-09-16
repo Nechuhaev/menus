@@ -224,12 +224,12 @@ def translate_fields(field_dict, max_tokens=4000):
 
     try:
         prompt = TRANSLATE_PROMPT.format(fields=fields_text, example=example)
-        raw = call_llm(prompt, max_tokens=max_tokens).strip()
-        raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-        return json.loads(raw)
+        result = call_llm_json(prompt, max_tokens=max_tokens)
     except Exception as e:
         print(f"    Translation failed: {e}")
-        return {}
+        result = {}
+    time.sleep(2)
+    return result
 
 
 def translate_restaurant_info(db, restaurant_id, cuisine, short_info, full_info):
