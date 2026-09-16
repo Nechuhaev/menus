@@ -454,9 +454,7 @@ def fix_article_locale(title, seo_title, seo_description, seo_keywords, content_
         issues="\n".join(f"- {i}" for i in issues),
         content=content_html,
     )
-    raw = call_llm(prompt, max_tokens=16000).strip()
-    raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-    return json.loads(raw)
+    return call_llm_json(prompt, max_tokens=16000)
 
 
 def log_check(db, page_id, issues_summary, fixed):
