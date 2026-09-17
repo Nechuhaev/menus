@@ -535,7 +535,7 @@ def process_restaurant(db, restaurant):
     needs_osm = not website or not restaurant["GpsLatitude"]
     osm_data = osm_lookup(name, restaurant["Address"], restaurant["City"]) if needs_osm else {}
 
-        if not website:
+    if not website:
         website = osm_data.get("website")
 
     if not website:
