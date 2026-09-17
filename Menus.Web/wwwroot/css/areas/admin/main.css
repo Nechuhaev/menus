@@ -4,3 +4,6 @@
 /*# sourceMappingURL=main.css.map */
 .mainTable thead tr th{padding-right:1vw}
 .mainTable tbody tr td.tableStatusIcon.StatusIconBlocked span{background:#000}
+
+.mainTable .filterRow th{padding-right:.5vw}
+.mainTable .filterRow input[type=text],.mainTable .filterRow input[type=date],.mainTable .filterRow select{width:100%;box-sizing:border-box;padding:.3vw .5vw;border:1px solid #e4e5ee;border-radius:.2083333333vw;font-size:.8vw}
