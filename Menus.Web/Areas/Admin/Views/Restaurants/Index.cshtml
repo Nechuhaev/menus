@@ -191,7 +191,7 @@
                     {
                         pagesToShow.Add(p);
                     }
-                    if (totalPages > 1) pagesToShow.Add(totalPages - 1);
+                    if (totalPages > 1) { pagesToShow.Add(totalPages - 1); }
                     pagesToShow = pagesToShow.Distinct().OrderBy(x => x).ToList();
                 }
             }
