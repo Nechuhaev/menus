@@ -634,12 +634,19 @@ namespace Menus.Web.Controllers
             return View();
         }
 
-        public async Task<IActionResult> MobileRate(string dishId, string restaurantId, string returnUrl)
+                public async Task<IActionResult> MobileRate(string dishId, string restaurantId, string returnUrl)
         {
             var restaurant = await _core.Restaurants.GetRestaurantById(restaurantId);
             var restaurantInfo = await _core.Restaurants.GetRestaurantInfo(restaurantId);
             var restaurantSeo = await _core.Restaurants.GetSeoByRestaurantId(restaurantId);
             var dish = await _core.Dishes.GetDishByIdOrSeoWithSeoAndRating(dishId, restaurantId, User.Identity.Name);
+
+            if (restaurant == null || restaurantInfo == null || restaurantSeo == null || dish == null)
+            {
+                Response.StatusCode = 404;
+                return View("NotFound");
+            }
+
             var review = await _core.Ratings.GetDishRatingForUser(dishId, User.Identity.Name);
             ViewData["restaurant"] = restaurant;
             ViewData["dish"] = dish;
