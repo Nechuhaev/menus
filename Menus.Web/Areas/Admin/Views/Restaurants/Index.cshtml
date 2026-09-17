@@ -1,4 +1,4 @@
-@model IEnumerable<Menus.Abstract.Models.IRestaurant>
+@model List<Menus.Web.Areas.Admin.Controllers.RestaurantAdminRow>
 
 @inject Menus.Web.Services.UserService UserService
 @{
@@ -18,156 +18,176 @@
                 </ul>
             </div>
 
-            <form class="search-bar">
-                <input type="text" name="q" value="@ViewData["q"]" />
-                <input type="hidden" name="status" value="@ViewData["status"]" />
-                <input type="hidden" name="createdBy" value="@ViewData["createdBy"]" />
-                <button type="submit">Поиск</button>
-            </form>
-
             <div class="title-section">
                 <div class="title-section--left">
                     <h2>Рестораны</h2>
                     <a asp-area="Restaurants" asp-controller="Manage" asp-action="Register" class="create_plus"><span>+</span></a>
                 </div>
                 <div class="title-section--right">
-                    <form method="post" class="filter-form">
-                        <div class="filter-form--title">Фильтр:</div>
+                    <form method="get" id="createdByForm">
+                        <input type="hidden" name="nameFilter" value="@ViewData["nameFilter"]" />
+                        <input type="hidden" name="phoneFilter" value="@ViewData["phoneFilter"]" />
+                        <input type="hidden" name="addressFilter" value="@ViewData["addressFilter"]" />
+                        <input type="hidden" name="siteFilter" value="@ViewData["siteFilter"]" />
+                        <input type="hidden" name="seoFilter" value="@ViewData["seoFilter"]" />
+                        <input type="hidden" name="freshnessFilter" value="@ViewData["freshnessFilter"]" />
+                        <input type="hidden" name="status" value="@ViewData["status"]" />
+                        <input type="hidden" name="moderatedFilter" value="@ViewData["moderatedFilter"]" />
+                        <input type="hidden" name="createdDateFilter" value="@(ViewData["createdDateFilter"] as DateTime? != null ? ((DateTime)ViewData["createdDateFilter"]).ToString("yyyy-MM-dd") : "")" />
                         <p>
-                            <select class="form-control" asp-for="@ViewData["createdBy"]"
-                                    asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.RestaurantCreatedBy>()">
-                                <option value="">Создан кем угодно</option>
+                            <select class="form-control" name="createdBy" onchange="this.form.submit()">
+                                <option value="">Створено ким завгодно</option>
+                                @{
+                                    var currentCreatedBy = ViewData["createdBy"]?.ToString();
+                                }
+                                @foreach (var val in Enum.GetValues(typeof(Menus.Abstract.Models.RestaurantCreatedBy)))
+                                {
+                                    <option value="@((int)val)" selected="@(currentCreatedBy == ((int)val).ToString())">@val</option>
+                                }
                             </select>
                         </p>
-                        <p>
-                            <select class="form-control" asp-for="@ViewData["status"]"
-                                    asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.RestaurantStatus>()">
-                                <option value="">Все статусы</option>
-                            </select>
-                        </p>
-                        <p>
-                            <select name="multiaction">
-                                <option value="">Действие</option>
-                                <option value="delete">Удалить</option>
-                            </select>
-                        </p>
-                        <input type="submit" name="name" value="Применить" />
                     </form>
                 </div>
             </div>
 
-
-            <table class="mainTable">
-                <thead>
-                    <tr>
-                        <th class="tableCheckbox">
-                            <input id="checkAll" type="checkbox" value="" />
-                        </th>
-                        <th></th>
-                        <th>
-                            Название
-                        </th>
-                        <th>
-                            Телефон
-                        </th>
-                        <th>
-                            Адрес
-                        </th>
-                        <th>
-                            Сайт
-                        </th>
-                        <th>
-                            SEO meta
-                        </th>
-                        <th>
-                            Актуальність даних
-                        </th>
-                        <th>
-                            Статус
-                        </th>
-                        <th>
-                            Дата создания
-                        </th>
-                        <th>
-                            Мод.
-                        </th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @{
-                        var restaurantMeta = ViewData["restaurantMeta"] as System.Collections.Generic.Dictionary<string, (bool SeoFilled, System.DateTime? LastChecked, string Website)>;
-                    }
-                    @foreach (var item in Model)
-                    {
-                        (bool SeoFilled, System.DateTime? LastChecked, string Website) meta = (false, null, null);
-                        restaurantMeta?.TryGetValue(item.Id, out meta);
-
-                        var statusIconClass = item.Status == Menus.Abstract.Models.RestaurantStatus.Blocked ? "StatusIconBlocked"
-                            : item.Status == Menus.Abstract.Models.RestaurantStatus.Closed ? "StatusIconBlock"
-                            : item.Status == Menus.Abstract.Models.RestaurantStatus.Pending ? "StatusIconOnApproval"
-                            : "";
-
-                        <tr data-id="@item.Id">
-                            <td class="tableCheckbox">
-                                <input type="checkbox" value="" />
-                            </td>
-                            <td class="tableStatusIcon @statusIconClass">
-                                <span>+</span>
-                            </td>
-                            <td>
-                                <span>@item.Name</span>
-                            </td>
-                            <td>
-                                @Html.DisplayFor(modelItem => item.Phone)
-                            </td>
-                            <td>
-                                @Html.DisplayFor(modelItem => item.Address)
-                            </td>
-                            <td>
-                                @if (!string.IsNullOrEmpty(meta.Website))
-                                {
-                                    <a href="@meta.Website" target="_blank" rel="noopener">@meta.Website</a>
-                                }
-                                else
-                                {
-                                    <span>—</span>
-                                }
-                            </td>
-                            <td>
-                                <span>@(meta.SeoFilled ? "Заповнено" : "Не заповнено")</span>
-                            </td>
-                            <td>
-                                <span>@(meta.LastChecked.HasValue ? meta.LastChecked.Value.ToString("dd.MM.yyyy") : "Ще не перевірено")</span>
-                            </td>
-                            <td>
-                                <select class="form-control" asp-for="@item.Status"
-                                        asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.RestaurantStatus>()"></select>
-                            </td>
-                            <td>
-                                <input type="date" name="item.CreateDate" value="@item.CreateDate.ToString("yyyy-MM-dd")" />
-                            </td>
-                            <td>
-                                @Html.EditorFor(modelItem => item.Moderated)
-                            </td>
-                            <td class="tableEdit">
-                                <a class="tableEditBtn" href="@Url.Action("Edit", new { id = item.Id })">Edit</a>
-                                <a class="" href="#" data-copy data-id="@item.Id">cp</a>
-                                <a class="tableDeleteBtn" href="#" data-delete data-id="@item.Id">Delete</a>
-                            </td>
+            <form method="get" id="filterForm">
+                <input type="hidden" name="createdBy" value="@ViewData["createdBy"]" />
+                <table class="mainTable">
+                    <thead>
+                        <tr>
+                            <th class="tableCheckbox">
+                                <input id="checkAll" type="checkbox" value="" />
+                            </th>
+                            <th></th>
+                            <th>Название</th>
+                            <th>Телефон</th>
+                            <th>Адрес</th>
+                            <th>Сайт</th>
+                            <th>SEO meta</th>
+                            <th>Актуальність даних</th>
+                            <th>Статус</th>
+                            <th>Дата создания</th>
+                            <th>Мод.</th>
+                            <th></th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                        <tr class="filterRow">
+                            <th class="tableCheckbox"></th>
+                            <th></th>
+                            <th><input type="text" name="nameFilter" value="@ViewData["nameFilter"]" placeholder="Фільтр..." /></th>
+                            <th><input type="text" name="phoneFilter" value="@ViewData["phoneFilter"]" placeholder="Фільтр..." /></th>
+                            <th><input type="text" name="addressFilter" value="@ViewData["addressFilter"]" placeholder="Фільтр..." /></th>
+                            <th><input type="text" name="siteFilter" value="@ViewData["siteFilter"]" placeholder="Фільтр..." /></th>
+                            <th>
+                                <select name="seoFilter" onchange="this.form.submit()">
+                                    <option value="" selected="@(string.IsNullOrEmpty(ViewData["seoFilter"] as string))">Всі</option>
+                                    <option value="filled" selected="@((ViewData["seoFilter"] as string) == "filled")">Заповнено</option>
+                                    <option value="empty" selected="@((ViewData["seoFilter"] as string) == "empty")">Не заповнено</option>
+                                </select>
+                            </th>
+                            <th>
+                                <select name="freshnessFilter" onchange="this.form.submit()">
+                                    <option value="" selected="@(string.IsNullOrEmpty(ViewData["freshnessFilter"] as string))">Всі</option>
+                                    <option value="never" selected="@((ViewData["freshnessFilter"] as string) == "never")">Ще не перевірено</option>
+                                    <option value="stale" selected="@((ViewData["freshnessFilter"] as string) == "stale")">Не перевірено 30+ днів</option>
+                                    <option value="recent" selected="@((ViewData["freshnessFilter"] as string) == "recent")">Перевірено нещодавно</option>
+                                </select>
+                            </th>
+                            <th>
+                                <select name="status" onchange="this.form.submit()">
+                                    <option value="">Всі</option>
+                                    @{
+                                        var currentStatus = ViewData["status"]?.ToString();
+                                    }
+                                    @foreach (var val in Enum.GetValues(typeof(Menus.Abstract.Models.RestaurantStatus)))
+                                    {
+                                        <option value="@((int)val)" selected="@(currentStatus == ((int)val).ToString())">@val</option>
+                                    }
+                                </select>
+                            </th>
+                            <th><input type="date" name="createdDateFilter" value="@(ViewData["createdDateFilter"] as DateTime? != null ? ((DateTime)ViewData["createdDateFilter"]).ToString("yyyy-MM-dd") : "")" onchange="this.form.submit()" /></th>
+                            <th>
+                                <select name="moderatedFilter" onchange="this.form.submit()">
+                                    <option value="" selected="@(string.IsNullOrEmpty(ViewData["moderatedFilter"] as string))">Всі</option>
+                                    <option value="1" selected="@((ViewData["moderatedFilter"] as string) == "1")">Так</option>
+                                    <option value="0" selected="@((ViewData["moderatedFilter"] as string) == "0")">Ні</option>
+                                </select>
+                            </th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            var statusIconClass = item.Status == Menus.Abstract.Models.RestaurantStatus.Blocked ? "StatusIconBlocked"
+                                : item.Status == Menus.Abstract.Models.RestaurantStatus.Closed ? "StatusIconBlock"
+                                : item.Status == Menus.Abstract.Models.RestaurantStatus.Pending ? "StatusIconOnApproval"
+                                : "";
+
+                            <tr data-id="@item.Id">
+                                <td class="tableCheckbox">
+                                    <input type="checkbox" value="" />
+                                </td>
+                                <td class="tableStatusIcon @statusIconClass">
+                                    <span>+</span>
+                                </td>
+                                <td>
+                                    <span>@item.Name</span>
+                                </td>
+                                <td>
+                                    @item.Phone
+                                </td>
+                                <td>
+                                    @item.Address
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.Website))
+                                    {
+                                        <a href="@item.Website" target="_blank" rel="noopener">@item.Website</a>
+                                    }
+                                    else
+                                    {
+                                        <span>—</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span>@(item.SeoFilled ? "Заповнено" : "Не заповнено")</span>
+                                </td>
+                                <td>
+                                    <span>@(item.LastChecked.HasValue ? item.LastChecked.Value.ToString("dd.MM.yyyy") : "Ще не перевірено")</span>
+                                </td>
+                                <td>
+                                    <select class="form-control statusSelect" data-id="@item.Id">
+                                        @foreach (var val in Enum.GetValues(typeof(Menus.Abstract.Models.RestaurantStatus)))
+                                        {
+                                            <option value="@((int)val)" selected="@(item.Status == (Menus.Abstract.Models.RestaurantStatus)val)">@val</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="date" name="item.CreateDate" value="@item.CreateDate.ToString("yyyy-MM-dd")" />
+                                </td>
+                                <td>
+                                    <input type="checkbox" name="item.Moderated" class="moderatedCheckbox" data-id="@item.Id" checked="@item.Moderated" />
+                                </td>
+                                <td class="tableEdit">
+                                    <a class="tableEditBtn" href="@Url.Action("Edit", new { id = item.Id })">Edit</a>
+                                    <a class="" href="#" data-copy data-id="@item.Id">cp</a>
+                                    <a class="tableDeleteBtn" href="#" data-delete data-id="@item.Id">Delete</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </form>
 
             <div style="text-align:center; margin-top: 30px;">
                 @if (page != 0)
                 {
-                    <a asp-route-q="@(ViewData["q"])" asp-route-createdBy="@(ViewData["createdBy"])" asp-route-status="@(ViewData["status"])" asp-route-page="@(page - 1)">&larr;Назад &nbsp;</a>
+                    <a asp-route-nameFilter="@ViewData["nameFilter"]" asp-route-phoneFilter="@ViewData["phoneFilter"]" asp-route-addressFilter="@ViewData["addressFilter"]" asp-route-siteFilter="@ViewData["siteFilter"]" asp-route-seoFilter="@ViewData["seoFilter"]" asp-route-freshnessFilter="@ViewData["freshnessFilter"]" asp-route-status="@ViewData["status"]" asp-route-moderatedFilter="@ViewData["moderatedFilter"]" asp-route-createdBy="@ViewData["createdBy"]" asp-route-page="@(page - 1)">&larr;Назад &nbsp;</a>
                 }
-                @if (Model.Count() == Convert.ToInt32(ViewData["pageSize"].ToString()))
+                @if (Model.Count == Convert.ToInt32(ViewData["pageSize"].ToString()))
                 {
-                    <a asp-route-q="@(ViewData["q"])" asp-route-createdBy="@(ViewData["createdBy"])" asp-route-status="@(ViewData["status"])" asp-route-page="@(page + 1)">Вперёд&rarr;</a>
+                    <a asp-route-nameFilter="@ViewData["nameFilter"]" asp-route-phoneFilter="@ViewData["phoneFilter"]" asp-route-addressFilter="@ViewData["addressFilter"]" asp-route-siteFilter="@ViewData["siteFilter"]" asp-route-seoFilter="@ViewData["seoFilter"]" asp-route-freshnessFilter="@ViewData["freshnessFilter"]" asp-route-status="@ViewData["status"]" asp-route-moderatedFilter="@ViewData["moderatedFilter"]" asp-route-createdBy="@ViewData["createdBy"]" asp-route-page="@(page + 1)">Вперёд&rarr;</a>
                 }
             </div>
 
@@ -175,8 +195,6 @@
 
     </main>
 </div>
-
-
 
 <div class="popUpWindow hidden">
     <div class="popUpAlign">
@@ -194,21 +212,6 @@
     </div>
 </div>
 
-<!-- Script for popUp start -->
-@*<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-    <script>
-        jQuery(document).ready(function () {
-
-            jQuery('.popUpClose').on('click', function () {
-                jQuery('.popUpWindow').fadeOut();
-            });
-
-        });
-    </script>*@
-
-<!-- Script for popUp end -->
-
-
 @section Scripts {
     <script src="~/js/jquery.js"></script>
     <script>
@@ -218,14 +221,15 @@
             return token;
         }
 
-        $(document).on("change", '[name="ViewData[status]"]', function () {
-            $("[name=status]").val($(this).val());
-            $(".search-bar").submit();
+        $(document).on("keypress", '.filterRow input[type=text]', function (e) {
+            if (e.which === 13) {
+                e.preventDefault();
+                $("#filterForm").submit();
+            }
         });
 
-        $(document).on("change", '[name="ViewData[createdBy]"]', function () {
-            $("[name=createdBy]").val($(this).val());
-            $(".search-bar").submit();
+        $(document).on("change", "#checkAll", function () {
+            $("tbody .tableCheckbox input[type=checkbox]").prop('checked', $(this).is(":checked"));
         });
 
         $(document).on("change", '[name="item.CreateDate"]', function () {
@@ -239,94 +243,28 @@
                     }
                 })
                 .done(function () {
-                    
+
                 })
                 .fail(function (data) {
                     window.Logger.logTextError("UPDATE Restaurant CreateDate action failed");
                 });
         });
 
-        $(document).on("change", '[name="item.Moderated"]', function () {
+        $(document).on("change", '.moderatedCheckbox', function () {
             $.ajax({
                     url: "@Url.Action("ToggleModerated")",
                     method: "POST",
                     data: {
                         "__RequestVerificationToken": getToken(),
-                        id: $(this).closest("tr").attr("data-id")
+                        id: $(this).data("id")
                     }
                 })
                 .done(function () {
-                    
+
                 })
                 .fail(function (data) {
                     window.Logger.logTextError("UPDATE Restaurant Moderated action failed");
                 });
-        });
-
-        $(document).on("change", "#checkAll", function () {
-            $("tbody .tableCheckbox input[type=checkbox]").prop('checked', $(this).is(":checked"));
-        });
-
-        $(".filter-form").submit(function (e) {
-            e.preventDefault();
-
-            if ($("[name=multiaction]").val() !== "delete") return;
-            if (!confirm("Are you sure?")) return;
-
-            var ids = [];
-            $("tbody .tableCheckbox input[type=checkbox]").each(function () {
-                if ($(this).is(":checked")) {
-                    ids.push($(this).closest("tr[data-id]").attr("data-id"));
-                }
-            });
-
-
-            $.ajax({
-                url: "@Url.Action("DeleteSeveral")",
-                method: "POST",
-                data: {
-                    "__RequestVerificationToken": getToken(),
-                    ids: ids
-                }
-            })
-                .done(function () {
-                    $("tbody .tableCheckbox input[type=checkbox]").each(function () {
-                        if ($(this).is(":checked")) {
-                            $(this).closest("tr[data-id]").remove();
-                        }
-                    });
-                 })
-                .fail(function (data) {
-                    window.Logger.logTextError("MULTI DELETE Restaurant action failed");
-                 });
-        });
-
-        $(document).on("change", '[name="item.Status"]', function () {
-            var id = $(this).closest("tr[data-id]").attr("data-id");
-            var status = $(this).val();
-
-            $.ajax({
-                url: "@Url.Action("ChangeStatus")",
-                method: "POST",
-                data: {
-                    "__RequestVerificationToken": getToken(),
-                    id: id,
-                    status: status
-                }
-            })
-                .done(function () {
-                    var tr = $("tr[data-id=" + id + "]");
-                    var icon = tr.find(".tableStatusIcon");
-
-                    icon.removeClass("StatusIconBlock").removeClass("StatusIconOnApproval").removeClass("StatusIconBlocked");
-
-                    if (status === "1") icon.addClass("StatusIconOnApproval");
-                    if (status === "2") icon.addClass("StatusIconBlocked");
-                    if (status === "3") icon.addClass("StatusIconBlock");
-                 })
-                .fail(function (data) {
-                    window.Logger.logTextError("STATUS CHANGE Restaurant action failed, id = " + id);
-                 });
         });
 
         $(document).on("click", "[data-delete]", function (e) {
@@ -369,6 +307,34 @@
                  })
                 .fail(function (data) {
                     window.Logger.logTextError("COPY Restaurant action failed, id = " + id);
+                 });
+        });
+
+        $(document).on("change", '.statusSelect', function () {
+            var id = $(this).data("id");
+            var status = $(this).val();
+
+            $.ajax({
+                url: "@Url.Action("ChangeStatus")",
+                method: "POST",
+                data: {
+                    "__RequestVerificationToken": getToken(),
+                    id: id,
+                    status: status
+                }
+            })
+                .done(function () {
+                    var tr = $("tr[data-id=" + id + "]");
+                    var icon = tr.find(".tableStatusIcon");
+
+                    icon.removeClass("StatusIconBlock").removeClass("StatusIconOnApproval").removeClass("StatusIconBlocked");
+
+                    if (status === "1") icon.addClass("StatusIconOnApproval");
+                    if (status === "2") icon.addClass("StatusIconBlocked");
+                    if (status === "3") icon.addClass("StatusIconBlock");
+                 })
+                .fail(function (data) {
+                    window.Logger.logTextError("STATUS CHANGE Restaurant action failed, id = " + id);
                  });
         });
     </script>
