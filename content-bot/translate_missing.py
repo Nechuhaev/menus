@@ -451,12 +451,140 @@ def process_recent_pages(db):
             print(f"  {p['Url']}: translated to uk")
 
 
+def ensure_translation_log_table(db):
+    cur = db.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS TranslationSyncLog (
+            EntityType VARCHAR(50) NOT NULL,
+            EntityId VARCHAR(255) NOT NULL,
+            LastCheckedAt DATETIME NOT NULL,
+            Notes TEXT NULL,
+            PRIMARY KEY (EntityType, EntityId)
+        )
+        """
+    )
+    db.commit()
+    cur.close()
+
+
+def log_translation_check(db, entity_type, entity_id, notes):
+    cur = db.cursor()
+    cur.execute(
+        """
+        INSERT INTO TranslationSyncLog (EntityType, EntityId, LastCheckedAt, Notes)
+        VALUES (%s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE LastCheckedAt = VALUES(LastCheckedAt), Notes = VALUES(Notes)
+        """,
+        (entity_type, entity_id, datetime.now(), notes),
+    )
+    db.commit()
+    cur.close()
+
+
+def fetch_restaurants_for_full_pass(db, limit):
+    ensure_translation_log_table(db)
+    cur = db.cursor(dictionary=True)
+    cur.execute(
+        """
+        SELECT r.Id, r.Name, ri.Cuisine, ri.ShortInfo, ri.FullInfo,
+               rs.Title AS SeoTitle, rs.Description AS SeoDescription
+        FROM Restaurants r
+        JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
+        JOIN RestaurantSeo rs ON rs.ItemId = r.Id
+        LEFT JOIN TranslationSyncLog l ON l.EntityType = 'Restaurant' AND l.EntityId = r.Id
+        WHERE r.Status = 0
+          AND (l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY))
+        ORDER BY l.LastCheckedAt IS NOT NULL, l.LastCheckedAt ASC
+        LIMIT %s
+        """,
+        (RECHECK_AFTER_DAYS, limit),
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+
+def fetch_all_dishes_for_restaurant(db, restaurant_id):
+    cur = db.cursor(dictionary=True)
+    cur.execute(
+        """
+        SELECT Id, Name, ShortDescription, Ingredients, Description
+        FROM Dishes
+        WHERE RestaurantId = %s
+        """,
+        (restaurant_id,),
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+
+def process_full_restaurant_batch(db):
+    restaurants = fetch_restaurants_for_full_pass(db, FULL_RESTAURANT_BATCH_SIZE)
+    if not restaurants:
+        print("No restaurants due for full-base translation check.")
+        return
+
+    print(f"[Full pass] Checking {len(restaurants)} restaurant(s)...")
+    for r in restaurants:
+        info_updated = translate_restaurant_info(db, r["Id"], r["Cuisine"], r["ShortInfo"], r["FullInfo"])
+        seo_updated = translate_restaurant_seo(db, r["Id"], r["SeoTitle"], r["SeoDescription"])
+
+        dishes = fetch_all_dishes_for_restaurant(db, r["Id"])
+        dish_translated_count = 0
+        for d in dishes:
+            if translate_dish(db, d["Id"], d["Name"], d["ShortDescription"], d["Ingredients"], d["Description"]):
+                dish_translated_count += 1
+
+        summary = f"info={info_updated}; seo={seo_updated}; dishes {dish_translated_count}/{len(dishes)}"
+        log_translation_check(db, "Restaurant", r["Id"], summary)
+        print(f"  {r['Name']}: {summary}")
+
+
+def fetch_pages_for_full_pass(db, limit):
+    ensure_translation_log_table(db)
+    cur = db.cursor(dictionary=True)
+    cur.execute(
+        """
+        SELECT p.Id, p.Url, p.Title, p.ShortContent, p.Content, p.SeoTitle, p.SeoDescription, p.SeoKeywords
+        FROM Pages p
+        LEFT JOIN TranslationSyncLog l ON l.EntityType = 'Page' AND l.EntityId = p.Id
+        WHERE p.Category = 1 AND p.Status = 1
+          AND (l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY))
+        ORDER BY l.LastCheckedAt IS NOT NULL, l.LastCheckedAt ASC
+        LIMIT %s
+        """,
+        (RECHECK_AFTER_DAYS, limit),
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+
+def process_full_page_batch(db):
+    pages = fetch_pages_for_full_pass(db, FULL_PAGE_BATCH_SIZE)
+    if not pages:
+        print("No blog articles due for full-base translation check.")
+        return
+
+    print(f"[Full pass] Checking {len(pages)} blog article(s)...")
+    for p in pages:
+        updated = translate_page(db, p["Id"], p["Title"], p["ShortContent"], p["Content"], p["SeoTitle"], p["SeoDescription"], p["SeoKeywords"])
+        log_translation_check(db, "Page", p["Id"], "translated" if updated else "no changes needed")
+        if updated:
+            print(f"  {p['Url']}: translated to uk")
+
+
 def main():
     db = get_db()
     try:
         restaurant_ids = process_priority_restaurants(db)
         process_dishes_for_restaurants(db, restaurant_ids)
         process_recent_pages(db)
+
+        process_full_restaurant_batch(db)
+        process_full_page_batch(db)
     finally:
         db.close()
 
