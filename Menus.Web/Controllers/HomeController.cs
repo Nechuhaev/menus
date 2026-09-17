@@ -634,8 +634,10 @@ namespace Menus.Web.Controllers
             return View();
         }
 
-                public async Task<IActionResult> MobileRate(string dishId, string restaurantId, string returnUrl)
+        public async Task<IActionResult> MobileRate(string dishId, string restaurantId, string returnUrl)
         {
+            ViewData["Robots"] = "NOINDEX,NOFOLLOW";
+
             var restaurant = await _core.Restaurants.GetRestaurantById(restaurantId);
             var restaurantInfo = await _core.Restaurants.GetRestaurantInfo(restaurantId);
             var restaurantSeo = await _core.Restaurants.GetSeoByRestaurantId(restaurantId);
