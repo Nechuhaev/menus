@@ -32,7 +32,7 @@ namespace Menus.Web.Models
 
         public string Get()
         {
-            return Get("");
+            return Get(System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName);
         }
 
         public string GetAll()
