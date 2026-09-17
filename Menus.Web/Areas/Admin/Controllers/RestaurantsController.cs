@@ -18,6 +18,20 @@ using Newtonsoft.Json;
 
 namespace Menus.Web.Areas.Admin.Controllers
 {
+    public class RestaurantAdminRow
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string Phone { get; set; }
+        public string Address { get; set; }
+        public string Website { get; set; }
+        public bool SeoFilled { get; set; }
+        public DateTime? LastChecked { get; set; }
+        public RestaurantStatus Status { get; set; }
+        public DateTime CreateDate { get; set; }
+        public bool Moderated { get; set; }
+    }
+
     [Area("Admin")]
     [Authorize(Roles = "admin, manager")]
     public class RestaurantsController : Controller
@@ -31,24 +45,39 @@ namespace Menus.Web.Areas.Admin.Controllers
             _dbContext = dbContext;
         }
 
-        public async Task<IActionResult> Index(string q, RestaurantStatus? status, RestaurantCreatedBy? createdBy, int page = 0)
+        public async Task<IActionResult> Index(
+            string nameFilter, string phoneFilter, string addressFilter, string siteFilter,
+            string seoFilter, string freshnessFilter, string moderatedFilter, DateTime? createdDateFilter,
+            RestaurantStatus? status, RestaurantCreatedBy? createdBy, int page = 0)
         {
             int pageSize = 20;
-            var restaurants = (await _core.Restaurants.Search(q, status, createdBy, pageSize, page)).ToList();
+            var restaurants = GetFilteredRestaurants(
+                nameFilter, phoneFilter, addressFilter, siteFilter,
+                seoFilter, freshnessFilter, moderatedFilter, createdDateFilter,
+                status, createdBy, pageSize, page);
 
-            ViewData["q"] = q;
+            ViewData["nameFilter"] = nameFilter;
+            ViewData["phoneFilter"] = phoneFilter;
+            ViewData["addressFilter"] = addressFilter;
+            ViewData["siteFilter"] = siteFilter;
+            ViewData["seoFilter"] = seoFilter;
+            ViewData["freshnessFilter"] = freshnessFilter;
+            ViewData["moderatedFilter"] = moderatedFilter;
+            ViewData["createdDateFilter"] = createdDateFilter;
             ViewData["page"] = page;
             ViewData["status"] = status;
             ViewData["createdBy"] = createdBy;
             ViewData["pageSize"] = pageSize;
-            ViewData["restaurantMeta"] = GetRestaurantMeta();
 
             return View(restaurants);
         }
 
-        private Dictionary<string, (bool SeoFilled, DateTime? LastChecked, string Website)> GetRestaurantMeta()
+        private List<RestaurantAdminRow> GetFilteredRestaurants(
+            string nameFilter, string phoneFilter, string addressFilter, string siteFilter,
+            string seoFilter, string freshnessFilter, string moderatedFilter, DateTime? createdDateFilter,
+            RestaurantStatus? status, RestaurantCreatedBy? createdBy, int pageSize, int page)
         {
-            var result = new Dictionary<string, (bool, DateTime?, string)>();
+            var result = new List<RestaurantAdminRow>();
             try
             {
                 var connection = _dbContext.Database.GetDbConnection();
@@ -57,26 +86,123 @@ namespace Menus.Web.Areas.Admin.Controllers
 
                 try
                 {
-                    using (var command = connection.CreateCommand())
-                    {
-                        command.CommandText = @"SELECT rs.ItemId, rs.Title, rs.Description, rs.Keywords, l.LastCheckedAt, ri.Website
-                                                 FROM RestaurantSeo rs
-                                                 JOIN RestaurantInfo ri ON ri.RestaurantId = rs.ItemId
-                                                 LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = rs.ItemId";
-                        using (var reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                var restaurantId = reader.GetString(0);
-                                var title = reader.IsDBNull(1) ? null : reader.GetString(1);
-                                var description = reader.IsDBNull(2) ? null : reader.GetString(2);
-                                var keywords = reader.IsDBNull(3) ? null : reader.GetString(3);
-                                var lastChecked = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4);
-                                var website = reader.IsDBNull(5) ? null : reader.GetString(5);
+                    var conditions = new List<string>();
+                    var command = connection.CreateCommand();
 
-                                var seoFilled = IsLocalizableFilled(title) && IsLocalizableFilled(description) && !string.IsNullOrWhiteSpace(keywords);
-                                result[restaurantId] = (seoFilled, lastChecked, website);
-                            }
+                    void AddParam(string name, object value)
+                    {
+                        var p = command.CreateParameter();
+                        p.ParameterName = name;
+                        p.Value = value;
+                        command.Parameters.Add(p);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(nameFilter))
+                    {
+                        conditions.Add("r.Name LIKE @nameFilter");
+                        AddParam("@nameFilter", $"%{nameFilter}%");
+                    }
+                    if (!string.IsNullOrWhiteSpace(phoneFilter))
+                    {
+                        conditions.Add("r.Phone LIKE @phoneFilter");
+                        AddParam("@phoneFilter", $"%{phoneFilter}%");
+                    }
+                    if (!string.IsNullOrWhiteSpace(addressFilter))
+                    {
+                        conditions.Add("r.Address LIKE @addressFilter");
+                        AddParam("@addressFilter", $"%{addressFilter}%");
+                    }
+                    if (!string.IsNullOrWhiteSpace(siteFilter))
+                    {
+                        conditions.Add("ri.Website LIKE @siteFilter");
+                        AddParam("@siteFilter", $"%{siteFilter}%");
+                    }
+                    if (seoFilter == "filled")
+                    {
+                        conditions.Add(@"(rs.Title REGEXP '""Value"": ""[^""]' AND rs.Description REGEXP '""Value"": ""[^""]' AND rs.Keywords IS NOT NULL AND rs.Keywords != '')");
+                    }
+                    else if (seoFilter == "empty")
+                    {
+                        conditions.Add(@"NOT (rs.Title REGEXP '""Value"": ""[^""]' AND rs.Description REGEXP '""Value"": ""[^""]' AND rs.Keywords IS NOT NULL AND rs.Keywords != '')");
+                    }
+                    if (freshnessFilter == "never")
+                    {
+                        conditions.Add("l.LastCheckedAt IS NULL");
+                    }
+                    else if (freshnessFilter == "stale")
+                    {
+                        conditions.Add("(l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL 30 DAY))");
+                    }
+                    else if (freshnessFilter == "recent")
+                    {
+                        conditions.Add("l.LastCheckedAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
+                    }
+                    if (status != null)
+                    {
+                        conditions.Add("r.Status = @status");
+                        AddParam("@status", (int)status.Value);
+                    }
+                    if (createdDateFilter != null)
+                    {
+                        conditions.Add("DATE(r.CreateDate) = @createdDate");
+                        AddParam("@createdDate", createdDateFilter.Value.Date);
+                    }
+                    if (moderatedFilter == "1")
+                    {
+                        conditions.Add("r.Moderated = 1");
+                    }
+                    else if (moderatedFilter == "0")
+                    {
+                        conditions.Add("r.Moderated = 0");
+                    }
+
+                    var joinCreatedBy = "";
+                    if (createdBy == RestaurantCreatedBy.Admin)
+                    {
+                        joinCreatedBy = "LEFT JOIN (SELECT COUNT(*) AS Cnt, RestaurantId FROM MenuCategories GROUP BY RestaurantId) cc ON cc.RestaurantId = r.Id";
+                        conditions.Add("cc.Cnt > 0");
+                    }
+                    else if (createdBy != null)
+                    {
+                        joinCreatedBy = "LEFT JOIN (SELECT COUNT(*) AS Cnt, RestaurantId FROM MenuCategories GROUP BY RestaurantId) cc ON cc.RestaurantId = r.Id";
+                        conditions.Add("cc.Cnt IS NULL");
+                    }
+
+                    var whereClause = conditions.Count > 0 ? "WHERE " + string.Join(" AND ", conditions) : "";
+
+                    command.CommandText = $@"
+                        SELECT r.Id, r.Name, r.Phone, r.Address, r.Status, r.CreateDate, r.Moderated,
+                               ri.Website, rs.Title, rs.Description, rs.Keywords, l.LastCheckedAt
+                        FROM Restaurants r
+                        JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
+                        JOIN RestaurantSeo rs ON rs.ItemId = r.Id
+                        LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = r.Id
+                        {joinCreatedBy}
+                        {whereClause}
+                        ORDER BY r.CreateDate DESC
+                        LIMIT {pageSize} OFFSET {pageSize * page}";
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var title = reader.IsDBNull(8) ? null : reader.GetString(8);
+                            var description = reader.IsDBNull(9) ? null : reader.GetString(9);
+                            var keywords = reader.IsDBNull(10) ? null : reader.GetString(10);
+
+                            result.Add(new RestaurantAdminRow
+                            {
+                                Id = reader.GetString(0),
+                                Name = reader.GetString(1),
+                                Phone = reader.IsDBNull(2) ? null : reader.GetString(2),
+                                Address = reader.IsDBNull(3) ? null : reader.GetString(3),
+                                Status = (RestaurantStatus)reader.GetInt32(4),
+                                CreateDate = reader.GetDateTime(5),
+                                Moderated = reader.GetBoolean(6),
+                                Website = reader.IsDBNull(7) ? null : reader.GetString(7),
+                                SeoFilled = IsLocalizableFilled(title) && IsLocalizableFilled(description) && !string.IsNullOrWhiteSpace(keywords),
+                                LastChecked = reader.IsDBNull(11) ? (DateTime?)null : reader.GetDateTime(11),
+                            });
                         }
                     }
                 }
@@ -87,7 +213,7 @@ namespace Menus.Web.Areas.Admin.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GetRestaurantMeta FAILED: {ex}");
+                Console.WriteLine($"GetFilteredRestaurants FAILED: {ex}");
             }
             return result;
         }
