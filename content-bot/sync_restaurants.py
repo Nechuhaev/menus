@@ -260,6 +260,36 @@ def fetch_needy_dishes(db, restaurant_id):
     cur.close()
     return rows
 
+def verify_restaurant_closure(name, address, city):
+    """When no website is found anywhere (DB, OSM), use Claude with real web search
+    to check whether the restaurant is actually closed, rather than concluding
+    closure merely from an absent website record (OSM's website-tag coverage for
+    Ukrainian restaurants is patchy — treating it as ground truth risks wrongly
+    closing active restaurants)."""
+    try:
+        message = anthropic_client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=600,
+            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
+            messages=[{
+                "role": "user",
+                "content": (
+                    f'Ресторан "{name}" за адресою {address}, {city}, Україна. '
+                    "Пошукай в інтернеті: (1) чи є в закладу власний сайт, і якщо так — яка саме URL-адреса, "
+                    "(2) чи є ознаки, що заклад остаточно закрився (позначка \"Заклад закритий\" на Google Maps, "
+                    "новини про закриття, відсутність активності/відгуків останнім часом тощо). "
+                    "Поверни ЛИШЕ валідний JSON, без жодного тексту до чи після:\n"
+                    '{"website": "..." or null, "likely_closed": true/false, "confidence": "high"/"medium"/"low", "reason": "коротке пояснення"}'
+                ),
+            }],
+        )
+        text_blocks = [block.text for block in message.content if block.type == "text"]
+        raw = "\n".join(text_blocks).strip()
+        raw = re.sub(r"^```json\s*|\s*```$", "", raw)
+        return json.loads(raw)
+    except Exception as e:
+        print(f"    Closure verification failed: {e}")
+        return None
 
 def osm_lookup(name, address, city):
     """Free lookup via OpenStreetMap Nominatim: GPS always if matched, plus website/
@@ -505,17 +535,28 @@ def process_restaurant(db, restaurant):
     needs_osm = not website or not restaurant["GpsLatitude"]
     osm_data = osm_lookup(name, restaurant["Address"], restaurant["City"]) if needs_osm else {}
 
-    if not website:
+        if not website:
         website = osm_data.get("website")
 
     if not website:
-        cur = db.cursor()
-        cur.execute("UPDATE Restaurants SET Status = %s WHERE Id = %s", (RESTAURANT_STATUS_CLOSED, restaurant["Id"]))
-        db.commit()
-        cur.close()
-        log_check(db, restaurant["Id"], "Marked Closed: no website found (DB or OSM)", closed_detected=True)
-        print("  -> Marked as CLOSED (no website found anywhere)")
-        return
+        verification = verify_restaurant_closure(name, restaurant["Address"], restaurant["City"])
+
+        if verification and verification.get("website"):
+            website = verification["website"]
+            notes.append("website found via web search verification")
+        elif verification and verification.get("likely_closed") and verification.get("confidence") in ("high", "medium"):
+            cur = db.cursor()
+            cur.execute("UPDATE Restaurants SET Status = %s WHERE Id = %s", (RESTAURANT_STATUS_CLOSED, restaurant["Id"]))
+            db.commit()
+            cur.close()
+            reason = verification.get("reason", "")
+            log_check(db, restaurant["Id"], f"Marked Closed: confirmed via web search ({verification.get('confidence')} confidence): {reason}", closed_detected=True)
+            print(f"  -> Marked as CLOSED (confirmed via web search: {reason})")
+            return
+        else:
+            log_check(db, restaurant["Id"], "No website found (DB/OSM/web search); not confidently closed — flagged for manual review", closed_detected=False)
+            print("  -> No website found, closure not confirmed — flagged for manual review (not auto-closed)")
+            return
 
     info_updates = {}
     if website != restaurant["Website"]:
