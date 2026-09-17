@@ -180,14 +180,47 @@
                 </table>
             </form>
 
+                        @{
+                var totalPages = (int)ViewData["totalPages"];
+                var pagesToShow = new List<int>();
+                if (totalPages > 0)
+                {
+                    pagesToShow.Add(0);
+                    for (int p = Math.Max(1, page - 2); p <= Math.Min(totalPages - 2, page + 2); p++)
+                    {
+                        pagesToShow.Add(p);
+                    }
+                    if (totalPages > 1) pagesToShow.Add(totalPages - 1);
+                    pagesToShow = pagesToShow.Distinct().OrderBy(x => x).ToList();
+                }
+            }
             <div style="text-align:center; margin-top: 30px;">
                 @if (page != 0)
                 {
-                    <a asp-route-nameFilter="@ViewData["nameFilter"]" asp-route-phoneFilter="@ViewData["phoneFilter"]" asp-route-addressFilter="@ViewData["addressFilter"]" asp-route-siteFilter="@ViewData["siteFilter"]" asp-route-seoFilter="@ViewData["seoFilter"]" asp-route-freshnessFilter="@ViewData["freshnessFilter"]" asp-route-status="@ViewData["status"]" asp-route-moderatedFilter="@ViewData["moderatedFilter"]" asp-route-createdBy="@ViewData["createdBy"]" asp-route-page="@(page - 1)">&larr;Назад &nbsp;</a>
+                    <a style="margin: 0 8px;" asp-route-nameFilter="@ViewData["nameFilter"]" asp-route-phoneFilter="@ViewData["phoneFilter"]" asp-route-addressFilter="@ViewData["addressFilter"]" asp-route-siteFilter="@ViewData["siteFilter"]" asp-route-seoFilter="@ViewData["seoFilter"]" asp-route-freshnessFilter="@ViewData["freshnessFilter"]" asp-route-status="@ViewData["status"]" asp-route-moderatedFilter="@ViewData["moderatedFilter"]" asp-route-createdBy="@ViewData["createdBy"]" asp-route-page="@(page - 1)">&larr;</a>
                 }
-                @if (Model.Count == Convert.ToInt32(ViewData["pageSize"].ToString()))
+                @{
+                    var previousPage = -1;
+                }
+                @foreach (var p in pagesToShow)
                 {
-                    <a asp-route-nameFilter="@ViewData["nameFilter"]" asp-route-phoneFilter="@ViewData["phoneFilter"]" asp-route-addressFilter="@ViewData["addressFilter"]" asp-route-siteFilter="@ViewData["siteFilter"]" asp-route-seoFilter="@ViewData["seoFilter"]" asp-route-freshnessFilter="@ViewData["freshnessFilter"]" asp-route-status="@ViewData["status"]" asp-route-moderatedFilter="@ViewData["moderatedFilter"]" asp-route-createdBy="@ViewData["createdBy"]" asp-route-page="@(page + 1)">Вперёд&rarr;</a>
+                    if (previousPage != -1 && p - previousPage > 1)
+                    {
+                        <span style="margin: 0 8px; color:#a9aab3;">...</span>
+                    }
+                    if (p == page)
+                    {
+                        <span style="margin: 0 8px; font-weight:900;">@(p + 1)</span>
+                    }
+                    else
+                    {
+                        <a style="margin: 0 8px;" asp-route-nameFilter="@ViewData["nameFilter"]" asp-route-phoneFilter="@ViewData["phoneFilter"]" asp-route-addressFilter="@ViewData["addressFilter"]" asp-route-siteFilter="@ViewData["siteFilter"]" asp-route-seoFilter="@ViewData["seoFilter"]" asp-route-freshnessFilter="@ViewData["freshnessFilter"]" asp-route-status="@ViewData["status"]" asp-route-moderatedFilter="@ViewData["moderatedFilter"]" asp-route-createdBy="@ViewData["createdBy"]" asp-route-page="@p">@(p + 1)</a>
+                    }
+                    previousPage = p;
+                }
+                @if (page < totalPages - 1)
+                {
+                    <a style="margin: 0 8px;" asp-route-nameFilter="@ViewData["nameFilter"]" asp-route-phoneFilter="@ViewData["phoneFilter"]" asp-route-addressFilter="@ViewData["addressFilter"]" asp-route-siteFilter="@ViewData["siteFilter"]" asp-route-seoFilter="@ViewData["seoFilter"]" asp-route-freshnessFilter="@ViewData["freshnessFilter"]" asp-route-status="@ViewData["status"]" asp-route-moderatedFilter="@ViewData["moderatedFilter"]" asp-route-createdBy="@ViewData["createdBy"]" asp-route-page="@(page + 1)">&rarr;</a>
                 }
             </div>
 
