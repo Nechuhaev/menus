@@ -37,7 +37,10 @@ DB_PASSWORD = os.environ["DB_PASSWORD"]
 DB_NAME = os.environ.get("DB_NAME", "menus")
 
 RECENT_PAGES_LIMIT = 30
-
+DISHES_PER_RUN_LIMIT = 30
+FULL_RESTAURANT_BATCH_SIZE = 10
+FULL_PAGE_BATCH_SIZE = 10
+RECHECK_AFTER_DAYS = 90
 anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
 
 
