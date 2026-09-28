@@ -2,6 +2,7 @@ version: '2'
 services:
   mariadb:
     image: mariadb
+    restart: unless-stopped
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=menus
