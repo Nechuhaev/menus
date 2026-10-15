@@ -1,0 +1,13 @@
+# Не передавати в контекст docker build: бекапи, секрети, сторонні проєкти
+.git
+.env
+*.env
+*.sql
+*.tar.gz
+dataprotection-keys/
+strapi/
+content-bot/
+snippets/
+**/bin/
+**/obj/
+**/node_modules/
