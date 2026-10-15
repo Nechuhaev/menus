@@ -11,6 +11,13 @@
     var robots = ViewData["Robots"] ?? Configuration["Meta:Robots"];
     var isTestMode = Convert.ToBoolean(Configuration[$"GoogleSenceTestModeOn"] != null ? Configuration[$"GoogleSenceTestModeOn"] : "false");
     var testModeValue = isTestMode ? "on" : "off";
+    var baseUrl = $"http{(crq.IsHttps ? "s" : "")}://{crq.Host}";
+    // Canonical без query string (utm, sort тощо), крім пагінації
+    var pageParam = crq.Query["page"].ToString();
+    var canonical = ViewData["Canonical"] as string
+        ?? $"{baseUrl}{crq.Path}{(!string.IsNullOrEmpty(pageParam) && pageParam != "0" ? "?page=" + System.Net.WebUtility.UrlEncode(pageParam) : "")}";
+    var ogLocale = culture == "uk" ? "uk_UA" : culture == "ru" ? "ru_RU" : "en_US";
+    var isMobileUser = UserService.IsMobileUser(Context.Request);
 }
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="@culture" lang="@culture">
@@ -25,14 +32,16 @@
     <title>@ViewData["Title"]</title>
 
     <meta name="robots" content="@robots" />
-    <link rel="canonical" href="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{crq.Path}{crq.QueryString}")" />
+    <link rel="canonical" href="@canonical" />
     @await Html.PartialAsync("_AlternativeLinks")
     <meta property="og:title" content="@ViewData["Title"]" />
     <meta property="og:description" content="@ViewData["Description"]" />
     <meta property="og:type" content="website" />
-    <meta property="og:locale" content="@(culture)_UA" />
-    <meta property="og:url" content="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{crq.Path}{crq.QueryString}")" />
-    <meta property="og:image" content="@(ViewData["MainImage"] ?? $"http{(crq.IsHttps ? "s" : "")}://{crq.Host}/images/site_logo_dark.svg")" />
+    <meta property="og:locale" content="@ogLocale" />
+    <meta property="og:url" content="@canonical" />
+    <meta property="og:site_name" content="TipMyMenu" />
+    <meta property="og:image" content="@(ViewData["MainImage"] ?? $"{baseUrl}/images/og-default.png")" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="yandex-verification" content="279a6808640a1bd4" />
     <environment include="Development">
 
@@ -43,6 +52,22 @@
             asp-fallback-test-class="sr-only" asp-fallback-test-property="position" asp-fallback-test-value="absolute" />*@
     </environment>
     <link rel="manifest" href="~/manifest.json">
+
+    @* Стилі сторінок підключаються ДО основного CSS, щоб зберегти попередній порядок каскаду *@
+    <link href="~/css/swiper.min.css" rel="stylesheet" asp-append-version="true" />
+    @RenderSection("Styles", required: false)
+    @if (isMobileUser)
+    {
+        <link href="~/css/main-mobile.css" rel="stylesheet" asp-append-version="true" />
+    }
+    else
+    {
+        <link href="~/css/main-pc.css" rel="stylesheet" asp-append-version="true" />
+    }
+    <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />
+    <link rel="preconnect" href="https://use.fontawesome.com" crossorigin />
+    <link href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" rel="stylesheet" /></noscript>
 
     <!-- Google Tag Manager -->
     <script>
@@ -62,14 +87,14 @@
     <!-- End Google Sence Manager -->
 
     <script>
-        window.isMobile = @UserService.IsMobileUser(Context.Request).ToString().ToLowerInvariant();
+        window.isMobile = @isMobileUser.ToString().ToLowerInvariant();
         window.culture = '@culture';
     </script>
 </head>
 
 
 
-<body style="opacity: 0;" class="@ViewData["BodyClass"] @additionalBodyClass">
+<body class="@ViewData["BodyClass"] @additionalBodyClass">
     <!-- Google Tag Manager (noscript) -->
     <noscript>
         <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-P5WP82B"
@@ -102,17 +127,6 @@
     @RenderSection("Scripts", required: false)
     @await Html.PartialAsync("_SignInPopup")
 
-    @if (UserService.IsMobileUser(Context.Request))
-    {
-        <link href="~/css/main-mobile.css" rel="stylesheet" asp-append-version="true" />
-    }
-    else
-    {
-        <link href="~/css/main-pc.css" rel="stylesheet" asp-append-version="true" />
-    }
-    <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />
-    <link href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" rel="stylesheet" />
-
     <script src="~/js/promise.min.js" async></script>
     <script src="~/js/fetch.min.js" async></script>
     <script src="~/js/index.js" async></script>
@@ -126,27 +140,27 @@
     </environment>    
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            document.querySelector("body").style.opacity = "1";
-
-            setTimeout(() => {   
+            // Реклама не критична для першого рендеру - відкладаємо
+            setTimeout(function () {
                 if (typeof (initSence) !== 'undefined') {
                   initSence("@testModeValue");
                 }
                 if (typeof (initSenceSticky) !== 'undefined') {
                     initSenceSticky();
                 }
-                if (typeof (initClosePopup) !== 'undefined') {
-                    initClosePopup();
-                }
-
-                if (typeof (initSearchRadioButton) !== 'undefined') {
-                    initSearchRadioButton("@Url.Action("FindRestaurant", "Home")", "@Url.Action("SearchDish", "Home")");
-                }
-
-                if (typeof (initServiceButtons) !== 'undefined') {
-                    initServiceButtons();
-                }
             }, 500);
+
+            if (typeof (initClosePopup) !== 'undefined') {
+                initClosePopup();
+            }
+
+            if (typeof (initSearchRadioButton) !== 'undefined') {
+                initSearchRadioButton("@Url.Action("FindRestaurant", "Home")", "@Url.Action("SearchDish", "Home")");
+            }
+
+            if (typeof (initServiceButtons) !== 'undefined') {
+                initServiceButtons();
+            }
         }, false);
 
 

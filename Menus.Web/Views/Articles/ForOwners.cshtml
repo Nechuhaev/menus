@@ -253,20 +253,22 @@
 }
 
 
-@if (UserService.IsMobileUser(Context.Request))
-{
-    <link href="~/css/for-owners-mobile.css" rel="stylesheet" asp-append-version="true" />
-}
-else
-{
-    <link href="~/css/for-owners.css" rel="stylesheet" asp-append-version="true" />
+@section Styles {
+    @if (UserService.IsMobileUser(Context.Request))
+    {
+        <link href="~/css/for-owners-mobile.css" rel="stylesheet" asp-append-version="true" />
+    }
+    else
+    {
+        <link href="~/css/for-owners.css" rel="stylesheet" asp-append-version="true" />
+    }
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/jquery-ui.css">
 }
 
 @section Scripts
     {
 
 
-    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/jquery-ui.css">
 
     <script type="text/javascript" src="https://code.jquery.com/jquery-latest.js"></script>
     <script src="https://codyhouse.co/demo/image-comparison-slider/js/jquery.mobile.custom.min.js"></script>

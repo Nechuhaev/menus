@@ -116,8 +116,19 @@
     <style>
         @Html.Raw(seo.CustomCss);
     </style>
+    <link href="~/css/swiper.min.css" rel="stylesheet" />
+    @if (UserService.IsMobileUser(Context.Request))
+    {
+        <link href="~/css/iframe-clean-mobile.css" rel="stylesheet" asp-append-version="true" />
+    }
+    else
+    {
+        <link href="~/css/iframe-clean.css" rel="stylesheet" asp-append-version="true" />
+    }
+    <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />
+    <link href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" rel="stylesheet" />
 </head>
-<body style="opacity: 0;" class="@ViewData["BodyClass"] @additionalBodyClass">
+<body class="@ViewData["BodyClass"] @additionalBodyClass">
 
     <style>
         button[data-user-id] {
@@ -637,19 +648,8 @@
     </div>
 
     <!-- Initialize Swiper -->
-    <link href="~/css/swiper.min.css" rel="stylesheet" />
     <script src="~/js/jquery.js" asp-append-version="true"></script>
 
-    @if (UserService.IsMobileUser(Context.Request))
-    {
-        <link href="~/css/iframe-clean-mobile.css" rel="stylesheet" asp-append-version="true" />
-    }
-    else
-    {
-        <link href="~/css/iframe-clean.css" rel="stylesheet" asp-append-version="true" />
-    }
-    <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />
-    <link href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" rel="stylesheet" />
 
     <script src="~/js/promise.min.js" async></script>
     <script src="~/js/fetch.min.js" async></script>
@@ -682,7 +682,6 @@
         jQuery(document).ready(function () {
             postLoadedMessage();
             postPageHeight();
-            document.querySelector("body").style.opacity = "1";
 
             /* Accordion for desktop content menu
             =======================================================*/
