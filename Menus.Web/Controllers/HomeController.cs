@@ -14,6 +14,7 @@ using Menus.Abstract;
 using Menus.Abstract.Models;
 using Menus.Domain;
 using Menus.Domain.Dishes;
+using Menus.Web.Helpers;
 using Menus.Web.Models;
 using Menus.Web.Models.ViewModels;
 using Menus.Web.Services;
@@ -725,13 +726,7 @@ namespace Menus.Web.Controllers
             var menu = await GetMenuForRestaurant(restaurant);
 
             var photos = string.IsNullOrEmpty(restaurantInfo.Photos) ? new List<string>() : JsonConvert.DeserializeObject<List<string>>(restaurantInfo.Photos);
-            var openHours = JsonConvert.DeserializeObject<JObject>(restaurantInfo.OpenHours);
-            var schedulePerDay = openHours["perDay"].Value<bool>();
-            var openHoursData = openHours["data"].Value<JArray>();
-            var currentDay = (int)DateTime.Now.DayOfWeek;
-            currentDay = currentDay == 0 ? 6 : currentDay - 1;
-            var openedFrom = openHoursData[schedulePerDay ? currentDay : 0]["from"].Value<string>();
-            var openedTo = openHoursData[schedulePerDay ? currentDay : 0]["to"].Value<string>();
+            var (openHours, schedulePerDay) = OpenHoursHelper.Parse(restaurantInfo.OpenHours);
             var menuPhotos = (await _core.Restaurants.GetMenuPhotosForRestaurant(restaurant.Id)).ToList();
             var role = await _core.Restaurants.GetUserRoleForRestaurant(restaurantInfo.RestaurantId,
                 User.Identity.Name);
@@ -742,7 +737,7 @@ namespace Menus.Web.Controllers
                 UserRole = role,
                 Menu = menu,
                 Photos = photos,
-                OpenHours = schedulePerDay ? openHoursData.ToString() : $"{openedFrom} - {openedTo}",
+                OpenHours = openHours,
                 SchedulePerDay = schedulePerDay,
                 MenuPhotos = menuPhotos
             };

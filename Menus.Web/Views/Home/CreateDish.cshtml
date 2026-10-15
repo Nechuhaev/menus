@@ -20,32 +20,34 @@
 
 @await Html.PartialAsync("_Header")
 
-<style>
-    .article_top .article_top_right {
-        display: block !important;
-    }
-
-        .article_top .article_top_right p {
-            margin: 0 0 0.8vw;
+@section Styles {
+    <style>
+        .article_top .article_top_right {
+            display: block !important;
         }
 
-    .article_photos li {
-        width: 11.71875vw;
-        min-width: 11.71875vw;
-    }
+            .article_top .article_top_right p {
+                margin: 0 0 0.8vw;
+            }
 
-    .article_photos ul, .article_photos ul li {
-        display: block !important;
-    }
-
-        .article_photos ul li:last-child a:after {
-            display: none !important;
+        .article_photos li {
+            width: 11.71875vw;
+            min-width: 11.71875vw;
         }
 
-    .add_photo_dishes {
-        display: block;
-    }
-</style>
+        .article_photos ul, .article_photos ul li {
+            display: block !important;
+        }
+
+            .article_photos ul li:last-child a:after {
+                display: none !important;
+            }
+
+        .add_photo_dishes {
+            display: block;
+        }
+    </style>
+}
 
 <div class="site-content">
     <main>

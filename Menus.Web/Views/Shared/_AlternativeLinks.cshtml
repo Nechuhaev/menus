@@ -9,14 +9,35 @@
     // Culture contains the information of the requested culture
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
 
+    var pageParam = crq.Query["page"].ToString();
+    var pageQuery = !string.IsNullOrEmpty(pageParam) && pageParam != "0" ? "?page=" + System.Net.WebUtility.UrlEncode(pageParam) : "";
+
     locales = locales.Where(x => !Convert.ToBoolean(config[$"DisableLanguages:{x.Id}"] != null ? config[$"DisableLanguages:{x.Id}"].ToLower() : "false")).ToList();
 }
 
 
 
+@functions {
+    // Замінює лише мовний префікс на початку шляху (/uk, /uk/...), а не будь-який збіг
+    string LocalizedPath(string path, string langId)
+    {
+        path = string.IsNullOrEmpty(path) ? "/" : path;
+        if (Regex.IsMatch(path, "^/(ru|uk|en)(?=/|$)"))
+            return Regex.Replace(path, "^/(ru|uk|en)(?=/|$)", "/" + langId);
+        return "/" + langId + (path == "/" ? "" : path);
+    }
+}
+
 @foreach (var lang in locales)
 {
-    <link rel="alternate" href="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{Regex.Replace(crq.Path, "/(ru|uk|en)", $"/{lang.Id}")}{crq.QueryString}")" hreflang="@lang.Id" />
+    <link rel="alternate" href="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{LocalizedPath(crq.Path.Value, lang.Id)}{pageQuery}")" hreflang="@lang.Id" />
+}
+@{
+    var defaultLocale = locales.FirstOrDefault(x => x.Default) ?? locales.FirstOrDefault();
+}
+@if (defaultLocale != null)
+{
+    <link rel="alternate" href="@($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{LocalizedPath(crq.Path.Value, defaultLocale.Id)}{pageQuery}")" hreflang="x-default" />
 }
     
 

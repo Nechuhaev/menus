@@ -24,7 +24,6 @@
     var isMobileUser = UserService.IsMobileUser(Context.Request);
 }
 
-<link href="~/css/swiper.min.css" rel="stylesheet" />
 
 <header id="site-header" class="site-header header-home">
 
@@ -48,8 +47,10 @@
     </div>
 
     <div class="header-bottom">
-        <h1 data-search="restaurant">@Localizer["MenusOfAllRestarauns"]</h1>
-        <h1 data-search="dish" class="hidden">@Localizer["DishesOfAllRestaraunts"]</h1>
+        <h1>
+            <span data-search="restaurant">@Localizer["MenusOfAllRestarauns"]</span>
+            <span data-search="dish" class="hidden">@Localizer["DishesOfAllRestaraunts"]</span>
+        </h1>
         <div class="locationBlock">
             <button id="chosen-city-button">@selectedCity.Name.Get(culture)</button>
             <div id="choose-city-container" class="hidden" onclick="event.stopPropagation()">

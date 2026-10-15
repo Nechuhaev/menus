@@ -62,15 +62,17 @@
 
 @await Html.PartialAsync("_Header")
 
-<style>
-    button[data-user-id] {
-        display: none;
-    }
+@section Styles {
+    <style>
+        button[data-user-id] {
+            display: none;
+        }
 
-    button[data-user-id="@User.Identity.Name"] {
-        display: initial;
-    }
-</style>
+        button[data-user-id="@User.Identity.Name"] {
+            display: initial;
+        }
+    </style>
+}
 
 <div itemscope itemtype="http://schema.org/Restaurant">
     <div class="topSection">
@@ -1046,7 +1048,6 @@
     </div>
 </div>
 
-<link href="~/css/swiper.min.css" rel="stylesheet" />
 @section Scripts
     {
     <script src="~/js/swiper.min.js"></script>
