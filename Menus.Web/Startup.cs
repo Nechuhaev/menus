@@ -125,6 +125,13 @@ namespace Menus.Web
 
             //}).AddEntityFramework();
 
+            services.AddResponseCompression(options =>
+            {
+                options.EnableForHttps = true;
+                options.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes
+                    .Concat(new[] { "image/svg+xml", "application/xml", "text/xml" });
+            });
+
             services.AddRouting(options => options.LowercaseUrls = true);
             services.AddMvc(options => { options.ModelBinderProviders.Insert(0, new FormDataJsonBinderProvider()); })
                 .SetCompatibilityVersion(CompatibilityVersion.Version_2_1)
@@ -235,13 +242,17 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
             //}
 
 
+            app.UseResponseCompression();
+
             app.UseStaticFiles(new StaticFileOptions
             {
                 OnPrepareResponse = ctx =>
                 {
-                    const int durationInSeconds = 60 * 60 * 24 * 7;
-                    ctx.Context.Response.Headers[Microsoft.Net.Http.Headers.HeaderNames.CacheControl] =
-                        "public,max-age=" + durationInSeconds;
+                    // Файли з asp-append-version (?v=hash) змінюють URL при зміні вмісту - кешуємо на рік
+                    var isVersioned = ctx.Context.Request.Query.ContainsKey("v");
+                    ctx.Context.Response.Headers[Microsoft.Net.Http.Headers.HeaderNames.CacheControl] = isVersioned
+                        ? "public,max-age=31536000,immutable"
+                        : "public,max-age=" + 60 * 60 * 24 * 7;
                 }
             });
             app.UseCookiePolicy();
@@ -254,7 +265,7 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                     ctx.Response.Cookies.Append(
                         ".Menus.DeviceId",
                         Guid.NewGuid().ToString(),
-                        new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(10), IsEssential = true }
+                        new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(10), IsEssential = true, HttpOnly = true, Secure = ctx.Request.IsHttps }
                     );
                 }
 
@@ -265,6 +276,8 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                     return;
                 }
 
+                // Невалідне значення навмисне: браузер ігнорує заголовок і дозволяє вбудовування,
+                // а antiforgery не перезаписує його на SAMEORIGIN, бо заголовок уже є
                 if (ctx.Request.Method == "GET" && ctx.Request.Path.Value.Contains("/iframe/"))
                 {
                     ctx.Response.Headers.Add("X-Frame-Options", "AllowAll");
