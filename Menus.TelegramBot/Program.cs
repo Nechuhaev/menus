@@ -28,7 +28,7 @@ namespace Menus.TelegramBot
 
     static void Main()
     {
-        _botClient = new TelegramBotClient("845789674:AAHEN-48zv3sf7yAn5D6y1KAGDCV9ly670c");
+        _botClient = new TelegramBotClient(Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN"));
 
         var me = _botClient.GetMeAsync().Result;
         Console.WriteLine(

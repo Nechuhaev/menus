@@ -40,7 +40,7 @@
 
     function runDishSeo() {
         $.ajax({
-                url: "@Url.Action("GetListOfRestaraunts", "SiteMap", new { pwd = "Eakz8KSKEHH6ykJTzpRo" })",
+                url: "@Url.Action("GetListOfRestaraunts", "SiteMap", new { pwd = Context.Request.Query["pwd"].ToString() })",
                 method: "POST",
                 error: function (XMLHttpRequest, textStatus, errorThrown) {
 

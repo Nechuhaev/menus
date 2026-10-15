@@ -34,6 +34,12 @@ namespace Menus.Web.Controllers
 {
     public class SitemapController : Controller
     {
+        // Пароль службових ендпоінтів (sitemap, бекап, перегенерація кешу) - з конфігу/змінної оточення Sitemap__Password
+        private string SitemapPassword => _config["Sitemap:Password"];
+
+        private bool IsValidPwd(string pwd) =>
+            !string.IsNullOrEmpty(SitemapPassword) && pwd == SitemapPassword;
+
         private readonly LocaleService _locales;
         private readonly Core _core;
         private readonly IDbContext _db;
@@ -64,13 +70,13 @@ namespace Menus.Web.Controllers
 
         public async Task<IActionResult> Index(string pwd)
         {
-            if(pwd == "Eakz8KSKEHH6ykJTzpRo") await UpdateJob();
+            if(IsValidPwd(pwd)) await UpdateJob();
             return Ok();
         }
 
         public async Task<IActionResult> ProcessPhotos(string pwd, int take = 10)
         {
-            if (pwd == "Eakz8KSKEHH6ykJTzpRo")
+            if (IsValidPwd(pwd))
             {
                 var files = _db.Files.Where(x => string.IsNullOrEmpty(x.CdnLink)).OrderBy(x => x.Id).Take(take).ToList();
                 foreach (var dbFile in files)
@@ -88,7 +94,7 @@ namespace Menus.Web.Controllers
 
         public async Task<IActionResult> RegenerateDishSeo(string pwd)
         {
-            if (pwd == "Eakz8KSKEHH6ykJTzpRo") await RegenerateDishSeo();
+            if (IsValidPwd(pwd)) await RegenerateDishSeo();
             return Ok();
         }
 
@@ -100,54 +106,68 @@ namespace Menus.Web.Controllers
             await UpdateDishSitemap();
         }
 
-        public IActionResult RunUpdateJob()
+        public IActionResult RunUpdateJob(string pwd)
         {
+            if (!IsValidPwd(pwd)) return NotFound();
             var crq = Request;
-            BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update($"http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/ru/sitemap?pwd=Eakz8KSKEHH6ykJTzpRo"));
+            var url = $"http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/ru/sitemap?pwd={SitemapPassword}";
+            BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update(url));
             return Ok();
         }
 
-        public IActionResult RunRegenerateDishSeoJob()
+        public IActionResult RunRegenerateDishSeoJob(string pwd)
         {
-            BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update("https://localhost:5001/ru/sitemap/RegenerateDishSeo?pwd=Eakz8KSKEHH6ykJTzpRo"));
+            if (!IsValidPwd(pwd)) return NotFound();
+            var url = $"https://localhost:5001/ru/sitemap/RegenerateDishSeo?pwd={SitemapPassword}";
+            BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update(url));
             return Ok();
         }
 
-        public IActionResult RunRegenerateRestaurantIframesCacheJob()
+        public IActionResult RunRegenerateRestaurantIframesCacheJob(string pwd)
         {
-            BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update("https://localhost:5001/ru/sitemap/RegenerateRestaurantIframesCache?pwd=Eakz8KSKEHH6ykJTzpRo"));
+            if (!IsValidPwd(pwd)) return NotFound();
+            var url = $"https://localhost:5001/ru/sitemap/RegenerateRestaurantIframesCache?pwd={SitemapPassword}";
+            BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update(url));
             return Ok();
         }
 
-        public IActionResult CronUpdateJob()
+        public IActionResult CronUpdateJob(string pwd)
         {
+            if (!IsValidPwd(pwd)) return NotFound();
             var crq = Request;
-            RecurringJob.AddOrUpdate<SitemapUpdateService>("UpdateSitemap", x => x.Update($"http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/ru/sitemap?pwd=Eakz8KSKEHH6ykJTzpRo"), Cron.Daily);
+            var url = $"http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/ru/sitemap?pwd={SitemapPassword}";
+            RecurringJob.AddOrUpdate<SitemapUpdateService>("UpdateSitemap", x => x.Update(url), Cron.Daily);
             return Ok();
         }
 
-        public IActionResult CronBackupJob()
+        public IActionResult CronBackupJob(string pwd)
         {
+            if (!IsValidPwd(pwd)) return NotFound();
             var crq = Request;
-            RecurringJob.AddOrUpdate<SitemapUpdateService>("RunDbBackup", x => x.Update($"http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/ru/sitemap/RunDbBackup?pwd=Eakz8KSKEHH6ykJTzpRo"), Cron.Daily(3));
+            var url = $"http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/ru/sitemap/RunDbBackup?pwd={SitemapPassword}";
+            RecurringJob.AddOrUpdate<SitemapUpdateService>("RunDbBackup", x => x.Update(url), Cron.Daily(3));
             return Ok();
         }
 
-        public IActionResult RunSetDisplayAddresses()
+        public IActionResult RunSetDisplayAddresses(string pwd)
         {
-            BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update("https://localhost:5001/ru/sitemap/SetDisplayAddresses?pwd=Eakz8KSKEHH6ykJTzpRo"));
+            if (!IsValidPwd(pwd)) return NotFound();
+            var url = $"https://localhost:5001/ru/sitemap/SetDisplayAddresses?pwd={SitemapPassword}";
+            BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update(url));
             return Ok();
         }
 
-        public IActionResult RunSetDishesSearchTerms()
+        public IActionResult RunSetDishesSearchTerms(string pwd)
         {
-            BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update("https://localhost:5001/ru/sitemap/SetDishesSearchTermsDp?pwd=Eakz8KSKEHH6ykJTzpRo"));
+            if (!IsValidPwd(pwd)) return NotFound();
+            var url = $"https://localhost:5001/ru/sitemap/SetDishesSearchTermsDp?pwd={SitemapPassword}";
+            BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update(url));
             return Ok();
         }
 
         public async Task<IActionResult> RegenerateRestaurantIframesCache(string pwd)
         {
-            if (pwd == "Eakz8KSKEHH6ykJTzpRo") await RegenerateRestaurantIframesCache();
+            if (IsValidPwd(pwd)) await RegenerateRestaurantIframesCache();
             return Ok();
         }
 
@@ -159,7 +179,7 @@ namespace Menus.Web.Controllers
         
         public async Task<IActionResult> RunDbBackup(string pwd)
         {
-            if (pwd != "Eakz8KSKEHH6ykJTzpRo") return NotFound();
+            if (!IsValidPwd(pwd)) return NotFound();
 
             var client = new HttpClient();
             await client.PostAsync(_core.Settings.BackupServiceUrl, new StringContent(""));
@@ -170,7 +190,7 @@ namespace Menus.Web.Controllers
 
         public async Task<IActionResult> SetDisplayAddresses(string pwd)
         {
-            if (pwd != "Eakz8KSKEHH6ykJTzpRo") return NotFound();
+            if (!IsValidPwd(pwd)) return NotFound();
 
             var restaurants = _db.Restaurants.ToList();
             var locales = GetLocales();
@@ -199,7 +219,7 @@ namespace Menus.Web.Controllers
 
         public async Task<IActionResult> SetDishesSearchTerms(string pwd, string restaurantId)
         {
-            if (pwd != "Eakz8KSKEHH6ykJTzpRo") return NotFound();
+            if (!IsValidPwd(pwd)) return NotFound();
 
             var dishes = await Task.Run(() => string.IsNullOrEmpty(restaurantId) ? _db.Dishes.ToList() : _db.Dishes.Where(x => x.RestaurantId == restaurantId).ToList());
             var dishSeosList = await _db.DishSeo.FromSql(@"SELECT
@@ -234,7 +254,7 @@ namespace Menus.Web.Controllers
 
         public async Task<IActionResult> SetDishesSearchTermsDp(string pwd)
         {
-            if (pwd != "Eakz8KSKEHH6ykJTzpRo") return NotFound();
+            if (!IsValidPwd(pwd)) return NotFound();
 
             var dishes = await _dapper.QueryAsync<DishNameAndSeoId>(@"SELECT Dishes.Name AS NameString, DishSeo.Id AS SeoId FROM DishSeo INNER JOIN Dishes ON DishSeo.ItemId = Dishes.Id");
             var results = new ConcurrentBag<Tuple<string, string>>();
@@ -628,7 +648,7 @@ namespace Menus.Web.Controllers
 
         public ActionResult DishSeo(string pwd)
         {
-            if (pwd == "Eakz8KSKEHH6ykJTzpRo")
+            if (IsValidPwd(pwd))
             {
                 return View();
             }
@@ -640,7 +660,7 @@ namespace Menus.Web.Controllers
 
         public ActionResult GetListOfRestaraunts(string pwd)
         {
-            if (pwd == "Eakz8KSKEHH6ykJTzpRo")
+            if (IsValidPwd(pwd))
             {
                 var restaurants = _core.Restaurants.GetCompleteRestaurants().Select(x => new { x.Id }).ToList();
                 //var restaurants = _core.Restaurants.GetCompleteRestaurants().Where(x => x.Id == "0d282a84-2580-4784-9706-98338a647431").Select(x => new { x.Id }).ToList();
