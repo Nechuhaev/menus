@@ -113,7 +113,8 @@ namespace Menus.Web
                 x.MultipartBodyLengthLimit = 5000000; // 5 MB
             });
 
-            //services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
+            // X-Frame-Options виставляємо самі в middleware: antiforgery у 2.1 перезаписував його на SAMEORIGIN і для iframe
+            services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
 
             //services.AddMiniProfiler(options =>
             //{
@@ -276,11 +277,10 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                     return;
                 }
 
-                // Невалідне значення навмисне: браузер ігнорує заголовок і дозволяє вбудовування,
-                // а antiforgery не перезаписує його на SAMEORIGIN, бо заголовок уже є
-                if (ctx.Request.Method == "GET" && ctx.Request.Path.Value.Contains("/iframe/"))
+                // Сторінки /iframe/ вбудовуються на сайти ресторанів, решта - захист від clickjacking
+                if (!ctx.Request.Path.Value.Contains("/iframe/"))
                 {
-                    ctx.Response.Headers.Add("X-Frame-Options", "AllowAll");
+                    ctx.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
                 }
 
                 await next.Invoke();
