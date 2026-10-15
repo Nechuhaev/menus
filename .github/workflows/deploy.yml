@@ -18,10 +18,11 @@ jobs:
             set -e
             cd /root/menus
             git pull origin main
+            test -f /root/menus.env || { echo "Немає /root/menus.env із секретами - деплой зупинено"; exit 1; }
 
             docker build -f Dockerfile.Production -t menus-web:latest --build-arg CERT_PASSWORD=${{ secrets.CERT_PASSWORD }} .
             docker rm -f menus-web || true
-            docker run -d --restart unless-stopped --name menus-web --network menus_default -p 5001:5001 -e ASPNETCORE_ENVIRONMENT=Production -e ASPNETCORE_URLS=http://+:5001 -v /root/menus/dataprotection-keys:/app/Keys menus-web:latest
+            docker run -d --restart unless-stopped --name menus-web --network menus_default -p 5001:5001 --env-file /root/menus.env -e ASPNETCORE_ENVIRONMENT=Production -e ASPNETCORE_URLS=http://+:5001 -v /root/menus/dataprotection-keys:/app/Keys menus-web:latest
 
             docker build -f Dockerfile.Files -t menus-files:latest .
             docker rm -f menus-files || true
@@ -29,6 +30,6 @@ jobs:
 
             docker build -f Dockerfile.Telegram -t menus-telegrambot:latest .
             docker rm -f menus-telegrambot || true
-            docker run -d --restart unless-stopped --name menus-telegrambot --network menus_default -e ASPNETCORE_ENVIRONMENT=Production menus-telegrambot:latest
+            docker run -d --restart unless-stopped --name menus-telegrambot --network menus_default --env-file /root/menus.env -e ASPNETCORE_ENVIRONMENT=Production menus-telegrambot:latest
 
             docker image prune -f
