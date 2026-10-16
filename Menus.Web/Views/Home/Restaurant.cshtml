@@ -62,6 +62,21 @@
 
 @await Html.PartialAsync("_Header")
 
+@section JsonLd {
+    @{
+        var ldPageUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}";
+        var ldHomeUrl = Url.Action("Index", "Home", null, Context.Request.Scheme);
+    }
+    @(Menus.Web.Helpers.JsonLd.Script(
+        Menus.Web.Helpers.JsonLd.Restaurant(
+            Model.Restaurant.Name, ldPageUrl,
+            Model.Photos.Any() ? Img.Url(Model.Photos.First(), Quality.High) : null,
+            Model.Restaurant.Phone, Model.RestaurantInfo.Cuisine.Get(culture),
+            Model.RestaurantInfo.DisplayAddress.Get(culture), restaurantCity.Name.Get(culture),
+            Model.RestaurantInfo.GpsLatitude, Model.RestaurantInfo.GpsLongitude, Model.RestaurantInfo.Website),
+        Menus.Web.Helpers.JsonLd.Breadcrumbs(("TipMyMenu", ldHomeUrl), (Model.Restaurant.Name, ldPageUrl))))
+}
+
 @section Styles {
     <style>
         button[data-user-id] {
@@ -74,7 +89,7 @@
     </style>
 }
 
-<div itemscope itemtype="http://schema.org/Restaurant">
+<div itemscope>
     <div class="topSection">
         <div class="wrapper">
             <h1 itemprop="name">

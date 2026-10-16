@@ -42,6 +42,7 @@
     <meta property="og:site_name" content="TipMyMenu" />
     <meta property="og:image" content="@(ViewData["MainImage"] ?? $"{baseUrl}/images/og-default.png")" />
     <meta name="twitter:card" content="summary_large_image" />
+    @RenderSection("JsonLd", required: false)
     <meta name="yandex-verification" content="279a6808640a1bd4" />
     <environment include="Development">
 

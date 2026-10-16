@@ -17,12 +17,12 @@ namespace Menus.Web.Helpers
             base.Process(context, output);
 
             output.TagName = "a";
-            output.Attributes.Add("itemprop", "url");
-
-            output.PreContent.SetHtmlContent("<span itemprop=\"title\">");
+            // Розмітка "хлібних крихт" - JSON-LD BreadcrumbList у сторінках; застарілий data-vocabulary прибрано.
+            // itemscope лишається: на нього прив'язаний обробник кліку в common.js
+            output.PreContent.SetHtmlContent("<span>");
             output.PostContent.SetHtmlContent("</span>");
 
-            output.PreElement.SetHtmlContent("<span itemscope itemtype=\"https://data-vocabulary.org/Breadcrumb\">");
+            output.PreElement.SetHtmlContent("<span itemscope>");
             output.PostElement.SetHtmlContent("</span>");
         }
     }

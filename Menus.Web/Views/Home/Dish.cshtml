@@ -46,7 +46,7 @@
             </ul>
         </div>
 
-        <div class="site-content-align" itemscope itemtype="http://schema.org/Product">
+        <div class="site-content-align" itemscope>
             <div class="btn-view-full-restaurant-menu">
                 <a class="btn-view-full-restaurant-menu-link" href="@Url.Action("Restaurant", "Home", new {id = Model.RestaurantId})" title="@Localizer["ViewFullRestaurantMenu"] @restaurant.Name">
                     @Localizer["ViewFullRestaurantMenu"] @restaurant.Name
@@ -533,6 +533,24 @@
 
     </div>
 </div>
+
+@section JsonLd {
+    @{
+        var ldPageUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}";
+        var ldHomeUrl = Url.Action("Index", "Home", null, Context.Request.Scheme);
+        var ldRestaurantUrl = Url.Action("Restaurant", "Home", new { city = ViewData["selectedCityName"], id = ViewData["restaurantId"] }, Context.Request.Scheme);
+        var ldDishName = Model.Name.Get(culture);
+        var ldDescription = Model.ShortDescription?.Get(culture);
+        if (string.IsNullOrWhiteSpace(ldDescription)) { ldDescription = Model.Description?.Get(culture); }
+    }
+    @(Menus.Web.Helpers.JsonLd.Script(
+        Menus.Web.Helpers.JsonLd.Product(
+            ldDishName, ldPageUrl,
+            Model.Photos != null && Model.Photos.Any() ? Img.Url(Model.Photos.First(), Quality.High) : null,
+            ldDescription, restaurant.Name,
+            Model.Price, restaurantInfo.Currency, Model.RatingFloat, Model.RatingCount),
+        Menus.Web.Helpers.JsonLd.Breadcrumbs(("TipMyMenu", ldHomeUrl), (restaurant.Name, ldRestaurantUrl), (ldDishName, ldPageUrl))))
+}
 
 @section Scripts
     {
