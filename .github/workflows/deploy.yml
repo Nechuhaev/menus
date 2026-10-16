@@ -26,7 +26,7 @@ jobs:
 
             docker build -f Dockerfile.Files -t menus-files:latest .
             docker rm -f menus-files || true
-            docker run -d --restart unless-stopped --name menus-files --network menus_default -p 127.0.0.1:5100:5100 -e ASPNETCORE_ENVIRONMENT=Production menus-files:latest
+            docker run -d --restart unless-stopped --name menus-files --network menus_default -p 127.0.0.1:5100:5100 --env-file /root/menus.env -e ASPNETCORE_ENVIRONMENT=Production menus-files:latest
 
             docker build -f Dockerfile.Telegram -t menus-telegrambot:latest .
             docker rm -f menus-telegrambot || true

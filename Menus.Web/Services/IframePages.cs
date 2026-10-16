@@ -8,8 +8,7 @@ namespace Menus.Web.Services
 {
     public static class IFramePages
     {
-        //public static string BaseUrl = "https://tipmymenu.com/files";
-        public static readonly string BaseUrl = "https://cdn-tipmymenus-com.fra1.digitaloceanspaces.com/files";
+        public static string BaseUrl => Img.BaseUrl;
 
         public static string Url(string id, Quality quality)
         {

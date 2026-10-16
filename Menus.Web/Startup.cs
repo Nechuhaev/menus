@@ -126,6 +126,8 @@ namespace Menus.Web
 
             //}).AddEntityFramework();
 
+            Img.Configure(Configuration["Media:BaseUrl"]);
+
             services.AddResponseCompression(options =>
             {
                 options.EnableForHttps = true;

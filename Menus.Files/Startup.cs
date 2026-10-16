@@ -17,7 +17,6 @@ namespace Menus.Files
         {
             services.AddImagesRouteHandler();
             services.AddIframesRouteHandler();
-            services.AddBackupsRouteHandler();
             services.AddScoped<DigitalOceanService>();
         }
 
@@ -32,7 +31,6 @@ namespace Menus.Files
             app.UseRouter(new Dictionary<IRoute, Type>
             {
                 { new Route("/api/image", "PUT"), typeof(ImagesRouteHandler) },
-                { new Route("/api/backups", "POST"), typeof(BackupsRouteHandler) },
                 { new Route("/api/iframes", "GET"), typeof(IframesRouteHandler) }
             });
         }

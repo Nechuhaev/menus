@@ -31,6 +31,10 @@ GOOGLE_PLACES_API_KEY = os.environ["GOOGLE_PLACES_API_KEY"]
 DO_SPACES_KEY = os.environ["DO_SPACES_KEY"]
 DO_SPACES_SECRET = os.environ["DO_SPACES_SECRET"]
 DO_SPACES_BUCKET = os.environ.get("DO_SPACES_BUCKET", "cdn-tipmymenus-com")
+# Порожній DO_SPACES_ENDPOINT = Amazon S3 у регіоні DO_SPACES_REGION; DO_SPACES_PUBLIC_ACL=false - без ACL (бакет за CloudFront)
+DO_SPACES_ENDPOINT = os.environ.get("DO_SPACES_ENDPOINT", "https://fra1.digitaloceanspaces.com") or None
+DO_SPACES_REGION = os.environ.get("DO_SPACES_REGION", "fra1")
+PUT_ACL = {} if os.environ.get("DO_SPACES_PUBLIC_ACL", "true").lower() == "false" else {"ACL": "public-read"}
 
 DB_HOST = os.environ.get("DB_HOST", "127.0.0.1")
 DB_PORT = int(os.environ.get("DB_PORT", "3306"))
@@ -270,8 +274,8 @@ def upload_photo_to_spaces(image_bytes):
 
     s3 = boto3.client(
         "s3",
-        region_name="fra1",
-        endpoint_url="https://fra1.digitaloceanspaces.com",
+        region_name=DO_SPACES_REGION,
+        endpoint_url=DO_SPACES_ENDPOINT,
         aws_access_key_id=DO_SPACES_KEY,
         aws_secret_access_key=DO_SPACES_SECRET,
     )
@@ -280,7 +284,7 @@ def upload_photo_to_spaces(image_bytes):
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=80)
         buf.seek(0)
-        s3.put_object(Bucket=DO_SPACES_BUCKET, Key=key, Body=buf.getvalue(), ACL="public-read", ContentType="image/jpeg")
+        s3.put_object(Bucket=DO_SPACES_BUCKET, Key=key, Body=buf.getvalue(), ContentType="image/jpeg", **PUT_ACL)
 
     def resized(img, max_height):
         ratio = max_height / img.height
