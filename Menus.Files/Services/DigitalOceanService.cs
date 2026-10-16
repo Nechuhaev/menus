@@ -11,8 +11,8 @@ using Microsoft.Extensions.Configuration;
 
 namespace Menus.Files.Services
 {
-    // S3-сумісне сховище медіа (DigitalOcean Spaces або Amazon S3) - налаштування в секції Media:
-    //   ServiceUrl    - endpoint DigitalOcean; порожній = Amazon S3 у регіоні Region
+    // S3-сумісне сховище медіа (DigitalOcean Spaces, Cloudflare R2 або Amazon S3) - налаштування в секції Media:
+    //   ServiceUrl    - endpoint S3-сумісного сховища; порожній = Amazon S3 у регіоні Region
     //   Region, Bucket, AccessKey, SecretKey
     //   PublicReadAcl - false для бакета за CloudFront (ACL вимкнені)
     public class DigitalOceanService
@@ -25,9 +25,13 @@ namespace Menus.Files.Services
         public DigitalOceanService(IConfiguration config)
         {
             var serviceUrl = config["Media:ServiceUrl"];
+            var region = config["Media:Region"];
             var s3Config = string.IsNullOrEmpty(serviceUrl)
-                ? new AmazonS3Config { RegionEndpoint = RegionEndpoint.GetBySystemName(config["Media:Region"]) }
+                ? new AmazonS3Config { RegionEndpoint = RegionEndpoint.GetBySystemName(region) }
                 : new AmazonS3Config { ServiceURL = serviceUrl };
+            // S3-сумісні сховища (Cloudflare R2 - регіон "auto") вимагають явного регіону в підписі запиту
+            if (!string.IsNullOrEmpty(serviceUrl) && !string.IsNullOrEmpty(region))
+                s3Config.AuthenticationRegion = region;
 
             _client = new AmazonS3Client(config["Media:AccessKey"], config["Media:SecretKey"], s3Config);
             _do = new TransferUtility(_client);
