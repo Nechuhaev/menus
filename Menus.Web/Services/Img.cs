@@ -8,8 +8,14 @@ namespace Menus.Web.Services
 {
     public static class Img
     {
-        //public static string BaseUrl = "https://tipmymenu.com/files";
-        public static readonly string BaseUrl = "https://cdn-tipmymenus-com.fra1.digitaloceanspaces.com/files";
+        // Публічна адреса сховища медіа (CDN), задається з Media:BaseUrl при старті
+        public static string MediaBaseUrl { get; private set; } = "https://cdn-tipmymenus-com.fra1.digitaloceanspaces.com";
+        public static string BaseUrl => $"{MediaBaseUrl}/files";
+
+        public static void Configure(string mediaBaseUrl)
+        {
+            if (!string.IsNullOrWhiteSpace(mediaBaseUrl)) MediaBaseUrl = mediaBaseUrl.Trim().TrimEnd('/');
+        }
 
         public static string Url(string id, Quality quality)
         {

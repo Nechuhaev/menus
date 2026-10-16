@@ -6,22 +6,33 @@ using System.Threading.Tasks;
 using Amazon;
 using Amazon.S3;
 using Amazon.S3.Transfer;
+using Amazon.S3.Util;
+using Microsoft.Extensions.Configuration;
 
 namespace Menus.Files.Services
 {
+    // S3-сумісне сховище медіа (DigitalOcean Spaces або Amazon S3) - налаштування в секції Media:
+    //   ServiceUrl    - endpoint DigitalOcean; порожній = Amazon S3 у регіоні Region
+    //   Region, Bucket, AccessKey, SecretKey
+    //   PublicReadAcl - false для бакета за CloudFront (ACL вимкнені)
     public class DigitalOceanService
     {
         private readonly AmazonS3Client _client;
         private readonly TransferUtility _do;
+        private readonly string _bucket;
+        private readonly bool _publicRead;
 
-        public DigitalOceanService()
+        public DigitalOceanService(IConfiguration config)
         {
-            _client = new AmazonS3Client("WP3GSBREDVZEGCOEE2R2", "LpPMcrd30TwfzlKJ+LXf7VuUr7aG2G2g4eDH3Vchkrg", new AmazonS3Config
-            {
-                ServiceURL = "https://fra1.digitaloceanspaces.com"
-            });
+            var serviceUrl = config["Media:ServiceUrl"];
+            var s3Config = string.IsNullOrEmpty(serviceUrl)
+                ? new AmazonS3Config { RegionEndpoint = RegionEndpoint.GetBySystemName(config["Media:Region"]) }
+                : new AmazonS3Config { ServiceURL = serviceUrl };
 
+            _client = new AmazonS3Client(config["Media:AccessKey"], config["Media:SecretKey"], s3Config);
             _do = new TransferUtility(_client);
+            _bucket = config["Media:Bucket"];
+            _publicRead = !string.Equals(config["Media:PublicReadAcl"], "false", StringComparison.OrdinalIgnoreCase);
         }
 
         ~DigitalOceanService()
@@ -33,15 +44,7 @@ namespace Menus.Files.Services
         {
             using (var memoryStream = new MemoryStream(file))
             {
-                var uploadRequest = new TransferUtilityUploadRequest
-                {
-                    InputStream = memoryStream,
-                    Key = name,
-                    BucketName = "cdn-tipmymenus-com",
-                    CannedACL = S3CannedACL.PublicRead
-                };
-
-                await _do.UploadAsync(uploadRequest);
+                await _do.UploadAsync(CreateRequest(memoryStream, name));
             }
         }
 
@@ -49,16 +52,21 @@ namespace Menus.Files.Services
         {
             using (var fileStream = File.OpenRead(filePath))
             {
-                var uploadRequest = new TransferUtilityUploadRequest
-                {
-                    InputStream = fileStream,
-                    Key = name,
-                    BucketName = "cdn-tipmymenus-com",
-                    CannedACL = S3CannedACL.PublicRead
-                };
-
-                await _do.UploadAsync(uploadRequest);
+                await _do.UploadAsync(CreateRequest(fileStream, name));
             }
+        }
+
+        private TransferUtilityUploadRequest CreateRequest(Stream stream, string name)
+        {
+            var request = new TransferUtilityUploadRequest
+            {
+                InputStream = stream,
+                Key = name,
+                BucketName = _bucket,
+                ContentType = AmazonS3Util.MimeTypeFromExtension(Path.GetExtension(name))
+            };
+            if (_publicRead) request.CannedACL = S3CannedACL.PublicRead;
+            return request;
         }
     }
 }

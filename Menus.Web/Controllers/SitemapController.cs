@@ -514,7 +514,7 @@ namespace Menus.Web.Controllers
             if (restaurant == null) return;
 
             var cities = (await _core.Restaurants.GetCities()).ToList();
-            var digitalOceanSrvc = new DigitalOceanService();
+            var digitalOceanSrvc = new DigitalOceanService(_config);
             var httpClient = new SitemapUpdateService();
 
             foreach (var locale in _locales.GetLocales())
@@ -527,7 +527,7 @@ namespace Menus.Web.Controllers
         {
             var restaurants = _core.Restaurants.GetCompleteRestaurants().Select(x => new { x.Url, x.City }).ToList();
             var cities = (await _core.Restaurants.GetCities()).ToList();
-            var digitalOceanSrvc = new DigitalOceanService();
+            var digitalOceanSrvc = new DigitalOceanService(_config);
             var httpClient = new SitemapUpdateService();
 
             foreach (var locale in _locales.GetLocales())
@@ -551,13 +551,13 @@ namespace Menus.Web.Controllers
             html = html.Replace("https://tipmymenu.com/ru/articles/forowners", "###FOR-OWNERS###");
             html = html.Replace("localhost:5001", "frm.tipmymenu.com");
             html = html.Replace("clean/", "");
-            html = html.Replace("https://tipmymenu.com", "https://cdn-tipmymenus-com.fra1.digitaloceanspaces.com");
+            html = html.Replace("https://tipmymenu.com", Img.MediaBaseUrl);
             html = html.Replace("###FOR-OWNERS###", "https://tipmymenu.com/ru/articles/forowners");
 
             htmlMobile = htmlMobile.Replace("https://tipmymenu.com/ru/articles/forowners", "###FOR-OWNERS###");
             htmlMobile = htmlMobile.Replace("localhost:5001", "frm.tipmymenu.com");
             htmlMobile = htmlMobile.Replace("clean/", "");
-            htmlMobile = htmlMobile.Replace("https://tipmymenu.com", "https://cdn-tipmymenus-com.fra1.digitaloceanspaces.com");
+            htmlMobile = htmlMobile.Replace("https://tipmymenu.com", Img.MediaBaseUrl);
             htmlMobile = htmlMobile.Replace("###FOR-OWNERS###", "https://tipmymenu.com/ru/articles/forowners");
 
             var name =
