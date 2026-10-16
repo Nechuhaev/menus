@@ -1,0 +1,32 @@
+name: Build check
+
+# Перевірка pull request до merge: збірка всіх Docker-образів і синтаксис скриптів.
+# Нічого не деплоїть і не потребує секретів.
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: build-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile: [Dockerfile.Production, Dockerfile.Files, Dockerfile.Telegram]
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build ${{ matrix.dockerfile }}
+        run: docker build -f ${{ matrix.dockerfile }} --build-arg CERT_PASSWORD=ci-check -t build-check .
+
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: content-bot (Python syntax)
+        run: python3 -m py_compile content-bot/*.py
+      - name: ops (bash syntax)
+        run: for f in ops/*.sh; do bash -n "$f"; done
