@@ -77,14 +77,9 @@ namespace Menus.Files.Routes
             return httpContext.Request.Path.ToString().Replace("/api/iframes/", "");
         }
 
-        private async Task<string> GetHtmlFile(string name)
+        private Task<string> GetHtmlFile(string name)
         {
-            var client = new HttpClient();
-
-            var response = await client.GetStringAsync($"https://cdn-tipmymenus-com.fra1.digitaloceanspaces.com/iframes/{name}.html");
-
-            client.Dispose();
-            return response;
+            return _digitalOceanService.ReadText($"iframes/{name}.html");
         }
 
         private async Task<string> DownloadHtml(string url)

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Menus.Files.Routing;
@@ -83,14 +82,10 @@ namespace Menus.Files.Routes
             await httpContext.Response.WriteAsync(name);
         }
 
-        private async Task<bool> CheckNameForDuplicate(string name)
+        // Перевірка в самому бакеті, а не за публічною адресою: не залежить від CDN і старих доменів
+        private Task<bool> CheckNameForDuplicate(string name)
         {
-            var client = new HttpClient();
-
-            var response = await client.GetAsync($"https://cdn-tipmymenus-com.fra1.digitaloceanspaces.com/files/{name}-small.jpg");
-
-            client.Dispose();
-            return response.IsSuccessStatusCode;
+            return _digitalOceanService.Exists($"files/{name}-small.jpg");
         }
 
         private byte[] GetSmallImage(byte[] image)

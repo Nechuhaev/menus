@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Amazon;
 using Amazon.S3;
-using Amazon.S3.Transfer;
+using Amazon.S3.Model;
 using Amazon.S3.Util;
 using Microsoft.Extensions.Configuration;
 
@@ -18,7 +18,6 @@ namespace Menus.Files.Services
     public class DigitalOceanService
     {
         private readonly AmazonS3Client _client;
-        private readonly TransferUtility _do;
         private readonly string _bucket;
         private readonly bool _publicRead;
 
@@ -34,7 +33,6 @@ namespace Menus.Files.Services
                 s3Config.AuthenticationRegion = region;
 
             _client = new AmazonS3Client(config["Media:AccessKey"], config["Media:SecretKey"], s3Config);
-            _do = new TransferUtility(_client);
             _bucket = config["Media:Bucket"];
             _publicRead = !string.Equals(config["Media:PublicReadAcl"], "false", StringComparison.OrdinalIgnoreCase);
         }
@@ -44,11 +42,33 @@ namespace Menus.Files.Services
             _client.Dispose();
         }
 
+        public async Task<bool> Exists(string name)
+        {
+            try
+            {
+                await _client.GetObjectMetadataAsync(_bucket, name);
+                return true;
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+        }
+
+        public async Task<string> ReadText(string name)
+        {
+            using (var response = await _client.GetObjectAsync(_bucket, name))
+            using (var reader = new StreamReader(response.ResponseStream))
+            {
+                return await reader.ReadToEndAsync();
+            }
+        }
+
         public async Task UploadFile(byte[] file, string name)
         {
             using (var memoryStream = new MemoryStream(file))
             {
-                await _do.UploadAsync(CreateRequest(memoryStream, name));
+                await _client.PutObjectAsync(CreateRequest(memoryStream, name));
             }
         }
 
@@ -56,18 +76,21 @@ namespace Menus.Files.Services
         {
             using (var fileStream = File.OpenRead(filePath))
             {
-                await _do.UploadAsync(CreateRequest(fileStream, name));
+                await _client.PutObjectAsync(CreateRequest(fileStream, name));
             }
         }
 
-        private TransferUtilityUploadRequest CreateRequest(Stream stream, string name)
+        // Один PutObject без chunked-підпису: Cloudflare R2 не підтримує STREAMING-AWS4-HMAC-SHA256-PAYLOAD
+        // (файли невеликі - фото й html, multipart з TransferUtility не потрібен)
+        private PutObjectRequest CreateRequest(Stream stream, string name)
         {
-            var request = new TransferUtilityUploadRequest
+            var request = new PutObjectRequest
             {
                 InputStream = stream,
                 Key = name,
                 BucketName = _bucket,
-                ContentType = AmazonS3Util.MimeTypeFromExtension(Path.GetExtension(name))
+                ContentType = AmazonS3Util.MimeTypeFromExtension(Path.GetExtension(name)),
+                UseChunkEncoding = false
             };
             if (_publicRead) request.CannedACL = S3CannedACL.PublicRead;
             return request;
