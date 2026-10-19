@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dockerfile: [Dockerfile.Production, Dockerfile.Files, Dockerfile.Telegram]
+        dockerfile: [Dockerfile.Production, Dockerfile.Files]
     steps:
       - uses: actions/checkout@v4
       - name: docker build ${{ matrix.dockerfile }}
