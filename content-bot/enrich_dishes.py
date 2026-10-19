@@ -7,8 +7,8 @@ guessed (wrong price/weight on a menu is a real customer-facing problem), only
 copied when found on the restaurant's own site. Description can be generated
 generically from the dish name when the site has nothing, since that's just
 marketing copy, not a factual claim. Photo: taken from the site if an image is
-clearly associated with that dish name; otherwise a relevant Google Places photo
-of the restaurant is used as a fallback illustration.
+clearly associated with that dish name; otherwise the dish stays without a photo
+(Google Places photos usually show the interior, not the dish).
 
 Run daily via cron. Processes a batch of restaurants (with all their needy dishes,
 chunked into groups of 25 per Claude call to stay within safe output limits) per run.
@@ -27,7 +27,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CLAUDE_API_KEY = os.environ["CLAUDE_API_KEY"]
-GOOGLE_PLACES_API_KEY = os.environ["GOOGLE_PLACES_API_KEY"]
 DO_SPACES_KEY = os.environ["DO_SPACES_KEY"]
 DO_SPACES_SECRET = os.environ["DO_SPACES_SECRET"]
 DO_SPACES_BUCKET = os.environ.get("DO_SPACES_BUCKET", "cdn-tipmymenus-com")
@@ -298,35 +297,6 @@ def upload_photo_to_spaces(image_bytes):
     return file_id
 
 
-def places_food_photo(restaurant_name, city):
-    """Fallback: a generic photo of food from the restaurant's Google Places listing,
-    used only when the site has no dish-specific photo. Not guaranteed to depict this
-    exact dish, so this is an illustrative fallback, not a factual claim."""
-    try:
-        url = "https://places.googleapis.com/v1/places:searchText"
-        headers = {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
-            "X-Goog-FieldMask": "places.photos",
-        }
-        resp = requests.post(url, headers=headers, json={"textQuery": f"{restaurant_name}, {city}"}, timeout=20)
-        resp.raise_for_status()
-        places = resp.json().get("places", [])
-        if not places or not places[0].get("photos"):
-            return None
-        photo_name = places[0]["photos"][0]["name"]
-        photo_resp = requests.get(
-            f"https://places.googleapis.com/v1/{photo_name}/media",
-            params={"maxWidthPx": 800, "key": GOOGLE_PLACES_API_KEY},
-            timeout=20,
-        )
-        photo_resp.raise_for_status()
-        return photo_resp.content
-    except Exception as e:
-        print(f"    Places photo fallback failed: {e}")
-        return None
-
-
 def log_check(db, restaurant_id, notes):
     cur = db.cursor()
     cur.execute(
@@ -392,9 +362,8 @@ def process_restaurant(db, restaurant):
                 except Exception as e:
                     print(f"    Dish image download failed: {e}")
 
-            if not image_bytes:
-                image_bytes = places_food_photo(restaurant["Name"], restaurant["City"])
-
+            # Лише фото самої страви з сайту ресторану. Фото з Google Places не беремо:
+            # там зазвичай інтер'єр або фасад, а не страва.
             if image_bytes:
                 try:
                     file_id = upload_photo_to_spaces(image_bytes)
