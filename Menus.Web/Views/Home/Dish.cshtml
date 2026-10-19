@@ -509,6 +509,12 @@
                                 <div data-menu-photo-id="@image.Id" data-menu-user-id="@image.UserId" class="swiper-slide" style="background-image: url(@Img.Url(photo, Quality.High))">
                                 </div>
                             }
+                            else
+                            {
+                                // Фото без запису в DishPhotos (додані content-bot або адміном): показуємо без кнопки видалення
+                                <div class="swiper-slide" style="background-image: url(@Img.Url(photo, Quality.High))">
+                                </div>
+                            }
 
                         }
                     </div>
