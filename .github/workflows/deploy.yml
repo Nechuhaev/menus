@@ -28,8 +28,7 @@ jobs:
             docker rm -f menus-files || true
             docker run -d --restart unless-stopped --name menus-files --network menus_default -p 127.0.0.1:5100:5100 --env-file /root/menus.env -e ASPNETCORE_ENVIRONMENT=Production menus-files:latest
 
-            docker build -f Dockerfile.Telegram -t menus-telegrambot:latest .
+            # Telegram-бот вимкнено (не використовувався); код лишається в Menus.TelegramBot
             docker rm -f menus-telegrambot || true
-            docker run -d --restart unless-stopped --name menus-telegrambot --network menus_default --env-file /root/menus.env -e ASPNETCORE_ENVIRONMENT=Production menus-telegrambot:latest
 
             docker image prune -f
