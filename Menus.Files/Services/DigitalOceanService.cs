@@ -44,6 +44,28 @@ namespace Menus.Files.Services
             _client.Dispose();
         }
 
+        public async Task<bool> Exists(string name)
+        {
+            try
+            {
+                await _client.GetObjectMetadataAsync(_bucket, name);
+                return true;
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+        }
+
+        public async Task<string> ReadText(string name)
+        {
+            using (var response = await _client.GetObjectAsync(_bucket, name))
+            using (var reader = new StreamReader(response.ResponseStream))
+            {
+                return await reader.ReadToEndAsync();
+            }
+        }
+
         public async Task UploadFile(byte[] file, string name)
         {
             using (var memoryStream = new MemoryStream(file))
