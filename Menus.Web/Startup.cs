@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Encodings.Web;
+using System.Text.RegularExpressions;
 using System.Text.Unicode;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ using Menus.Web.Models;
 using Menus.Web.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -205,7 +207,9 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                 app.UseMiddleware<ErrorLoggingMiddleware>();
                 app.UseHsts();
                 //app.UseMiniProfiler();
-                app.UseStatusCodePagesWithReExecute("/Home/StatusCodeError/{0}");
+                // Сторінка помилки з мовним префіксом і малими літерами: інакше редірект на нижній регістр
+                // і редірект на мовну версію перетворювали 404 на 301 (soft 404 для пошукових систем)
+                app.UseStatusCodePages(ReExecuteStatusCodePage);
             }
 
             //app.UseMiniProfiler();
@@ -327,6 +331,37 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
             //});
 
             CreateRolesAndSU(provider).Wait();
+        }
+
+        private static readonly Regex CulturePrefix = new Regex("^/(ru|uk|en)(?=/|$)", RegexOptions.IgnoreCase);
+
+        // Аналог UseStatusCodePagesWithReExecute, але шлях залежить від мови вихідного запиту
+        private static async Task ReExecuteStatusCodePage(StatusCodeContext context)
+        {
+            var http = context.HttpContext;
+            var originalPath = http.Request.Path;
+            var originalQuery = http.Request.QueryString;
+            var match = CulturePrefix.Match(originalPath.Value ?? "");
+            var culture = match.Success ? match.Groups[1].Value.ToLowerInvariant() : "uk";
+
+            http.Features.Set<IStatusCodeReExecuteFeature>(new StatusCodeReExecuteFeature
+            {
+                OriginalPathBase = http.Request.PathBase.Value,
+                OriginalPath = originalPath.Value,
+                OriginalQueryString = originalQuery.HasValue ? originalQuery.Value : null
+            });
+            http.Request.Path = new PathString($"/{culture}/home/statuscodeerror/{http.Response.StatusCode}");
+            http.Request.QueryString = QueryString.Empty;
+            try
+            {
+                await context.Next(http);
+            }
+            finally
+            {
+                http.Request.Path = originalPath;
+                http.Request.QueryString = originalQuery;
+                http.Features.Set<IStatusCodeReExecuteFeature>(null);
+            }
         }
 
         private async Task UseLocales(IServiceProvider serviceProvider, IApplicationBuilder app)
