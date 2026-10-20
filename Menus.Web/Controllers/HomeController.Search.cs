@@ -94,7 +94,7 @@ namespace Menus.Web.Controllers
                     break;
             }
             var results = await _core.Dishes.GetCompleteDishes(q, lat, lon, selectedCity, rSort, page * 28, 28);
-            results = ProcessDishResult(results, q);
+            results = DishSearchFormatter.AddCategoryToNames(results, q);
 
             if (!results.Any())
             {
@@ -141,7 +141,7 @@ namespace Menus.Web.Controllers
             }
 
             var result = (await _core.Dishes.GetCompleteDishes(q, lat, lon, selectedCity, dishSortOrder, 0, 10));
-            result = ProcessDishResult(result, q);
+            result = DishSearchFormatter.AddCategoryToNames(result, q);
 
             var rqf = Request.HttpContext.Features.Get<IRequestCultureFeature>();
             // Culture contains the information of the requested culture
@@ -160,41 +160,6 @@ namespace Menus.Web.Controllers
                 }).ToList();
 
             return Ok(resultModel);
-        }
-
-        public IEnumerable<ICompleteDish> ProcessDishResult(IEnumerable<ICompleteDish> result, string search)
-        {
-            foreach (ICompleteDish dish in result)
-            {
-                if (!dish.Name.GetAll().ToLower().Contains(search.ToLower()))
-                {
-                    List<LocalizableStringValue> newValues = new List<LocalizableStringValue>();
-
-                    foreach (LocalizableStringValue locStrig in dish.Name.Values)
-                    {
-                        string locale = locStrig.Locale;
-                        string categoryName = dish.CategoryName.Get(locale);
-                        string dishName = dish.Name.Get(locale);
-                        if (!string.IsNullOrEmpty(categoryName))
-                        {
-                            LocalizableStringValue value = new LocalizableStringValue
-                            {
-                                Locale = locale,
-                                Value = $"{categoryName}: {dish.Name.Get(locale)}"
-                            };
-                            newValues.Add(value);
-                        }
-                        else
-                        {
-                            newValues.Add(locStrig);
-                        }
-                    }
-
-                    dish.Name.Replace(newValues);
-                }
-            }
-
-            return result;
         }
 
         public async Task<IActionResult> RestaurantsAutocomplete(string q)
