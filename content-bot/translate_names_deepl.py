@@ -47,6 +47,22 @@ RUSSIAN_ONLY = re.compile(r"[ЫыЭэЪъЁё]")
 UKRAINIAN_WORD = re.compile(r"(?i)(?:^|\s)(?:з|із|зі|та)(?:\s|$)|\w['ʼ’]\w")
 # скорочення на кшталт «б/а», «с/с» DeepL не розуміє («б/а» -> «без дати») - передаємо як є
 ABBREVIATION = re.compile(r"(?<!\w)\w{1,3}/\w{1,3}(?!\w)")
+# слова, які DeepL перекладає не так, як прийнято в меню («сет» -> «набір»)
+FIXED = {"сет": "сет", "сети": "сети", "сеты": "сети"}
+# латинська «i» всередині кириличного слова («огiрками», «горiлка»)
+LATIN_I = re.compile(r"(?<=[А-Яа-яЇїІіЄєҐґ'’ʼ])[iI]|[iI](?=[А-Яа-яЇїІіЄєҐґ])")
+
+
+def fix_latin_i(text):
+    return LATIN_I.sub(lambda m: "і" if m.group(0) == "i" else "І", text)
+
+
+def fixed(text):
+    """Назва з FIXED (з великої літери, якщо оригінал з великої) або None."""
+    uk = FIXED.get(text.lower())
+    if uk and text[:1].isupper():
+        uk = uk[:1].upper() + uk[1:]
+    return uk
 
 
 def is_ukrainian(text):
@@ -142,8 +158,10 @@ def plan(rows):
         ru, uk = get_value(name, "ru"), get_value(name, "uk")
         if uk or not ru:
             continue
-        if not CYRILLIC.search(ru) or is_ukrainian(ru):
-            todo.append((_id, name, ru, ru))  # латиниця/бренд або вже українською
+        if fixed(ru):
+            todo.append((_id, name, ru, fixed(ru)))
+        elif not CYRILLIC.search(ru) or is_ukrainian(ru):
+            todo.append((_id, name, ru, fix_latin_i(ru)))  # латиниця/бренд або вже українською
         else:
             todo.append((_id, name, ru, None))
     return todo
@@ -165,7 +183,7 @@ def translate_pending(todo, budget, table):
     for i in range(0, len(pending), DEEPL_BATCH):
         chunk = pending[i:i + DEEPL_BATCH]
         for src, dst in zip(chunk, deepl_translate(chunk, table)):
-            result[src.lower()] = dst.strip()
+            result[src.lower()] = fix_latin_i(dst.strip())
     return result, spent
 
 
@@ -206,11 +224,12 @@ def main():
             rows = load_rows(db, table)
             todo = plan(rows)
             free = sum(1 for t in todo if t[3] is not None)
+            need = sum(len(ru) for ru in {t[2].lower() for t in todo if t[3] is None})
             translated, spent = translate_pending(todo, budget, table) if budget > 0 else ({}, 0)
             budget -= spent
             done = apply(db, table, todo, translated)
             left = len(todo) - done
-            print(f"{table}: без uk {len(todo)}, без DeepL {free}, DeepL {spent} симв., записано {done}, лишилось {left}")
+            print(f"{table}: без uk {len(todo)}, без DeepL {free}, DeepL {spent} з {need} симв., записано {done}, лишилось {left}")
     finally:
         db.close()
 
