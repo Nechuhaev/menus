@@ -509,9 +509,12 @@ namespace Menus.Web.Controllers
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        // Сторінка для необроблених винятків: код 500, а не 404, щоб пошукові системи
+        // не викидали сторінку з індексу через тимчасову помилку
         public IActionResult Error()
         {
-            return StatusCodeError("404");
+            Response.StatusCode = 500;
+            return View("NotFound");
         }
 
         private async Task LogEvent(string name, object data)

@@ -204,7 +204,7 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
             }
             else
             {
-                app.UseExceptionHandler("/Home/Error");
+                app.UseExceptionHandler("/uk/home/error"); // з мовою й малими літерами: інакше редіректи перетворювали 500 на 301/404
                 app.UseMiddleware<ErrorLoggingMiddleware>();
                 app.UseHsts();
                 //app.UseMiniProfiler();
