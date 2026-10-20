@@ -45,7 +45,7 @@ namespace Menus.Web.Models
             get
             {
                 if (_shortInfoCachedCached != null) return _shortInfoCachedCached;
-                var data = JsonConvert.DeserializeObject<LocalizableString>(ShortInfo);
+                var data = LocalizableString.FromJson(ShortInfo);
                 _shortInfoCachedCached = data;
                 return data;
             }
@@ -70,7 +70,7 @@ namespace Menus.Web.Models
             get
             {
                 if (_fullInfoCached != null) return _fullInfoCached;
-                var data = JsonConvert.DeserializeObject<LocalizableString>(FullInfo);
+                var data = LocalizableString.FromJson(FullInfo);
                 _fullInfoCached = data;
                 return data;
             }
@@ -96,7 +96,7 @@ namespace Menus.Web.Models
             get
             {
                 if (_displayAddressCached != null) return _displayAddressCached;
-                var data = JsonConvert.DeserializeObject<LocalizableString>(DisplayAddress);
+                var data = LocalizableString.FromJson(DisplayAddress);
                 _displayAddressCached = data;
                 return data;
             }
@@ -121,7 +121,7 @@ namespace Menus.Web.Models
             get
             {
                 if (_cuisineCached != null) return _cuisineCached;
-                var data = JsonConvert.DeserializeObject<LocalizableString>(Cuisine);
+                var data = LocalizableString.FromJson(Cuisine);
                 _cuisineCached = data;
                 return data;
             }

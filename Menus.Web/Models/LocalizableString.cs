@@ -16,6 +16,20 @@ namespace Menus.Web.Models
         public List<LocalizableStringValue> Values { get; set; } = new List<LocalizableStringValue>();
         IEnumerable<ILocalizableStringValue> ILocalizableString.Values => Values;
 
+        // Розбір JSON з бази без падіння: content-bot і старі записи можуть мати NULL або простий текст
+        public static LocalizableString FromJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return new LocalizableString();
+            try
+            {
+                return JsonConvert.DeserializeObject<LocalizableString>(json) ?? new LocalizableString();
+            }
+            catch (JsonException)
+            {
+                return new LocalizableString { Values = new List<LocalizableStringValue> { new LocalizableStringValue { Locale = defaultLocale, Value = json } } };
+            }
+        }
+
         public void Add(ILocalizableStringValue value)
         {
             if (Values.Count(x => x.Locale == value.Locale) == 0) Values.Add(value as LocalizableStringValue);
