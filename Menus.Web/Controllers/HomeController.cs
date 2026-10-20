@@ -257,7 +257,7 @@ namespace Menus.Web.Controllers
             if (!string.IsNullOrEmpty(GetGuid(id))) return RedirectToAction("Restaurant", new {id = seo.Url});
             
             ViewData["selectedCity"] = selectedCity;
-            var restaurantCityObj = cities.First(x => x.Id == restaurant.City);
+            var restaurantCityObj = cities.FirstOrDefault(x => x.Id == restaurant.City);
             if (restaurantCityObj == null)
             {
                 Response.StatusCode = 404;
@@ -418,7 +418,7 @@ namespace Menus.Web.Controllers
             }
             var selectedCity = GetSelectedCityIdAndSetSelectedCityCookie();
             ViewData["selectedCity"] = selectedCity;
-            var restaurantCityObj = cities.First(x => x.Id == restaurant.City);
+            var restaurantCityObj = cities.FirstOrDefault(x => x.Id == restaurant.City);
             if (restaurantCityObj == null)
             {
                 Response.StatusCode = 404;
