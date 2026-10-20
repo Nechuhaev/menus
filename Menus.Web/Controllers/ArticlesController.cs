@@ -16,15 +16,17 @@ namespace Menus.Web.Controllers
             return View();
         }
 
+        // Незавершена сторінка без перекладів (у пошуку показувала ключі на кшталт «MetaTitle»), посилань на неї немає
         public IActionResult Media()
         {
-            return View();
+            return NotFound();
         }
 
 
+        // Незавершена сторінка без перекладів (у пошуку показувала ключі на кшталт «MetaTitle»), посилань на неї немає
         public IActionResult ForBusiness()
         {
-            return View();
+            return NotFound();
         }
 
         public IActionResult ForOwners()
@@ -32,9 +34,10 @@ namespace Menus.Web.Controllers
             return View();
         }
 
+        // Незавершена сторінка без перекладів (у пошуку показувала ключі на кшталт «MetaTitle»), посилань на неї немає
         public IActionResult Marketing()
         {
-            return View();
+            return NotFound();
         }
 
         public IActionResult Agreement()

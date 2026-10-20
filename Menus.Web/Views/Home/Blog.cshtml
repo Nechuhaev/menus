@@ -3,8 +3,8 @@
 @model System.Collections.Generic.IEnumerable<Menus.Abstract.Models.IPage>
 
 @{
-    ViewData["Title"] = "Blog";
-    ViewData["Description"] = "Description";
+    ViewData["Title"] = Localizer["MetaTitle"];
+    ViewData["Description"] = Localizer["MetaDescription"];
     Layout = "~/Views/Shared/_Layout.cshtml";
 
     var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
@@ -25,6 +25,7 @@
 
         <div class="site-content-align">
             <!-- BLOG page START -->
+            <h1 style="margin: 0 0 20px;">@Localizer["Header"]</h1>
             <div class="blog_page">
 
                 @foreach (var item in Model)
@@ -32,7 +33,7 @@
                     <div class="blog_page_item">
                         <figure>
                             <a asp-controller="Home" asp-action="NewsPage" asp-route-id="@item.Url">
-                                <span><img src="@Img.Url(item.Photo, Quality.Medium)" alt="" /></span>
+                                <span><img src="@Img.Url(item.Photo, Quality.Medium)" alt="@item.Title.Get(culture)" /></span>
                                 <figcaption>@item.Title.Get(culture)</figcaption>
                             </a>
                         </figure>
