@@ -428,6 +428,7 @@ namespace Menus.Web.Controllers
             {
                 return RedirectToAction("Dish", new { id, dishId, city = restaurantCityObj.Name.Get("en").ToLower() });
             }
+            ViewData["restaurantCity"] = restaurantCityObj;
             
             UpdateLatestRestaurants(id, HttpContext);
             var restaurantInfo = await _core.Restaurants.GetRestaurantInfo(restaurant.Id);

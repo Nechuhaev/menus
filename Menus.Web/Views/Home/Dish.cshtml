@@ -18,8 +18,11 @@
     // Culture contains the information of the requested culture
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
 
-    ViewData["Title"] = string.Format(Localizer["MetaTitle"].Value, Model.Name.Get(culture), restaurant.Name);
-    ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, Model.Name.Get(culture), restaurant.Name, ViewData["selectedCityName"]);
+    // Місто ресторану, а не вибране відвідувачем (cookie): інакше в описі й посиланнях завжди «kyiv»
+    var restaurantCity = ViewData["restaurantCity"] as Menus.Abstract.Models.ICity;
+    var restaurantCitySlug = restaurantCity?.Name.Get("en").ToLower() ?? ViewData["selectedCityName"] as string;
+    ViewData["Title"] = string.Format(Localizer["MetaTitle"].Value, Model.Name.Get(culture), restaurant.Name, restaurantCity?.Name.Get(culture) ?? restaurantCitySlug);
+    ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, Model.Name.Get(culture), restaurant.Name, restaurantCity?.Name.Get(culture) ?? restaurantCitySlug);
 
     var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
 
@@ -41,7 +44,7 @@
         <div class="breadcrumbs breadcrumbs-content breadcrumbs-content-position">
             <ul>
                 <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
-                <li><breadcrumb asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@ViewData["restaurantId"]">@restaurant.Name</breadcrumb></li>
+                <li><breadcrumb asp-action="Restaurant" asp-route-city="@restaurantCitySlug" asp-route-id="@ViewData["restaurantId"]">@restaurant.Name</breadcrumb></li>
                 <li><breadcrumb href="#">@(Char.ToUpper(Model.Name.Get(culture)[0]) + Model.Name.Get(culture).Substring(1))</breadcrumb></li>
             </ul>
         </div>
@@ -544,7 +547,7 @@
     @{
         var ldPageUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}";
         var ldHomeUrl = Url.Action("Index", "Home", null, Context.Request.Scheme);
-        var ldRestaurantUrl = Url.Action("Restaurant", "Home", new { city = ViewData["selectedCityName"], id = ViewData["restaurantId"] }, Context.Request.Scheme);
+        var ldRestaurantUrl = Url.Action("Restaurant", "Home", new { city = restaurantCitySlug, id = ViewData["restaurantId"] }, Context.Request.Scheme);
         var ldDishName = Model.Name.Get(culture);
         var ldDescription = Model.ShortDescription?.Get(culture);
         if (string.IsNullOrWhiteSpace(ldDescription)) { ldDescription = Model.Description?.Get(culture); }

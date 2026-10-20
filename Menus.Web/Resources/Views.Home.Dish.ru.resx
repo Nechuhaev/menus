@@ -232,10 +232,10 @@
     <value>Нельзя отправить отзыв без оценки</value>
   </data>
   <data name="MetaTitle" xml:space="preserve">
-    <value>{0} в ресторане {1} - цена, фото, отзывы клиентов ⭐ TipMyMenu</value>
+    <value>{0} — {1}, {2}: цена, фото, отзывы | TipMyMenu</value>
   </data>
   <data name="MetaDescription" xml:space="preserve">
-    <value>Отзывы клиентов о {0} ресторана {1} в городе {2} - состав, ингридиенты, фото, цена, отзывы клиентов 🍽️ TipMyMenu (ТипМайМеню) ✅ Уникальное электронное меню заведения</value>
+    <value>{0} в ресторане {1} ({2}): цена, состав, фото и отзывы посетителей на TipMyMenu.</value>
   </data>
   <data name="ViewFullRestaurantMenu" xml:space="preserve">
     <value>Меню ресторана</value>

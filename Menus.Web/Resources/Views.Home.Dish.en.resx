@@ -232,10 +232,10 @@
     <value>You can't add review without rate</value>
   </data>
   <data name="MetaTitle" xml:space="preserve">
-    <value>{0} in the restaurant {1} - price, photo, customer reviews ⭐ TipMyMenu</value>
+    <value>{0} at {1}, {2}: price, photos, reviews | TipMyMenu</value>
   </data>
   <data name="MetaDescription" xml:space="preserve">
-    <value>Customer reviews of {0} restaurant {1} in the city {2} - composition, ingredients, photos, price, customer reviews 🍽️ TipMyMenu ✅ Unique e-menu</value>
+    <value>{0} at {1} ({2}): price, ingredients, photos and guest reviews on TipMyMenu.</value>
   </data>
   <data name="ViewFullRestaurantMenu" xml:space="preserve">
     <value>Restaurant menu</value>
