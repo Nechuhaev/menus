@@ -37,6 +37,10 @@ namespace Menus.Web.Controllers
         // Пароль службових ендпоінтів (sitemap, бекап, перегенерація кешу) - з конфігу/змінної оточення Sitemap__Password
         private string SitemapPassword => _config["Sitemap:Password"];
 
+        // Публічна адреса сайту для sitemap: не з Request.Host, бо генерацію запускає завдання Hangfire
+        // через внутрішню адресу (127.0.0.1:5001), і вона потрапляла в <loc>
+        private string SiteBaseUrl => (_config["Site:BaseUrl"] ?? "https://tipmymenu.com").TrimEnd('/');
+
         private bool IsValidPwd(string pwd) =>
             !string.IsNullOrEmpty(SitemapPassword) && pwd == SitemapPassword;
 
@@ -324,8 +328,8 @@ namespace Menus.Web.Controllers
                 lastModElemRest.Value = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz");
                 lastModElemDish.Value = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz");
 
-                locElem.Value = $"http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/sitemap{ locale.Id}.xml";
-                locElemRest.Value = $"http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/sitemap{ locale.Id}restaurants.xml";
+                locElem.Value = $"{SiteBaseUrl}/sitemap{ locale.Id}.xml";
+                locElemRest.Value = $"{SiteBaseUrl}/sitemap{ locale.Id}restaurants.xml";
 
                 int dishesCount = await _core.Dishes.GetAllDishesCount();
                 int numberOfFiles = dishesCount / NUMBER_OF_RECORDS;
@@ -340,7 +344,7 @@ namespace Menus.Web.Controllers
                 {
                     sitemapElemDish = XElement.Parse(defaultSiteMapElement);
                     locElemDish = XElement.Parse("<loc></loc>");
-                    locElemDish.Value = $"http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/sitemap{ locale.Id}dishes_{ dishFilesCounter}.xml";
+                    locElemDish.Value = $"{SiteBaseUrl}/sitemap{ locale.Id}dishes_{ dishFilesCounter}.xml";
                     sitemapElemDish.Add(locElemDish, lastModElemDish);
                     xml.Root.Add(sitemapElemDish);
                 }
@@ -364,15 +368,15 @@ namespace Menus.Web.Controllers
 
                 List<string> mainPages = new List<string>
                 {
-                    $"<loc>http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/{ locale.Id}</loc>",
-                    $"<loc>http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/{ locale.Id}/articles/aboutus</loc>",
-                    $"<loc>http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/{ locale.Id}/articles/forowners</loc>",
-                    $"<loc>http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/{ locale.Id}/content/agreement</loc>",
-                    $"<loc>http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/{ locale.Id}/content/privacy</loc>",
+                    $"<loc>{SiteBaseUrl}/{ locale.Id}</loc>",
+                    $"<loc>{SiteBaseUrl}/{ locale.Id}/articles/aboutus</loc>",
+                    $"<loc>{SiteBaseUrl}/{ locale.Id}/articles/forowners</loc>",
+                    $"<loc>{SiteBaseUrl}/{ locale.Id}/content/agreement</loc>",
+                    $"<loc>{SiteBaseUrl}/{ locale.Id}/content/privacy</loc>",
 
-                    $"<loc>http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/{ locale.Id}/home/newest</loc>",
-                    $"<loc>http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/{ locale.Id}/home/featured</loc>",
-                    $"<loc>http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/{ locale.Id}/home/bestdishes</loc>"
+                    $"<loc>{SiteBaseUrl}/{ locale.Id}/home/newest</loc>",
+                    $"<loc>{SiteBaseUrl}/{ locale.Id}/home/featured</loc>",
+                    $"<loc>{SiteBaseUrl}/{ locale.Id}/home/bestdishes</loc>"
                 };
 
 
@@ -454,7 +458,7 @@ namespace Menus.Web.Controllers
                         else
                         {
                             var urlElem = XElement.Parse(defaultSiteMapElement);
-                            var locElem = XElement.Parse($"<loc>http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/{ locale.Id}/{ cities.First(x => x.Id == restaurant.City).Name.Get("en").ToLower()}/restaurant/{ restaurant.Url}/{ dish.Url}</loc>");
+                            var locElem = XElement.Parse($"<loc>{SiteBaseUrl}/{ locale.Id}/{ cities.First(x => x.Id == restaurant.City).Name.Get("en").ToLower()}/restaurant/{ restaurant.Url}/{ dish.Url}</loc>");
                             var lastModElem = XElement.Parse($"<lastmod>{DateTime.Now:yyyy-MM-dd}</lastmod>");
                             var changeFreqElem = XElement.Parse("<changefreq>weekly</changefreq>");
                             var priorityElem = XElement.Parse("<priority>0.8</priority>");
@@ -494,7 +498,7 @@ namespace Menus.Web.Controllers
                 foreach (var restaurant in restaurants)
                 {
                     var urlElem = XElement.Parse(defaultSiteMapElement);
-                    var locElem = XElement.Parse($"<loc>http{ (crq.IsHttps ? "s" : "")}://{ crq.Host}/{ locale.Id}/{ cities.First(x => x.Id == restaurant.City).Name.Get("en").ToLower()}/restaurant/{ restaurant.Url}</loc>");
+                    var locElem = XElement.Parse($"<loc>{SiteBaseUrl}/{ locale.Id}/{ cities.First(x => x.Id == restaurant.City).Name.Get("en").ToLower()}/restaurant/{ restaurant.Url}</loc>");
                     var lastModElem = XElement.Parse($"<lastmod>{DateTime.Now:yyyy-MM-dd}</lastmod>");
                     var changeFreqElem = XElement.Parse("<changefreq>weekly</changefreq>");
                     var priorityElem = XElement.Parse("<priority>0.8</priority>");
