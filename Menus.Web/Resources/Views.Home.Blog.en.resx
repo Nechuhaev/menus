@@ -123,4 +123,13 @@
 	<data name="Blog" xml:space="preserve">
 		<value>Blog</value>
 	</data>
+	<data name="MetaTitle" xml:space="preserve">
+		<value>TipMyMenu blog — Kyiv restaurants, menus and reviews</value>
+	</data>
+	<data name="MetaDescription" xml:space="preserve">
+		<value>Articles about restaurants in Kyiv and Ukraine: venue reviews, menus and prices, where to eat, picks by cuisine and district from TipMyMenu.</value>
+	</data>
+	<data name="Header" xml:space="preserve">
+		<value>Restaurant blog</value>
+	</data>
 </root>

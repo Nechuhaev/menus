@@ -123,4 +123,13 @@
 	<data name="Blog" xml:space="preserve">
 		<value>Блог</value>
 	</data>
+	<data name="MetaTitle" xml:space="preserve">
+		<value>Блог TipMyMenu — ресторани Києва, меню та огляди закладів</value>
+	</data>
+	<data name="MetaDescription" xml:space="preserve">
+		<value>Статті про ресторани Києва та України: огляди закладів, меню й ціни, де смачно поїсти, підбірки за кухнями й районами від TipMyMenu.</value>
+	</data>
+	<data name="Header" xml:space="preserve">
+		<value>Блог про ресторани</value>
+	</data>
 </root>
