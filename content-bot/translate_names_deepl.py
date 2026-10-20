@@ -88,16 +88,26 @@ def deepl_usage():
     return d.get("character_count", 0), d.get("character_limit", 0)
 
 
-def deepl_translate(texts):
+CONTEXT = {
+    "MenuCategories": "Назва розділу меню ресторану, наприклад: супи, салати, сети, напої.",
+    "Dishes": "Назва страви або напою в меню ресторану.",
+}
+
+
+def deepl_translate(texts, table):
+    """Мову оригіналу визначає DeepL: назви, збережені як «ru», часто вже українські
+    («супи», «сет») - примусове RU перетворювало їх на «супі», «сітка». Якщо DeepL
+    визначив українську, лишаємо оригінал. context не тарифікується."""
     r = requests.post(
         f"{DEEPL_URL}/v2/translate",
         headers={"Authorization": f"DeepL-Auth-Key {DEEPL_API_KEY}"},
-        json={"text": [_protect(t) for t in texts], "source_lang": "RU", "target_lang": "UK",
+        json={"text": [_protect(t) for t in texts], "target_lang": "UK", "context": CONTEXT[table],
               "preserve_formatting": True, "tag_handling": "xml", "ignore_tags": ["k"]},
         timeout=60,
     )
     r.raise_for_status()
-    return [_unprotect(t["text"]) for t in r.json()["translations"]]
+    return [src if t.get("detected_source_language") == "UK" else _unprotect(t["text"])
+            for src, t in zip(texts, r.json()["translations"])]
 
 
 def _protect(text):
@@ -139,7 +149,7 @@ def plan(rows):
     return todo
 
 
-def translate_pending(todo, budget):
+def translate_pending(todo, budget, table):
     """Перекладає унікальні назви через DeepL у межах бюджету символів."""
     pending = []
     seen = set()
@@ -154,7 +164,7 @@ def translate_pending(todo, budget):
     result = {}
     for i in range(0, len(pending), DEEPL_BATCH):
         chunk = pending[i:i + DEEPL_BATCH]
-        for src, dst in zip(chunk, deepl_translate(chunk)):
+        for src, dst in zip(chunk, deepl_translate(chunk, table)):
             result[src.lower()] = dst.strip()
     return result, spent
 
@@ -196,7 +206,7 @@ def main():
             rows = load_rows(db, table)
             todo = plan(rows)
             free = sum(1 for t in todo if t[3] is not None)
-            translated, spent = translate_pending(todo, budget) if budget > 0 else ({}, 0)
+            translated, spent = translate_pending(todo, budget, table) if budget > 0 else ({}, 0)
             budget -= spent
             done = apply(db, table, todo, translated)
             left = len(todo) - done
