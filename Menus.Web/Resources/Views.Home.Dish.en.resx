@@ -232,7 +232,7 @@
     <value>You can't add review without rate</value>
   </data>
   <data name="MetaTitle" xml:space="preserve">
-    <value>{0} at {1}: price, photos, reviews | TipMyMenu</value>
+    <value>{0} at {1}, {2}: price, photos, reviews | TipMyMenu</value>
   </data>
   <data name="MetaDescription" xml:space="preserve">
     <value>{0} at {1} ({2}): price, ingredients, photos and guest reviews on TipMyMenu.</value>

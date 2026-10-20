@@ -232,7 +232,7 @@
     <value>Не можна відправити відгук без оцінки</value>
   </data>
   <data name="MetaTitle" xml:space="preserve">
-    <value>{0} — {1}: ціна, фото, відгуки | TipMyMenu</value>
+    <value>{0} — {1}, {2}: ціна, фото, відгуки | TipMyMenu</value>
   </data>
   <data name="MetaDescription" xml:space="preserve">
     <value>{0} у ресторані {1} ({2}): ціна, склад, фото та відгуки відвідувачів на TipMyMenu.</value>

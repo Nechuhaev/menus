@@ -18,10 +18,10 @@
     // Culture contains the information of the requested culture
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
 
-    ViewData["Title"] = string.Format(Localizer["MetaTitle"].Value, Model.Name.Get(culture), restaurant.Name);
     // Місто ресторану, а не вибране відвідувачем (cookie): інакше в описі й посиланнях завжди «kyiv»
     var restaurantCity = ViewData["restaurantCity"] as Menus.Abstract.Models.ICity;
     var restaurantCitySlug = restaurantCity?.Name.Get("en").ToLower() ?? ViewData["selectedCityName"] as string;
+    ViewData["Title"] = string.Format(Localizer["MetaTitle"].Value, Model.Name.Get(culture), restaurant.Name, restaurantCity?.Name.Get(culture) ?? restaurantCitySlug);
     ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, Model.Name.Get(culture), restaurant.Name, restaurantCity?.Name.Get(culture) ?? restaurantCitySlug);
 
     var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
