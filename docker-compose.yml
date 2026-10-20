@@ -3,6 +3,9 @@ services:
   mariadb:
     image: mariadb
     restart: unless-stopped
+    # База ~1.9 ГБ: кеш InnoDB 2 ГБ, щоб дані читались з пам'яті (за замовчуванням 128 МБ - пошук 6-11 с).
+    # Увага: дані зберігаються в анонімному томі контейнера - не перестворювати контейнер без бекапу.
+    command: --innodb-buffer-pool-size=2G
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=menus
