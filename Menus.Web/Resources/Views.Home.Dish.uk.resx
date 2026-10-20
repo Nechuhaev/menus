@@ -232,10 +232,10 @@
     <value>Не можна відправити відгук без оцінки</value>
   </data>
   <data name="MetaTitle" xml:space="preserve">
-    <value>{0} в ресторані {1} - ціна, фото, відгуки клієнтів ⭐ TipMyMenu</value>
+    <value>{0} — {1}: ціна, фото, відгуки | TipMyMenu</value>
   </data>
   <data name="MetaDescription" xml:space="preserve">
-    <value>Відгуки клієнтів про {0} ресторану {1} в місті {2} - склад, інгредієнти, фото, ціна, відгуки клієнтів 🍽️ TipMyMenu (ТіпМайМеню) ✅ Унікальне електронне меню закладу</value>
+    <value>{0} у ресторані {1} ({2}): ціна, склад, фото та відгуки відвідувачів на TipMyMenu.</value>
   </data>
   <data name="ViewFullRestaurantMenu" xml:space="preserve">
     <value>Дивитись меню закладу</value>
