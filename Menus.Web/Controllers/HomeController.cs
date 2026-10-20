@@ -755,20 +755,6 @@ namespace Menus.Web.Controllers
             return View(data);
         }
 
-        public IActionResult UseProfiler(string pwd)
-        {
-            if (pwd == "B8ttoFRTQ9azs5SFICs3")
-            {
-                Response.Cookies.Append(
-                    ".Menus.UseProfiler",
-                    "true",
-                    new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true }
-                );
-            }
-
-            return RedirectToAction("Index");
-        }
-
         public async Task<IActionResult> ContentPage(string id)
         {
             var page = await _core.Pages.GetPublishedByUrl(id, PageCategory.Content);
@@ -1163,9 +1149,14 @@ namespace Menus.Web.Controllers
             return Ok();
         }
 
+        // Службова дія: створює записи DishPhotos для фото, доданих в обхід галереї (content-bot).
+        // Перебирає всі страви, тому доступна лише з паролем службових ендпоінтів (Sitemap:Password)
         [HttpGet]
-        public async Task<IActionResult> UpdateAllDishPhotos()
+        public async Task<IActionResult> UpdateAllDishPhotos(string pwd)
         {
+            var servicePassword = _config["Sitemap:Password"];
+            if (string.IsNullOrEmpty(servicePassword) || pwd != servicePassword) return NotFound();
+
             var dishes = (await _core.Dishes.GetAllDishes()).ToList();
             var timestamp = DateTime.Now;
             foreach (var dish in dishes)
