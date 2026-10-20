@@ -41,6 +41,7 @@ namespace Menus.Web.Controllers
         private readonly IDbContext _db;
         private readonly AbTestService _abTests;
         private readonly IHttpContextAccessor _accessor;
+        private readonly RestaurantRegistrationService _registration;
 
         public HomeController(
             Core core, 
@@ -51,7 +52,8 @@ namespace Menus.Web.Controllers
             UrlGenerateService urls, 
             IDbContext db,
             AbTestService abTests,
-            IHttpContextAccessor accessor)
+            IHttpContextAccessor accessor,
+            RestaurantRegistrationService registration)
         {
             _core = core;
             _userService = userService;
@@ -62,6 +64,7 @@ namespace Menus.Web.Controllers
             _db = db;
             _abTests = abTests;
             _accessor = accessor;
+            _registration = registration;
         }
 
         public async Task<IActionResult> Index(string culture, string email, string token, string ReturnUrl)

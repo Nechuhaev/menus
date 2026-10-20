@@ -96,52 +96,7 @@ namespace Menus.Web.Controllers
 
             if (string.IsNullOrEmpty(model.Name)) return BadRequest("Empty name");
 
-            var autoApproveUserRestaurants = _config["AutoApproveUserRestaurants"] == "true";
-
-            model.Id = Guid.NewGuid().ToString();
-            model.Status = autoApproveUserRestaurants ? RestaurantStatus.Active : RestaurantStatus.Pending;
-            model.CreateDate = DateTime.Now;
-
-            await _core.Restaurants.Create(model, new RestaurantRole
-            {
-                Id = Guid.NewGuid().ToString(),
-                RestaurantId = model.Id,
-                Role = RestaurantUserRole.Owner,
-                UserId = User.Identity.Name
-            });
-
-            await _core.Restaurants.CreateRestaurantRole(new RestaurantRole
-            {
-                Id = Guid.NewGuid().ToString(),
-                RestaurantId = model.Id,
-                UserId = User.Identity.Name,
-                Role = RestaurantUserRole.Creator
-            });
-
-            var restaurantInfo = new RestaurantInfo() as IRestaurantInfo;
-            restaurantInfo.Id = Guid.NewGuid().ToString();
-            restaurantInfo.Currency = "₴";
-            restaurantInfo.Cuisine = string.IsNullOrEmpty(cuisine) ? new LocalizableString() : new LocalizableString{Values = new List<LocalizableStringValue>{ new LocalizableStringValue{ Value = cuisine, Locale = culture } }};
-            restaurantInfo.FullInfo = new LocalizableString();
-            restaurantInfo.ShortInfo = new LocalizableString();
-            restaurantInfo.DisplayAddress = new LocalizableString { Values = new List<LocalizableStringValue> { new LocalizableStringValue { Value = model.Address, Locale = culture } } };
-            restaurantInfo.RestaurantId = model.Id;
-            restaurantInfo.OpenHours = "{\"perDay\":false,\"data\":[{\"from\":\"11:00\",\"to\":\"23:00\",\"active\":true},{\"from\":\"11:00\",\"to\":\"23:00\",\"active\":true},{\"from\":\"11:00\",\"to\":\"23:00\",\"active\":true},{\"from\":\"11:00\",\"to\":\"23:00\",\"active\":true},{\"from\":\"11:00\",\"to\":\"23:00\",\"active\":true},{\"from\":\"11:00\",\"to\":\"23:00\",\"active\":true},{\"from\":\"11:00\",\"to\":\"23:00\",\"active\":true}]}";
-            restaurantInfo.UserAllowedAddDishes = true;
-            restaurantInfo.UserAllowedAddMenu = true;
-            restaurantInfo.UserAllowedOpenMenu = true;
-            await _core.Restaurants.UpdateRestaurantInfo(restaurantInfo);
-            
-
-            var seo = new RestaurantSeo() as IRestaurantSeo;
-            seo.Id = Guid.NewGuid().ToString();
-            seo.Title = new LocalizableString();
-            seo.Header = new LocalizableString();
-            seo.Description = new LocalizableString();
-            seo.ItemId = model.Id;
-            seo.Url = _urls.GetNewUrlForRestaurant(seo, model);
-            seo.SearchTerms = model.Name + " " + seo.Url;
-            await _core.Restaurants.CreateSeo(seo);
+            await _registration.Register(model, cuisine, culture, User.Identity.Name);
 
             return RedirectToAction("Restaurant", new { id = model.Id });
         }
