@@ -1,0 +1,26 @@
+# TipMyMenu
+
+> TipMyMenu (tipmymenu.com) — каталог меню ресторанів України: страви з цінами, фото, складом і оцінками відвідувачів. Сайт доступний українською (/uk), англійською (/en) та російською (/ru).
+
+Кожен ресторан має сторінку з повним меню за розділами, а кожна страва — окрему сторінку з ціною, фото та відгуками. Структура адрес:
+
+- Ресторан: https://tipmymenu.com/{мова}/{місто}/restaurant/{ресторан}
+- Страва: https://tipmymenu.com/{мова}/{місто}/restaurant/{ресторан}/{страва}
+
+## Основні сторінки
+
+- [Головна (українською)](https://tipmymenu.com/uk): пошук страв і ресторанів, популярні заклади
+- [Home (English)](https://tipmymenu.com/en)
+- [Нові ресторани](https://tipmymenu.com/uk/home/newest): нещодавно додані заклади
+- [Блог](https://tipmymenu.com/uk/home/blog): статті про ресторани та страви
+
+## Про сервіс
+
+- [Про нас](https://tipmymenu.com/uk/articles/aboutus)
+- [Для власників ресторанів](https://tipmymenu.com/uk/articles/forowners)
+
+## Optional
+
+- [Карта сайту](https://tipmymenu.com/sitemap.xml)
+- [Угода користувача](https://tipmymenu.com/uk/articles/agreement)
+- [Політика конфіденційності](https://tipmymenu.com/uk/articles/privacy)
