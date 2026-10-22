@@ -33,6 +33,7 @@
                             <th>Ресторан</th>
                             <th>Додати страв</th>
                             <th>Прибрати страв</th>
+                            <th>Змінити ціну</th>
                             <th>Звіт від</th>
                             <th></th>
                         </tr>
@@ -44,6 +45,7 @@
                                 <td>@item.Name</td>
                                 <td>@item.ToAdd</td>
                                 <td>@item.ToRemove</td>
+                                <td>@item.ToChangePrice</td>
                                 <td>@item.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
                                 <td><a asp-action="Restaurant" asp-route-id="@item.RestaurantId">Переглянути</a></td>
                             </tr>

@@ -27,12 +27,13 @@ namespace Menus.Web.Areas.Admin.Controllers
         public async Task<IActionResult> Restaurant(string id)
         {
             ViewData["restaurantId"] = id;
+            ViewData["branches"] = await _menuSync.GetBranches(id);
             return View(await _menuSync.GetPendingForRestaurant(id));
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Apply(string id, List<string> ids, string decision)
+        public async Task<IActionResult> Apply(string id, List<string> ids, string decision, bool includeBranches = false)
         {
             ids = ids ?? new List<string>();
             if (ids.Any())
@@ -44,8 +45,9 @@ namespace Menus.Web.Areas.Admin.Controllers
                 }
                 else
                 {
-                    var (added, removed) = await _menuSync.Apply(id, ids);
-                    TempData["message"] = $"Додано страв: {added}, приховано: {removed}";
+                    var r = await _menuSync.Apply(id, ids, includeBranches);
+                    TempData["message"] = $"Додано страв: {r.Added}, приховано: {r.Removed}, змінено цін: {r.Repriced}" +
+                        (includeBranches ? $" (разом із філіями: {r.Branches})" : "");
                 }
             }
             return RedirectToAction("Restaurant", new { id });

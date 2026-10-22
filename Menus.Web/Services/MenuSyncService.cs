@@ -10,6 +10,7 @@ using Menus.Domain;
 using Menus.Web.Data;
 using Menus.Web.Models;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace Menus.Web.Services
 {
@@ -19,12 +20,13 @@ namespace Menus.Web.Services
     {
         public string Id { get; set; }
         public string RestaurantId { get; set; }
-        public string Kind { get; set; } // add | remove
+        public string Kind { get; set; } // add | remove | price
         public string DishId { get; set; }
         public string Name { get; set; }
         public string NameLang { get; set; }
         public string Category { get; set; }
         public decimal? Price { get; set; }
+        public decimal? OldPrice { get; set; } // лише для price
         public string Weight { get; set; }
         public string Description { get; set; }
         public string ImageUrl { get; set; }
@@ -38,7 +40,24 @@ namespace Menus.Web.Services
         public string Name { get; set; }
         public int ToAdd { get; set; }
         public int ToRemove { get; set; }
+        public int ToChangePrice { get; set; }
         public DateTime CreatedAt { get; set; }
+    }
+
+    public class MenuSyncBranch
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string Address { get; set; }
+        public string Website { get; set; }
+    }
+
+    public class MenuSyncResult
+    {
+        public int Added { get; set; }
+        public int Removed { get; set; }
+        public int Repriced { get; set; }
+        public int Branches { get; set; }
     }
 
     public class MenuSyncService
@@ -60,7 +79,8 @@ namespace Menus.Web.Services
                 Status VARCHAR(16) NOT NULL DEFAULT 'new',
                 CreatedAt DATETIME NOT NULL,
                 INDEX IX_MenuSyncProposals_Restaurant (RestaurantId, Status)
-            )";
+            );
+            ALTER TABLE MenuSyncProposals ADD COLUMN IF NOT EXISTS OldPrice DECIMAL(10,2) NULL;";
 
         private readonly Core _core;
         private readonly UrlGenerateService _urls;
@@ -79,6 +99,7 @@ namespace Menus.Web.Services
             var rows = await _connection.QueryAsync<MenuSyncRestaurantSummary>(@"
                 SELECT p.RestaurantId, r.Name,
                        CAST(SUM(p.Kind = 'add') AS SIGNED) AS ToAdd, CAST(SUM(p.Kind = 'remove') AS SIGNED) AS ToRemove,
+                       CAST(SUM(p.Kind = 'price') AS SIGNED) AS ToChangePrice,
                        MAX(p.CreatedAt) AS CreatedAt
                 FROM MenuSyncProposals p
                 JOIN Restaurants r ON r.Id = p.RestaurantId
@@ -104,38 +125,117 @@ namespace Menus.Web.Services
                 new { restaurantId, ids = ids.ToList() });
         }
 
-        public async Task<(int added, int removed)> Apply(string restaurantId, IEnumerable<string> ids)
+        // Філії мережі: інші активні ресторани з тим самим сайтом (pesto-family.com - 8 філій Pesto Cafe)
+        public async Task<List<MenuSyncBranch>> GetBranches(string restaurantId)
+        {
+            var all = (await _connection.QueryAsync<MenuSyncBranch>(@"
+                SELECT r.Id, r.Name, r.Address, ri.Website
+                FROM Restaurants r JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
+                WHERE r.Status = 0 AND ri.Website IS NOT NULL AND ri.Website <> ''")).ToList();
+            var own = all.FirstOrDefault(x => x.Id == restaurantId);
+            if (own == null) return new List<MenuSyncBranch>();
+            var site = NormalizeSite(own.Website);
+            return all.Where(x => x.Id != restaurantId && NormalizeSite(x.Website) == site).OrderBy(x => x.Address).ToList();
+        }
+
+        public async Task<MenuSyncResult> Apply(string restaurantId, IEnumerable<string> ids, bool includeBranches)
         {
             var idList = ids.ToList();
             var proposals = (await GetPendingForRestaurant(restaurantId)).Where(x => idList.Contains(x.Id)).ToList();
+            var result = new MenuSyncResult();
+
+            await ApplyToRestaurant(restaurantId, proposals, result, byDishId: true);
+            await MarkApplied(proposals.Select(x => x.Id));
+
+            if (includeBranches)
+            {
+                foreach (var branch in await GetBranches(restaurantId))
+                {
+                    await ApplyToRestaurant(branch.Id, proposals, result, byDishId: false);
+                    // власні пропозиції філії з тими ж стравами більше не потрібні
+                    var branchProposals = await GetPendingForRestaurant(branch.Id);
+                    var keys = new HashSet<string>(proposals.Select(x => x.Kind + "|" + Normalize(x.Name)));
+                    await MarkApplied(branchProposals.Where(x => keys.Contains(x.Kind + "|" + Normalize(x.Name))).Select(x => x.Id));
+                    result.Branches++;
+                }
+            }
+
+            return result;
+        }
+
+        // Для свого ресторану страва береться за DishId пропозиції, для філій - за назвою будь-якою мовою
+        private async Task ApplyToRestaurant(string restaurantId, List<MenuSyncProposal> proposals, MenuSyncResult result, bool byDishId)
+        {
             var categories = (await _core.Restaurants.GetAllMenuCategoriesForRestaurant(restaurantId)).ToList();
-            int added = 0, removed = 0;
+            var dishesByName = byDishId ? null : await GetActiveDishesByName(restaurantId);
 
             foreach (var proposal in proposals)
             {
-                if (proposal.Kind == "remove" && !string.IsNullOrEmpty(proposal.DishId))
+                var dishId = byDishId ? proposal.DishId : dishesByName.TryGetValue(Normalize(proposal.Name), out var found) ? found : null;
+
+                if (proposal.Kind == "add")
                 {
-                    // не видаляємо: Pending ховає страву з сайту, повернути можна в адмінці ресторану
-                    var dish = await _core.Dishes.GetDishById(proposal.DishId);
-                    if (dish != null && dish.RestaurantId == restaurantId)
-                    {
-                        dish.Status = DishStatus.Pending;
-                        await _core.Dishes.Update(dish);
-                        removed++;
-                    }
-                }
-                else if (proposal.Kind == "add")
-                {
+                    if (!byDishId && dishId != null) continue; // у філії така страва вже є
                     var category = await FindOrCreateCategory(restaurantId, proposal, categories);
                     await AddDish(restaurantId, proposal, category);
-                    added++;
+                    result.Added++;
                 }
-
-                await _connection.ExecuteAsync("UPDATE MenuSyncProposals SET Status = 'applied' WHERE Id = @Id", new { proposal.Id });
+                else if (proposal.Kind == "remove" && dishId != null)
+                {
+                    // не видаляємо: Pending ховає страву з сайту, повернути можна в адмінці ресторану
+                    result.Removed += await _connection.ExecuteAsync(
+                        "UPDATE Dishes SET Status = @status WHERE Id = @dishId AND RestaurantId = @restaurantId",
+                        new { status = (int)DishStatus.Pending, dishId, restaurantId });
+                }
+                else if (proposal.Kind == "price" && dishId != null && proposal.Price > 0)
+                {
+                    var changed = await _connection.ExecuteAsync(
+                        "UPDATE Dishes SET Price = @price WHERE Id = @dishId AND RestaurantId = @restaurantId AND IsPriceMultiple = 0",
+                        new { price = proposal.Price, dishId, restaurantId });
+                    if (changed > 0)
+                    {
+                        await _connection.ExecuteAsync("UPDATE DishVariations SET Price = @price WHERE DishId = @dishId",
+                            new { price = proposal.Price, dishId });
+                        result.Repriced++;
+                    }
+                }
             }
-
-            return (added, removed);
         }
+
+        private async Task<Dictionary<string, string>> GetActiveDishesByName(string restaurantId)
+        {
+            var rows = await _connection.QueryAsync<DishNameRow>(
+                "SELECT Id, Name FROM Dishes WHERE RestaurantId = @restaurantId AND Status = 0", new { restaurantId });
+            var result = new Dictionary<string, string>();
+            foreach (var row in rows)
+            {
+                LocalizableString name;
+                try { name = JsonConvert.DeserializeObject<LocalizableString>(row.Name ?? ""); }
+                catch (JsonException) { continue; }
+                foreach (var value in name?.Values ?? new List<LocalizableStringValue>())
+                {
+                    var key = Normalize(value.Value);
+                    if (key.Length > 0 && !result.ContainsKey(key)) result[key] = row.Id;
+                }
+            }
+            return result;
+        }
+
+        private class DishNameRow
+        {
+            public string Id { get; set; }
+            public string Name { get; set; }
+        }
+
+        private async Task MarkApplied(IEnumerable<string> ids)
+        {
+            var list = ids.ToList();
+            if (list.Any())
+                await _connection.ExecuteAsync("UPDATE MenuSyncProposals SET Status = 'applied' WHERE Id IN @list", new { list });
+        }
+
+        private static string NormalizeSite(string url) =>
+            Regex.Replace((url ?? "").Trim().ToLowerInvariant(), @"^https?://(www\.)?|[?#].*$", "").TrimEnd('/');
 
         private async Task AddDish(string restaurantId, MenuSyncProposal proposal, IMenuCategory category)
         {

@@ -4,6 +4,7 @@
     ViewData["Title"] = "Звіт ресторану";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
     var restaurantId = ViewData["restaurantId"] as string;
+    var branches = ViewData["branches"] as List<Menus.Web.Services.MenuSyncBranch> ?? new List<Menus.Web.Services.MenuSyncBranch>();
 }
 
 <div class="site-content">
@@ -31,7 +32,18 @@
                 <form asp-action="Apply" asp-route-id="@restaurantId" method="post">
                     <p>
                         Додані страви одразу з'являються на сайті. «Прибрати» не видаляє страву, а ставить їй статус Pending.
+                        «Змінити ціну» - ціни, що відрізняються від нашої більш ніж удвічі.
                     </p>
+                    @if (branches.Any())
+                    {
+                        <p>
+                            <label>
+                                <input type="checkbox" name="includeBranches" value="true" checked />
+                                Застосувати також до філій з тим самим сайтом (@branches.Count):
+                            </label>
+                            <small>@string.Join("; ", branches.Select(b => string.IsNullOrEmpty(b.Address) ? b.Name : b.Address))</small>
+                        </p>
+                    }
                     <table class="mainTable">
                         <thead>
                             <tr>
@@ -49,7 +61,7 @@
                             {
                                 <tr>
                                     <td><input type="checkbox" class="proposal" name="ids" value="@item.Id" checked /></td>
-                                    <td>@(item.Kind == "add" ? "Додати" : "Прибрати")</td>
+                                    <td>@(item.Kind == "add" ? "Додати" : item.Kind == "price" ? "Змінити ціну" : "Прибрати")</td>
                                     <td>@item.Category</td>
                                     <td>
                                         @item.Name
@@ -58,7 +70,7 @@
                                             <a href="@item.ImageUrl" target="_blank" rel="noopener">фото</a>
                                         }
                                     </td>
-                                    <td>@item.Price</td>
+                                    <td>@(item.Kind == "price" ? $"{item.OldPrice:0.##} → {item.Price:0.##}" : item.Price?.ToString("0.##"))</td>
                                     <td>@item.Weight</td>
                                     <td>@item.Description</td>
                                 </tr>
