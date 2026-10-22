@@ -4,8 +4,19 @@
     ViewData["Title"] = "Звіт ресторану";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
     var restaurantId = ViewData["restaurantId"] as string;
+    var kind = ViewData["kind"] as string;
     var branches = ViewData["branches"] as List<Menus.Web.Services.MenuSyncBranch> ?? new List<Menus.Web.Services.MenuSyncBranch>();
+    var kinds = new[] { ("add", "Додати"), ("remove", "Прибрати"), ("price", "Змінити ціну") };
+    var categories = Model.Select(x => x.Category).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
 }
+
+<style>
+    .reportFilters { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 12px 0; }
+    .reportFilters input[type=text], .reportFilters select { padding: 4px 6px; }
+    .reportTable { table-layout: fixed; width: 100%; }
+    .reportTable td, .reportTable th { overflow-wrap: anywhere; vertical-align: top; padding-right: 6px; }
+    .reportTable thead input, .reportTable thead select { width: 100%; box-sizing: border-box; }
+</style>
 
 <div class="site-content">
     <main>
@@ -29,11 +40,23 @@
             }
             else
             {
-                <form asp-action="Apply" asp-route-id="@restaurantId" method="post">
+                <form asp-action="Apply" asp-route-id="@restaurantId" method="post" id="reportForm">
                     <p>
                         Додані страви одразу з'являються на сайті. «Прибрати» не видаляє страву, а ставить їй статус Pending.
                         «Змінити ціну» - ціни, що відрізняються від нашої більш ніж удвічі.
+                        Застосовуються лише видимі (не відфільтровані) рядки з галочкою.
                     </p>
+
+                    <div class="reportFilters">
+                        <strong>Вибрати:</strong>
+                        @foreach (var (key, title) in kinds)
+                        {
+                            var count = Model.Count(x => x.Kind == key);
+                            if (count == 0) { continue; }
+                            <label><input type="checkbox" class="kindToggle" data-kind="@key" checked="@(string.IsNullOrEmpty(kind) || kind == key)" /> @title (@count)</label>
+                        }
+                    </div>
+
                     @if (branches.Any())
                     {
                         <p>
@@ -44,10 +67,15 @@
                             <small>@string.Join("; ", branches.Select(b => string.IsNullOrEmpty(b.Address) ? b.Name : b.Address))</small>
                         </p>
                     }
-                    <table class="mainTable">
+
+                    <table class="mainTable reportTable">
+                        <colgroup>
+                            <col style="width:4%" /><col style="width:11%" /><col style="width:15%" /><col style="width:22%" />
+                            <col style="width:10%" /><col style="width:8%" /><col style="width:30%" />
+                        </colgroup>
                         <thead>
                             <tr>
-                                <th><input type="checkbox" checked onclick="document.querySelectorAll('.proposal').forEach(c => c.checked = this.checked)" /></th>
+                                <th></th>
                                 <th>Дія</th>
                                 <th>Категорія</th>
                                 <th>Назва</th>
@@ -55,11 +83,51 @@
                                 <th>Вага</th>
                                 <th>Опис</th>
                             </tr>
+                            <tr class="filterRow">
+                                <th></th>
+                                <th>
+                                    <select id="filterKind">
+                                        <option value="">Всі</option>
+                                        @foreach (var (key, title) in kinds)
+                                        {
+                                            <option value="@key" selected="@(kind == key)">@title</option>
+                                        }
+                                    </select>
+                                </th>
+                                <th>
+                                    <select id="filterCategory">
+                                        <option value="">Всі</option>
+                                        @foreach (var category in categories)
+                                        {
+                                            <option value="@category">@category</option>
+                                        }
+                                    </select>
+                                </th>
+                                <th><input type="text" id="filterName" placeholder="Фільтр..." /></th>
+                                <th></th>
+                                <th>
+                                    <select id="filterWeight">
+                                        <option value="">Всі</option>
+                                        <option value="yes">Є</option>
+                                        <option value="no">Немає</option>
+                                    </select>
+                                </th>
+                                <th>
+                                    <select id="filterDescription">
+                                        <option value="">Всі</option>
+                                        <option value="yes">Є</option>
+                                        <option value="no">Немає</option>
+                                    </select>
+                                </th>
+                            </tr>
                         </thead>
                         <tbody>
                             @foreach (var item in Model)
                             {
-                                <tr>
+                                <tr class="proposalRow" data-kind="@item.Kind" data-category="@item.Category"
+                                    data-name="@((item.Name ?? "").ToLowerInvariant())"
+                                    data-weight="@(string.IsNullOrWhiteSpace(item.Weight) ? "no" : "yes")"
+                                    data-description="@(string.IsNullOrWhiteSpace(item.Description) ? "no" : "yes")">
                                     <td><input type="checkbox" class="proposal" name="ids" value="@item.Id" checked /></td>
                                     <td>@(item.Kind == "add" ? "Додати" : item.Kind == "price" ? "Змінити ціну" : "Прибрати")</td>
                                     <td>@item.Category</td>
@@ -78,6 +146,7 @@
                         </tbody>
                     </table>
                     <p>
+                        <span id="selectedCount"></span>
                         <button type="submit" name="decision" value="apply">Застосувати вибрані</button>
                         <button type="submit" name="decision" value="reject">Відхилити вибрані</button>
                     </p>
@@ -86,3 +155,47 @@
         </div>
     </main>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var rows = Array.prototype.slice.call(document.querySelectorAll('.proposalRow'));
+            if (!rows.length) return;
+            var byId = function (id) { return document.getElementById(id); };
+
+            // Відфільтровані рядки вимикаються: disabled-поля не надсилаються з формою
+            function applyFilters() {
+                var kind = byId('filterKind').value, category = byId('filterCategory').value,
+                    name = byId('filterName').value.trim().toLowerCase(),
+                    weight = byId('filterWeight').value, description = byId('filterDescription').value;
+                var selected = 0;
+                rows.forEach(function (row) {
+                    var visible = (!kind || row.dataset.kind === kind)
+                        && (!category || row.dataset.category === category)
+                        && (!name || row.dataset.name.indexOf(name) >= 0)
+                        && (!weight || row.dataset.weight === weight)
+                        && (!description || row.dataset.description === description);
+                    row.style.display = visible ? '' : 'none';
+                    var box = row.querySelector('.proposal');
+                    box.disabled = !visible;
+                    if (visible && box.checked) selected++;
+                });
+                byId('selectedCount').textContent = 'Вибрано: ' + selected;
+            }
+
+            document.querySelectorAll('.kindToggle').forEach(function (toggle) {
+                toggle.addEventListener('change', function () {
+                    rows.forEach(function (row) {
+                        if (row.dataset.kind === toggle.dataset.kind) row.querySelector('.proposal').checked = toggle.checked;
+                    });
+                    applyFilters();
+                });
+                if (!toggle.checked) toggle.dispatchEvent(new Event('change'));
+            });
+            ['filterKind', 'filterCategory', 'filterWeight', 'filterDescription'].forEach(function (id) { byId(id).addEventListener('change', applyFilters); });
+            byId('filterName').addEventListener('input', applyFilters);
+            document.querySelectorAll('.proposal').forEach(function (box) { box.addEventListener('change', applyFilters); });
+            applyFilters();
+        })();
+    </script>
+}

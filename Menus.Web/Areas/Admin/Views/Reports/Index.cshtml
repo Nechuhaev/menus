@@ -43,9 +43,9 @@
                         {
                             <tr>
                                 <td>@item.Name</td>
-                                <td>@item.ToAdd</td>
-                                <td>@item.ToRemove</td>
-                                <td>@item.ToChangePrice</td>
+                                <td><a asp-action="Restaurant" asp-route-id="@item.RestaurantId" asp-route-kind="add">@item.ToAdd</a></td>
+                                <td><a asp-action="Restaurant" asp-route-id="@item.RestaurantId" asp-route-kind="remove">@item.ToRemove</a></td>
+                                <td><a asp-action="Restaurant" asp-route-id="@item.RestaurantId" asp-route-kind="price">@item.ToChangePrice</a></td>
                                 <td>@item.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
                                 <td><a asp-action="Restaurant" asp-route-id="@item.RestaurantId">Переглянути</a></td>
                             </tr>

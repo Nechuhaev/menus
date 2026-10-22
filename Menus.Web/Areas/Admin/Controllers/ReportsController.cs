@@ -24,9 +24,10 @@ namespace Menus.Web.Areas.Admin.Controllers
             return View(await _menuSync.GetPendingSummary());
         }
 
-        public async Task<IActionResult> Restaurant(string id)
+        public async Task<IActionResult> Restaurant(string id, string kind)
         {
             ViewData["restaurantId"] = id;
+            ViewData["kind"] = kind; // add | remove | price - фільтр, з яким відкрито звіт
             ViewData["branches"] = await _menuSync.GetBranches(id);
             return View(await _menuSync.GetPendingForRestaurant(id));
         }

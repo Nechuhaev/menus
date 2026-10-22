@@ -470,6 +470,8 @@ def page_text(raw_html):
         return f" [img {src.group(1)}{' ' + alt.group(1) if alt and alt.group(1) else ''}] " if src else " "
 
     text = IMG_TAG.sub(img, text)
+    # посилання на сторінку страви: там опис і вага, яких часто немає в списку категорії
+    text = re.sub(r'<a\b[^>]*href=["\']((?!#|javascript:|tel:|mailto:)[^"\']+)["\'][^>]*>', r" [link \1] ", text, flags=re.I)
     text = BLOCK_END.sub("\n", text)
     text = html.unescape(re.sub(r"<[^>]+>", " ", text))
     text = re.sub(r"[ \t\r\f\v]+", " ", text)
@@ -558,11 +560,37 @@ MENU_PROMPT = """Ось текст сторінки меню ресторану 
 - weight: вихід/об'єм, як на сторінці (наприклад "250 г"), або null
 - description: опис або склад дослівно, як на сторінці, або null
 - image_url: src зображення саме цієї страви, або null
+- url: посилання [link ...] на окрему сторінку саме цієї страви, або null
 
 НЕ вигадуй нічого: лише те, що явно є на сторінці. Якщо це не меню (форма входу, помилка, головна без страв) - поверни порожній масив [].
 
 Поверни ЛИШЕ валідний JSON-масив:
-[{{"name": "...", "lang": "uk", "category": "...", "price": 0, "weight": "...", "description": "...", "image_url": "..."}}]
+[{{"name": "...", "lang": "uk", "category": "...", "price": 0, "weight": "...", "description": "...", "image_url": "...", "url": "..."}}]
+"""
+
+DETAIL_PROMPT = """Ось текст сторінки страви "{dish_name}" ресторану "{restaurant_name}":
+
+{text}
+
+Витягни лише те, що ЯВНО є на сторінці, дослівно:
+- description: опис або склад страви
+- weight: вихід/вага/об'єм (наприклад "590 г")
+- image_url: src головного зображення цієї страви
+
+Поверни ЛИШЕ валідний JSON: {{"description": "..." або null, "weight": "..." або null, "image_url": "..." або null}}
+"""
+
+PAIR_PROMPT = """Два списки страв одного ресторану: наша база (A) і сайт ресторану (B).
+Назви можуть відрізнятися мовою (українська/російська), порядком слів, уточненнями («Салат Цезар з куркою» = «Цезарь с курицей»).
+
+A:
+{ours}
+
+B:
+{site}
+
+Знайди пари, де це ТОЧНО та сама страва. Не з'єднуй різні страви (різна піца, різний смак, інший розмір порції).
+Поверни ЛИШЕ валідний JSON-масив пар номерів: [{{"a": 1, "b": 3}}] або [] якщо пар немає.
 """
 
 # меню розпізнане впевнено лише тоді - інакше нічого не пропонуємо прибрати чи додати
@@ -624,6 +652,7 @@ def read_site_menu(restaurant_name, menu_url):
             if key and key not in seen:
                 seen.add(key)
                 d["image_url"] = resolve_url(page_base, d["image_url"]) if d.get("image_url") else None
+                d["url"] = resolve_url(page_base, d["url"]) if d.get("url") else None
                 menu.append(d)
     return menu
 
@@ -652,6 +681,66 @@ def match_menu(our_dishes, site_menu):
             matches[dish["Id"]] = site_by_key[hit]
     unmatched_site = [d for k, d in site_by_key.items() if k not in used]
     return matches, unmatched_site
+
+
+def pair_with_llm(restaurant_name, our_dishes, site_menu):
+    """Друге коло зіставлення для того, що не збіглося за назвою: AI з'єднує ту саму страву
+    з різними назвами, інакше вона потрапляла у звіт парою «додати» + «прибрати»."""
+    pairs = {}
+    if not our_dishes or not site_menu:
+        return pairs
+    site_list = "\n".join(f"{i + 1}. {d['name']}" for i, d in enumerate(site_menu))
+    for chunk in [our_dishes[i:i + 100] for i in range(0, len(our_dishes), 100)]:
+        ours_list = "\n".join(f"{i + 1}. {dish_display_name(d)}" for i, d in enumerate(chunk))
+        try:
+            found = call_llm_json(PAIR_PROMPT.format(ours=ours_list, site=site_list), max_tokens=4000,
+                                  model=CHEAP_MODEL, allow_empty_list=True)
+        except Exception as e:
+            print(f"    Dish pairing failed for {restaurant_name}: {e}")
+            continue
+        used_site = {id(d) for d in pairs.values()}
+        for p in found if isinstance(found, list) else []:
+            try:
+                dish, site = chunk[int(p["a"]) - 1], site_menu[int(p["b"]) - 1]
+            except (KeyError, ValueError, TypeError, IndexError):
+                continue
+            if dish["Id"] not in pairs and id(site) not in used_site:
+                pairs[dish["Id"]] = site
+                used_site.add(id(site))
+    return pairs
+
+
+MAX_DETAIL_PAGES = 200
+DETAIL_CACHE = {}  # одна сторінка страви на всі філії мережі за запуск
+
+
+def enrich_from_detail(restaurant_name, site_dishes):
+    """Опис, вага й фото зі сторінки страви, якщо в списку категорії їх немає."""
+    fetched = 0
+    for d in site_dishes:
+        if not d.get("url") or (d.get("description") and d.get("weight") and d.get("image_url")):
+            continue
+        if d["url"] not in DETAIL_CACHE:
+            if fetched >= MAX_DETAIL_PAGES:
+                break
+            fetched += 1
+            text, base, _ = fetch_website_html(d["url"], max_chars=8000)
+            info = {}
+            if text:
+                try:
+                    info = call_llm_json(DETAIL_PROMPT.format(dish_name=d["name"], restaurant_name=restaurant_name, text=text),
+                                         max_tokens=1500, model=CHEAP_MODEL)
+                    if info.get("image_url"):
+                        info["image_url"] = resolve_url(base, info["image_url"])
+                except Exception as e:
+                    print(f"    Dish page failed {d['url']}: {e}")
+                    info = {}
+            DETAIL_CACHE[d["url"]] = info if isinstance(info, dict) else {}
+        for key in ("description", "weight", "image_url"):
+            if not d.get(key) and DETAIL_CACHE[d["url"]].get(key):
+                d[key] = DETAIL_CACHE[d["url"]][key]
+        if LLM_DOWN:
+            break
 
 
 def parse_price(value):
@@ -848,6 +937,15 @@ def sync_menu(db, restaurant, menu_url):
     site_menu = read_site_menu(name, menu_url)
     our_dishes = fetch_active_dishes(db, restaurant["Id"])
     matches, unmatched_site = match_menu(our_dishes, site_menu)
+    paired = pair_with_llm(name, [d for d in our_dishes if d["Id"] not in matches], unmatched_site)
+    matches.update(paired)
+    unmatched_site = [d for d in unmatched_site if all(d is not p for p in paired.values())]
+    # опис/вага/фото зі сторінок страв - для тих, що додаємо, і для наших без цих даних
+    ours_by_id = {d["Id"]: d for d in our_dishes}
+    needy = [site for dish_id, site in matches.items()
+             if is_localizable_empty(ours_by_id[dish_id]["Description"]) or not ours_by_id[dish_id]["Weight"]
+             or not ours_by_id[dish_id]["PhotoLink"] or ours_by_id[dish_id]["PhotoLink"] == "[]"]
+    enrich_from_detail(name, needy + unmatched_site)
 
     updated, price_changes = 0, []
     for dish in our_dishes:
