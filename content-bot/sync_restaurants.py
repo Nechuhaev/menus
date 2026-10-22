@@ -19,11 +19,12 @@ Run daily via cron. Processes a batch of restaurants per run.
 import json
 import os
 import re
+import socket
 import difflib
 import time
 import uuid
 from datetime import datetime
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import boto3
 import mysql.connector
@@ -78,6 +79,11 @@ def _extract_json(raw_text):
     if not parsed:
         raise ValueError("parsed to an empty JSON object/array")
     return parsed
+
+
+# Усі провайдери недоступні (немає кредитів, ліміти): запуск зупиняється, ресторан не
+# позначається перевіреним - інакше наступна перевірка була б лише через RECHECK_AFTER_DAYS
+LLM_DOWN = False
 
 
 def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5"):
@@ -136,7 +142,8 @@ def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5"):
             json={
                 "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": max_tokens,
+                # контекст моделі - 24K токенів на вхід і вихід разом
+                "max_tokens": min(max_tokens, 4096),
             },
             timeout=60,
         )
@@ -178,6 +185,8 @@ def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5"):
             else:
                 print(f"    [LLM] {name} failed too: {e}")
 
+    global LLM_DOWN
+    LLM_DOWN = True
     raise last_error
 
 
@@ -404,15 +413,20 @@ def find_menu_url(raw_html, base_url):
 
 
 def is_dead_website(url):
-    """Сайт точно не працює: домен не існує або сторінки немає (404/410).
-    Тайм-аути й 5xx - тимчасові, за них сайт не видаляємо."""
-    try:
-        resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0 (compatible; TipMyMenuBot/1.0)"})
-        return resp.status_code in (404, 410)
-    except requests.exceptions.ConnectionError as e:
-        return "Name or service not known" in str(e) or "NameResolutionError" in str(e) or "getaddrinfo failed" in str(e)
-    except Exception:
+    """Сайт мертвий лише тоді, коли його домен не існує: DNS не знаходить хост двічі поспіль.
+    404 на сторінці, 403 від захисту від ботів, тайм-аути й 5xx - не підстава ховати ресторан
+    (саме через 404/403 бот помилково приховав робочі сайти)."""
+    host = urlparse(url).hostname
+    if not host:
         return False
+    for attempt in range(2):
+        try:
+            socket.getaddrinfo(host, 443)
+            return False
+        except socket.gaierror:
+            if attempt == 0:
+                time.sleep(5)
+    return True
 
 
 def fetch_website_html(url, max_chars=12000):
@@ -755,6 +769,10 @@ def process_restaurant(db, restaurant):
     if html:
         notes.append(sync_menu(db, restaurant, menu_url or base_url))
 
+    if LLM_DOWN:
+        print("  -> LLM providers unavailable, restaurant left for the next run")
+        return
+
     summary = "; ".join(notes) if notes else "no changes needed"
     log_check(db, restaurant["Id"], summary, closed_detected=False)
     print(f"  -> {summary}")
@@ -837,6 +855,9 @@ def main():
                 process_restaurant(db, restaurant)
             except Exception as e:
                 print(f"ERROR processing {restaurant['Name']}: {e}")
+            if LLM_DOWN:
+                print("Stopping: all LLM providers are unavailable (credits/limits). Check API balances.")
+                break
     finally:
         db.close()
 
