@@ -108,6 +108,7 @@ namespace Menus.Web
             services.AddSingleton(x => new TwilioService(Configuration["Twilio:Phone"]));
             services.AddScoped<EmailService>();
             services.AddScoped<UrlGenerateService>();
+            services.AddScoped<MenuSyncService>();
             services.AddScoped<RestaurantRegistrationService>();
 
             services.Configure<FormOptions>(x =>

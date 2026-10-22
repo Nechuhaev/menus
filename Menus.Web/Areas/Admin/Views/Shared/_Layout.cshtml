@@ -76,6 +76,12 @@
                         <a asp-controller="Feedbacks" asp-action="Index">Ошибки</a>
                     </li>
                 }
+                @if (User.IsInRole("admin"))
+                {
+                    <li asp-is-active-route asp-controller="Reports" asp-action="Index">
+                        <a asp-controller="Reports" asp-action="Index">Звіти</a>
+                    </li>
+                }
             </ul>
         </div>
 

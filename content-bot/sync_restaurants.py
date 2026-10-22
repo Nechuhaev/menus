@@ -19,7 +19,9 @@ Run daily via cron. Processes a batch of restaurants per run.
 import json
 import os
 import re
+import difflib
 import time
+import uuid
 from datetime import datetime
 from urllib.parse import urljoin
 
@@ -257,22 +259,70 @@ def fetch_restaurants_due_for_check(db, limit):
     return rows
 
 
-def fetch_needy_dishes(db, restaurant_id):
+def fetch_active_dishes(db, restaurant_id):
     cur = db.cursor(dictionary=True)
     cur.execute(
         """
-        SELECT Id, Name, Description, Price, Weight, WeightType, PhotoLink
+        SELECT Id, Name, Description, Price, Weight, WeightType, PhotoLink, IsPriceMultiple
         FROM Dishes
-        WHERE RestaurantId = %s
+        WHERE RestaurantId = %s AND Status = 0
         """,
         (restaurant_id,),
     )
     rows = cur.fetchall()
     cur.close()
-    # порожній JSON опису ({"Values":[]}) - теж «без опису», тому фільтр тут, а не в SQL
-    return [d for d in rows
-            if not d["Price"] or not d["Weight"] or is_localizable_empty(d["Description"])
-            or not d["PhotoLink"] or d["PhotoLink"] == "[]"]
+    return rows
+
+
+def ensure_proposals_table(db):
+    # та сама схема, що в Menus.Web/Services/MenuSyncService.cs
+    cur = db.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS MenuSyncProposals (
+            Id VARCHAR(36) PRIMARY KEY,
+            RestaurantId VARCHAR(255) NOT NULL,
+            Kind VARCHAR(16) NOT NULL,
+            DishId VARCHAR(255) NULL,
+            Name TEXT NOT NULL,
+            NameLang VARCHAR(2) NULL,
+            Category TEXT NULL,
+            Price DECIMAL(10,2) NULL,
+            Weight VARCHAR(50) NULL,
+            Description TEXT NULL,
+            ImageUrl TEXT NULL,
+            Status VARCHAR(16) NOT NULL DEFAULT 'new',
+            CreatedAt DATETIME NOT NULL,
+            INDEX IX_MenuSyncProposals_Restaurant (RestaurantId, Status)
+        )
+        """
+    )
+    db.commit()
+    cur.close()
+
+
+def save_proposals(db, restaurant_id, to_add, to_remove):
+    """Старі невирішені пропозиції ресторану замінюються новими; застосовує їх адмін у «Звітах»."""
+    ensure_proposals_table(db)
+    cur = db.cursor()
+    cur.execute("DELETE FROM MenuSyncProposals WHERE RestaurantId = %s AND Status = 'new'", (restaurant_id,))
+    now = datetime.now()
+    for d in to_add:
+        cur.execute(
+            """INSERT INTO MenuSyncProposals (Id, RestaurantId, Kind, Name, NameLang, Category, Price, Weight, Description, ImageUrl, CreatedAt)
+               VALUES (%s, %s, 'add', %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (str(uuid.uuid4()), restaurant_id, d["name"], d.get("lang"), d.get("category"), d.get("price"),
+             d.get("weight"), d.get("description"), d.get("image_url"), now),
+        )
+    for dish in to_remove:
+        cur.execute(
+            """INSERT INTO MenuSyncProposals (Id, RestaurantId, Kind, DishId, Name, Price, CreatedAt)
+               VALUES (%s, %s, 'remove', %s, %s, %s, %s)""",
+            (str(uuid.uuid4()), restaurant_id, dish["Id"], dish_display_name(dish), dish["Price"], now),
+        )
+    db.commit()
+    cur.close()
+
 
 def verify_restaurant_closure(name, address, city):
     """When no website is found anywhere (DB, OSM), use Claude with real web search
@@ -373,6 +423,7 @@ def fetch_website_html(url, max_chars=12000):
         resp.raise_for_status()
         raw_html = resp.text
         fetch_website_html.last_menu_url = find_menu_url(raw_html, resp.url)
+        fetch_website_html.last_raw = raw_html
         og_image_match = re.search(
             r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', raw_html
         )
@@ -383,6 +434,7 @@ def fetch_website_html(url, max_chars=12000):
         return html[:max_chars], resp.url, og_image
     except Exception as e:
         fetch_website_html.last_menu_url = None
+        fetch_website_html.last_raw = None
         print(f"    Website fetch failed for {url}: {e}")
         return None, None, None
 
@@ -435,51 +487,105 @@ def generate_seo(name, city, address, cuisine_uk, cuisine_ru):
         return {}
 
 
-MATCH_PROMPT = """Ось HTML-фрагмент сторінки меню ресторану "{restaurant_name}" (базовий URL: {base_url}):
+MENU_PROMPT = """Ось текст сторінки меню ресторану "{restaurant_name}" (базовий URL: {base_url}):
 
 {html}
 
-Ось список страв цього ресторану в нашій базі, яким бракує даних:
-{dish_list}
+Випиши ВСІ страви й напої з цієї сторінки. Для кожної:
+- name: назва дослівно, як на сторінці
+- lang: мова назви - "uk", "ru" або "en"
+- category: розділ меню, в якому стоїть страва (як на сторінці), або null
+- price: ціна числом, як на сторінці, або null
+- weight: вихід/об'єм, як на сторінці (наприклад "250 г"), або null
+- description: опис або склад дослівно, як на сторінці, або null
+- image_url: src зображення саме цієї страви, або null
 
-Для КОЖНОЇ страви зі списку спробуй знайти на сторінці ТОЧНО ЦЮ страву (за назвою, можливі незначні відмінності у формулюванні) і витягни:
-- ціну (тільки число, як вказано на сторінці)
-- грамотуру/вихід (наприклад "250 г", як вказано на сторінці)
-- URL зображення, якщо він явно прив'язаний саме до цієї страви (src з тегу img поруч із назвою)
-- опис або склад страви ДОСЛІВНО, як на сторінці (без змін і без перекладу), і мову цього тексту: "uk", "ru" або "en"
+НЕ вигадуй нічого: лише те, що явно є на сторінці. Якщо це не меню (форма входу, помилка, головна без страв) - поверни порожній масив [].
 
-ВАЖЛИВО: якщо конкретної страви немає на сторінці, або дані не вказані явно — постав null для цієї страви (але однаково включи її в масив). НЕ вигадуй ціну, грамотуру, фото чи опис. Це критично: неточна ціна чи вага введе відвідувачів в оману.
-
-Якщо сторінка взагалі не є меню ресторану (наприклад форма входу, помилка, редирект на інший сервіс) — все одно поверни масив з усіма id зі списку страв, де всі поля null.
-
-Поверни ЛИШЕ валідний JSON, без жодного тексту до чи після, масив об'єктів у тому ж порядку, що й список страв:
-[
-  {{"dish_id": "...", "price": число або null, "weight": "..." або null, "image_url": "..." або null, "description": "..." або null, "description_lang": "uk" або "ru" або "en" або null}}
-]
+Поверни ЛИШЕ валідний JSON-масив:
+[{{"name": "...", "lang": "uk", "category": "...", "price": 0, "weight": "...", "description": "...", "image_url": "..."}}]
 """
 
+# меню розпізнане впевнено лише тоді - інакше нічого не пропонуємо прибрати чи додати
+MIN_SITE_DISHES = 10
+MIN_MATCH_SHARE = 0.5
+MAX_MENU_SUBPAGES = 10
 
-def chunked(items, size):
-    for i in range(0, len(items), size):
-        yield items[i:i + size]
+
+def extract_menu(restaurant_name, base_url, html):
+    try:
+        items = call_llm_json(MENU_PROMPT.format(restaurant_name=restaurant_name, base_url=base_url, html=html),
+                              max_tokens=16000, model=CHEAP_MODEL)
+        return [d for d in items if isinstance(d, dict) and (d.get("name") or "").strip()]
+    except Exception as e:
+        print(f"    Menu extraction failed for {base_url}: {e}")
+        return []
 
 
-def match_dishes_on_site(restaurant_name, base_url, html, dishes):
-    all_matches = {}
-    for chunk in chunked(dishes, 25):
-        dish_list = "\n".join(f"- id={d['Id']}: {get_localizable_value(d['Name'], 'uk')}" for d in chunk)
-        try:
-            prompt = MATCH_PROMPT.format(restaurant_name=restaurant_name, base_url=base_url, html=html, dish_list=dish_list)
-        except Exception as e:
-            print(f"    Prompt formatting failed for a batch: {e}")
-            continue
-        try:
-            for m in call_llm_json(prompt, max_tokens=6000, model=CHEAP_MODEL):
-                if m.get("dish_id"):
-                    all_matches[m["dish_id"]] = m
-        except Exception as e:
-            print(f"    Site matching failed for a batch: {e}")
-    return all_matches
+def menu_subpages(raw_html, menu_url):
+    """Меню, розбите на сторінки розділів: /menu/soups, /menu/salads..."""
+    prefix = menu_url.rstrip("/") + "/"
+    found = []
+    for href in re.findall(r'<a[^>]+href=["\']([^"\'#]+)["\']', raw_html or "", re.I):
+        url = urljoin(menu_url, href)
+        if url.startswith(prefix) and url not in found:
+            found.append(url)
+    return found[:MAX_MENU_SUBPAGES]
+
+
+def read_site_menu(restaurant_name, menu_url):
+    """Усі страви зі сторінки меню та її підсторінок, без повторів за назвою."""
+    html, base, _ = fetch_website_html(menu_url, max_chars=40000)
+    if not html:
+        return []
+    pages = [(html, base)]
+    for url in menu_subpages(fetch_website_html.last_raw, base):
+        sub_html, sub_base, _ = fetch_website_html(url, max_chars=40000)
+        if sub_html:
+            pages.append((sub_html, sub_base))
+
+    menu, seen = [], set()
+    for page_html, page_base in pages:
+        for d in extract_menu(restaurant_name, page_base, page_html):
+            key = normalize_name(d["name"])
+            if key and key not in seen:
+                seen.add(key)
+                d["image_url"] = resolve_url(page_base, d["image_url"]) if d.get("image_url") else None
+                menu.append(d)
+    return menu
+
+
+def normalize_name(value):
+    return re.sub(r"[^\w]+", " ", (value or "").lower().replace("ё", "е")).strip()
+
+
+def dish_display_name(dish):
+    return get_localizable_value(dish["Name"], "uk") or get_localizable_value(dish["Name"], "ru") or get_localizable_value(dish["Name"], "en")
+
+
+def match_menu(our_dishes, site_menu):
+    """Зіставлення за назвою будь-якою мовою: точний збіг або дуже схожа (ratio >= 0.88)."""
+    site_by_key = {normalize_name(d["name"]): d for d in site_menu}
+    matches, used = {}, set()
+    for dish in our_dishes:
+        names = {normalize_name(get_localizable_value(dish["Name"], l)) for l in ("uk", "ru", "en")} - {""}
+        hit = next((k for k in names if k in site_by_key and k not in used), None)
+        if not hit:
+            best = max(((difflib.SequenceMatcher(None, n, k).ratio(), k) for n in names for k in site_by_key if k not in used),
+                       default=(0, None))
+            hit = best[1] if best[0] >= 0.88 else None
+        if hit:
+            used.add(hit)
+            matches[dish["Id"]] = site_by_key[hit]
+    unmatched_site = [d for k, d in site_by_key.items() if k not in used]
+    return matches, unmatched_site
+
+
+def parse_price(value):
+    try:
+        return round(float(str(value).replace(",", ".").replace(" ", "")), 2)
+    except (TypeError, ValueError):
+        return None
 
 
 def resolve_url(base_url, maybe_relative):
@@ -646,57 +752,76 @@ def process_restaurant(db, restaurant):
             cur.close()
             notes.append("SEO meta filled")
 
-    dishes = fetch_needy_dishes(db, restaurant["Id"])
-    if dishes and html:
-        menu_html, menu_base = html, base_url
-        if menu_url:
-            # сторінка меню довша за головну - беремо більше тексту (Haiku дешевий)
-            fetched, fetched_base, _ = fetch_website_html(menu_url, max_chars=40000)
-            if fetched:
-                menu_html, menu_base = fetched, fetched_base
-                notes.append(f"menu page: {menu_url}")
-        site_matches = match_dishes_on_site(name, menu_base, menu_html, dishes)
-
-        dish_updates_count = 0
-        for dish in dishes:
-            match = site_matches.get(dish["Id"], {})
-            dish_updates = {}
-
-            if (not dish["Price"] or dish["Price"] == 0) and match.get("price"):
-                dish_updates["Price"] = match["price"]
-
-            if not dish["Weight"] and match.get("weight"):
-                dish_updates["Weight"] = match["weight"]
-
-            # опис лише з сайту, мовою сайту; інші мови допише DeepL (translate_missing.py)
-            site_desc = (match.get("description") or "").strip()
-            site_lang = match.get("description_lang") if match.get("description_lang") in ("uk", "ru", "en") else "uk"
-            if site_desc and is_localizable_empty(dish["Description"]):
-                dish_updates["Description"] = json.dumps({"Values": [{"Locale": site_lang, "Value": site_desc}]}, ensure_ascii=False)
-
-            has_photo = dish["PhotoLink"] and dish["PhotoLink"] != "[]"
-            if not has_photo and match.get("image_url"):
-                try:
-                    img_resp = requests.get(resolve_url(menu_base, match["image_url"]), timeout=15)
-                    img_resp.raise_for_status()
-                    file_id = upload_photo_to_spaces(img_resp.content)
-                    dish_updates["PhotoLink"] = json.dumps([file_id])
-                except Exception as e:
-                    print(f"    Dish photo upload failed: {e}")
-
-            if dish_updates:
-                set_clause = ", ".join(f"{col} = %s" for col in dish_updates)
-                cur = db.cursor()
-                cur.execute(f"UPDATE Dishes SET {set_clause} WHERE Id = %s", (*dish_updates.values(), dish["Id"]))
-                db.commit()
-                cur.close()
-                dish_updates_count += 1
-
-        notes.append(f"{dish_updates_count}/{len(dishes)} dishes updated")
+    if html:
+        notes.append(sync_menu(db, restaurant, menu_url or base_url))
 
     summary = "; ".join(notes) if notes else "no changes needed"
     log_check(db, restaurant["Id"], summary, closed_detected=False)
     print(f"  -> {summary}")
+
+
+def sync_menu(db, restaurant, menu_url):
+    """Дані страв - лише з меню на сайті ресторану. Збіглі страви: ціна оновлюється (якщо зміна
+    не більше ніж удвічі), порожні вага/опис/фото заповнюються. Додати чи прибрати страви -
+    лише пропозиції для адміна, і лише коли меню розпізнане впевнено."""
+    name = restaurant["Name"]
+    site_menu = read_site_menu(name, menu_url)
+    our_dishes = fetch_active_dishes(db, restaurant["Id"])
+    matches, unmatched_site = match_menu(our_dishes, site_menu)
+
+    updated, price_notes = 0, []
+    for dish in our_dishes:
+        site = matches.get(dish["Id"])
+        if not site:
+            continue
+        updates = {}
+
+        new_price = parse_price(site.get("price"))
+        old_price = float(dish["Price"] or 0)
+        if new_price and new_price != old_price and not dish["IsPriceMultiple"]:
+            if old_price == 0 or 0.5 <= new_price / old_price <= 2:
+                updates["Price"] = new_price
+            else:
+                price_notes.append(f"{dish_display_name(dish)}: {old_price:g} -> {new_price:g}?")
+
+        if not dish["Weight"] and site.get("weight"):
+            updates["Weight"] = str(site["weight"])[:50]
+
+        site_desc = (site.get("description") or "").strip()
+        site_lang = site.get("lang") if site.get("lang") in ("uk", "ru", "en") else "uk"
+        if site_desc and is_localizable_empty(dish["Description"]):
+            # мовою сайту; інші мови допише DeepL (translate_missing.py)
+            updates["Description"] = json.dumps({"Values": [{"Locale": site_lang, "Value": site_desc}]}, ensure_ascii=False)
+
+        has_photo = dish["PhotoLink"] and dish["PhotoLink"] != "[]"
+        if not has_photo and site.get("image_url"):
+            try:
+                img_resp = requests.get(site["image_url"], timeout=15)
+                img_resp.raise_for_status()
+                updates["PhotoLink"] = json.dumps([upload_photo_to_spaces(img_resp.content)])
+            except Exception as e:
+                print(f"    Dish photo upload failed: {e}")
+
+        if updates:
+            cur = db.cursor()
+            cur.execute(f"UPDATE Dishes SET {', '.join(f'{c} = %s' for c in updates)} WHERE Id = %s", (*updates.values(), dish["Id"]))
+            if "Price" in updates:
+                cur.execute("UPDATE DishVariations SET Price = %s WHERE DishId = %s", (updates["Price"], dish["Id"]))
+            db.commit()
+            cur.close()
+            updated += 1
+
+    share = len(matches) / len(our_dishes) if our_dishes else 0
+    stats = f"site {len(site_menu)}, matched {len(matches)}/{len(our_dishes)}, updated {updated}"
+    if price_notes:
+        stats += "; price check: " + ", ".join(price_notes[:5])
+
+    if len(site_menu) < MIN_SITE_DISHES or (our_dishes and share < MIN_MATCH_SHARE):
+        return f"menu not recognized ({stats}) at {menu_url}"
+
+    unmatched_ours = [d for d in our_dishes if d["Id"] not in matches]
+    save_proposals(db, restaurant["Id"], unmatched_site, unmatched_ours)
+    return f"menu ok ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)}"
 
 
 def main():

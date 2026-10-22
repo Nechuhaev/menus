@@ -1,0 +1,76 @@
+@model List<Menus.Web.Services.MenuSyncProposal>
+
+@{
+    ViewData["Title"] = "Звіт ресторану";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var restaurantId = ViewData["restaurantId"] as string;
+}
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-action="Index">Звіти</a></li>
+                    <li>Ресторан</li>
+                </ul>
+            </div>
+
+            @if (TempData["message"] != null)
+            {
+                <p><strong>@TempData["message"]</strong></p>
+            }
+
+            @if (!Model.Any())
+            {
+                <p>Нових пропозицій для цього ресторану немає.</p>
+            }
+            else
+            {
+                <form asp-action="Apply" asp-route-id="@restaurantId" method="post">
+                    <p>
+                        Додані страви одразу з'являються на сайті. «Прибрати» не видаляє страву, а ставить їй статус Pending.
+                    </p>
+                    <table class="mainTable">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" checked onclick="document.querySelectorAll('.proposal').forEach(c => c.checked = this.checked)" /></th>
+                                <th>Дія</th>
+                                <th>Категорія</th>
+                                <th>Назва</th>
+                                <th>Ціна</th>
+                                <th>Вага</th>
+                                <th>Опис</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" class="proposal" name="ids" value="@item.Id" checked /></td>
+                                    <td>@(item.Kind == "add" ? "Додати" : "Прибрати")</td>
+                                    <td>@item.Category</td>
+                                    <td>
+                                        @item.Name
+                                        @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                        {
+                                            <a href="@item.ImageUrl" target="_blank" rel="noopener">фото</a>
+                                        }
+                                    </td>
+                                    <td>@item.Price</td>
+                                    <td>@item.Weight</td>
+                                    <td>@item.Description</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <p>
+                        <button type="submit" name="decision" value="apply">Застосувати вибрані</button>
+                        <button type="submit" name="decision" value="reject">Відхилити вибрані</button>
+                    </p>
+                </form>
+            }
+        </div>
+    </main>
+</div>

@@ -66,6 +66,7 @@
                             <th>Сайт</th>
                             <th>SEO meta</th>
                             <th>Актуальність даних</th>
+                            <th>Меню (бот)</th>
                             <th>Статус</th>
                             <th>Дата создания</th>
                             <th>Мод.</th>
@@ -93,6 +94,7 @@
                                     <option value="recent" selected="@((ViewData["freshnessFilter"] as string) == "recent")">Перевірено нещодавно</option>
                                 </select>
                             </th>
+                            <th></th>
                             <th>
                                 <select name="status" onchange="this.form.submit()">
                                     <option value="">Всі</option>
@@ -155,6 +157,12 @@
                                 </td>
                                 <td>
                                     <span>@(item.LastChecked.HasValue ? item.LastChecked.Value.ToString("dd.MM.yyyy") : "Ще не перевірено")</span>
+                                </td>
+                                <td title="@item.SyncNote">
+                                    @if (!string.IsNullOrEmpty(item.SyncNote))
+                                    {
+                                        <span>@(item.SyncNote.Length > 80 ? item.SyncNote.Substring(0, 80) + "…" : item.SyncNote)</span>
+                                    }
                                 </td>
                                 <td>
                                     <select class="form-control statusSelect" data-id="@item.Id">

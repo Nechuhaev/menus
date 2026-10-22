@@ -1,0 +1,56 @@
+@model List<Menus.Web.Services.MenuSyncRestaurantSummary>
+
+@{
+    ViewData["Title"] = "Звіти";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+}
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li>Звіти</li>
+                </ul>
+            </div>
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Зміни меню з сайтів ресторанів</h2>
+                </div>
+            </div>
+
+            @if (!Model.Any())
+            {
+                <p>Нових пропозицій немає. Бот додає їх, коли меню на сайті ресторану розпізнане впевнено.</p>
+            }
+            else
+            {
+                <table class="mainTable">
+                    <thead>
+                        <tr>
+                            <th>Ресторан</th>
+                            <th>Додати страв</th>
+                            <th>Прибрати страв</th>
+                            <th>Звіт від</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>@item.Name</td>
+                                <td>@item.ToAdd</td>
+                                <td>@item.ToRemove</td>
+                                <td>@item.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                                <td><a asp-action="Restaurant" asp-route-id="@item.RestaurantId">Переглянути</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </main>
+</div>

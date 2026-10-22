@@ -1,4 +1,4 @@
-// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+﻿// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 using Menus.Abstract.Models;
@@ -27,6 +27,7 @@ namespace Menus.Web.Areas.Admin.Controllers
         public string Website { get; set; }
         public bool SeoFilled { get; set; }
         public DateTime? LastChecked { get; set; }
+        public string SyncNote { get; set; }
         public RestaurantStatus Status { get; set; }
         public DateTime CreateDate { get; set; }
         public bool Moderated { get; set; }
@@ -237,7 +238,7 @@ namespace Menus.Web.Areas.Admin.Controllers
 
                     command.CommandText = $@"
                         SELECT r.Id, r.Name, r.Phone, r.Address, r.Status, r.CreateDate, r.Moderated,
-                               ri.Website, rs.Title, rs.Description, rs.Keywords, l.LastCheckedAt
+                               ri.Website, rs.Title, rs.Description, rs.Keywords, l.LastCheckedAt, l.Notes
                         FROM Restaurants r
                         JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
                         JOIN RestaurantSeo rs ON rs.ItemId = r.Id
@@ -267,6 +268,7 @@ namespace Menus.Web.Areas.Admin.Controllers
                                 Website = reader.IsDBNull(7) ? null : reader.GetString(7),
                                 SeoFilled = IsLocalizableFilled(title) && IsLocalizableFilled(description) && !string.IsNullOrWhiteSpace(keywords),
                                 LastChecked = reader.IsDBNull(11) ? (DateTime?)null : reader.GetDateTime(11),
+                                SyncNote = reader.IsDBNull(12) ? null : reader.GetString(12),
                             });
                         }
                     }
