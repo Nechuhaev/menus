@@ -76,6 +76,31 @@ namespace Menus.Web.Helpers
                 ("aggregateRating", aggregateRating));
         }
 
+        // Головна: сайт і організація пов'язані через @id, щоб пошуковики й AI бачили одну сутність
+        public static object Organization(string siteUrl, string logo, params string[] sameAs) =>
+            Obj(
+                ("@context", "https://schema.org"),
+                ("@type", "Organization"),
+                ("@id", siteUrl + "#organization"),
+                ("name", "TipMyMenu"),
+                ("url", siteUrl),
+                ("logo", logo),
+                ("sameAs", sameAs.Where(IsHttpUrl).ToArray()));
+
+        public static object WebSite(string siteUrl, string homeUrl, string language, string searchUrl) =>
+            Obj(
+                ("@context", "https://schema.org"),
+                ("@type", "WebSite"),
+                ("@id", siteUrl + "#website"),
+                ("name", "TipMyMenu"),
+                ("url", homeUrl),
+                ("inLanguage", language),
+                ("publisher", Obj(("@id", siteUrl + "#organization"))),
+                ("potentialAction", Obj(
+                    ("@type", "SearchAction"),
+                    ("target", Obj(("@type", "EntryPoint"), ("urlTemplate", searchUrl + "?q={search_term_string}"))),
+                    ("query-input", "required name=search_term_string"))));
+
         public static object Breadcrumbs(params (string Name, string Url)[] items)
         {
             var list = items.Where(x => !string.IsNullOrWhiteSpace(x.Name) && !string.IsNullOrWhiteSpace(x.Url))
