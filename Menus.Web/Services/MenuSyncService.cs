@@ -42,6 +42,17 @@ namespace Menus.Web.Services
         public int ToRemove { get; set; }
         public int ToChangePrice { get; set; }
         public DateTime CreatedAt { get; set; }
+        // витрати AI на останню перевірку ресторану ботом (AiUsageLog)
+        public long InputTokens { get; set; }
+        public long OutputTokens { get; set; }
+        public decimal CostUsd { get; set; }
+    }
+
+    public class AiCostTotals
+    {
+        public decimal Today { get; set; }
+        public decimal Last30Days { get; set; }
+        public long TokensLast30Days { get; set; }
     }
 
     public class MenuSyncBranch
@@ -80,7 +91,16 @@ namespace Menus.Web.Services
                 CreatedAt DATETIME NOT NULL,
                 INDEX IX_MenuSyncProposals_Restaurant (RestaurantId, Status)
             );
-            ALTER TABLE MenuSyncProposals ADD COLUMN IF NOT EXISTS OldPrice DECIMAL(10,2) NULL;";
+            ALTER TABLE MenuSyncProposals ADD COLUMN IF NOT EXISTS OldPrice DECIMAL(10,2) NULL;
+            CREATE TABLE IF NOT EXISTS AiUsageLog (
+                Id INT AUTO_INCREMENT PRIMARY KEY,
+                RestaurantId VARCHAR(255) NOT NULL,
+                CreatedAt DATETIME NOT NULL,
+                InputTokens INT NOT NULL,
+                OutputTokens INT NOT NULL,
+                CostUsd DECIMAL(10,4) NOT NULL,
+                INDEX IX_AiUsageLog_Restaurant (RestaurantId, CreatedAt)
+            );";
 
         private readonly Core _core;
         private readonly UrlGenerateService _urls;
@@ -100,13 +120,27 @@ namespace Menus.Web.Services
                 SELECT p.RestaurantId, r.Name,
                        CAST(SUM(p.Kind = 'add') AS SIGNED) AS ToAdd, CAST(SUM(p.Kind = 'remove') AS SIGNED) AS ToRemove,
                        CAST(SUM(p.Kind = 'price') AS SIGNED) AS ToChangePrice,
-                       MAX(p.CreatedAt) AS CreatedAt
+                       MAX(p.CreatedAt) AS CreatedAt,
+                       IFNULL(MAX(u.InputTokens), 0) AS InputTokens, IFNULL(MAX(u.OutputTokens), 0) AS OutputTokens,
+                       IFNULL(MAX(u.CostUsd), 0) AS CostUsd
                 FROM MenuSyncProposals p
                 JOIN Restaurants r ON r.Id = p.RestaurantId
+                LEFT JOIN AiUsageLog u ON u.Id = (SELECT MAX(Id) FROM AiUsageLog WHERE RestaurantId = p.RestaurantId)
                 WHERE p.Status = 'new'
                 GROUP BY p.RestaurantId, r.Name
                 ORDER BY MAX(p.CreatedAt) DESC");
             return rows.ToList();
+        }
+
+        public async Task<AiCostTotals> GetAiCostTotals()
+        {
+            await _connection.ExecuteAsync(CreateTableSql);
+            return await _connection.QueryFirstAsync<AiCostTotals>(@"
+                SELECT IFNULL(SUM(CASE WHEN CreatedAt >= CURDATE() THEN CostUsd END), 0) AS Today,
+                       IFNULL(SUM(CostUsd), 0) AS Last30Days,
+                       IFNULL(SUM(InputTokens + OutputTokens), 0) AS TokensLast30Days
+                FROM AiUsageLog
+                WHERE CreatedAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
         }
 
         public async Task<List<MenuSyncProposal>> GetPendingForRestaurant(string restaurantId)
