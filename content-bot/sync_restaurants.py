@@ -21,6 +21,7 @@ import json
 import os
 import re
 import socket
+import copy
 import difflib
 import time
 import uuid
@@ -303,18 +304,21 @@ def localizable_json(uk_value, ru_value):
     )
 
 
-def fetch_restaurants_due_for_check(db, limit):
-    ensure_log_table(db)
-    cur = db.cursor(dictionary=True)
-    cur.execute(
-        """
+RESTAURANT_COLUMNS = """
         SELECT r.Id, r.Name, r.City, r.Address,
                ri.Website, ri.OpenHours, ri.Contacts, ri.Photos, ri.Cuisine,
                ri.GpsLatitude, ri.GpsLongitude,
                rs.Title AS SeoTitle, rs.Description AS SeoDescription, rs.Keywords AS SeoKeywords
         FROM Restaurants r
         JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
-        JOIN RestaurantSeo rs ON rs.ItemId = r.Id
+        JOIN RestaurantSeo rs ON rs.ItemId = r.Id"""
+
+
+def fetch_restaurants_due_for_check(db, limit):
+    ensure_log_table(db)
+    cur = db.cursor(dictionary=True)
+    cur.execute(
+        RESTAURANT_COLUMNS + """
         LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = r.Id
         WHERE r.Status = %s
           AND (l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY))
@@ -324,6 +328,24 @@ def fetch_restaurants_due_for_check(db, limit):
         (RESTAURANT_STATUS_ACTIVE, RECHECK_AFTER_DAYS, limit),
     )
     rows = cur.fetchall()
+    cur.close()
+    return rows
+
+
+def normalize_site(url):
+    return re.sub(r"^https?://(www\.)?|[?#].*$", "", (url or "").strip().lower()).rstrip("/")
+
+
+def fetch_chain_branches(db, restaurant):
+    """Інші активні філії з тим самим сайтом: перевіряються в тому ж запуску, щоб меню мережі
+    читалося один раз, а нотатки й пропозиції всіх філій були однакової свіжості."""
+    site = normalize_site(restaurant["Website"])
+    if not site:
+        return []
+    cur = db.cursor(dictionary=True)
+    cur.execute(RESTAURANT_COLUMNS + " WHERE r.Status = %s AND r.Id <> %s AND ri.Website LIKE %s",
+                (RESTAURANT_STATUS_ACTIVE, restaurant["Id"], "%" + site.split("/")[0] + "%"))
+    rows = [r for r in cur.fetchall() if normalize_site(r["Website"]) == site]
     cur.close()
     return rows
 
@@ -672,8 +694,18 @@ def menu_subpages(raw_html, *menu_urls):
     return found[:MAX_MENU_SUBPAGES]
 
 
+SITE_MENU_CACHE = {}  # меню мережі читається один раз за запуск, а не для кожної філії
+
+
 def read_site_menu(restaurant_name, menu_url):
     """Усі страви зі сторінки меню та її підсторінок, без повторів за назвою."""
+    if menu_url not in SITE_MENU_CACHE:
+        SITE_MENU_CACHE[menu_url] = _read_site_menu(restaurant_name, menu_url)
+    # копія: sync_menu доповнює страви описом і фото
+    return copy.deepcopy(SITE_MENU_CACHE[menu_url])
+
+
+def _read_site_menu(restaurant_name, menu_url):
     html, base, _ = fetch_website_html(menu_url, max_chars=40000)
     if not html:
         return []
@@ -1131,11 +1163,21 @@ def main():
             print("No restaurants due for check.")
             return
 
+        done = set()
         for restaurant in restaurants:
-            try:
-                process_restaurant(db, restaurant)
-            except Exception as e:
-                print(f"ERROR processing {restaurant['Name']}: {e}")
+            if restaurant["Id"] in done:
+                continue
+            # філії мережі - разом із рестораном: меню з кешу, AI на них майже не витрачається
+            for item in [restaurant] + fetch_chain_branches(db, restaurant):
+                if item["Id"] in done:
+                    continue
+                done.add(item["Id"])
+                try:
+                    process_restaurant(db, item)
+                except Exception as e:
+                    print(f"ERROR processing {item['Name']}: {e}")
+                if LLM_DOWN:
+                    break
             if LLM_DOWN:
                 print("Stopping: all LLM providers are unavailable (credits/limits). Check API balances.")
                 break
