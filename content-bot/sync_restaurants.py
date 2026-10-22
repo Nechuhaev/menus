@@ -16,6 +16,7 @@ separately via DeepL (translate_missing.py).
 
 Run daily via cron. Processes a batch of restaurants per run.
 """
+import html
 import json
 import os
 import re
@@ -444,6 +445,29 @@ def is_dead_website(url):
     return True
 
 
+BLOCK_END = re.compile(r"</(?:div|li|p|h[1-6]|tr|td|section|article|ul|ol|table)>|<br\s*/?>", re.I)
+IMG_TAG = re.compile(r"<img\b[^>]*>", re.I)
+
+
+def page_text(raw_html):
+    """Текст сторінки для моделі: без розмітки й службових блоків, зі зображеннями як «[img URL]»
+    і рядками на межах блоків. Сирий HTML у 40 000 символів закінчувався ще в шапці сторінки
+    (у pesto-family.com страви починаються після ~800 КБ розмітки), і модель не бачила меню."""
+    text = re.sub(r"<(script|style|noscript|svg|head|template)\b[\s\S]*?</\1>", " ", raw_html, flags=re.I)
+
+    def img(m):
+        tag = m.group(0)
+        src = re.search(r'(?:data-src|data-lazy-src|src)=["\']([^"\']+)["\']', tag)
+        alt = re.search(r'alt=["\']([^"\']*)["\']', tag)
+        return f" [img {src.group(1)}{' ' + alt.group(1) if alt and alt.group(1) else ''}] " if src else " "
+
+    text = IMG_TAG.sub(img, text)
+    text = BLOCK_END.sub("\n", text)
+    text = html.unescape(re.sub(r"<[^>]+>", " ", text))
+    text = re.sub(r"[ \t\r\f\v]+", " ", text)
+    return re.sub(r"\s*\n\s*", "\n", text).strip()
+
+
 def fetch_website_html(url, max_chars=12000):
     try:
         resp = requests.get(
@@ -458,9 +482,7 @@ def fetch_website_html(url, max_chars=12000):
         )
         og_image = og_image_match.group(1) if og_image_match else None
 
-        html = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>", " ", raw_html)
-        html = re.sub(r"\s+", " ", html).strip()
-        return html[:max_chars], resp.url, og_image
+        return page_text(raw_html)[:max_chars], resp.url, og_image
     except Exception as e:
         fetch_website_html.last_menu_url = None
         fetch_website_html.last_raw = None
@@ -538,7 +560,7 @@ MENU_PROMPT = """Ось текст сторінки меню ресторану 
 # меню розпізнане впевнено лише тоді - інакше нічого не пропонуємо прибрати чи додати
 MIN_SITE_DISHES = 10
 MIN_MATCH_SHARE = 0.5
-MAX_MENU_SUBPAGES = 10
+MAX_MENU_SUBPAGES = 25
 
 
 def extract_menu(restaurant_name, base_url, html):
@@ -552,12 +574,18 @@ def extract_menu(restaurant_name, base_url, html):
 
 
 def menu_subpages(raw_html, menu_url):
-    """Меню, розбите на сторінки розділів: /menu/soups, /menu/salads..."""
-    prefix = menu_url.rstrip("/") + "/"
+    """Меню, розбите на сторінки розділів: вкладені (/menu/soups) і сусідні
+    (/pesto-cafe/ctg/pitsa поруч із /pesto-cafe/ctg/sezonne-menju)."""
+    base = menu_url.rstrip("/")
+    prefixes = [base + "/"]
+    parent = base.rsplit("/", 1)[0]
+    # сусідні розділи - лише якщо батьківський шлях не корінь сайту, інакше це всі посилання сайту
+    if len([p for p in urlparse(parent).path.split("/") if p]) >= 2:
+        prefixes.append(parent + "/")
     found = []
     for href in re.findall(r'<a[^>]+href=["\']([^"\'#]+)["\']', raw_html or "", re.I):
-        url = urljoin(menu_url, href)
-        if url.startswith(prefix) and url not in found:
+        url = urljoin(menu_url, href).rstrip("/")
+        if url != base and any(url.startswith(p) for p in prefixes) and url not in found:
             found.append(url)
     return found[:MAX_MENU_SUBPAGES]
 
