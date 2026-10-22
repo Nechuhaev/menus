@@ -5,9 +5,9 @@ at our volume). Everything now comes from the restaurant's own website, fetched 
 per restaurant and reused for both restaurant-level and dish-level enrichment.
 
 OpenStreetMap (Nominatim) is used only for: (a) GPS coordinates, and (b) a free,
-best-effort check for a `website` tag. A restaurant with no website (or a dead one -
-DNS error, 404/410) is never closed automatically: it is set to Pending (hidden from
-the site) and logged, so an admin reviews it; a dead website is removed from the card.
+best-effort check for a `website` tag. A restaurant with no website at all is never
+closed automatically: it is set to Pending (hidden from the site) and logged for an admin.
+An unreachable website only gets a note in the admin column - status and website stay.
 
 Dishes: price, weight, photo and description are taken ONLY from the restaurant's own
 menu page (a "menu" link on the homepage, or the homepage itself) - nothing is
@@ -66,7 +66,7 @@ CHEAP_MODEL = "claude-haiku-5-5"
 anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
 
 
-def _extract_json(raw_text):
+def _extract_json(raw_text, allow_empty_list=False):
     """Strip markdown code fences and parse JSON. Raises on empty/invalid content —
     some free-tier models return HTTP 200 with an empty or garbage body, which must
     be treated as a failure so the chain moves on to the next provider."""
@@ -76,7 +76,8 @@ def _extract_json(raw_text):
     if not cleaned:
         raise ValueError("empty response after stripping code fences")
     parsed = json.loads(cleaned)
-    if not parsed:
+    # «[]» - законна відповідь на «випиши страви», коли сторінка не є меню
+    if not parsed and not (allow_empty_list and parsed == []):
         raise ValueError("parsed to an empty JSON object/array")
     return parsed
 
@@ -86,7 +87,7 @@ def _extract_json(raw_text):
 LLM_DOWN = False
 
 
-def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5"):
+def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5", allow_empty_list=False):
     """Try Claude, then OpenRouter, then Groq, then Cloudflare Workers AI, then
     Gemini directly (Gemini last — its free tier caps at only 20 requests/day).
     Each provider's raw response is validated as usable JSON before being accepted,
@@ -176,7 +177,7 @@ def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5"):
     last_error = None
     for i, (name, fn) in enumerate(providers):
         try:
-            return _extract_json(fn())
+            return _extract_json(fn(), allow_empty_list)
         except Exception as e:
             last_error = e
             next_name = providers[i + 1][0] if i + 1 < len(providers) else None
@@ -529,7 +530,7 @@ MAX_MENU_SUBPAGES = 10
 def extract_menu(restaurant_name, base_url, html):
     try:
         items = call_llm_json(MENU_PROMPT.format(restaurant_name=restaurant_name, base_url=base_url, html=html),
-                              max_tokens=16000, model=CHEAP_MODEL)
+                              max_tokens=16000, model=CHEAP_MODEL, allow_empty_list=True)
         return [d for d in items if isinstance(d, dict) and (d.get("name") or "").strip()]
     except Exception as e:
         print(f"    Menu extraction failed for {base_url}: {e}")
@@ -656,12 +657,10 @@ def log_check(db, restaurant_id, notes, closed_detected):
     cur.close()
 
 
-def set_pending(db, restaurant_id, note, clear_website=False):
+def set_pending(db, restaurant_id, note):
     """Не закриваємо автоматично: Pending ховає ресторан із сайту до перевірки адміном."""
     cur = db.cursor()
     cur.execute("UPDATE Restaurants SET Status = %s WHERE Id = %s", (RESTAURANT_STATUS_PENDING, restaurant_id))
-    if clear_website:
-        cur.execute("UPDATE RestaurantInfo SET Website = NULL WHERE RestaurantId = %s", (restaurant_id,))
     db.commit()
     cur.close()
     log_check(db, restaurant_id, note, closed_detected=True)
@@ -691,7 +690,10 @@ def process_restaurant(db, restaurant):
             set_pending(db, restaurant["Id"], f"Pending: no website (DB/OSM/web search). {reason}".strip())
             return
     elif is_dead_website(website):
-        set_pending(db, restaurant["Id"], f"Pending: website is dead ({website}), removed from the card", clear_website=True)
+        # Статус і сайт не чіпаємо: DNS сервера не знаходив робочі домени (murakami.ua та ін.),
+        # тож це лише позначка в колонці «Меню (бот)» для перевірки адміном
+        log_check(db, restaurant["Id"], f"website unreachable (DNS): {website} - check manually", closed_detected=False)
+        print(f"  -> website unreachable (DNS): {website}")
         return
 
     info_updates = {}
