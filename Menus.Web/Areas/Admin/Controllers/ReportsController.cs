@@ -21,6 +21,7 @@ namespace Menus.Web.Areas.Admin.Controllers
 
         public async Task<IActionResult> Index()
         {
+            ViewData["aiCost"] = await _menuSync.GetAiCostTotals();
             return View(await _menuSync.GetPendingSummary());
         }
 

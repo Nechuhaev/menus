@@ -99,6 +99,49 @@ def _extract_json(raw_text, allow_empty_list=False):
 LLM_DOWN = False
 
 
+# Витрати AI на поточний ресторан: токени й ціна в $ за прайсом моделі (за 1 млн токенів, вхід / вихід).
+# Groq, Cloudflare і Gemini - безкоштовні ліміти, тож лише токени
+PRICES_PER_MTOK = {
+    "claude-haiku-5-5": (0.10, 0.50),
+    "claude-sonnet-4-5": (3.00, 15.00),
+    "anthropic/claude-sonnet-4.5": (3.00, 15.00),
+}
+WEB_SEARCH_USD = 0.01  # за один пошук web_search
+USAGE = {"input": 0, "output": 0, "cost": 0.0}
+
+
+def record_usage(model, input_tokens, output_tokens, searches=0):
+    price_in, price_out = PRICES_PER_MTOK.get(model, (0.0, 0.0))
+    USAGE["input"] += input_tokens or 0
+    USAGE["output"] += output_tokens or 0
+    USAGE["cost"] += (input_tokens or 0) * price_in / 1e6 + (output_tokens or 0) * price_out / 1e6 + searches * WEB_SEARCH_USD
+
+
+def save_usage(db, restaurant_id):
+    if not USAGE["input"] and not USAGE["output"]:
+        return
+    cur = db.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS AiUsageLog (
+            Id INT AUTO_INCREMENT PRIMARY KEY,
+            RestaurantId VARCHAR(255) NOT NULL,
+            CreatedAt DATETIME NOT NULL,
+            InputTokens INT NOT NULL,
+            OutputTokens INT NOT NULL,
+            CostUsd DECIMAL(10,4) NOT NULL,
+            INDEX IX_AiUsageLog_Restaurant (RestaurantId, CreatedAt)
+        )
+        """
+    )
+    cur.execute(
+        "INSERT INTO AiUsageLog (RestaurantId, CreatedAt, InputTokens, OutputTokens, CostUsd) VALUES (%s, %s, %s, %s, %s)",
+        (restaurant_id, datetime.now(), USAGE["input"], USAGE["output"], round(USAGE["cost"], 4)),
+    )
+    db.commit()
+    cur.close()
+
+
 def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5", allow_empty_list=False):
     """Try Claude, then OpenRouter, then Groq, then Cloudflare Workers AI, then
     Gemini directly (Gemini last — its free tier caps at only 20 requests/day).
@@ -114,6 +157,7 @@ def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5", allow_empty_lis
             messages=[{"role": "user", "content": prompt}],
             **extra,
         )
+        record_usage(model, message.usage.input_tokens, message.usage.output_tokens)
         return "".join(b.text for b in message.content if b.type == "text")
 
     def try_openrouter():
@@ -130,7 +174,10 @@ def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5", allow_empty_lis
         if resp.status_code >= 400:
             print(f"    [LLM] OpenRouter HTTP {resp.status_code}: {resp.text[:300]}")
         resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        data = resp.json()
+        usage = data.get("usage") or {}
+        record_usage("anthropic/claude-sonnet-4.5", usage.get("prompt_tokens"), usage.get("completion_tokens"))
+        return data["choices"][0]["message"]["content"]
 
     def try_groq():
         resp = requests.post(
@@ -377,6 +424,8 @@ def verify_restaurant_closure(name, address, city):
                 ),
             }],
         )
+        searches = getattr(getattr(message.usage, "server_tool_use", None), "web_search_requests", 0) or 0
+        record_usage("claude-sonnet-4-5", message.usage.input_tokens, message.usage.output_tokens, searches)
         text_blocks = [block.text for block in message.content if block.type == "text"]
         raw = "\n".join(text_blocks).strip()
         raw = re.sub(r"^```json\s*|\s*```$", "", raw)
@@ -853,6 +902,19 @@ def set_pending(db, restaurant_id, note):
 
 
 def process_restaurant(db, restaurant):
+    """Обгортка: витрати AI на ресторан записуються в AiUsageLog за будь-якого результату."""
+    USAGE.update(input=0, output=0, cost=0.0)
+    try:
+        _process_restaurant(db, restaurant)
+    finally:
+        try:
+            save_usage(db, restaurant["Id"])
+            print(f"  AI: {USAGE['input']} in / {USAGE['output']} out tokens, ${USAGE['cost']:.4f}")
+        except Exception as e:
+            print(f"  AI usage not saved: {e}")
+
+
+def _process_restaurant(db, restaurant):
     name = restaurant["Name"]
     print(f"Restaurant: {name}")
     notes = []
