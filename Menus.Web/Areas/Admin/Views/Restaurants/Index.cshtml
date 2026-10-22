@@ -51,9 +51,26 @@
                 </div>
             </div>
 
+            <style>
+                /* 13 колонок мають уміщатися в ширину екрана: фіксована розкладка, перенос довгих
+                   адрес сайтів і нотаток бота, поля фільтрів на всю ширину колонки */
+                .restaurantsTable { table-layout: fixed; width: 100%; }
+                .restaurantsTable th, .restaurantsTable td { overflow-wrap: anywhere; word-break: break-word; padding-right: 6px; vertical-align: top; }
+                .restaurantsTable thead input[type=text], .restaurantsTable thead input[type=date],
+                .restaurantsTable thead select, .restaurantsTable tbody input[type=date],
+                .restaurantsTable tbody select { width: 100%; min-width: 0; box-sizing: border-box; }
+                .restaurantsTable td.tableEdit { white-space: normal; }
+                .restaurantsTable td.tableEdit a { display: inline-block; margin-left: 4px; }
+            </style>
             <form method="get" id="filterForm">
                 <input type="hidden" name="createdBy" value="@ViewData["createdBy"]" />
-                <table class="mainTable">
+                <table class="mainTable restaurantsTable">
+                    <colgroup>
+                        <col style="width:2.5%" /><col style="width:2%" /><col style="width:12%" /><col style="width:9%" />
+                        <col style="width:13%" /><col style="width:10%" /><col style="width:6.5%" /><col style="width:7%" />
+                        <col style="width:12%" /><col style="width:7.5%" /><col style="width:8%" /><col style="width:3.5%" />
+                        <col style="width:7%" />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th class="tableCheckbox">
@@ -145,7 +162,7 @@
                                 <td>
                                     @if (!string.IsNullOrEmpty(item.Website))
                                     {
-                                        <a href="@item.Website" target="_blank" rel="noopener">@item.Website</a>
+                                        <a href="@item.Website" target="_blank" rel="noopener" title="@item.Website">@(System.Text.RegularExpressions.Regex.Replace(item.Website, @"^https?://(www\.)?", "").TrimEnd('/'))</a>
                                     }
                                     else
                                     {
@@ -161,7 +178,7 @@
                                 <td title="@item.SyncNote">
                                     @if (!string.IsNullOrEmpty(item.SyncNote))
                                     {
-                                        <span>@(item.SyncNote.Length > 80 ? item.SyncNote.Substring(0, 80) + "…" : item.SyncNote)</span>
+                                        <span>@(item.SyncNote.Length > 60 ? item.SyncNote.Substring(0, 60) + "…" : item.SyncNote)</span>
                                     }
                                 </td>
                                 <td>
