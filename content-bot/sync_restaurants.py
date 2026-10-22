@@ -710,21 +710,33 @@ def dish_display_name(dish):
     return get_localizable_value(dish["Name"], "uk") or get_localizable_value(dish["Name"], "ru") or get_localizable_value(dish["Name"], "en")
 
 
-def match_menu(our_dishes, site_menu):
+# Те, що не змінює страву: розмір, вага/об'єм, кількість, текст у дужках, «NEW»
+SIZE_NOISE = re.compile(r"\([^)]*\)|\b\d+(?:[.,]\d+)?\s*(?:см|cm|г|гр|g|кг|kg|мл|ml|л|l|шт|pcs)\b\.?|\bnew\b|\bnovelty\b|\bновинка\b", re.I)
+
+
+def match_key(value, noise_words=()):
+    """Назва для зіставлення: без розміру, ваги, дужок і назви ресторану («Піца барбекю 30 см (Pesto)»
+    -> «піца барбекю»). Для дедуплікації меню використовується normalize_name - там розміри важливі."""
+    words = normalize_name(SIZE_NOISE.sub(" ", value or "")).split()
+    return " ".join(w for w in words if w not in noise_words)
+
+
+def match_menu(our_dishes, site_menu, restaurant_name=""):
     """Зіставлення за назвою будь-якою мовою: точний збіг або дуже схожа (ratio >= 0.88)."""
-    site_by_key = {normalize_name(d["name"]): d for d in site_menu}
+    noise = set(normalize_name(restaurant_name).split())
+    site_keys = [match_key(d["name"], noise) for d in site_menu]
     matches, used = {}, set()
     for dish in our_dishes:
-        names = {normalize_name(get_localizable_value(dish["Name"], l)) for l in ("uk", "ru", "en")} - {""}
-        hit = next((k for k in names if k in site_by_key and k not in used), None)
-        if not hit:
-            best = max(((difflib.SequenceMatcher(None, n, k).ratio(), k) for n in names for k in site_by_key if k not in used),
-                       default=(0, None))
+        names = {match_key(get_localizable_value(dish["Name"], l), noise) for l in ("uk", "ru", "en")} - {""}
+        hit = next((j for j, k in enumerate(site_keys) if k in names and j not in used), None)
+        if hit is None:
+            best = max(((difflib.SequenceMatcher(None, n, k).ratio(), j) for n in names
+                        for j, k in enumerate(site_keys) if k and j not in used), default=(0, None))
             hit = best[1] if best[0] >= 0.88 else None
-        if hit:
+        if hit is not None:
             used.add(hit)
-            matches[dish["Id"]] = site_by_key[hit]
-    unmatched_site = [d for k, d in site_by_key.items() if k not in used]
+            matches[dish["Id"]] = site_menu[hit]
+    unmatched_site = [d for j, d in enumerate(site_menu) if j not in used]
     return matches, unmatched_site
 
 
@@ -732,20 +744,21 @@ def match_menu(our_dishes, site_menu):
 STOP_WORDS = {"з", "із", "зі", "с", "со", "та", "і", "и", "в", "у", "на", "по", "для", "салат", "суп", "соус"}
 
 
-def name_stems(value):
-    """Основи слів назви (перші 5 літер) без службових слів."""
-    return {w[:5] for w in normalize_name(value).split() if w not in STOP_WORDS and not w.isdigit()}
+def name_stems(value, noise_words=()):
+    """Основи слів назви (перші 5 літер) без службових слів, розмірів і назви ресторану."""
+    return {w[:5] for w in match_key(value, noise_words).split() if w not in STOP_WORDS and not w.isdigit()}
 
 
-def pair_by_stems(our_dishes, site_menu):
+def pair_by_stems(our_dishes, site_menu, restaurant_name=""):
     """Друге коло зіставлення без AI: інший порядок слів чи зайве слово-категорія. Мовні відмінності
     закриває українська назва в базі (усі назви перекладено DeepL). Пара - коли основи слів збігаються
     щонайменше на 75% (Жаккар) в одній із мов і пара найкраща для обох сторін; «Піца Маргарита» і
     «Піца Маргарита з беконом» (67%) не з'єднуються."""
-    site_stems = [name_stems(d["name"]) for d in site_menu]
+    noise = set(normalize_name(restaurant_name).split())
+    site_stems = [name_stems(d["name"], noise) for d in site_menu]
     candidates = []
     for dish in our_dishes:
-        variants = [name_stems(get_localizable_value(dish["Name"], l)) for l in ("uk", "ru", "en")]
+        variants = [name_stems(get_localizable_value(dish["Name"], l), noise) for l in ("uk", "ru", "en")]
         for j, theirs in enumerate(site_stems):
             score = max((len(v & theirs) / len(v | theirs) for v in variants if v and theirs), default=0)
             if score >= 0.75:
@@ -1036,8 +1049,8 @@ def sync_menu(db, restaurant, menu_url):
     name = restaurant["Name"]
     site_menu = read_site_menu(name, menu_url)
     our_dishes = fetch_active_dishes(db, restaurant["Id"])
-    matches, unmatched_site = match_menu(our_dishes, site_menu)
-    paired = pair_by_stems([d for d in our_dishes if d["Id"] not in matches], unmatched_site)
+    matches, unmatched_site = match_menu(our_dishes, site_menu, name)
+    paired = pair_by_stems([d for d in our_dishes if d["Id"] not in matches], unmatched_site, name)
     matches.update(paired)
     unmatched_site = [d for d in unmatched_site if all(d is not p for p in paired.values())]
     # опис/вага/фото зі сторінок страв - для тих, що додаємо, і для наших без цих даних

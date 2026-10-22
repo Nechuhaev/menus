@@ -70,8 +70,8 @@
 
                     <table class="mainTable reportTable">
                         <colgroup>
-                            <col style="width:4%" /><col style="width:11%" /><col style="width:15%" /><col style="width:22%" />
-                            <col style="width:10%" /><col style="width:8%" /><col style="width:30%" />
+                            <col style="width:4%" /><col style="width:10%" /><col style="width:13%" /><col style="width:20%" />
+                            <col style="width:8%" /><col style="width:9%" /><col style="width:8%" /><col style="width:28%" />
                         </colgroup>
                         <thead>
                             <tr>
@@ -79,6 +79,7 @@
                                 <th>Дія</th>
                                 <th>Категорія</th>
                                 <th>Назва</th>
+                                <th>Фото</th>
                                 <th>Ціна</th>
                                 <th>Вага</th>
                                 <th>Опис</th>
@@ -104,6 +105,7 @@
                                     </select>
                                 </th>
                                 <th><input type="text" id="filterName" placeholder="Фільтр..." /></th>
+                                <th></th>
                                 <th></th>
                                 <th>
                                     <select id="filterWeight">
@@ -131,11 +133,13 @@
                                     <td><input type="checkbox" class="proposal" name="ids" value="@item.Id" checked /></td>
                                     <td>@(item.Kind == "add" ? "Додати" : item.Kind == "price" ? "Змінити ціну" : "Прибрати")</td>
                                     <td>@item.Category</td>
+                                    <td>@item.Name</td>
                                     <td>
-                                        @item.Name
                                         @if (!string.IsNullOrEmpty(item.ImageUrl))
                                         {
-                                            <a href="@item.ImageUrl" target="_blank" rel="noopener">фото</a>
+                                            <a href="@item.ImageUrl" target="_blank" rel="noopener" title="Відкрити фото">
+                                                <img src="@item.ImageUrl" alt="" loading="lazy" style="max-width:64px;max-height:48px;object-fit:cover" />
+                                            </a>
                                         }
                                     </td>
                                     <td>@(item.Kind == "price" ? $"{item.OldPrice:0.##} → {item.Price:0.##}" : item.Price?.ToString("0.##"))</td>
