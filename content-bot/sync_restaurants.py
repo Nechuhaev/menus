@@ -573,19 +573,24 @@ def extract_menu(restaurant_name, base_url, html):
         return []
 
 
-def menu_subpages(raw_html, menu_url):
+def menu_subpages(raw_html, *menu_urls):
     """Меню, розбите на сторінки розділів: вкладені (/menu/soups) і сусідні
-    (/pesto-cafe/ctg/pitsa поруч із /pesto-cafe/ctg/sezonne-menju)."""
-    base = menu_url.rstrip("/")
-    prefixes = [base + "/"]
-    parent = base.rsplit("/", 1)[0]
-    # сусідні розділи - лише якщо батьківський шлях не корінь сайту, інакше це всі посилання сайту
-    if len([p for p in urlparse(parent).path.split("/") if p]) >= 2:
-        prefixes.append(parent + "/")
+    (/pesto-cafe/ctg/pitsa поруч із /pesto-cafe/ctg/sezonne-menju). Адрес дві - запитана
+    й кінцева після редиректу: pesto-family.com веде /pesto-cafe/ctg/sezonne-menju на
+    /pesto-cafe/sezonnoe-menyu/, і розділи /ctg/ видно лише від запитаної."""
+    bases = {u.rstrip("/") for u in menu_urls if u}
+    prefixes = set()
+    for base in bases:
+        prefixes.add(base + "/")
+        parent = base.rsplit("/", 1)[0]
+        # сусідні розділи - лише якщо батьківський шлях не корінь сайту, інакше це всі посилання сайту
+        if len([p for p in urlparse(parent).path.split("/") if p]) >= 2:
+            prefixes.add(parent + "/")
+    page_url = menu_urls[-1] or menu_urls[0]
     found = []
     for href in re.findall(r'<a[^>]+href=["\']([^"\'#]+)["\']', raw_html or "", re.I):
-        url = urljoin(menu_url, href).rstrip("/")
-        if url != base and any(url.startswith(p) for p in prefixes) and url not in found:
+        url = urljoin(page_url, href).rstrip("/")
+        if url not in bases and any(url.startswith(p) for p in prefixes) and url not in found:
             found.append(url)
     return found[:MAX_MENU_SUBPAGES]
 
@@ -596,7 +601,7 @@ def read_site_menu(restaurant_name, menu_url):
     if not html:
         return []
     pages = [(html, base)]
-    for url in menu_subpages(fetch_website_html.last_raw, base):
+    for url in menu_subpages(fetch_website_html.last_raw, menu_url, base):
         sub_html, sub_base, _ = fetch_website_html(url, max_chars=40000)
         if sub_html:
             pages.append((sub_html, sub_base))
