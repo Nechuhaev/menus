@@ -72,10 +72,15 @@ def _extract_json(raw_text, allow_empty_list=False):
     be treated as a failure so the chain moves on to the next provider."""
     if not raw_text or not raw_text.strip():
         raise ValueError("empty response")
-    cleaned = re.sub(r"^```json\s*|\s*```$", "", raw_text.strip())
+    cleaned = re.sub(r"```(?:json)?", "", raw_text).strip()
     if not cleaned:
         raise ValueError("empty response after stripping code fences")
-    parsed = json.loads(cleaned)
+    # модель іноді пише пояснення перед JSON («Це сторінка входу, меню немає: []») -
+    # беремо перший JSON-масив чи об'єкт у тексті
+    start = min((i for i in (cleaned.find("["), cleaned.find("{")) if i >= 0), default=-1)
+    if start < 0:
+        raise ValueError(f"no JSON in response: {cleaned[:80]}")
+    parsed, _ = json.JSONDecoder().raw_decode(cleaned[start:])
     # «[]» - законна відповідь на «випиши страви», коли сторінка не є меню
     if not parsed and not (allow_empty_list and parsed == []):
         raise ValueError("parsed to an empty JSON object/array")
@@ -411,6 +416,15 @@ def find_menu_url(raw_html, base_url):
         return None
     url = urljoin(base_url, m.group(1))
     return url if url.startswith("http") and url.rstrip("/") != base_url.rstrip("/") else None
+
+
+SOCIAL_HOSTS = ("facebook.com", "instagram.com", "fb.com", "t.me", "tiktok.com")
+
+
+def is_social_page(url):
+    """Сторінки соцмереж віддають боту форму входу - меню там не прочитати."""
+    host = (urlparse(url or "").hostname or "").lower()
+    return any(host == h or host.endswith("." + h) for h in SOCIAL_HOSTS)
 
 
 def is_dead_website(url):
@@ -768,7 +782,9 @@ def process_restaurant(db, restaurant):
             cur.close()
             notes.append("SEO meta filled")
 
-    if html:
+    if html and is_social_page(base_url or website):
+        notes.append("website is a social network page - no menu to read, add the real site in admin")
+    elif html:
         notes.append(sync_menu(db, restaurant, menu_url or base_url))
 
     if LLM_DOWN:
