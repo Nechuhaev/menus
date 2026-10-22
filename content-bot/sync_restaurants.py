@@ -377,6 +377,12 @@ def save_proposals(db, restaurant_id, to_add, to_remove, price_changes):
     ensure_proposals_table(db)
     cur = db.cursor()
     cur.execute("DELETE FROM MenuSyncProposals WHERE RestaurantId = %s AND Status = 'new'", (restaurant_id,))
+    # відхилене адміном не пропонуємо знову: та сама дія й назва (для ціни - ще й та сама нова ціна)
+    cur.execute("SELECT Kind, Name, Price FROM MenuSyncProposals WHERE RestaurantId = %s AND Status = 'rejected'", (restaurant_id,))
+    rejected = {(kind, match_key(name), None if kind != "price" else float(price or 0)) for kind, name, price in cur.fetchall()}
+    to_add = [d for d in to_add if ("add", match_key(d["name"]), None) not in rejected]
+    to_remove = [d for d in to_remove if ("remove", match_key(dish_display_name(d)), None) not in rejected]
+    price_changes = [(d, p) for d, p in price_changes if ("price", match_key(dish_display_name(d)), float(p)) not in rejected]
     now = datetime.now()
     for d in to_add:
         cur.execute(
