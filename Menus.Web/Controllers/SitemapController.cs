@@ -16,6 +16,7 @@ using Menus.Abstract.Models;
 using Menus.Domain;
 using Menus.Files.Services;
 using Menus.Web.Data;
+using Menus.Web.Helpers;
 using Menus.Web.Models;
 using Menus.Web.Models.Internal;
 using Menus.Web.Services;
@@ -122,7 +123,7 @@ namespace Menus.Web.Controllers
         public IActionResult RunRegenerateDishSeoJob(string pwd)
         {
             if (!IsValidPwd(pwd)) return NotFound();
-            var url = $"https://localhost:5001/ru/sitemap/RegenerateDishSeo?pwd={SitemapPassword}";
+            var url = $"{InternalUrl.Base}/ru/sitemap/RegenerateDishSeo?pwd={SitemapPassword}";
             BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update(url));
             return Ok();
         }
@@ -130,7 +131,7 @@ namespace Menus.Web.Controllers
         public IActionResult RunRegenerateRestaurantIframesCacheJob(string pwd)
         {
             if (!IsValidPwd(pwd)) return NotFound();
-            var url = $"https://localhost:5001/ru/sitemap/RegenerateRestaurantIframesCache?pwd={SitemapPassword}";
+            var url = $"{InternalUrl.Base}/ru/sitemap/RegenerateRestaurantIframesCache?pwd={SitemapPassword}";
             BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update(url));
             return Ok();
         }
@@ -156,7 +157,7 @@ namespace Menus.Web.Controllers
         public IActionResult RunSetDisplayAddresses(string pwd)
         {
             if (!IsValidPwd(pwd)) return NotFound();
-            var url = $"https://localhost:5001/ru/sitemap/SetDisplayAddresses?pwd={SitemapPassword}";
+            var url = $"{InternalUrl.Base}/ru/sitemap/SetDisplayAddresses?pwd={SitemapPassword}";
             BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update(url));
             return Ok();
         }
@@ -164,7 +165,7 @@ namespace Menus.Web.Controllers
         public IActionResult RunSetDishesSearchTerms(string pwd)
         {
             if (!IsValidPwd(pwd)) return NotFound();
-            var url = $"https://localhost:5001/ru/sitemap/SetDishesSearchTermsDp?pwd={SitemapPassword}";
+            var url = $"{InternalUrl.Base}/ru/sitemap/SetDishesSearchTermsDp?pwd={SitemapPassword}";
             BackgroundJob.Enqueue<SitemapUpdateService>(x => x.Update(url));
             return Ok();
         }
@@ -549,17 +550,17 @@ namespace Menus.Web.Controllers
             var url =
                 $"/{locale.Id}/{cities.First(x => x.Id == restaurantCity).Name.Get("en").ToLower()}/iframe/clean/{restaurantUrl}";
 
-            var html = await httpClient.Get($"https://localhost:5001{url}");
-            var htmlMobile = await httpClient.Get($"https://localhost:5001{url}?device=mobile", RequestDeviceType.Mobile);
+            var html = await httpClient.Get($"{InternalUrl.Base}{url}");
+            var htmlMobile = await httpClient.Get($"{InternalUrl.Base}{url}?device=mobile", RequestDeviceType.Mobile);
 
             html = html.Replace("https://tipmymenu.com/ru/articles/forowners", "###FOR-OWNERS###");
-            html = html.Replace("localhost:5001", "frm.tipmymenu.com");
+            html = html.Replace(InternalUrl.Base, "https://frm.tipmymenu.com").Replace("localhost:5001", "frm.tipmymenu.com");
             html = html.Replace("clean/", "");
             html = html.Replace("https://tipmymenu.com", Img.MediaBaseUrl);
             html = html.Replace("###FOR-OWNERS###", "https://tipmymenu.com/ru/articles/forowners");
 
             htmlMobile = htmlMobile.Replace("https://tipmymenu.com/ru/articles/forowners", "###FOR-OWNERS###");
-            htmlMobile = htmlMobile.Replace("localhost:5001", "frm.tipmymenu.com");
+            htmlMobile = htmlMobile.Replace(InternalUrl.Base, "https://frm.tipmymenu.com").Replace("localhost:5001", "frm.tipmymenu.com");
             htmlMobile = htmlMobile.Replace("clean/", "");
             htmlMobile = htmlMobile.Replace("https://tipmymenu.com", Img.MediaBaseUrl);
             htmlMobile = htmlMobile.Replace("###FOR-OWNERS###", "https://tipmymenu.com/ru/articles/forowners");
