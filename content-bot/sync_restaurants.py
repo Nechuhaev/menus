@@ -623,10 +623,12 @@ def read_site_menu(restaurant_name, menu_url):
     if not html:
         return []
     pages = [(html, base)]
+    links = anchor_links(fetch_website_html.last_raw, base)
     for url in menu_subpages(fetch_website_html.last_raw, menu_url, base):
         sub_html, sub_base, _ = fetch_website_html(url, max_chars=40000)
         if sub_html:
             pages.append((sub_html, sub_base))
+            links.update(anchor_links(fetch_website_html.last_raw, sub_base))
 
     menu, seen = [], set()
     for page_html, page_base in pages:
@@ -635,9 +637,20 @@ def read_site_menu(restaurant_name, menu_url):
             if key and key not in seen:
                 seen.add(key)
                 d["image_url"] = resolve_url(page_base, d["image_url"]) if d.get("image_url") else None
-                d["url"] = resolve_url(page_base, d["url"]) if d.get("url") else None
+                # посилання на сторінку страви: від моделі, а якщо його немає - за текстом посилання в HTML
+                d["url"] = resolve_url(page_base, d["url"]) if d.get("url") else links.get(key)
                 menu.append(d)
     return menu
+
+
+def anchor_links(raw_html, base_url):
+    """Текст посилання -> адреса, щоб знайти сторінку страви за її назвою без AI."""
+    links = {}
+    for href, inner in re.findall(r'<a\b[^>]*href=["\']([^"\'#]+)["\'][^>]*>([\s\S]{0,300}?)</a>', raw_html or "", re.I):
+        key = normalize_name(html.unescape(re.sub(r"<[^>]+>", " ", inner)))
+        if key and key not in links and not href.startswith(("javascript:", "tel:", "mailto:")):
+            links[key] = urljoin(base_url, href)
+    return links
 
 
 def normalize_name(value):
@@ -699,6 +712,23 @@ def pair_by_stems(our_dishes, site_menu):
 
 MAX_DETAIL_PAGES = 200
 DETAIL_CACHE = {}  # одна сторінка страви на всі філії мережі за запуск
+# Склад на сторінці страви стоїть рядком під заголовком («Інгредієнти» у pesto-family.com)
+DESCRIPTION_HEADERS = {"інгредієнти", "склад", "опис", "ингредиенты", "состав", "описание", "ingredients", "description"}
+# мета-опис магазину - реклама («Замовити ... за ціною 465 грн»), а не склад
+SALES_WORDS = re.compile(r"замов|купи|достав|ціною|цене|заказ|order|delivery", re.I)
+
+
+def description_from_text(text):
+    """Перший змістовний рядок під заголовком «Інгредієнти»/«Склад»/«Опис»."""
+    lines = [l.strip() for l in (text or "").split("\n")]
+    for i, line in enumerate(lines):
+        if line.lower().rstrip(":") in DESCRIPTION_HEADERS:
+            for nxt in lines[i + 1:i + 4]:
+                if len(nxt) > 10 and not nxt.startswith("[") and not SALES_WORDS.search(nxt):
+                    return nxt
+    return None
+
+
 WEIGHT_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(г|гр|кг|мл|л|g|kg|ml|l)\b", re.I)
 
 
@@ -723,9 +753,12 @@ def enrich_from_detail(restaurant_name, site_dishes):
             raw = fetch_website_html.last_raw or ""
             info = {}
             if text:
-                desc = meta_content(raw, "og:description") or meta_content(raw, "description")
-                # загальний опис сайту однаковий на всіх сторінках - він не про страву
-                if desc and len(desc) > 15 and normalize_name(d["name"])[:20] not in normalize_name(desc)[:40]:
+                desc = description_from_text(text)
+                if not desc:
+                    meta = meta_content(raw, "og:description") or meta_content(raw, "description")
+                    if meta and len(meta) > 15 and not SALES_WORDS.search(meta):
+                        desc = meta
+                if desc:
                     info["description"] = desc
                 pos = text.find(d["name"])
                 weight = WEIGHT_RE.search(text[pos:pos + 2000] if pos >= 0 else text)
