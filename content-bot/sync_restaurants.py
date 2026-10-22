@@ -313,11 +313,13 @@ def ensure_proposals_table(db):
         )
         """
     )
+    # колонка з'явилася пізніше за таблицю - для пропозицій «змінити ціну»
+    cur.execute("ALTER TABLE MenuSyncProposals ADD COLUMN IF NOT EXISTS OldPrice DECIMAL(10,2) NULL")
     db.commit()
     cur.close()
 
 
-def save_proposals(db, restaurant_id, to_add, to_remove):
+def save_proposals(db, restaurant_id, to_add, to_remove, price_changes):
     """Старі невирішені пропозиції ресторану замінюються новими; застосовує їх адмін у «Звітах»."""
     ensure_proposals_table(db)
     cur = db.cursor()
@@ -335,6 +337,12 @@ def save_proposals(db, restaurant_id, to_add, to_remove):
             """INSERT INTO MenuSyncProposals (Id, RestaurantId, Kind, DishId, Name, Price, CreatedAt)
                VALUES (%s, %s, 'remove', %s, %s, %s, %s)""",
             (str(uuid.uuid4()), restaurant_id, dish["Id"], dish_display_name(dish), dish["Price"], now),
+        )
+    for dish, new_price in price_changes:
+        cur.execute(
+            """INSERT INTO MenuSyncProposals (Id, RestaurantId, Kind, DishId, Name, Price, OldPrice, CreatedAt)
+               VALUES (%s, %s, 'price', %s, %s, %s, %s, %s)""",
+            (str(uuid.uuid4()), restaurant_id, dish["Id"], dish_display_name(dish), new_price, dish["Price"], now),
         )
     db.commit()
     cur.close()
@@ -560,6 +568,9 @@ MENU_PROMPT = """Ось текст сторінки меню ресторану 
 # меню розпізнане впевнено лише тоді - інакше нічого не пропонуємо прибрати чи додати
 MIN_SITE_DISHES = 10
 MIN_MATCH_SHARE = 0.5
+# велике меню на сайті при застарілій базі (Pesto: 185 страв, збіглося 35 із 236) - теж розпізнане
+LARGE_MENU_DISHES = 30
+LARGE_MENU_MIN_SHARE = 0.10
 MAX_MENU_SUBPAGES = 25
 
 
@@ -838,7 +849,7 @@ def sync_menu(db, restaurant, menu_url):
     our_dishes = fetch_active_dishes(db, restaurant["Id"])
     matches, unmatched_site = match_menu(our_dishes, site_menu)
 
-    updated, price_notes = 0, []
+    updated, price_changes = 0, []
     for dish in our_dishes:
         site = matches.get(dish["Id"])
         if not site:
@@ -851,7 +862,7 @@ def sync_menu(db, restaurant, menu_url):
             if old_price == 0 or 0.5 <= new_price / old_price <= 2:
                 updates["Price"] = new_price
             else:
-                price_notes.append(f"{dish_display_name(dish)}: {old_price:g} -> {new_price:g}?")
+                price_changes.append((dish, new_price))  # більше ніж удвічі - на підтвердження адміну
 
         if not dish["Weight"] and site.get("weight"):
             updates["Weight"] = str(site["weight"])[:50]
@@ -880,17 +891,19 @@ def sync_menu(db, restaurant, menu_url):
             cur.close()
             updated += 1
 
-    share = len(matches) / len(our_dishes) if our_dishes else 0
-    stats = f"site {len(site_menu)}, matched {len(matches)}/{len(our_dishes)}, updated {updated}"
-    if price_notes:
-        stats += "; price check: " + ", ".join(price_notes[:5])
+    share = len(matches) / len(our_dishes) if our_dishes else 1
+    stats = f"site {len(site_menu)}, matched {len(matches)}/{len(our_dishes)}, updated {updated}, prices to check {len(price_changes)}"
+    recognized = len(site_menu) >= MIN_SITE_DISHES and (
+        share >= MIN_MATCH_SHARE or (len(site_menu) >= LARGE_MENU_DISHES and share >= LARGE_MENU_MIN_SHARE))
 
-    if len(site_menu) < MIN_SITE_DISHES or (our_dishes and share < MIN_MATCH_SHARE):
+    if not recognized:
+        # ціни збіглих за назвою страв достовірні й без розпізнаного меню
+        save_proposals(db, restaurant["Id"], [], [], price_changes)
         return f"menu not recognized ({stats}) at {menu_url}"
 
     unmatched_ours = [d for d in our_dishes if d["Id"] not in matches]
-    save_proposals(db, restaurant["Id"], unmatched_site, unmatched_ours)
-    return f"menu ok ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)}"
+    save_proposals(db, restaurant["Id"], unmatched_site, unmatched_ours, price_changes)
+    return f"menu ok ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)} price {len(price_changes)}"
 
 
 def main():
