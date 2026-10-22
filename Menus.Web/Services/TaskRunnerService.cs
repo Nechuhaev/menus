@@ -1,5 +1,6 @@
 ﻿using Hangfire;
 using Menus.Abstract;
+using Menus.Web.Helpers;
 using Microsoft.AspNetCore.Hosting;
 
 namespace Menus.Web.Services
@@ -22,7 +23,7 @@ namespace Menus.Web.Services
 
         public void RunUpdateRestaurantIframeCache(string restaurantId)
         {
-            RunTaskByUrl($"https://localhost:5001/ru/sitemap/RegenerateRestaurantIframeCache?id={restaurantId}");
+            RunTaskByUrl($"{InternalUrl.Base}/ru/sitemap/RegenerateRestaurantIframeCache?id={restaurantId}");
         }
     }
 }

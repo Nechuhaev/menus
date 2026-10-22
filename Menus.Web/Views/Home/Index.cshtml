@@ -617,6 +617,17 @@
     <div>@Localizer["RestarauntsNearMe"]</div>
 </div>
 
+@section JsonLd {
+    @{
+        var ldSiteUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/";
+    }
+    @(Menus.Web.Helpers.JsonLd.Script(
+        Menus.Web.Helpers.JsonLd.Organization(ldSiteUrl, ldSiteUrl + "images/logo_tip_menu.png",
+            "https://www.facebook.com/tipmymenu/", "https://www.instagram.com/tipmymenu/"),
+        Menus.Web.Helpers.JsonLd.WebSite(ldSiteUrl, Url.Action("Index", "Home", null, Context.Request.Scheme), culture,
+            Url.Action("SearchResult", "Home", null, Context.Request.Scheme))))
+}
+
 @section Scripts {
     <script src="~/js/jquery.js"></script>
     <script src="~/js/swiper.min.js"></script>
