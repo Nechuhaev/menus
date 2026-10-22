@@ -214,6 +214,21 @@
         </div>
     </div>
 </div>*@
+@{
+    var faq = Enumerable.Range(1, 5).Select(i => (Q: Localizer[$"FaqQ{i}"].Value, A: Localizer[$"FaqA{i}"].Value)).ToArray();
+}
+<div class="section-faq">
+    <div class="container">
+        <h2>@Localizer["FaqHeader"]</h2>
+        @foreach (var item in faq)
+        {
+            <details>
+                <summary>@item.Q</summary>
+                <p>@item.A</p>
+            </details>
+        }
+    </div>
+</div>
 <div id="section5" class="section5">
     <div class="container">
         <div class="form-container">
@@ -245,7 +260,7 @@
         <a href="/@culture/content/privacy">@Localizer["PrivacyPolicy"]</a>
     </div>
 </footer>
-<a href="#section5" id="scrollToTop" class="button_link_mobile mobile">хочу попробовать</a>
+<a href="#section5" id="scrollToTop" class="button_link_mobile mobile">@Localizer["WantToTry"]</a>
 
 @if (isInternalView)
 {
@@ -253,7 +268,19 @@
 }
 
 
+@section JsonLd {
+    @(Menus.Web.Helpers.JsonLd.Script(Menus.Web.Helpers.JsonLd.FaqPage(
+        Enumerable.Range(1, 5).Select(i => (Localizer[$"FaqQ{i}"].Value, Localizer[$"FaqA{i}"].Value)).ToArray())))
+}
+
 @section Styles {
+    <style>
+        .section-faq { padding: 40px 0; }
+        .section-faq h2 { text-align: center; margin-bottom: 24px; }
+        .section-faq details { max-width: 800px; margin: 0 auto 12px; border-bottom: 1px solid #e5e5e5; padding-bottom: 12px; }
+        .section-faq summary { cursor: pointer; font-weight: 600; font-size: 18px; }
+        .section-faq details p { margin: 10px 0 0; }
+    </style>
     @if (UserService.IsMobileUser(Context.Request))
     {
         <link href="~/css/for-owners-mobile.css" rel="stylesheet" asp-append-version="true" />

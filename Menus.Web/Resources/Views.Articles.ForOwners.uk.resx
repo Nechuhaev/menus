@@ -191,7 +191,7 @@ Tip&lt;span&gt;mymenu&lt;/span&gt; вирішує цю проблему, ми з
     <value>Обери, як ти хочеш керувати своєю сторінкою - самостійно або наш менеджер зробить це за тебе</value>
   </data>
   <data name="PlaceTheElectronic" xml:space="preserve">
-    <value>Розміщуй електронне (кастомізоване) меню на укр, рус і англ мовами на топових сайтах: TripAdvisor, Facebook *, Instagram, Telegram bot TipMyMenu та ін.</value>
+    <value>Розміщуй електронне (кастомізоване) меню на укр, рус і англ мовами на топових сайтах: TripAdvisor, Facebook *, Instagram та ін.</value>
   </data>
   <data name="SeoPromotion" xml:space="preserve">
     <value>Пріоритетне SEO-просування в пошукових системах</value>
@@ -465,5 +465,38 @@ Tip&lt;span&gt;mymenu&lt;/span&gt; вирішує цю проблему, ми з
   </data>
   <data name="PrivacyPolicy" xml:space="preserve">
     <value>Політика конфіденційності</value>
+  </data>
+  <data name="FaqHeader" xml:space="preserve">
+    <value>Часті запитання</value>
+  </data>
+  <data name="FaqQ1" xml:space="preserve">
+    <value>Скільки коштує розміщення ресторану на TipMyMenu?</value>
+  </data>
+  <data name="FaqA1" xml:space="preserve">
+    <value>Розміщення безкоштовне: сторінка ресторану з меню, фото та відгуками відвідувачів.</value>
+  </data>
+  <data name="FaqQ2" xml:space="preserve">
+    <value>Як додати свій ресторан?</value>
+  </data>
+  <data name="FaqA2" xml:space="preserve">
+    <value>Залиште контакти у формі нижче або зателефонуйте нам. Менеджер зареєструє ресторан і надасть доступ до особистого кабінету.</value>
+  </data>
+  <data name="FaqQ3" xml:space="preserve">
+    <value>Хто заповнює меню?</value>
+  </data>
+  <data name="FaqA3" xml:space="preserve">
+    <value>Ви самостійно в особистому кабінеті. За потреби з наповненням допоможе наш менеджер.</value>
+  </data>
+  <data name="FaqQ4" xml:space="preserve">
+    <value>Якими мовами буде меню?</value>
+  </data>
+  <data name="FaqA4" xml:space="preserve">
+    <value>Українською, англійською та російською.</value>
+  </data>
+  <data name="FaqQ5" xml:space="preserve">
+    <value>Чи можна змінювати меню та ціни?</value>
+  </data>
+  <data name="FaqA5" xml:space="preserve">
+    <value>Так, у будь-який момент в особистому кабінеті.</value>
   </data>
 </root>

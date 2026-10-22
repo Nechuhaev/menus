@@ -191,7 +191,7 @@ Tip&lt;span&gt;mymenu&lt;/span&gt; solves this problem, we will make your menu s
     <value>Choose how you want to manage your page - on your own or our manager will do it for you</value>
   </data>
   <data name="PlaceTheElectronic" xml:space="preserve">
-    <value>Place the electronic (customized) menu in ua, ru and en languages on top sites: TripAdvisor, Facebook*, Instagram, Telegram bot TipMyMenu, etc.</value>
+    <value>Place the electronic (customized) menu in ua, ru and en languages on top sites: TripAdvisor, Facebook*, Instagram, etc.</value>
   </data>
   <data name="SeoPromotion" xml:space="preserve">
     <value>Priority SEO promotion in search engines</value>
@@ -466,5 +466,38 @@ Tip&lt;span&gt;mymenu&lt;/span&gt; solves this problem, we will make your menu s
   </data>
   <data name="PrivacyPolicy" xml:space="preserve">
     <value>Privacy policy</value>
+  </data>
+  <data name="FaqHeader" xml:space="preserve">
+    <value>Frequently asked questions</value>
+  </data>
+  <data name="FaqQ1" xml:space="preserve">
+    <value>How much does it cost to list a restaurant on TipMyMenu?</value>
+  </data>
+  <data name="FaqA1" xml:space="preserve">
+    <value>Listing is free: a restaurant page with the menu, photos and guest reviews.</value>
+  </data>
+  <data name="FaqQ2" xml:space="preserve">
+    <value>How do I add my restaurant?</value>
+  </data>
+  <data name="FaqA2" xml:space="preserve">
+    <value>Leave your contacts in the form below or call us. A manager will register the restaurant and give you access to your account.</value>
+  </data>
+  <data name="FaqQ3" xml:space="preserve">
+    <value>Who fills in the menu?</value>
+  </data>
+  <data name="FaqA3" xml:space="preserve">
+    <value>You do, in your account. If needed, our manager will help with the content.</value>
+  </data>
+  <data name="FaqQ4" xml:space="preserve">
+    <value>Which languages is the menu available in?</value>
+  </data>
+  <data name="FaqA4" xml:space="preserve">
+    <value>Ukrainian, English and Russian.</value>
+  </data>
+  <data name="FaqQ5" xml:space="preserve">
+    <value>Can I change the menu and prices?</value>
+  </data>
+  <data name="FaqA5" xml:space="preserve">
+    <value>Yes, at any time in your account.</value>
   </data>
 </root>

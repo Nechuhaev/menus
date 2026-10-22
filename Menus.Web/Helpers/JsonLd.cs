@@ -101,6 +101,17 @@ namespace Menus.Web.Helpers
                     ("target", Obj(("@type", "EntryPoint"), ("urlTemplate", searchUrl + "?q={search_term_string}"))),
                     ("query-input", "required name=search_term_string"))));
 
+        public static object FaqPage(params (string Question, string Answer)[] items)
+        {
+            var list = items.Where(x => !string.IsNullOrWhiteSpace(x.Question) && !string.IsNullOrWhiteSpace(x.Answer))
+                .Select(x => Obj(("@type", "Question"), ("name", x.Question),
+                    ("acceptedAnswer", Obj(("@type", "Answer"), ("text", x.Answer)))))
+                .ToList();
+            if (list.Count == 0) return null;
+
+            return Obj(("@context", "https://schema.org"), ("@type", "FAQPage"), ("mainEntity", list));
+        }
+
         public static object Breadcrumbs(params (string Name, string Url)[] items)
         {
             var list = items.Where(x => !string.IsNullOrWhiteSpace(x.Name) && !string.IsNullOrWhiteSpace(x.Url))
