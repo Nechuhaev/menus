@@ -78,10 +78,16 @@ def _extract_json(raw_text, allow_empty_list=False):
         raise ValueError("empty response after stripping code fences")
     # модель іноді пише пояснення перед JSON («Це сторінка входу, меню немає: []») -
     # беремо перший JSON-масив чи об'єкт у тексті
-    start = min((i for i in (cleaned.find("["), cleaned.find("{")) if i >= 0), default=-1)
-    if start < 0:
+    # («[link https://...]» у тексті перед JSON - теж «[», тому пробуємо кожну позицію)
+    parsed, decoder = None, json.JSONDecoder()
+    for start in (i for i, ch in enumerate(cleaned) if ch in "[{"):
+        try:
+            parsed, _ = decoder.raw_decode(cleaned[start:])
+            break
+        except json.JSONDecodeError:
+            continue
+    else:
         raise ValueError(f"no JSON in response: {cleaned[:80]}")
-    parsed, _ = json.JSONDecoder().raw_decode(cleaned[start:])
     # «[]» - законна відповідь на «випиши страви», коли сторінка не є меню
     if not parsed and not (allow_empty_list and parsed == []):
         raise ValueError("parsed to an empty JSON object/array")
@@ -516,7 +522,8 @@ RESTAURANT_INFO_PROMPT = """Ось HTML-фрагмент сайту рестор
 
 def extract_restaurant_info(restaurant_name, html):
     try:
-        return call_llm_json(RESTAURANT_INFO_PROMPT.format(restaurant_name=restaurant_name, html=html), max_tokens=500)
+        return call_llm_json(RESTAURANT_INFO_PROMPT.format(restaurant_name=restaurant_name, html=html), max_tokens=500,
+                             model=CHEAP_MODEL)
     except Exception as e:
         print(f"    Restaurant info extraction failed: {e}")
         return {}
@@ -542,7 +549,7 @@ def generate_seo(name, city, address, cuisine_uk, cuisine_ru):
     try:
         cuisine_text = f"{cuisine_uk or ''} / {cuisine_ru or ''}".strip(" /") or "ресторан"
         prompt = SEO_PROMPT.format(name=name, city=city, address=address, cuisine=cuisine_text)
-        return call_llm_json(prompt, max_tokens=600)
+        return call_llm_json(prompt, max_tokens=600, model=CHEAP_MODEL)
     except Exception as e:
         print(f"    SEO generation failed: {e}")
         return {}
@@ -568,30 +575,6 @@ MENU_PROMPT = """Ось текст сторінки меню ресторану 
 [{{"name": "...", "lang": "uk", "category": "...", "price": 0, "weight": "...", "description": "...", "image_url": "...", "url": "..."}}]
 """
 
-DETAIL_PROMPT = """Ось текст сторінки страви "{dish_name}" ресторану "{restaurant_name}":
-
-{text}
-
-Витягни лише те, що ЯВНО є на сторінці, дослівно:
-- description: опис або склад страви
-- weight: вихід/вага/об'єм (наприклад "590 г")
-- image_url: src головного зображення цієї страви
-
-Поверни ЛИШЕ валідний JSON: {{"description": "..." або null, "weight": "..." або null, "image_url": "..." або null}}
-"""
-
-PAIR_PROMPT = """Два списки страв одного ресторану: наша база (A) і сайт ресторану (B).
-Назви можуть відрізнятися мовою (українська/російська), порядком слів, уточненнями («Салат Цезар з куркою» = «Цезарь с курицей»).
-
-A:
-{ours}
-
-B:
-{site}
-
-Знайди пари, де це ТОЧНО та сама страва. Не з'єднуй різні страви (різна піца, різний смак, інший розмір порції).
-Поверни ЛИШЕ валідний JSON-масив пар номерів: [{{"a": 1, "b": 3}}] або [] якщо пар немає.
-"""
 
 # меню розпізнане впевнено лише тоді - інакше нічого не пропонуємо прибрати чи додати
 MIN_SITE_DISHES = 10
@@ -683,39 +666,51 @@ def match_menu(our_dishes, site_menu):
     return matches, unmatched_site
 
 
-def pair_with_llm(restaurant_name, our_dishes, site_menu):
-    """Друге коло зіставлення для того, що не збіглося за назвою: AI з'єднує ту саму страву
-    з різними назвами, інакше вона потрапляла у звіт парою «додати» + «прибрати»."""
-    pairs = {}
-    if not our_dishes or not site_menu:
-        return pairs
-    site_list = "\n".join(f"{i + 1}. {d['name']}" for i, d in enumerate(site_menu))
-    for chunk in [our_dishes[i:i + 100] for i in range(0, len(our_dishes), 100)]:
-        ours_list = "\n".join(f"{i + 1}. {dish_display_name(d)}" for i, d in enumerate(chunk))
-        try:
-            found = call_llm_json(PAIR_PROMPT.format(ours=ours_list, site=site_list), max_tokens=4000,
-                                  model=CHEAP_MODEL, allow_empty_list=True)
-        except Exception as e:
-            print(f"    Dish pairing failed for {restaurant_name}: {e}")
-            continue
-        used_site = {id(d) for d in pairs.values()}
-        for p in found if isinstance(found, list) else []:
-            try:
-                dish, site = chunk[int(p["a"]) - 1], site_menu[int(p["b"]) - 1]
-            except (KeyError, ValueError, TypeError, IndexError):
-                continue
-            if dish["Id"] not in pairs and id(site) not in used_site:
-                pairs[dish["Id"]] = site
-                used_site.add(id(site))
+# Службові слова й загальні слова-категорії не відрізняють страви: «Салат Цезар з куркою» = «Цезар з куркою»
+STOP_WORDS = {"з", "із", "зі", "с", "со", "та", "і", "и", "в", "у", "на", "по", "для", "салат", "суп", "соус"}
+
+
+def name_stems(value):
+    """Основи слів назви (перші 5 літер) без службових слів."""
+    return {w[:5] for w in normalize_name(value).split() if w not in STOP_WORDS and not w.isdigit()}
+
+
+def pair_by_stems(our_dishes, site_menu):
+    """Друге коло зіставлення без AI: інший порядок слів чи зайве слово-категорія. Мовні відмінності
+    закриває українська назва в базі (усі назви перекладено DeepL). Пара - коли основи слів збігаються
+    щонайменше на 75% (Жаккар) в одній із мов і пара найкраща для обох сторін; «Піца Маргарита» і
+    «Піца Маргарита з беконом» (67%) не з'єднуються."""
+    site_stems = [name_stems(d["name"]) for d in site_menu]
+    candidates = []
+    for dish in our_dishes:
+        variants = [name_stems(get_localizable_value(dish["Name"], l)) for l in ("uk", "ru", "en")]
+        for j, theirs in enumerate(site_stems):
+            score = max((len(v & theirs) / len(v | theirs) for v in variants if v and theirs), default=0)
+            if score >= 0.75:
+                candidates.append((score, dish["Id"], j))
+    pairs, used_dishes, used_site = {}, set(), set()
+    for score, dish_id, j in sorted(candidates, key=lambda c: c[0], reverse=True):
+        if dish_id not in used_dishes and j not in used_site:
+            pairs[dish_id] = site_menu[j]
+            used_dishes.add(dish_id)
+            used_site.add(j)
     return pairs
 
 
 MAX_DETAIL_PAGES = 200
 DETAIL_CACHE = {}  # одна сторінка страви на всі філії мережі за запуск
+WEIGHT_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(г|гр|кг|мл|л|g|kg|ml|l)\b", re.I)
+
+
+def meta_content(raw_html, name):
+    m = re.search(r'<meta[^>]+(?:property|name)=["\']' + re.escape(name) + r'["\'][^>]*content=["\']([^"\']*)["\']', raw_html, re.I) \
+        or re.search(r'<meta[^>]+content=["\']([^"\']*)["\'][^>]*(?:property|name)=["\']' + re.escape(name) + r'["\']', raw_html, re.I)
+    return html.unescape(m.group(1)).strip() if m else None
 
 
 def enrich_from_detail(restaurant_name, site_dishes):
-    """Опис, вага й фото зі сторінки страви, якщо в списку категорії їх немає."""
+    """Опис, вага й фото зі сторінки страви - кодом, без AI: опис із og:description/description,
+    фото з og:image, вага - перший «590 г» у тексті поруч із назвою."""
     fetched = 0
     for d in site_dishes:
         if not d.get("url") or (d.get("description") and d.get("weight") and d.get("image_url")):
@@ -724,23 +719,33 @@ def enrich_from_detail(restaurant_name, site_dishes):
             if fetched >= MAX_DETAIL_PAGES:
                 break
             fetched += 1
-            text, base, _ = fetch_website_html(d["url"], max_chars=8000)
+            text, base, og_image = fetch_website_html(d["url"], max_chars=20000)
+            raw = fetch_website_html.last_raw or ""
             info = {}
             if text:
-                try:
-                    info = call_llm_json(DETAIL_PROMPT.format(dish_name=d["name"], restaurant_name=restaurant_name, text=text),
-                                         max_tokens=1500, model=CHEAP_MODEL)
-                    if info.get("image_url"):
-                        info["image_url"] = resolve_url(base, info["image_url"])
-                except Exception as e:
-                    print(f"    Dish page failed {d['url']}: {e}")
-                    info = {}
-            DETAIL_CACHE[d["url"]] = info if isinstance(info, dict) else {}
+                desc = meta_content(raw, "og:description") or meta_content(raw, "description")
+                # загальний опис сайту однаковий на всіх сторінках - він не про страву
+                if desc and len(desc) > 15 and normalize_name(d["name"])[:20] not in normalize_name(desc)[:40]:
+                    info["description"] = desc
+                pos = text.find(d["name"])
+                weight = WEIGHT_RE.search(text[pos:pos + 2000] if pos >= 0 else text)
+                if weight:
+                    info["weight"] = f"{weight.group(1)} {weight.group(2)}"
+                if og_image:
+                    info["image_url"] = resolve_url(base, og_image)
+            DETAIL_CACHE[d["url"]] = info
+    # опис, однаковий на багатьох сторінках, - загальний текст сайту, а не склад страви
+    repeated = {}
+    for info in DETAIL_CACHE.values():
+        if info.get("description"):
+            repeated[info["description"]] = repeated.get(info["description"], 0) + 1
+    for d in site_dishes:
+        info = DETAIL_CACHE.get(d.get("url") or "", {})
         for key in ("description", "weight", "image_url"):
-            if not d.get(key) and DETAIL_CACHE[d["url"]].get(key):
-                d[key] = DETAIL_CACHE[d["url"]][key]
-        if LLM_DOWN:
-            break
+            if key == "description" and repeated.get(info.get(key), 0) > 2:
+                continue
+            if not d.get(key) and info.get(key):
+                d[key] = info[key]
 
 
 def parse_price(value):
@@ -937,7 +942,7 @@ def sync_menu(db, restaurant, menu_url):
     site_menu = read_site_menu(name, menu_url)
     our_dishes = fetch_active_dishes(db, restaurant["Id"])
     matches, unmatched_site = match_menu(our_dishes, site_menu)
-    paired = pair_with_llm(name, [d for d in our_dishes if d["Id"] not in matches], unmatched_site)
+    paired = pair_by_stems([d for d in our_dishes if d["Id"] not in matches], unmatched_site)
     matches.update(paired)
     unmatched_site = [d for d in unmatched_site if all(d is not p for p in paired.values())]
     # опис/вага/фото зі сторінок страв - для тих, що додаємо, і для наших без цих даних
