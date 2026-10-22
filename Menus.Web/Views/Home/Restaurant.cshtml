@@ -26,6 +26,8 @@
         ? string.Format(Localizer["MetaTitle"].Value, Model.Restaurant.Name, restaurantCity.Name.Get(culture))
         : seo.Title.Get(culture);
     ViewData["Title"] = title;
+    // og:image для соцмереж: фото ресторану замість загальної картинки
+    if (Model.Photos != null && Model.Photos.Any()) { ViewData["MainImage"] = Img.Url(Model.Photos.First(), Quality.High); }
 
     var restaurantDescription = Model.RestaurantInfo.ShortInfo.Get(culture);
     ViewData["Description"] = string.IsNullOrEmpty(seo.Description.Get(culture))

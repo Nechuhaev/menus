@@ -23,6 +23,8 @@
     var restaurantCitySlug = restaurantCity?.Name.Get("en").ToLower() ?? ViewData["selectedCityName"] as string;
     ViewData["Title"] = string.Format(Localizer["MetaTitle"].Value, Model.Name.Get(culture), restaurant.Name, restaurantCity?.Name.Get(culture) ?? restaurantCitySlug);
     ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, Model.Name.Get(culture), restaurant.Name, restaurantCity?.Name.Get(culture) ?? restaurantCitySlug);
+    // og:image для соцмереж: фото страви замість загальної картинки
+    if (Model.Photos != null && Model.Photos.Any()) { ViewData["MainImage"] = Img.Url(Model.Photos.First(), Quality.High); }
 
     var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
 
