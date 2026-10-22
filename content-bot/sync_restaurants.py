@@ -5,10 +5,14 @@ at our volume). Everything now comes from the restaurant's own website, fetched 
 per restaurant and reused for both restaurant-level and dish-level enrichment.
 
 OpenStreetMap (Nominatim) is used only for: (a) GPS coordinates, and (b) a free,
-best-effort check for a `website` tag before concluding a restaurant genuinely has
-no website. A restaurant with no discoverable website (neither in our DB nor on OSM)
-is marked Closed — treated as evidence the business is no longer actively maintained/
-findable online, since we have no other free signal for closure detection anymore.
+best-effort check for a `website` tag. A restaurant with no website (or a dead one -
+DNS error, 404/410) is never closed automatically: it is set to Pending (hidden from
+the site) and logged, so an admin reviews it; a dead website is removed from the card.
+
+Dishes: price, weight, photo and description are taken ONLY from the restaurant's own
+menu page (a "menu" link on the homepage, or the homepage itself) - nothing is
+generated. Description is stored in the language of the site; translation is done
+separately via DeepL (translate_missing.py).
 
 Run daily via cron. Processes a batch of restaurants per run.
 """
@@ -52,7 +56,9 @@ RECHECK_AFTER_DAYS = 30
 NOMINATIM_USER_AGENT = "TipMyMenuBot/1.0 (+https://tipmymenu.com)"
 
 RESTAURANT_STATUS_ACTIVE = 0
-RESTAURANT_STATUS_CLOSED = 3
+RESTAURANT_STATUS_PENDING = 1
+# Зіставлення страв - найбільше викликів, тож дешевша модель
+CHEAP_MODEL = "claude-haiku-5-5"
 
 anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
 
@@ -72,19 +78,22 @@ def _extract_json(raw_text):
     return parsed
 
 
-def call_llm_json(prompt, max_tokens):
+def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5"):
     """Try Claude, then OpenRouter, then Groq, then Cloudflare Workers AI, then
     Gemini directly (Gemini last — its free tier caps at only 20 requests/day).
     Each provider's raw response is validated as usable JSON before being accepted,
     so a 200 OK with empty/garbage content doesn't get treated as success."""
 
     def try_claude():
+        # Haiku 5.5 думає за замовчуванням - для витягування даних це зайві токени
+        extra = {"thinking": {"type": "disabled"}} if model == CHEAP_MODEL else {}
         message = anthropic_client.messages.create(
-            model="claude-sonnet-4-5",
+            model=model,
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
+            **extra,
         )
-        return message.content[0].text
+        return "".join(b.text for b in message.content if b.type == "text")
 
     def try_openrouter():
         resp = requests.post(
@@ -255,14 +264,15 @@ def fetch_needy_dishes(db, restaurant_id):
         SELECT Id, Name, Description, Price, Weight, WeightType, PhotoLink
         FROM Dishes
         WHERE RestaurantId = %s
-          AND (Price = 0 OR Weight IS NULL OR Weight = ''
-               OR Description IS NULL OR PhotoLink IS NULL OR PhotoLink = '[]')
         """,
         (restaurant_id,),
     )
     rows = cur.fetchall()
     cur.close()
-    return rows
+    # порожній JSON опису ({"Values":[]}) - теж «без опису», тому фільтр тут, а не в SQL
+    return [d for d in rows
+            if not d["Price"] or not d["Weight"] or is_localizable_empty(d["Description"])
+            or not d["PhotoLink"] or d["PhotoLink"] == "[]"]
 
 def verify_restaurant_closure(name, address, city):
     """When no website is found anywhere (DB, OSM), use Claude with real web search
@@ -331,6 +341,30 @@ def osm_lookup(name, address, city):
         return {}
 
 
+MENU_LINK = re.compile(r'<a[^>]+href=["\']([^"\'#]+)["\'][^>]*>(?:(?!</a>).){0,200}?(?:меню|menu)', re.I | re.S)
+
+
+def find_menu_url(raw_html, base_url):
+    """Посилання «Меню» на головній: саме меню зазвичай на окремій сторінці."""
+    m = MENU_LINK.search(raw_html)
+    if not m:
+        return None
+    url = urljoin(base_url, m.group(1))
+    return url if url.startswith("http") and url.rstrip("/") != base_url.rstrip("/") else None
+
+
+def is_dead_website(url):
+    """Сайт точно не працює: домен не існує або сторінки немає (404/410).
+    Тайм-аути й 5xx - тимчасові, за них сайт не видаляємо."""
+    try:
+        resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0 (compatible; TipMyMenuBot/1.0)"})
+        return resp.status_code in (404, 410)
+    except requests.exceptions.ConnectionError as e:
+        return "Name or service not known" in str(e) or "NameResolutionError" in str(e) or "getaddrinfo failed" in str(e)
+    except Exception:
+        return False
+
+
 def fetch_website_html(url, max_chars=12000):
     try:
         resp = requests.get(
@@ -338,6 +372,7 @@ def fetch_website_html(url, max_chars=12000):
         )
         resp.raise_for_status()
         raw_html = resp.text
+        fetch_website_html.last_menu_url = find_menu_url(raw_html, resp.url)
         og_image_match = re.search(
             r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', raw_html
         )
@@ -347,6 +382,7 @@ def fetch_website_html(url, max_chars=12000):
         html = re.sub(r"\s+", " ", html).strip()
         return html[:max_chars], resp.url, og_image
     except Exception as e:
+        fetch_website_html.last_menu_url = None
         print(f"    Website fetch failed for {url}: {e}")
         return None, None, None
 
@@ -410,14 +446,15 @@ MATCH_PROMPT = """Ось HTML-фрагмент сторінки меню рес�
 - ціну (тільки число, як вказано на сторінці)
 - грамотуру/вихід (наприклад "250 г", як вказано на сторінці)
 - URL зображення, якщо він явно прив'язаний саме до цієї страви (src з тегу img поруч із назвою)
+- опис або склад страви ДОСЛІВНО, як на сторінці (без змін і без перекладу), і мову цього тексту: "uk", "ru" або "en"
 
-ВАЖЛИВО: якщо конкретної страви немає на сторінці, або дані не вказані явно — постав null для цієї страви (але однаково включи її в масив). НЕ вигадуй ціну, грамотуру чи фото. Це критично: неточна ціна чи вага введе відвідувачів в оману.
+ВАЖЛИВО: якщо конкретної страви немає на сторінці, або дані не вказані явно — постав null для цієї страви (але однаково включи її в масив). НЕ вигадуй ціну, грамотуру, фото чи опис. Це критично: неточна ціна чи вага введе відвідувачів в оману.
 
 Якщо сторінка взагалі не є меню ресторану (наприклад форма входу, помилка, редирект на інший сервіс) — все одно поверни масив з усіма id зі списку страв, де всі поля null.
 
 Поверни ЛИШЕ валідний JSON, без жодного тексту до чи після, масив об'єктів у тому ж порядку, що й список страв:
 [
-  {{"dish_id": "...", "price": число або null, "weight": "..." або null, "image_url": "..." або null}}
+  {{"dish_id": "...", "price": число або null, "weight": "..." або null, "image_url": "..." або null, "description": "..." або null, "description_lang": "uk" або "ru" або "en" або null}}
 ]
 """
 
@@ -437,43 +474,12 @@ def match_dishes_on_site(restaurant_name, base_url, html, dishes):
             print(f"    Prompt formatting failed for a batch: {e}")
             continue
         try:
-            for m in call_llm_json(prompt, max_tokens=2000):
+            for m in call_llm_json(prompt, max_tokens=6000, model=CHEAP_MODEL):
                 if m.get("dish_id"):
                     all_matches[m["dish_id"]] = m
         except Exception as e:
             print(f"    Site matching failed for a batch: {e}")
     return all_matches
-
-
-DESCRIPTION_PROMPT = """Напиши коротку апетитну маркетингову назву-опис для кожної страви зі списку нижче (ресторан "{restaurant_name}", кухня: {cuisine}).
-
-Список страв:
-{dish_list}
-
-Для кожної страви — 1-2 речення українською і 1-2 речення російською, привабливо, без перебільшень. Це загальний опис на основі назви (не претензія на точний рецепт закладу).
-
-Поверни ЛИШЕ валідний JSON, масив у тому ж порядку:
-[
-  {{"dish_id": "...", "description_uk": "...", "description_ru": "..."}}
-]
-"""
-
-
-def generate_descriptions_batch(restaurant_name, cuisine, dishes_needing_description):
-    all_results = {}
-    for chunk in chunked(dishes_needing_description, 25):
-        dish_list = "\n".join(
-            f"- id={d['Id']}: {get_localizable_value(d['Name'], 'uk') or get_localizable_value(d['Name'], 'ru')}"
-            for d in chunk
-        )
-        try:
-            prompt = DESCRIPTION_PROMPT.format(restaurant_name=restaurant_name, cuisine=cuisine or "змішана", dish_list=dish_list)
-            for r in call_llm_json(prompt, max_tokens=4000):
-                if r.get("dish_id"):
-                    all_results[r["dish_id"]] = r
-        except Exception as e:
-            print(f"    Batch description generation failed for a batch: {e}")
-    return all_results
 
 
 def resolve_url(base_url, maybe_relative):
@@ -530,6 +536,18 @@ def log_check(db, restaurant_id, notes, closed_detected):
     cur.close()
 
 
+def set_pending(db, restaurant_id, note, clear_website=False):
+    """Не закриваємо автоматично: Pending ховає ресторан із сайту до перевірки адміном."""
+    cur = db.cursor()
+    cur.execute("UPDATE Restaurants SET Status = %s WHERE Id = %s", (RESTAURANT_STATUS_PENDING, restaurant_id))
+    if clear_website:
+        cur.execute("UPDATE RestaurantInfo SET Website = NULL WHERE RestaurantId = %s", (restaurant_id,))
+    db.commit()
+    cur.close()
+    log_check(db, restaurant_id, note, closed_detected=True)
+    print(f"  -> {note}")
+
+
 def process_restaurant(db, restaurant):
     name = restaurant["Name"]
     print(f"Restaurant: {name}")
@@ -548,19 +566,13 @@ def process_restaurant(db, restaurant):
         if verification and verification.get("website"):
             website = verification["website"]
             notes.append("website found via web search verification")
-        elif verification and verification.get("likely_closed") and verification.get("confidence") in ("high", "medium"):
-            cur = db.cursor()
-            cur.execute("UPDATE Restaurants SET Status = %s WHERE Id = %s", (RESTAURANT_STATUS_CLOSED, restaurant["Id"]))
-            db.commit()
-            cur.close()
-            reason = verification.get("reason", "")
-            log_check(db, restaurant["Id"], f"Marked Closed: confirmed via web search ({verification.get('confidence')} confidence): {reason}", closed_detected=True)
-            print(f"  -> Marked as CLOSED (confirmed via web search: {reason})")
-            return
         else:
-            log_check(db, restaurant["Id"], "No website found (DB/OSM/web search); not confidently closed — flagged for manual review", closed_detected=False)
-            print("  -> No website found, closure not confirmed — flagged for manual review (not auto-closed)")
+            reason = (verification or {}).get("reason", "")
+            set_pending(db, restaurant["Id"], f"Pending: no website (DB/OSM/web search). {reason}".strip())
             return
+    elif is_dead_website(website):
+        set_pending(db, restaurant["Id"], f"Pending: website is dead ({website}), removed from the card", clear_website=True)
+        return
 
     info_updates = {}
     if website != restaurant["Website"]:
@@ -573,6 +585,7 @@ def process_restaurant(db, restaurant):
         notes.append("GPS filled via OSM")
 
     html, base_url, og_image = fetch_website_html(website)
+    menu_url = fetch_website_html.last_menu_url if html else None
 
     site_info = {}
     if html:
@@ -635,13 +648,14 @@ def process_restaurant(db, restaurant):
 
     dishes = fetch_needy_dishes(db, restaurant["Id"])
     if dishes and html:
-        site_matches = match_dishes_on_site(name, base_url, html, dishes)
-
-        dishes_needing_description = [d for d in dishes if is_localizable_empty(d["Description"])]
-        description_batch = {}
-        if dishes_needing_description:
-            cuisine_text = site_info.get("cuisine_uk") or get_localizable_value(restaurant["Cuisine"], "uk")
-            description_batch = generate_descriptions_batch(name, cuisine_text, dishes_needing_description)
+        menu_html, menu_base = html, base_url
+        if menu_url:
+            # сторінка меню довша за головну - беремо більше тексту (Haiku дешевий)
+            fetched, fetched_base, _ = fetch_website_html(menu_url, max_chars=40000)
+            if fetched:
+                menu_html, menu_base = fetched, fetched_base
+                notes.append(f"menu page: {menu_url}")
+        site_matches = match_dishes_on_site(name, menu_base, menu_html, dishes)
 
         dish_updates_count = 0
         for dish in dishes:
@@ -654,15 +668,16 @@ def process_restaurant(db, restaurant):
             if not dish["Weight"] and match.get("weight"):
                 dish_updates["Weight"] = match["weight"]
 
-            if is_localizable_empty(dish["Description"]):
-                desc = description_batch.get(dish["Id"])
-                if desc and desc.get("description_uk"):
-                    dish_updates["Description"] = localizable_json(desc["description_uk"], desc.get("description_ru", desc["description_uk"]))
+            # опис лише з сайту, мовою сайту; інші мови допише DeepL (translate_missing.py)
+            site_desc = (match.get("description") or "").strip()
+            site_lang = match.get("description_lang") if match.get("description_lang") in ("uk", "ru", "en") else "uk"
+            if site_desc and is_localizable_empty(dish["Description"]):
+                dish_updates["Description"] = json.dumps({"Values": [{"Locale": site_lang, "Value": site_desc}]}, ensure_ascii=False)
 
             has_photo = dish["PhotoLink"] and dish["PhotoLink"] != "[]"
             if not has_photo and match.get("image_url"):
                 try:
-                    img_resp = requests.get(resolve_url(base_url, match["image_url"]), timeout=15)
+                    img_resp = requests.get(resolve_url(menu_base, match["image_url"]), timeout=15)
                     img_resp.raise_for_status()
                     file_id = upload_photo_to_spaces(img_resp.content)
                     dish_updates["PhotoLink"] = json.dumps([file_id])

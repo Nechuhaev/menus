@@ -5,30 +5,24 @@ Russian is present. Priority scope (this run): restaurants shown on the homepage
 (ShowOnIndex=1), their dishes, and the most recent blog articles. The rest of the
 database is a separate later pass, not covered here.
 
-LLM calls use the same 5-tier fallback as the other content-bot scripts:
-Claude -> OpenRouter -> Groq -> Cloudflare Workers AI -> Gemini.
+Переклад - через DeepL API (DEEPL_API_KEY у .env), не через LLM. Якщо DeepL визначив,
+що текст уже український, він лишається як є. Не більше DEEPL_MAX_CHARS символів за запуск.
 
 Run manually for now (not yet scheduled in cron).
 """
 import json
 import os
-import re
-import time
 from datetime import datetime
 
 import mysql.connector
 import requests
-from anthropic import Anthropic
 from dotenv import load_dotenv
 
 load_dotenv()
 
-CLAUDE_API_KEY = os.environ["CLAUDE_API_KEY"]
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-CLOUDFLARE_ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
-CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN")
-GEMINI_KEY = os.environ.get("GEMINI_KEY")
+DEEPL_API_KEY = os.environ["DEEPL_API_KEY"]
+DEEPL_URL = "https://api-free.deepl.com" if DEEPL_API_KEY.endswith(":fx") else "https://api.deepl.com"
+DEEPL_MAX_CHARS = int(os.environ.get("DEEPL_MAX_CHARS", "15000"))
 
 DB_HOST = os.environ.get("DB_HOST", "127.0.0.1")
 DB_PORT = int(os.environ.get("DB_PORT", "3306"))
@@ -41,120 +35,7 @@ DISHES_PER_RUN_LIMIT = 30
 FULL_RESTAURANT_BATCH_SIZE = 10
 FULL_PAGE_BATCH_SIZE = 10
 RECHECK_AFTER_DAYS = 90
-anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
-
-
-def _extract_json(raw_text):
-    """Strip markdown code fences and parse JSON. Raises on empty/invalid content —
-    some free-tier models return HTTP 200 with an empty or garbage body, which must
-    be treated as a failure so the chain moves on to the next provider."""
-    if not raw_text or not raw_text.strip():
-        raise ValueError("empty response")
-    cleaned = re.sub(r"^```json\s*|\s*```$", "", raw_text.strip())
-    if not cleaned:
-        raise ValueError("empty response after stripping code fences")
-    parsed = json.loads(cleaned)
-    if not parsed:
-        raise ValueError("parsed to an empty JSON object/array")
-    return parsed
-
-
-def call_llm_json(prompt, max_tokens):
-    """Try Claude, then OpenRouter, then Groq, then Cloudflare Workers AI, then
-    Gemini directly (Gemini last — its free tier caps at only 20 requests/day).
-    Each provider's raw response is validated as usable JSON before being accepted,
-    so a 200 OK with empty/garbage content doesn't get treated as success."""
-
-    def try_claude():
-        message = anthropic_client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return message.content[0].text
-
-    def try_openrouter():
-        resp = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": "anthropic/claude-sonnet-4.5",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": max_tokens,
-            },
-            timeout=90,
-        )
-        if resp.status_code >= 400:
-            print(f"    [LLM] OpenRouter HTTP {resp.status_code}: {resp.text[:300]}")
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
-
-    def try_groq():
-        resp = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": "openai/gpt-oss-20b",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": max_tokens,
-            },
-            timeout=60,
-        )
-        if resp.status_code >= 400:
-            print(f"    [LLM] Groq HTTP {resp.status_code}: {resp.text[:300]}")
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
-
-    def try_cloudflare():
-        resp = requests.post(
-            f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}", "Content-Type": "application/json"},
-            json={
-                "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": max_tokens,
-            },
-            timeout=60,
-        )
-        if resp.status_code >= 400:
-            print(f"    [LLM] Cloudflare HTTP {resp.status_code}: {resp.text[:300]}")
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
-
-    def try_gemini():
-        from google import genai
-        from google.genai import types as genai_types
-        gemini_client = genai.Client(api_key=GEMINI_KEY)
-        response = gemini_client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(max_output_tokens=max_tokens + 500),
-        )
-        return response.text
-
-    providers = [("Claude", try_claude)]
-    if OPENROUTER_API_KEY:
-        providers.append(("OpenRouter", try_openrouter))
-    if GROQ_API_KEY:
-        providers.append(("Groq", try_groq))
-    if CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN:
-        providers.append(("Cloudflare", try_cloudflare))
-    if GEMINI_KEY:
-        providers.append(("Gemini", try_gemini))
-
-    last_error = None
-    for i, (name, fn) in enumerate(providers):
-        try:
-            return _extract_json(fn())
-        except Exception as e:
-            last_error = e
-            next_name = providers[i + 1][0] if i + 1 < len(providers) else None
-            if next_name:
-                print(f"    [LLM] {name} failed, trying {next_name}: {e}")
-            else:
-                print(f"    [LLM] {name} failed too: {e}")
-
-    raise last_error
+deepl_chars_spent = 0
 
 
 def get_db():
@@ -207,33 +88,33 @@ def set_locale_value(json_str, locale, new_value):
     return json.dumps({"Values": values}, ensure_ascii=False)
 
 
-TRANSLATE_PROMPT = """Переклади наступні тексти з російської мови на українську. Якщо в тексті є HTML-теги — залиш їх без змін, перекладай лише текстовий вміст. Не додавай нічого зайвого, не скорочуй.
-
-{fields}
-
-Поверни ЛИШЕ валідний JSON з тими самими ключами полів:
-{{
-{example}
-}}
-"""
-
-
-def translate_fields(field_dict, max_tokens=4000):
-    """field_dict: {field_name: russian_text}. Returns {field_name: ukrainian_text} or {}."""
+def translate_fields(field_dict, max_tokens=None):
+    """field_dict: {field_name: russian_text}. Returns {field_name: ukrainian_text} or {}.
+    max_tokens лишився від LLM-версії і не використовується."""
+    global deepl_chars_spent
     if not field_dict:
         return {}
-
-    fields_text = "\n\n".join(f'--- {name} ---\n{text}' for name, text in field_dict.items())
-    example = ",\n".join(f'  "{name}": "..."' for name in field_dict.keys())
+    names = list(field_dict)
+    size = sum(len(field_dict[n]) for n in names)
+    if deepl_chars_spent + size > DEEPL_MAX_CHARS:
+        return {}  # бюджет запуску вичерпано - решта наступного разу
 
     try:
-        prompt = TRANSLATE_PROMPT.format(fields=fields_text, example=example)
-        result = call_llm_json(prompt, max_tokens=max_tokens)
+        r = requests.post(
+            f"{DEEPL_URL}/v2/translate",
+            headers={"Authorization": f"DeepL-Auth-Key {DEEPL_API_KEY}"},
+            json={"text": [field_dict[n] for n in names], "target_lang": "UK",
+                  "tag_handling": "html", "preserve_formatting": True},
+            timeout=60,
+        )
+        r.raise_for_status()
+        translations = r.json()["translations"]
     except Exception as e:
         print(f"    Translation failed: {e}")
-        result = {}
-    time.sleep(2)
-    return result
+        return {}
+    deepl_chars_spent += size
+    return {n: field_dict[n] if t.get("detected_source_language") == "UK" else t["text"]
+            for n, t in zip(names, translations)}
 
 
 def translate_restaurant_info(db, restaurant_id, cuisine, short_info, full_info):
