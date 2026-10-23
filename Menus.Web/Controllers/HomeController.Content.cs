@@ -75,18 +75,21 @@ namespace Menus.Web.Controllers
                 return View("Blog", (await _core.Pages.GetBlog()).Where(x => x.Status == PageStatus.Published));
             }
 
-            if (page != null)
+            if (page == null)
             {
-                page.Views += 1;
-                await _core.Pages.Update(page);
+                Response.StatusCode = 404;
+                return View("NotFound");
             }
+
+            page.Views += 1;
+            await _core.Pages.Update(page);
 
             ViewData["otherBlogs"] = (await _core.Pages.GetBlog())
                 .Where(x => x.Id != page.Id && x.Status == PageStatus.Published)
                 .OrderByDescending(x => x.Timestamp)
                 .Take(6)
                 .ToList();
-            return page == null ? View("NotFound") : View("BlogPage", page);
+            return View("BlogPage", page);
         }
 
         public async Task<IActionResult> Blog()

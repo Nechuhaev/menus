@@ -83,7 +83,8 @@ namespace Menus.Web.Services
                 KEY IX_DishCityPages_City_Slug (CityId, Slug)
             ) DEFAULT CHARSET=utf8mb4";
 
-        private const string Columns = "Id, CityId, KeyUk, Slug, Title, Enabled, Venues, Restaurants, MinPrice, MedianPrice, MaxPrice, UpdatedAt";
+        // CHAR(36) MySqlConnector читає як Guid - Id віддаємо рядком
+        private const string Columns = "CONCAT(Id, '') AS Id, CityId, KeyUk, Slug, Title, Enabled, Venues, Restaurants, MinPrice, MedianPrice, MaxPrice, UpdatedAt";
 
         public async Task<DishCityPage> GetPublished(string cityId, string slug)
         {
