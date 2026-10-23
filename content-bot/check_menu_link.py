@@ -5,19 +5,32 @@
 
 Запуск:  python3 check_menu_link.py "Musafir" https://expz.menu/d0838ea9-b9ae-44dd-b99d-993f0a0206fd
          python3 check_menu_link.py "Citronelle"          # посилання з адмінки (RestaurantMenuLinks)
+         python3 check_menu_link.py "Citronelle" --unmatched   # + 20 наших страв без пари й найсхожіші назви з сервісу
 """
+import difflib
 import sys
 
 from menu_platforms import platform_menu
 from sync_restaurants import (MENU_LINKS_TABLE_SQL, RESTAURANT_COLUMNS, fetch_active_dishes, get_db,
-                              is_localizable_empty, match_menu, pair_by_stems)
+                              dish_display_name, is_localizable_empty, match_key, match_menu, pair_by_stems)
+
+UNMATCHED_SHOWN = 20
+
+
+def closest(name, site_names):
+    """Найсхожіша назва з сервісу і схожість 0..1 (за назвами без розмірів і дужок)."""
+    key = match_key(name)
+    scored = [(difflib.SequenceMatcher(None, key, match_key(s)).ratio(), s) for s in site_names]
+    return max(scored) if scored else (0, "")
 
 
 def main():
-    if len(sys.argv) < 2:
+    show_unmatched = "--unmatched" in sys.argv
+    args = [a for a in sys.argv[1:] if a != "--unmatched"]
+    if not args:
         print(__doc__)
         return
-    name, url = sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None
+    name, url = args[0], args[1] if len(args) > 1 else None
     db = get_db()
     cur = db.cursor(dictionary=True)
     cur.execute(MENU_LINKS_TABLE_SQL)
@@ -56,6 +69,14 @@ def main():
         print(f"  нових страв (пропозиції у «Звітах»): {len(unmatched)}; наших немає на сервісі: {len(ours) - len(matches)}")
         for d in site[:5]:
             print(f"    {d['category']} | {d['name']} | {d['price']} | {d['weight']} | фото: {'так' if d['image_url'] else 'ні'}")
+        if show_unmatched:
+            # найсхожіші першими: висока схожість без пари - зіставлення пропустило ту саму страву
+            names = [d["name"] for d in unmatched]
+            rows = sorted(((*closest(dish_display_name(d), names), dish_display_name(d)) for d in ours
+                           if d["Id"] not in matches), reverse=True)
+            print(f"  наші без пари (найсхожіші з сервісу, {UNMATCHED_SHOWN} з {len(rows)}):")
+            for score, site_name, our_name in rows[:UNMATCHED_SHOWN]:
+                print(f"    {score:.2f}  {our_name}  ~  {site_name}")
     db.close()
 
 
