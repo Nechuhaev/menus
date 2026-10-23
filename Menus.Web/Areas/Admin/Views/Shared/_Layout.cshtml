@@ -12,6 +12,12 @@
     <title>@ViewData["Title"]</title>
 
     <link href="~/css/areas/admin/main.css" rel="stylesheet" asp-append-version="true" />
+    <style>
+        /* пунктів меню стало більше, ніж уміщує рядок: переносимо, а не виштовхуємо за край екрана */
+        .site-header .site-header--middle { flex: 1 1 auto; min-width: 0; }
+        .header-nav { flex-wrap: wrap; row-gap: 12px; }
+        .header-nav li { margin: 0 1.2vw; }
+    </style>
 
     <environment include="Development">
         <link href="~/fonts/fonts.min.css" rel="stylesheet" asp-append-version="true" />

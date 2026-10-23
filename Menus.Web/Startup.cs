@@ -431,10 +431,10 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                             template: custureRoutePath + "/news/{id?}",
                             defaults: new { controller = "Home", action = "NewsPage" });
 
-                        // місто - не назва області (/uk/admin/...), щоб не перехоплювати адмінку
+                        // місто перевіряє DishCityController (невідоме - 404); областей /dishes немає
                         mvcRoutes.MapRoute(
                             name: "dishCity",
-                            template: custureRoutePath + "/{city:regex(^(?!admin$|restaurants$)[[a-z-]]+$)}/dishes/{slug?}",
+                            template: custureRoutePath + "/{city}/dishes/{slug?}",
                             defaults: new { controller = "DishCity", action = "Index" });
 
                         mvcRoutes.MapRoute(
