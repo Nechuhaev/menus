@@ -154,16 +154,28 @@ def other_city(row, city, cities):
     return any(f" {n} " in text for cid, names in cities.items() if cid != city for n in names)
 
 
+# Кирилиця-двійник у латинському слові («Churrasсo» з кириличною «с») - пошук нічого не знаходить
+LOOKALIKES = str.maketrans("асеорхуікАСЕОРХУІКМТНВ", "aceopxyikACEOPXYIKMTHB")
+
+
+def query_name(name):
+    return " ".join(w.translate(LOOKALIKES) if re.search(r"[a-z]", w, re.I) else w for w in (name or "").split())
+
+
 def find(restaurants, key):
     rows = []
+    cache = {}  # філії мережі з однаковою назвою - один запит на всіх
     for i, r in enumerate(restaurants, 1):
         found = 0
         for platform, (site, _) in PLATFORMS.items():
-            try:
-                results = search(f"{r['Name']} {site}", key)
-            except requests.RequestException as e:
-                print(f"  ! {r['Name']} {platform}: {e}")
-                continue
+            query = f"{query_name(r['Name'])} {site}"
+            if query.lower() not in cache:
+                try:
+                    cache[query.lower()] = search(query, key)
+                except requests.RequestException as e:
+                    print(f"  ! {r['Name']} {platform}: {e}")
+                    continue
+            results = cache[query.lower()]
             pages = {}
             for res in results:
                 root = menu_root(platform, res.get("url"))
@@ -281,7 +293,7 @@ def main():
     restaurants = cur.fetchall()
     if args.limit:
         restaurants = restaurants[:args.limit]
-    queries = len(restaurants) * len(PLATFORMS)
+    queries = len({query_name(r["Name"]).lower() for r in restaurants}) * len(PLATFORMS)
     print(f"ресторанів для пошуку: {len(restaurants)}, запитів: {queries} (~{queries * 2} кредитів Firecrawl)")
     if args.dry_run:
         db.close()
