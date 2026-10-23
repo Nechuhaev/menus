@@ -135,4 +135,7 @@
 	<data name="EditReview" xml:space="preserve">
 		<value>Изменить отзыв</value>
 	</data>
+  <data name="RatingRequired" xml:space="preserve">
+    <value>Нельзя отправить отзыв без оценки</value>
+  </data>
 </root>
