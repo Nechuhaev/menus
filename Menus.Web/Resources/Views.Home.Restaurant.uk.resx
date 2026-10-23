@@ -322,10 +322,10 @@
     <value>пошук по меню ресторана</value>
   </data>
   <data name="MetaTitle" xml:space="preserve">
-    <value>Меню ресторану {0} в місті {1}, відгуки клієнтів ⭐ TipMyMenu</value>
+    <value>Меню {0}, {1}: ціни та відгуки | TipMyMenu</value>
   </data>
   <data name="MetaDescription" xml:space="preserve">
-    <value>Відгуки клієнтів про страви ресторану {0}, адреса в місті {1}, телефон, ціни 🍽️ TipMyMenu (ТіпМайМеню) ✅ Унікальне електронне меню закладу</value>
+    <value>Меню ресторану {0} ({1}): ціни страв, фото, відгуки відвідувачів, адреса й телефон на TipMyMenu.</value>
   </data>
   <data name="Search" xml:space="preserve">
     <value>Пошук</value>
