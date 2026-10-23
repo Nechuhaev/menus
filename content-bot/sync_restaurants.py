@@ -34,6 +34,8 @@ import requests
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
+from menu_platforms import find_platform_link, platform_menu
+
 load_dotenv()
 
 CLAUDE_API_KEY = os.environ["CLAUDE_API_KEY"]
@@ -308,10 +310,19 @@ RESTAURANT_COLUMNS = """
         SELECT r.Id, r.Name, r.City, r.Address,
                ri.Website, ri.OpenHours, ri.Contacts, ri.Photos, ri.Cuisine,
                ri.GpsLatitude, ri.GpsLongitude,
-               rs.Title AS SeoTitle, rs.Description AS SeoDescription, rs.Keywords AS SeoKeywords
+               rs.Title AS SeoTitle, rs.Description AS SeoDescription, rs.Keywords AS SeoKeywords,
+               ml.Url AS MenuUrl
         FROM Restaurants r
         JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
-        JOIN RestaurantSeo rs ON rs.ItemId = r.Id"""
+        JOIN RestaurantSeo rs ON rs.ItemId = r.Id
+        LEFT JOIN RestaurantMenuLinks ml ON ml.RestaurantId = r.Id"""
+
+# Посилання на меню (Expirenza, ChoiceQR тощо), яке адмін вказує в картці ресторану; таблиця спільна з сайтом
+MENU_LINKS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS RestaurantMenuLinks (
+    RestaurantId VARCHAR(255) NOT NULL PRIMARY KEY,
+    Url VARCHAR(1000) NOT NULL,
+    UpdatedAt DATETIME NOT NULL
+) DEFAULT CHARSET=utf8mb4"""
 
 
 def fetch_restaurants_due_for_check(db, limit):
@@ -502,7 +513,11 @@ MENU_LINK = re.compile(r'<a[^>]+href=["\']([^"\'#]+)["\'][^>]*>(?:(?!</a>).){0,2
 
 
 def find_menu_url(raw_html, base_url):
-    """Посилання «Меню» на головній: саме меню зазвичай на окремій сторінці."""
+    """Посилання «Меню» на головній: саме меню зазвичай на окремій сторінці. Меню в
+    Expirenza/ChoiceQR має перевагу - воно читається кодом, без AI."""
+    platform_link = find_platform_link(raw_html)
+    if platform_link:
+        return platform_link
     m = MENU_LINK.search(raw_html)
     if not m:
         return None
@@ -706,6 +721,9 @@ def read_site_menu(restaurant_name, menu_url):
 
 
 def _read_site_menu(restaurant_name, menu_url):
+    qr_menu = platform_menu(menu_url)
+    if qr_menu is not None:
+        return qr_menu
     html, base, _ = fetch_website_html(menu_url, max_chars=40000)
     if not html:
         return []
@@ -971,6 +989,13 @@ def _process_restaurant(db, restaurant):
     notes = []
 
     website = restaurant["Website"]
+    if not website and restaurant.get("MenuUrl"):
+        # сайту немає, але адмін указав меню (Expirenza, ChoiceQR): лише меню, ресторан не в Pending
+        summary = sync_menu(db, restaurant, restaurant["MenuUrl"])
+        log_check(db, restaurant["Id"], summary, closed_detected=False)
+        print(f"  -> {summary}")
+        return
+
     needs_osm = not website or not restaurant["GpsLatitude"]
     osm_data = osm_lookup(name, restaurant["Address"], restaurant["City"]) if needs_osm else {}
 
@@ -1066,7 +1091,10 @@ def _process_restaurant(db, restaurant):
             cur.close()
             notes.append("SEO meta filled")
 
-    if html and is_social_page(base_url or website):
+    if restaurant.get("MenuUrl"):
+        # посилання на меню з адмінки має перевагу над знайденим на сайті
+        notes.append(sync_menu(db, restaurant, restaurant["MenuUrl"]))
+    elif html and is_social_page(base_url or website):
         notes.append("website is a social network page - no menu to read, add the real site in admin")
     elif html:
         notes.append(sync_menu(db, restaurant, menu_url or base_url))
@@ -1158,6 +1186,9 @@ def sync_menu(db, restaurant, menu_url):
 def main():
     db = get_db()
     try:
+        cur = db.cursor()
+        cur.execute(MENU_LINKS_TABLE_SQL)
+        cur.close()
         restaurants = fetch_restaurants_due_for_check(db, RESTAURANTS_PER_RUN)
         if not restaurants:
             print("No restaurants due for check.")

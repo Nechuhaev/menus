@@ -7,6 +7,9 @@ namespace Menus.Web.Models.ViewModels
 {
     public class UpdateRestaurantinfoModel : RestaurantInfo
     {
+        // посилання на меню в QR-сервісі; зберігається окремо (RestaurantMenuLinkService), не в RestaurantInfo
+        public string MenuUrl { get; set; }
+
         public new List<LocalizableStringValue> ShortInfo { get; set; }
         public new List<LocalizableStringValue> FullInfo { get; set; }
         public new List<LocalizableStringValue> Cuisine { get; set; }
