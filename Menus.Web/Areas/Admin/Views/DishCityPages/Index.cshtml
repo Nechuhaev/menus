@@ -64,6 +64,7 @@
                                 <th>Ресторанів</th>
                                 <th>Ціна: мін / медіана / макс</th>
                                 <th>Сторінка</th>
+                                <th>SEO-текст</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -89,6 +90,7 @@
                                             <span>/@dishPage.Slug</span>
                                         }
                                     </td>
+                                    <td><a asp-action="Edit" asp-route-id="@dishPage.Id">@(string.IsNullOrWhiteSpace(dishPage.CustomText) ? "авто" : "власний")</a></td>
                                 </tr>
                             }
                         </tbody>

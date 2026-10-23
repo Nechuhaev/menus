@@ -1,10 +1,16 @@
 ﻿@using Microsoft.AspNetCore.Mvc.Localization
 @inject IViewLocalizer Localizer
 @inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Web.Services.DishCityPageService DishCityPages
+@inject Menus.Domain.Core Core
 @{
     var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
     // Culture contains the information of the requested culture
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+
+    // хаби «страва + місто» міст, де є опубліковані сторінки
+    var dishCityIds = await DishCityPages.GetCityIdsWithPages();
+    var dishCities = (await Core.Restaurants.GetCities()).Where(x => dishCityIds.Contains(x.Id)).ToList();
 }
 
 @await Html.PartialAsync("_RequestLocationPopup")
@@ -52,6 +58,17 @@
                         <li><a asp-route-culture="@culture" asp-route-viewMode="internal" asp-area="" asp-controller="Articles" asp-action="ForOwners">@Localizer["RestaurantOwners"]</a></li>
                         @*<li><a href="/@culture/content/marketing">Реклама на нашем сайте</a></li>*@
                     </ul>
+
+                    @if (dishCities.Any())
+                    {
+                        <p>@Localizer["DishesInCities"]</p>
+                        <ul>
+                            @foreach (var city in dishCities)
+                            {
+                                <li><a href="/@culture/@city.Name.Get("en").ToLower()/dishes">@city.Name.Get(culture)</a></li>
+                            }
+                        </ul>
+                    }
                 </div>
                 <div class="column_right">
                     <p>@Localizer["Privacy"]</p>

@@ -26,6 +26,15 @@ namespace Menus.Web.Services
         public decimal MaxPrice { get; set; }
         public string DishIds { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public string CustomText { get; set; }
+
+        // Власний SEO-текст адміна для мови (JSON {"uk": "...", ...}); порожньо - автоматичний текст
+        public string GetCustomText(string culture)
+        {
+            if (string.IsNullOrWhiteSpace(CustomText)) return null;
+            var texts = JsonConvert.DeserializeObject<Dictionary<string, string>>(CustomText);
+            return texts.TryGetValue(culture, out var text) && !string.IsNullOrWhiteSpace(text) ? text.Trim() : null;
+        }
 
         // Title - {"uk": "...", "ru": "...", "en": "..."} з content-bot/dish_city_pages.py
         public string GetTitle(string culture)
@@ -46,6 +55,8 @@ namespace Menus.Web.Services
         public string Address { get; set; }
         public string Currency { get; set; }
         public decimal Price { get; set; }
+        // «від» - у страви кілька розмірів/ваг, ціна не порівнюється з іншими
+        public bool FromPrice { get; set; }
         public float Rating { get; set; }
         public int RatingsCount { get; set; }
         public string Photo { get; set; }
@@ -84,11 +95,19 @@ namespace Menus.Web.Services
             ) DEFAULT CHARSET=utf8mb4";
 
         // CHAR(36) MySqlConnector читає як Guid - Id віддаємо рядком
-        private const string Columns = "CONCAT(Id, '') AS Id, CityId, KeyUk, Slug, Title, Enabled, Venues, Restaurants, MinPrice, MedianPrice, MaxPrice, UpdatedAt";
+        private const string Columns = "CONCAT(Id, '') AS Id, CityId, KeyUk, Slug, Title, Enabled, Venues, Restaurants, MinPrice, MedianPrice, MaxPrice, UpdatedAt, CustomText";
+
+        private const string AddCustomTextSql = "ALTER TABLE DishCityPages ADD COLUMN IF NOT EXISTS CustomText TEXT NULL";
+
+        private async Task EnsureTable()
+        {
+            await _connection.ExecuteAsync(CreateTableSql);
+            await _connection.ExecuteAsync(AddCustomTextSql);
+        }
 
         public async Task<DishCityPage> GetPublished(string cityId, string slug)
         {
-            await _connection.ExecuteAsync(CreateTableSql);
+            await EnsureTable();
             return await _connection.QueryFirstOrDefaultAsync<DishCityPage>(
                 $"SELECT {Columns}, DishIds FROM DishCityPages WHERE CityId = @cityId AND Slug = @slug AND Enabled = 1 AND Venues >= @MinVenues",
                 new { cityId, slug, MinVenues });
@@ -96,7 +115,7 @@ namespace Menus.Web.Services
 
         public async Task<List<DishCityPage>> GetPublishedForCity(string cityId)
         {
-            await _connection.ExecuteAsync(CreateTableSql);
+            await EnsureTable();
             return (await _connection.QueryAsync<DishCityPage>(
                 $"SELECT {Columns} FROM DishCityPages WHERE CityId = @cityId AND Enabled = 1 AND Venues >= @MinVenues ORDER BY Venues DESC",
                 new { cityId, MinVenues })).ToList();
@@ -104,7 +123,7 @@ namespace Menus.Web.Services
 
         public async Task<List<DishCityPage>> GetAllPublished()
         {
-            await _connection.ExecuteAsync(CreateTableSql);
+            await EnsureTable();
             return (await _connection.QueryAsync<DishCityPage>(
                 $"SELECT {Columns} FROM DishCityPages WHERE Enabled = 1 AND Venues >= @MinVenues",
                 new { MinVenues })).ToList();
@@ -113,10 +132,38 @@ namespace Menus.Web.Services
         // Для адмінки: усі кандидати міста, від найпоширеніших
         public async Task<List<DishCityPage>> GetAllForCity(string cityId)
         {
-            await _connection.ExecuteAsync(CreateTableSql);
+            await EnsureTable();
             return (await _connection.QueryAsync<DishCityPage>(
                 $"SELECT {Columns} FROM DishCityPages WHERE CityId = @cityId ORDER BY Venues DESC, KeyUk",
                 new { cityId })).ToList();
+        }
+
+        public async Task<DishCityPage> GetById(string id)
+        {
+            await EnsureTable();
+            return await _connection.QueryFirstOrDefaultAsync<DishCityPage>(
+                $"SELECT {Columns} FROM DishCityPages WHERE Id = @id", new { id });
+        }
+
+        public async Task SaveCustomText(string id, Dictionary<string, string> texts)
+        {
+            var clean = texts.Where(x => !string.IsNullOrWhiteSpace(x.Value)).ToDictionary(x => x.Key, x => x.Value.Trim());
+            await _connection.ExecuteAsync("UPDATE DishCityPages SET CustomText = @text WHERE Id = @id",
+                new { id, text = clean.Count == 0 ? null : JsonConvert.SerializeObject(clean) });
+        }
+
+        // Міста з опублікованими сторінками - для футера на кожній сторінці, тому кешується на 10 хвилин
+        private static List<string> _citiesWithPages;
+        private static DateTime _citiesWithPagesAt;
+
+        public async Task<List<string>> GetCityIdsWithPages()
+        {
+            if (_citiesWithPages != null && DateTime.UtcNow - _citiesWithPagesAt < TimeSpan.FromMinutes(10)) return _citiesWithPages;
+            await EnsureTable();
+            _citiesWithPages = (await _connection.QueryAsync<string>(
+                "SELECT DISTINCT CityId FROM DishCityPages WHERE Enabled = 1 AND Venues >= @MinVenues", new { MinVenues })).ToList();
+            _citiesWithPagesAt = DateTime.UtcNow;
+            return _citiesWithPages;
         }
 
         public async Task SetEnabled(IEnumerable<string> enabledIds, IEnumerable<string> shownIds)
@@ -138,7 +185,7 @@ namespace Menus.Web.Services
             if (ids.Count == 0) return new List<DishCityItem>();
 
             var rows = await _connection.QueryAsync<DishRow>(@"
-                SELECT d.Id, d.Name, d.Price, d.PhotoLink, d.RatingFloat, d.RatingsCount, ds.Url AS DishUrl,
+                SELECT d.Id, d.Name, d.Price, d.IsPriceMultiple, d.PhotoLink, d.RatingFloat, d.RatingsCount, ds.Url AS DishUrl,
                        r.Id AS RestaurantId, r.Name AS RestaurantName, rs.Url AS RestaurantUrl,
                        ri.DisplayAddress, ri.Currency
                 FROM Dishes d
@@ -155,7 +202,7 @@ namespace Menus.Web.Services
                     .OrderByDescending(x => x.RatingsCount > 0)
                     .ThenByDescending(x => x.RatingFloat)
                     .ThenByDescending(x => FirstPhoto(x.PhotoLink) != null)
-                    .ThenBy(x => x.Price <= 0)
+                    .ThenBy(x => x.Price <= 0 || x.IsPriceMultiple)
                     .ThenBy(x => x.Price)
                     .First())
                 .Select(x => new DishCityItem
@@ -167,6 +214,7 @@ namespace Menus.Web.Services
                     Address = Localized(x.DisplayAddress, culture),
                     Currency = x.Currency,
                     Price = x.Price,
+                    FromPrice = x.IsPriceMultiple,
                     Rating = x.RatingFloat,
                     RatingsCount = x.RatingsCount,
                     Photo = FirstPhoto(x.PhotoLink)
@@ -207,6 +255,7 @@ namespace Menus.Web.Services
             public string Id { get; set; }
             public string Name { get; set; }
             public decimal Price { get; set; }
+            public bool IsPriceMultiple { get; set; }
             public string PhotoLink { get; set; }
             public float RatingFloat { get; set; }
             public int RatingsCount { get; set; }

@@ -156,4 +156,7 @@
   <data name="Blog" xml:space="preserve">
     <value>Блог</value>
   </data>
+  <data name="DishesInCities" xml:space="preserve">
+    <value>Блюда в городах:</value>
+  </data>
 </root>

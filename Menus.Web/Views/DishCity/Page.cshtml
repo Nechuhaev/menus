@@ -6,33 +6,71 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 
     var culture = Context.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>().RequestCulture.Culture.TwoLetterISOLanguageName;
-    var items = ViewData["items"] as List<DishCityItem> ?? new List<DishCityItem>();
+    var allItems = ViewData["items"] as List<DishCityItem> ?? new List<DishCityItem>();
+    var pageIndex = (int)ViewData["pageIndex"];
+    var pageCount = (int)ViewData["pageCount"];
+    var items = allItems.Skip((pageIndex - 1) * Menus.Web.Controllers.DishCityController.PageSize).Take(Menus.Web.Controllers.DishCityController.PageSize).ToList();
     var related = ViewData["related"] as List<DishCityPage> ?? new List<DishCityPage>();
     var cityName = ViewData["cityName"] as string;
     var citySlug = ViewData["citySlug"] as string;
     var title = Model.GetTitle(culture);
-    var currency = items.Select(x => x.Currency).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "₴";
+    // назва посеред речення - з малої літери («скуштувати стейк»)
+    var titleLower = title.Length > 1 && !char.IsUpper(title[1]) ? char.ToLower(title[0]) + title.Substring(1) : title;
+    var currency = allItems.Select(x => x.Currency).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "₴";
     var siteUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+    var pageUrl = $"/{culture}/{citySlug}/dishes/{Model.Slug}";
     string Money(decimal value) => $"{value:0} {currency}";
     string DishLink(DishCityItem x) => $"/{culture}/{citySlug}/restaurant/{x.RestaurantUrl}/{x.DishUrl}";
+    string PageLink(int n) => n == 1 ? pageUrl : $"{pageUrl}?page={n}";
+
+    // ціни «від» (кілька розмірів/ваг) не беруть участі в статистиці й «найдешевшому»
+    var prices = allItems.Where(x => x.Price > 0 && !x.FromPrice).Select(x => x.Price).OrderBy(x => x).ToList();
+    var minPrice = prices.FirstOrDefault();
+    var maxPrice = prices.LastOrDefault();
+    var medianPrice = prices.Count == 0 ? 0 : prices[prices.Count / 2];
+    var topRated = allItems.Where(x => x.RatingsCount > 0).OrderByDescending(x => x.Rating).ThenByDescending(x => x.RatingsCount).Take(3).Select(x => x.RestaurantName).ToList();
+    var cheapest = allItems.Where(x => x.Price > 0 && !x.FromPrice).OrderBy(x => x.Price).FirstOrDefault();
 
     ViewData["Title"] = Menus.Web.Helpers.SeoText.Fit(Menus.Web.Helpers.SeoText.TitleMax,
-        string.Format(Localizer["MetaTitle"].Value, title, cityName),
+        string.Format(Localizer["MetaTitle"].Value, title, cityName) + (pageIndex > 1 ? $" ({pageIndex})" : ""),
         $"{title} — {cityName} | TipMyMenu");
-    ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, title, cityName, items.Count, Money(Model.MinPrice), Money(Model.MaxPrice));
+    ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, title, cityName, Model.Venues, Money(minPrice), Money(maxPrice));
+    if (pageIndex == 1)
+    {
+        ViewData["Canonical"] = siteUrl + pageUrl;
+    }
 
-    // FAQ і відповіді лише з даних сторінки
-    var cheapest = items.Where(x => x.Price > 0).OrderBy(x => x.Price).FirstOrDefault();
+    // SEO-текст: власний текст адміна або зібраний з даних сторінки
+    var customText = Model.GetCustomText(culture);
+    var seoText = new List<string>();
+    if (customText == null)
+    {
+        seoText.Add(string.Format(Localizer["SeoText"].Value, title, cityName, Model.Venues, allItems.Count));
+        if (prices.Count > 0)
+        {
+            seoText.Add(string.Format(Localizer["SeoPrices"].Value, Money(medianPrice), Money(minPrice), Money(maxPrice)));
+        }
+        if (topRated.Any())
+        {
+            seoText.Add(string.Format(Localizer["SeoTopRated"].Value, string.Join(", ", topRated)));
+        }
+        seoText.Add(Localizer["SeoUpdated"].Value);
+    }
+
+    // FAQ лише з даних сторінки
     var faq = new List<(string Question, string Answer)>
     {
-        (string.Format(Localizer["FaqWhereQ"].Value, title, cityName),
-            string.Format(Localizer["FaqWhereA"].Value, items.Count, string.Join(", ", items.Take(5).Select(x => x.RestaurantName)))),
-        (string.Format(Localizer["FaqPriceQ"].Value, title, cityName),
-            string.Format(Localizer["FaqPriceA"].Value, Money(Model.MinPrice), Money(Model.MaxPrice), Money(Model.MedianPrice)))
+        (string.Format(Localizer["FaqWhereQ"].Value, titleLower, cityName),
+            string.Format(Localizer["FaqWhereA"].Value, Model.Venues, string.Join(", ", allItems.Take(5).Select(x => x.RestaurantName))))
     };
+    if (prices.Count > 0)
+    {
+        faq.Add((string.Format(Localizer["FaqPriceQ"].Value, titleLower, cityName),
+            string.Format(Localizer["FaqPriceA"].Value, Money(minPrice), Money(maxPrice), Money(medianPrice))));
+    }
     if (cheapest != null)
     {
-        faq.Add((string.Format(Localizer["FaqCheapestQ"].Value, title, cityName),
+        faq.Add((string.Format(Localizer["FaqCheapestQ"].Value, titleLower, cityName),
             string.Format(Localizer["FaqCheapestA"].Value, cheapest.RestaurantName, cheapest.DishName, Money(cheapest.Price))));
     }
 }
@@ -40,20 +78,32 @@
 @section JsonLd {
     @(Menus.Web.Helpers.JsonLd.Script(
         Menus.Web.Helpers.JsonLd.ItemList($"{title} — {cityName}", items.Select(x => (x.RestaurantName, siteUrl + DishLink(x)))),
-        Menus.Web.Helpers.JsonLd.FaqPage(faq.ToArray()),
+        pageIndex == 1 ? Menus.Web.Helpers.JsonLd.FaqPage(faq.ToArray()) : null,
         Menus.Web.Helpers.JsonLd.Breadcrumbs(
             ("TipMyMenu", $"{siteUrl}/{culture}"),
             (Localizer["Dishes"].Value, $"{siteUrl}/{culture}/{citySlug}/dishes"),
-            (title, $"{siteUrl}/{culture}/{citySlug}/dishes/{Model.Slug}"))))
+            (title, siteUrl + pageUrl))))
 }
 
 @section Styles {
+    @if (pageIndex > 1)
+    {
+        <link rel="prev" href="@(siteUrl + PageLink(pageIndex - 1))" />
+    }
+    @if (pageIndex < pageCount)
+    {
+        <link rel="next" href="@(siteUrl + PageLink(pageIndex + 1))" />
+    }
     <style>
-        .dish-city-intro { margin: 0 0 20px; }
+        .dish-city-intro { margin: 0 0 20px; line-height: 1.5; }
+        .dish-city-faq { margin-top: 24px; }
         .dish-city-faq details { border-bottom: 1px solid #e5e5e5; padding: 10px 0; }
         .dish-city-faq summary { cursor: pointer; font-weight: 600; }
         .dish-city-faq details p { margin: 8px 0 0; }
         .dish-city-related { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0; list-style: none; }
+        .dish-city-pager { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; padding: 0; list-style: none; }
+        .dish-city-pager a, .dish-city-pager span { display: block; min-width: 40px; padding: 8px 12px; text-align: center; border: 1px solid #e5e5e5; border-radius: 6px; }
+        .dish-city-pager span { background: #ffb80e; border-color: #ffb80e; font-weight: 600; }
     </style>
 }
 
@@ -76,7 +126,11 @@
                             <h1>@string.Format(Localizer["Header"].Value, title, cityName)</h1>
                         </div>
                     </div>
-                    <p class="dish-city-intro">@string.Format(Localizer["Intro"].Value, title, cityName, items.Count, Money(Model.MinPrice), Money(Model.MaxPrice), Money(Model.MedianPrice))</p>
+
+                    @if (pageIndex == 1)
+                    {
+                        <p class="dish-city-intro">@(customText ?? string.Join(" ", seoText))</p>
+                    }
 
                     <ul class="list_of_dishes">
                         @foreach (var item in items)
@@ -106,7 +160,7 @@
                                     <div class="caption_info">
                                         @if (item.Price > 0)
                                         {
-                                            <span class="price">@Money(item.Price)</span>
+                                            <span class="price">@(item.FromPrice ? Localizer["From"].Value + " " : "")@Money(item.Price)</span>
                                         }
                                     </div>
                                 </div>
@@ -114,24 +168,52 @@
                         }
                     </ul>
 
-                    <div class="dish-city-faq">
-                        <h2>@Localizer["FaqHeader"]</h2>
-                        @foreach (var item in faq)
-                        {
-                            <details>
-                                <summary>@item.Question</summary>
-                                <p>@item.Answer</p>
-                            </details>
-                        }
-                    </div>
+                    @if (pageCount > 1)
+                    {
+                        <ul class="dish-city-pager">
+                            @if (pageIndex > 1)
+                            {
+                                <li><a href="@PageLink(pageIndex - 1)" rel="prev">←</a></li>
+                            }
+                            @for (var n = 1; n <= pageCount; n++)
+                            {
+                                if (n == pageIndex)
+                                {
+                                    <li><span>@n</span></li>
+                                }
+                                else
+                                {
+                                    <li><a href="@PageLink(n)">@n</a></li>
+                                }
+                            }
+                            @if (pageIndex < pageCount)
+                            {
+                                <li><a href="@PageLink(pageIndex + 1)" rel="next">→</a></li>
+                            }
+                        </ul>
+                    }
+
+                    @if (pageIndex == 1)
+                    {
+                        <div class="dish-city-faq">
+                            <h2>@Localizer["FaqHeader"]</h2>
+                            @foreach (var item in faq)
+                            {
+                                <details>
+                                    <summary>@item.Question</summary>
+                                    <p>@item.Answer</p>
+                                </details>
+                            }
+                        </div>
+                    }
 
                     @if (related.Any())
                     {
                         <h2>@string.Format(Localizer["Related"].Value, cityName)</h2>
                         <ul class="dish-city-related">
-                            @foreach (var dishPage in related)
+                            @foreach (var other in related)
                             {
-                                <li><a href="/@culture/@citySlug/dishes/@dishPage.Slug">@dishPage.GetTitle(culture)</a></li>
+                                <li><a href="/@culture/@citySlug/dishes/@other.Slug">@other.GetTitle(culture)</a></li>
                             }
                         </ul>
                     }

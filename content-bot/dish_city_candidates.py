@@ -37,6 +37,11 @@ DRINK_CATEGORY = re.compile(
     r"лимонад|фреш|смузі|віск|виск|горілк|водк|коньяк|лікер|ликер|ром\b|джин|текіл|текил|шампан|ігрист|игрист|"
     r"drink|bar\b|wine|beer|coffee|tea\b|cocktail|whisk|vodka|juice|lemonade|spirits)", re.I)
 LATIN = re.compile(r"[a-z]")
+# іменники з «прикметниковим» закінченням
+NOT_ADJECTIVES = {"пельмені"}
+# Одне слово-прикметник без іменника - не страва («шоколадний», «шоколадне», «овочева», «курячі»);
+# пари з ним («шоколадний фондан») лишаються. -ина - іменники (свинина, телятина), не відкидаються
+ADJECTIVE = re.compile(r"(?<!и)(?:ний|ній|на|не|ні)$|(?:ий|ій|ька|ська|ське|ські|ева|ова|еве|ове|еві|ові|ячий|яча|яче|ячі)$")
 
 
 def keys_for(name):
@@ -71,7 +76,7 @@ def collect(db):
     """(місто, ключ) -> KeyStats для всіх активних страв активних ресторанів, крім напоїв."""
     cur = db.cursor(dictionary=True)
     cur.execute(
-        """SELECT d.Id, d.Name, d.Price, r.Id AS RestaurantId, r.Name AS RestaurantName, r.City,
+        """SELECT d.Id, d.Name, d.Price, d.IsPriceMultiple, r.Id AS RestaurantId, r.Name AS RestaurantName, r.City,
                   GROUP_CONCAT(CONCAT_WS(' ', mc.Name, pc.Name) SEPARATOR ' ') AS Categories
            FROM Dishes d JOIN Restaurants r ON r.Id = d.RestaurantId
            LEFT JOIN DishCategories dc ON dc.DishId = d.Id
@@ -97,14 +102,35 @@ def collect(db):
             st.brands.add(brand)
             st.restaurants.add(row["RestaurantId"])
             st.dishes.append((row["Id"], names["uk"], names["ru"], names["en"]))
-            if row["Price"] and row["Price"] > 0:
+            # ціна «за 100 г» (IsPriceMultiple) не порівнюється з ціною порції
+            if row["Price"] and row["Price"] > 0 and not row["IsPriceMultiple"]:
                 st.prices.append(float(row["Price"]))
     return stats, drinks
 
 
+def merge_spellings(stats):
+    """Різне написання однієї страви: «тар тар» / «тар-тар» -> «тартар». Пара, яка без пробілу
+    збігається з одним словом того ж міста, додається до нього; повертає {(місто, пара): слово}."""
+    merged = {}
+    for (city, key) in list(stats):
+        if " " not in key:
+            continue
+        joined = key.replace(" ", "")
+        if (city, joined) in stats:
+            target, source = stats[(city, joined)], stats.pop((city, key))
+            target.brands |= source.brands
+            target.restaurants |= source.restaurants
+            target.prices += source.prices
+            target.dishes += source.dishes
+            merged[(city, key)] = joined
+    return merged
+
+
 def candidates(stats, min_venues):
     """Ключі з порогом закладів. Одне слово, яке майже завжди йде з тим самим другим
-    («теплий» -> «теплий салат», «картопляне» -> «картопляне пюре»), відкидається - лишається пара."""
+    («теплий» -> «теплий салат», «картопляне» -> «картопляне пюре»), відкидається - лишається пара;
+    так само одне слово-прикметник. Різне написання об'єднується (merge_spellings змінює stats)."""
+    merge_spellings(stats)
     best_pair = defaultdict(int)
     for (city, key), st in stats.items():
         if " " in key:
@@ -113,7 +139,8 @@ def candidates(stats, min_venues):
 
     result = {}
     for (city, key), st in stats.items():
-        if " " not in key and best_pair[(city, key)] >= 0.5 * len(st.brands):
+        adjective = ADJECTIVE.search(key) and key not in NOT_ADJECTIVES
+        if " " not in key and (best_pair[(city, key)] >= 0.5 * len(st.brands) or adjective):
             continue
         if len(st.brands) >= min_venues:
             result[(city, key)] = st

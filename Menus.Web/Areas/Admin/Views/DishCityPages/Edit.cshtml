@@ -1,0 +1,41 @@
+@model Menus.Web.Services.DishCityPage
+@{
+    ViewData["Title"] = "SEO-текст: " + Model.GetTitle("uk");
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var citySlug = ViewData["citySlug"] as string;
+}
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-action="Index" asp-route-cityId="@Model.CityId">Страва + місто</a></li>
+                    <li>@Model.GetTitle("uk")</li>
+                </ul>
+            </div>
+
+            <h2>SEO-текст: @Model.GetTitle("uk")</h2>
+            <p>
+                Порожнє поле - на сторінці автоматичний текст із даних (кількість закладів, ціни, найкращі оцінки).
+                Заповнене - показується замість нього для цієї мови. Сторінка оновиться протягом 30 хвилин (кеш).
+                @if (citySlug != null)
+                {
+                    <a href="/uk/@citySlug/dishes/@Model.Slug" target="_blank">Відкрити сторінку</a>
+                }
+            </p>
+
+            <form method="post" asp-action="Edit" asp-route-id="@Model.Id">
+                @foreach (var lang in new[] { "uk", "ru", "en" })
+                {
+                    <p>
+                        <label for="text-@lang"><strong>@lang</strong> — @Model.GetTitle(lang)</label><br />
+                        <textarea id="text-@lang" name="@lang" rows="5" style="width: 100%;">@Model.GetCustomText(lang)</textarea>
+                    </p>
+                }
+                <p><button type="submit">Зберегти</button></p>
+            </form>
+        </div>
+    </main>
+</div>

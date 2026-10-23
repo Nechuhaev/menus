@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Menus.Domain;
@@ -23,7 +24,9 @@ namespace Menus.Web.Controllers
         }
 
         [EdgeCache(1800)]
-        public async Task<IActionResult> Index(string culture, string city, string slug)
+        public const int PageSize = 24;
+
+        public async Task<IActionResult> Index(string culture, string city, string slug, int page = 1)
         {
             if ((culture != "ru" && culture != "uk" && culture != "en") ||
                 (_config["DisableLanguages:uk"]?.ToLower() != "false" && culture == "uk") ||
@@ -52,16 +55,25 @@ namespace Menus.Web.Controllers
                 return View("Hub", await _pages.GetPublishedForCity(cityObj.Id));
             }
 
-            var page = await _pages.GetPublished(cityObj.Id, slug);
-            if (page == null)
+            var dishPage = await _pages.GetPublished(cityObj.Id, slug);
+            if (dishPage == null)
             {
                 Response.StatusCode = 404;
                 return View("NotFound");
             }
 
-            ViewData["items"] = await _pages.GetItems(page, culture);
-            ViewData["related"] = (await _pages.GetPublishedForCity(cityObj.Id)).Where(x => x.Id != page.Id).Take(12).ToList();
-            return View("Page", page);
+            var items = await _pages.GetItems(dishPage, culture);
+            var pageCount = Math.Max(1, (items.Count + PageSize - 1) / PageSize);
+            if (page < 1 || page > pageCount)
+            {
+                Response.StatusCode = 404;
+                return View("NotFound");
+            }
+            ViewData["items"] = items;
+            ViewData["pageIndex"] = page;
+            ViewData["pageCount"] = pageCount;
+            ViewData["related"] = (await _pages.GetPublishedForCity(cityObj.Id)).Where(x => x.Id != dishPage.Id).Take(12).ToList();
+            return View("Page", dishPage);
         }
     }
 }
