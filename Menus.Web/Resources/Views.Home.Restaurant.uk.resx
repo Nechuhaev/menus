@@ -342,4 +342,25 @@
   <data name="RestaurantClosed" xml:space="preserve">
     <value>Ресторан</value>
   </data>
+  <data name="FaqHeader" xml:space="preserve">
+    <value>Поширені запитання</value>
+  </data>
+  <data name="FaqAddressQ" xml:space="preserve">
+    <value>Де знаходиться {0}?</value>
+  </data>
+  <data name="FaqHoursQ" xml:space="preserve">
+    <value>Який графік роботи {0}?</value>
+  </data>
+  <data name="FaqPhoneQ" xml:space="preserve">
+    <value>Який номер телефону {0}?</value>
+  </data>
+  <data name="FaqCuisineQ" xml:space="preserve">
+    <value>Яка кухня в {0}?</value>
+  </data>
+  <data name="FaqPriceQ" xml:space="preserve">
+    <value>Скільки коштують страви в {0}?</value>
+  </data>
+  <data name="FaqPriceA" xml:space="preserve">
+    <value>У меню {0} страв із цінами, більшість коштує {1}.</value>
+  </data>
 </root>

@@ -342,4 +342,25 @@
   <data name="RestaurantClosed" xml:space="preserve">
     <value>Restaurant</value>
   </data>
+  <data name="FaqHeader" xml:space="preserve">
+    <value>Frequently Asked Questions</value>
+  </data>
+  <data name="FaqAddressQ" xml:space="preserve">
+    <value>Where is {0} located?</value>
+  </data>
+  <data name="FaqHoursQ" xml:space="preserve">
+    <value>What are {0}'s hours of operation?</value>
+  </data>
+  <data name="FaqPhoneQ" xml:space="preserve">
+    <value>What is the phone number for {0}?</value>
+  </data>
+  <data name="FaqCuisineQ" xml:space="preserve">
+    <value>What kind of cuisine does {0} serve?</value>
+  </data>
+  <data name="FaqPriceQ" xml:space="preserve">
+    <value>How much do the dishes cost at {0}?</value>
+  </data>
+  <data name="FaqPriceA" xml:space="preserve">
+    <value>The menu features {0} dishes with prices; most cost {1}.</value>
+  </data>
 </root>

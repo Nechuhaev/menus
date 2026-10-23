@@ -85,7 +85,7 @@ def translate():
         items = [t for t in todo if t["lang"] == lang]
         if items:
             for item, text in zip(items, deepl([t["ru"] for t in items], code)):
-                item["new"] = text
+                item["new"] = html.unescape(text)  # tag_handling=html повертає &#x27; замість '
     print("chars:", sum(len(t["ru"]) for t in todo), file=sys.stderr)
     json.dump(todo, sys.stdout, ensure_ascii=False, indent=1)
 
@@ -94,7 +94,7 @@ def apply(path):
     for item in json.load(open(path, encoding="utf-8")):
         file = os.path.join(RESOURCES, "%s.%s.resx" % (item["file"], item["lang"]))
         text, bom = read(file)
-        value = html.escape(item["new"], quote=False)
+        value = html.escape(html.unescape(item["new"]), quote=False)
         found = [False]
 
         def repl(m):
