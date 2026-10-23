@@ -243,4 +243,7 @@
   <data name="BecomeFirstWhoWillAddReview" xml:space="preserve">
     <value>become first who will rate dish</value>
   </data>
+  <data name="AddPhoto" xml:space="preserve">
+    <value>Add a photo</value>
+  </data>
 </root>

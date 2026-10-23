@@ -243,4 +243,7 @@
   <data name="BecomeFirstWhoWillAddReview" xml:space="preserve">
     <value>стань першим хто додасть відгук</value>
   </data>
+  <data name="AddPhoto" xml:space="preserve">
+    <value>Додати фото</value>
+  </data>
 </root>

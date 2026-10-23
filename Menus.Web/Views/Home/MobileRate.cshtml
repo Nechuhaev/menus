@@ -126,7 +126,7 @@
             e.preventDefault();
 
             if (window.rating === 0) {
-                alert("Нельзя отправить отзыв без оценки");
+                alert(@Json.Serialize(Localizer["RatingRequired"].Value));
                 return;
             }
 

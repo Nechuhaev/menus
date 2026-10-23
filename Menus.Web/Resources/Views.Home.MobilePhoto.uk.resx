@@ -138,4 +138,7 @@
 	<data name="Continue" xml:space="preserve">
 		<value>Продолжити</value>
 	</data>
+  <data name="ThankYou" xml:space="preserve">
+    <value>Дякую</value>
+  </data>
 </root>
