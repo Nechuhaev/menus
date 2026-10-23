@@ -593,7 +593,7 @@ RESTAURANT_INFO_PROMPT = """Ось HTML-фрагмент сайту рестор
 - тип кухні / короткий опис — окремо українською (cuisine_uk) і російською (cuisine_ru)
 
 Поверни ЛИШЕ валідний JSON:
-{{"opening_hours": "..." or null, "phone": "..." or null, "cuisine_uk": "..." or null, "cuisine_ru": "..." or null}}
+{{"opening_hours": "у форматі OSM, напр. Mo-Fr 10:00-22:00; Sa,Su 11:00-23:00" or null, "phone": "..." or null, "cuisine_uk": "..." or null, "cuisine_ru": "..." or null}}
 """
 
 
