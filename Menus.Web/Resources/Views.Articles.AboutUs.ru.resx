@@ -311,4 +311,22 @@
 	<data name="AboutUsBlock6" xml:space="preserve">
 		<value>пользователей нашего сервиса своими постоянными гостями!</value>
 	</data>
+  <data name="FactsHeader" xml:space="preserve">
+    <value>TipMyMenu в цифрах</value>
+  </data>
+  <data name="FactSince" xml:space="preserve">
+    <value>год запуска сервиса</value>
+  </data>
+  <data name="FactRestaurants" xml:space="preserve">
+    <value>заведений в каталоге</value>
+  </data>
+  <data name="FactDishes" xml:space="preserve">
+    <value>блюд с ценами</value>
+  </data>
+  <data name="FactCities" xml:space="preserve">
+    <value>городов</value>
+  </data>
+  <data name="FactCompany" xml:space="preserve">
+    <value>Сервис TipMyMenu принадлежит компании {0}. Связаться с нами:</value>
+  </data>
 </root>

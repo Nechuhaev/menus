@@ -164,6 +164,11 @@ namespace Menus.Web.Helpers
                 ("aggregateRating", aggregateRating));
         }
 
+        // Дані компанії: однакові на головній і в «Про нас»
+        public const string LegalName = "ТОВ «АДДНЬЮ»";
+        public const string FoundingYear = "2012";
+        public const string ContactEmail = "info@tipmymenu.com";
+
         // Головна: сайт і організація пов'язані через @id, щоб пошуковики й AI бачили одну сутність
         public static object Organization(string siteUrl, string logo, params string[] sameAs) =>
             Obj(
@@ -171,9 +176,22 @@ namespace Menus.Web.Helpers
                 ("@type", "Organization"),
                 ("@id", siteUrl + "#organization"),
                 ("name", "TipMyMenu"),
+                ("legalName", LegalName),
+                ("foundingDate", FoundingYear),
+                ("email", ContactEmail),
                 ("url", siteUrl),
                 ("logo", logo),
+                ("contactPoint", Obj(("@type", "ContactPoint"), ("contactType", "customer support"), ("email", ContactEmail))),
                 ("sameAs", sameAs.Where(IsHttpUrl).ToArray()));
+
+        // «Про нас»: сторінка про організацію, та сама сутність через @id
+        public static object AboutPage(string siteUrl, string pageUrl, string name) =>
+            Obj(
+                ("@context", "https://schema.org"),
+                ("@type", "AboutPage"),
+                ("url", pageUrl),
+                ("name", name),
+                ("about", Obj(("@id", siteUrl + "#organization"))));
 
         public static object WebSite(string siteUrl, string homeUrl, string language, string searchUrl) =>
             Obj(

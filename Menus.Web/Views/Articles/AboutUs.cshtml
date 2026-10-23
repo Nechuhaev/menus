@@ -1,10 +1,31 @@
 ﻿@using Microsoft.AspNetCore.Mvc.Localization
 @inject IViewLocalizer Localizer
+@inject Menus.Web.Services.SiteStatsService SiteStats
 
 @{
     ViewData["Title"] = Localizer["MetaTitle"];
     ViewData["Description"] = Localizer["MetaDescription"];
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var stats = await SiteStats.Get();
+    var siteUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/";
+}
+
+@section JsonLd {
+    @(Menus.Web.Helpers.JsonLd.Script(
+        Menus.Web.Helpers.JsonLd.Organization(siteUrl, siteUrl + "images/logo_tip_menu.png",
+            "https://www.facebook.com/tipmymenu/", "https://www.instagram.com/tipmymenu/"),
+        Menus.Web.Helpers.JsonLd.AboutPage(siteUrl, $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}", Localizer["AboutUs"].Value)))
+}
+
+@section Styles {
+    <style>
+        .about-facts { padding: 40px 0; }
+        .about-facts h2 { text-align: center; margin-bottom: 24px; }
+        .about-facts ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; max-width: 900px; margin: 0 auto; padding: 0; list-style: none; }
+        .about-facts li { padding: 16px; border: 1px solid #e5e5e5; border-radius: 6px; text-align: center; }
+        .about-facts strong { display: block; font-size: 28px; }
+        .about-facts p { max-width: 900px; margin: 20px auto 0; text-align: center; }
+    </style>
 }
 
 @await Html.PartialAsync("_Header")
@@ -228,6 +249,19 @@
         </div>
 
 
+
+        <div class="about-facts">
+            <div class="wrapper">
+                <h2>@Localizer["FactsHeader"]</h2>
+                <ul>
+                    <li><strong>@Menus.Web.Helpers.JsonLd.FoundingYear</strong>@Localizer["FactSince"]</li>
+                    <li><strong>@stats.Restaurants.ToString("N0")</strong>@Localizer["FactRestaurants"]</li>
+                    <li><strong>@stats.Dishes.ToString("N0")</strong>@Localizer["FactDishes"]</li>
+                    <li><strong>@stats.Cities</strong>@Localizer["FactCities"]</li>
+                </ul>
+                <p>@string.Format(Localizer["FactCompany"].Value, Menus.Web.Helpers.JsonLd.LegalName) <a href="mailto:@Menus.Web.Helpers.JsonLd.ContactEmail">@Menus.Web.Helpers.JsonLd.ContactEmail</a></p>
+            </div>
+        </div>
 
         <div class="about_us_block_2">
             <div class="wrapper">
