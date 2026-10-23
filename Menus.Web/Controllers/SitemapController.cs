@@ -522,6 +522,11 @@ namespace Menus.Web.Controllers
             var digitalOceanSrvc = new DigitalOceanService(_config);
             var httpClient = new SitemapUpdateService();
 
+            // Дані ресторану змінились - сторінка ресторану в кеші Cloudflare застаріла
+            var citySlug = cities.First(x => x.Id == restaurant.City).Name.Get("en").ToLower();
+            await EdgeCachePurge.Purge(_config,
+                _locales.GetLocales().Select(locale => $"{SiteBaseUrl}/{locale.Id}/{citySlug}/restaurant/{restaurant.Url}"));
+
             foreach (var locale in _locales.GetLocales())
             {
                 await ProcessRestaurantIframe(locale, cities, restaurant.City, restaurant.Url, httpClient, digitalOceanSrvc);

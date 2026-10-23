@@ -108,6 +108,19 @@
 
     @RenderBody()
 
+    @if (Context.Items.ContainsKey(Menus.Web.Helpers.EdgeCacheAttribute.ItemKey))
+    {
+        @* Сторінка могла прийти з кешу Cloudflare - токен у формах чужий, беремо свіжий *@
+        <script>
+            fetch('/antiforgery/token', { credentials: 'same-origin', cache: 'no-store' })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    window.freshAntiforgeryToken = d.token;
+                    document.querySelectorAll('input[name="__RequestVerificationToken"]').forEach(function (input) { input.value = d.token; });
+                });
+        </script>
+    }
+
     @*<script>
             var afToken = '@Html.AntiForgeryToken()';
         </script>*@

@@ -12,7 +12,8 @@
     // Culture contains the information of the requested culture
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
 
-    var selectedCity = Context.Request.Cookies[".Menus.SelectedCity"];
+    // На сторінках ресторану й страви - місто ресторану (сторінка кешується для всіх гостей)
+    var selectedCity = ViewData["pageCity"] as string ?? Context.Request.Cookies[".Menus.SelectedCity"];
     selectedCity = string.IsNullOrEmpty(selectedCity) ? "e2655e24-92dc-4179-abf6-c3908278a4de" : selectedCity;
 
     var locales = LocaleSrvc.GetLocales();

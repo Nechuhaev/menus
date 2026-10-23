@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Dapper;
+using Menus.Abstract;
 using Menus.Abstract.Models;
 using Menus.Domain;
 using Menus.Web.Data;
@@ -105,12 +106,14 @@ namespace Menus.Web.Services
         private readonly Core _core;
         private readonly UrlGenerateService _urls;
         private readonly IDbConnection _connection;
+        private readonly ITaskRunner _taskRunner;
 
-        public MenuSyncService(Core core, UrlGenerateService urls, EfDbContext dbContext)
+        public MenuSyncService(Core core, UrlGenerateService urls, EfDbContext dbContext, ITaskRunner taskRunner)
         {
             _core = core;
             _urls = urls;
             _connection = dbContext.Database.GetDbConnection();
+            _taskRunner = taskRunner;
         }
 
         public async Task<List<MenuSyncRestaurantSummary>> GetPendingSummary()
@@ -180,12 +183,15 @@ namespace Menus.Web.Services
 
             await ApplyToRestaurant(restaurantId, proposals, result, byDishId: true);
             await MarkApplied(proposals.Select(x => x.Id));
+            // ціни змінюються через Dapper повз репозиторії - оновлюємо кеші ресторану явно
+            _taskRunner.RunUpdateRestaurantIframeCache(restaurantId);
 
             if (includeBranches)
             {
                 foreach (var branch in await GetBranches(restaurantId))
                 {
                     await ApplyToRestaurant(branch.Id, proposals, result, byDishId: false);
+                    _taskRunner.RunUpdateRestaurantIframeCache(branch.Id);
                     // власні пропозиції філії з тими ж стравами більше не потрібні
                     var branchProposals = await GetPendingForRestaurant(branch.Id);
                     var keys = new HashSet<string>(proposals.Select(x => x.Kind + "|" + Normalize(x.Name)));

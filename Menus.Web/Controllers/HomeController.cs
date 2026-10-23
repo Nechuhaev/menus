@@ -210,6 +210,7 @@ namespace Menus.Web.Controllers
             return new EmptyResult();
         }
 
+        [EdgeCache(1800)]
         public async Task<IActionResult> Restaurant(string culture, string id, string city)
         {
             string cityCodeLanguage = "en";
@@ -267,6 +268,7 @@ namespace Menus.Web.Controllers
             {
                 return RedirectToAction("Restaurant", new { id, city = restaurantCityObj.Name.Get("en").ToLower() });
             }
+            SetPageCity(restaurantCityObj);
 
             var restaurantInfo = await _core.Restaurants.GetRestaurantInfo(restaurant.Id);
             ViewData["restaurantId"] = id;
@@ -391,6 +393,7 @@ namespace Menus.Web.Controllers
             return menu;
         }
 
+        [EdgeCache(1800)]
         public async Task<IActionResult> Dish(string culture, string id, string dishId, string city, int page = 0)
         {
             if ((culture != "ru" && culture != "uk" && culture != "en") ||
@@ -428,6 +431,7 @@ namespace Menus.Web.Controllers
             {
                 return RedirectToAction("Dish", new { id, dishId, city = restaurantCityObj.Name.Get("en").ToLower() });
             }
+            SetPageCity(restaurantCityObj);
             ViewData["restaurantCity"] = restaurantCityObj;
             
             UpdateLatestRestaurants(id, HttpContext);
@@ -542,6 +546,15 @@ namespace Menus.Web.Controllers
             }
 
             return "";
+        }
+
+        // Сторінки ресторану й страви кешуються однаковими для всіх гостей (EdgeCache),
+        // тому місто в шапці й посиланнях - місто ресторану, а не з куки відвідувача
+        private void SetPageCity(ICity restaurantCity)
+        {
+            ViewData["pageCity"] = restaurantCity.Id;
+            ViewData["selectedCity"] = restaurantCity.Id;
+            ViewData["selectedCityName"] = restaurantCity.Name.Get("en").ToLower();
         }
 
         private void SetCultureCookie()
