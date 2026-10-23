@@ -22,6 +22,7 @@ using Menus.Web.Helpers;
 using Menus.Web.Models;
 using Menus.Web.Models.ViewModels;
 using Menus.Web.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -92,6 +93,7 @@ namespace Menus.Web.Areas.Restaurants.Controllers
             }
 
             ViewData["owner"] = await _core.Users.GetUserById(ownerId ?? "1a950ec5-7fd3-4d82-adca-d27fda6025b5");
+            ViewData["menuUrl"] = await HttpContext.RequestServices.GetRequiredService<RestaurantMenuLinkService>().Get(selectedRestaurant.Id);
 
             return View(restaurantInfo);
         }
@@ -622,6 +624,7 @@ namespace Menus.Web.Areas.Restaurants.Controllers
             }
 
             await _core.Restaurants.UpdateRestaurantInfo(existingInfo);
+            await HttpContext.RequestServices.GetRequiredService<RestaurantMenuLinkService>().Set(selectedRestaurant.Id, model.MenuUrl);
 
             return RedirectToAction("Index", "Home");
         }
