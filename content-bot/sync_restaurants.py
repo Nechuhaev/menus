@@ -1135,7 +1135,8 @@ def sync_menu(db, restaurant, menu_url):
 
         new_price = parse_price(site.get("price"))
         old_price = float(dish["Price"] or 0)
-        if new_price and new_price != old_price and not dish["IsPriceMultiple"]:
+        # ціна «від» (кілька розмірів) на сервісі - не порівнюємо з ціною порції
+        if new_price and new_price != old_price and not dish["IsPriceMultiple"] and not site.get("price_from"):
             if old_price == 0 or 0.5 <= new_price / old_price <= 2:
                 updates["Price"] = new_price
             else:

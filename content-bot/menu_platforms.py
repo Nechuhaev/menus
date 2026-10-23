@@ -9,7 +9,7 @@ import html as html_lib
 import json
 import re
 import time
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 import requests
 
@@ -56,37 +56,36 @@ def dish(name, category, price, weight, description, image_url):
             "weight": weight or None, "description": description or None, "image_url": image_url or None, "url": None}
 
 
-# --- Expirenza: https://expz.menu/<uuid> -> меню /<uuid>/menu?menuId=N ---
+# --- Expirenza: https://expz.menu/<uuid> ---
+# Сторінку малює JavaScript, а дані сайт бере з публічного кешу меню на CDN - усі меню закладу
+# одним JSON (menus, categories, dishes з title, description, imageUrl, minPrice, dishVariants)
 
 EXPZ_ROOT = re.compile(r"^https?://(?:www\.)?expz\.menu/([0-9a-f-]{36})", re.I)
+EXPZ_STATIC = "https://static.shaketopay.com.ua/menu/prod/cache/menu/{id}/uk/menu.json"
 
 
-def parse_expz_menu(page_html):
-    """Сторінка одного меню: розділи (categoryTitle) і страви (menu-list-item)."""
+def parse_expz_json(data):
+    categories = {c.get("id"): c.get("name") for c in data.get("categories") or []}
     items = []
-    # розбиваємо на розділи за заголовком, у кожному - блоки страв
-    parts = re.split(r'data-testid="categoryTitle"[^>]*>', page_html)
-    for part in parts[1:]:
-        category = text(part[:part.find("<")])
-        for block in re.split(r'class="menu-list-item"', part)[1:]:
-            field = lambda testid: (re.search(r'data-testid="%s"[^>]*>(.*?)</(?:h4|div)>' % testid, block, re.S) or [None, ""])[1]
-            name = text(field("dishTitle"))
-            if not name:
-                continue
-            image = re.search(r'<img[^>]+src="([^"]+)"[^>]*data-testid="dishImage"', block)
-            items.append(dish(name, category, parse_price(text(field("dishPrice"))), text(field("dishAmount")),
-                              text(field("dishDescription")), image.group(1).split("?")[0] if image else None))
+    for d in data.get("dishes") or []:
+        if d.get("active") is False:
+            continue
+        variants = [v for v in d.get("dishVariants") or [] if v.get("active") is not False]
+        weight = None
+        if len(variants) == 1 and variants[0].get("amount"):
+            amount = variants[0]["amount"]
+            weight = f"{amount:g} {variants[0].get('unit') or ''}".strip()
+        price = d.get("minPrice") or (variants[0].get("price") if variants else None)
+        item = dish(d.get("title"), categories.get(d.get("categoryId")), price, weight,
+                    (d.get("description") or "").strip(), (d.get("imageUrl") or "").split("?")[0] or None)
+        # кілька варіантів з різною ціною - ціна «від», як IsPriceMultiple у нас
+        item["price_from"] = bool(d.get("maxPrice") and d.get("minPrice") and d["maxPrice"] > d["minPrice"])
+        items.append(item)
     return items
 
 
 def read_expz(url):
-    root = "https://expz.menu/" + EXPZ_ROOT.match(url).group(1)
-    root_html = fetch(root)
-    menu_ids = list(dict.fromkeys(re.findall(r'/menu\?menuId=(\d+)', root_html)))[:MAX_PAGES]
-    items = []
-    for menu_id in menu_ids:
-        items += parse_expz_menu(fetch(f"{root}/menu?menuId={menu_id}"))
-    return items
+    return parse_expz_json(json.loads(fetch(EXPZ_STATIC.format(id=EXPZ_ROOT.match(url).group(1)))))
 
 
 # --- ChoiceQR: https://<заклад>.choiceqr.com/section:<меню>/<розділ> ---
@@ -124,9 +123,9 @@ def read_choiceqr(url):
     # одна сторінка розділу на кожне меню: JSON-LD містить усі розділи свого меню
     menus = {}
     for href in re.findall(r'href="([^"]*section:[^"#?]+)"', pages_html):
-        path = urlparse(urljoin(root, href)).path.strip("/")
-        menu = path.split("/")[0]
-        menus.setdefault(menu, urljoin(root, path))
+        # «section:...» без слеша urljoin сприймає як схему URL - шлях збираємо вручну
+        path = re.sub(r"^https?://[^/]+", "", href).strip("/")
+        menus.setdefault(path.split("/")[0], root + path)
     items = []
     for page_url in list(menus.values())[:MAX_PAGES]:
         items += parse_choiceqr_page(fetch(page_url))
