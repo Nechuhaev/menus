@@ -78,16 +78,26 @@
         var faqTypical = Menus.Web.Helpers.JsonLd.TypicalPrices(faqPrices, Model.RestaurantInfo.Currency);
 
         if (!string.IsNullOrWhiteSpace(faqAddress))
+        {
             faq.Add((string.Format(Localizer["FaqAddressQ"].Value, faqName), $"{restaurantCity.Name.Get(culture)}, {faqAddress}"));
+        }
         if (!string.IsNullOrWhiteSpace(faqHours))
+        {
             faq.Add((string.Format(Localizer["FaqHoursQ"].Value, faqName), faqHours));
+        }
         if (!string.IsNullOrWhiteSpace(Model.Restaurant.Phone))
+        {
             faq.Add((string.Format(Localizer["FaqPhoneQ"].Value, faqName), Model.Restaurant.Phone));
+        }
         if (!string.IsNullOrWhiteSpace(faqCuisine))
+        {
             faq.Add((string.Format(Localizer["FaqCuisineQ"].Value, faqName), faqCuisine));
+        }
         if (faqTypical != null)
+        {
             faq.Add((string.Format(Localizer["FaqPriceQ"].Value, faqName),
-                string.Format(Localizer["FaqPriceA"].Value, faqPrices.Count(x => x > 0), faqTypical)));
+                    string.Format(Localizer["FaqPriceA"].Value, faqPrices.Count(x => x > 0), faqTypical)));
+        }
     }
 }
 
