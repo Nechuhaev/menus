@@ -5,9 +5,9 @@
 Enabled не змінюється. Ключі, що впали нижче порогу, лишаються в таблиці з новими цифрами -
 сайт сам не показує сторінку, де закладів менше MinVenues.
 
-Назва сторінки uk - сам ключ, ru/en - найчастіший початок назв цих страв відповідною мовою
-(«борщ» -> «Борщ» / «Борщ» / «Borscht»), тобто з уже перекладених назв страв. Якщо такої назви
-немає (у полі en часто лежить українська), назва перекладається DeepL один раз і далі береться з таблиці.
+Назва сторінки uk - сам ключ («борщ» -> «Борщ»), ru/en - переклад DeepL з української, один раз
+(далі береться з таблиці).
+Дублі написання («тар тар» / «тартар») об'єднуються, прикметники без іменника відкидаються.
 
 Запуск:  python3 dish_city_pages.py --dry-run   # показати, що зміниться
          python3 dish_city_pages.py             # записати (cron щодня після sync_restaurants)
@@ -18,14 +18,14 @@ import os
 import re
 import statistics
 import uuid
-from collections import Counter
 
 import requests
 
-from dish_city_candidates import candidates, collect
-from sync_restaurants import get_db, match_key
+from dish_city_candidates import ADJECTIVE, NOT_ADJECTIVES, candidates, collect, merge_spellings
+from sync_restaurants import get_db
 
 MIN_VENUES = 5
+TITLE_VERSION = 2  # назви ru/en перекладені DeepL з uk
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS DishCityPages (
@@ -78,14 +78,6 @@ def capitalize(text):
     return text[:1].upper() + text[1:]
 
 
-def title_for(key, names, lang):
-    """Найчастіші перші слова назв цією мовою (стільки ж слів, скільки в ключі); None, якщо таких немає."""
-    n = len(key.split())
-    starts = Counter(" ".join(match_key(name).split()[:n]) for name in names if fits(lang, name))
-    starts.pop("", None)
-    return capitalize(starts.most_common(1)[0][0]) if starts else None
-
-
 def deepl(texts, lang):
     """Переклад назв з української (лише ті, яких немає серед назв страв)."""
     if not texts:
@@ -115,19 +107,36 @@ def main():
     used_slugs = {(row["CityId"], row["Slug"]) for row in existing.values()}
 
     stats, _ = collect(db)
+    merged = merge_spellings(stats)  # «тар тар» -> «тартар»
     found = candidates(stats, MIN_VENUES)
-    # ключі, що вже є в таблиці, оновлюються навіть нижче порогу (щоб сайт бачив нові цифри)
-    keys = set(found) | {k for k in existing if k in stats}
 
-    # назви: з назв страв, інакше вже збережена в таблиці, інакше DeepL (один раз)
+    # Рядки таблиці, яких немає серед кандидатів: дубль написання - галочка переходить на
+    # об'єднаний ключ, рядок видаляється; прикметник або вимкнений - видаляється;
+    # увімкнений нижче порогу - лишається з новими цифрами (сайт його не показує)
+    to_delete, to_enable = [], set()
+    for (city, key), row in existing.items():
+        if (city, key) in found:
+            continue
+        if (city, key) in merged:
+            if row["Enabled"]:
+                to_enable.add((city, merged[(city, key)]))
+            to_delete.append((city, key))
+        elif not row["Enabled"] or (" " not in key and ADJECTIVE.search(key) and key not in NOT_ADJECTIVES):
+            to_delete.append((city, key))
+    keys = set(found) | {k for k in existing if k in stats and k not in to_delete}
+
+    # назви: uk - з назв страв; ru/en - DeepL з української (порядок слів у мовах різний:
+    # «Овочі гриль» - «Grilled vegetables»), перекладене зберігається й не перекладається вдруге
     titles, to_translate = {}, {"ru": [], "en": []}
     for city, key in keys:
         st = stats[(city, key)]
         old = json.loads(existing[(city, key)]["Title"]) if (city, key) in existing else {}
-        title = {"uk": title_for(key, [d[1] for d in st.dishes], "uk") or capitalize(key)}
-        for lang, idx in (("ru", 2), ("en", 3)):
-            title[lang] = title_for(key, [d[idx] for d in st.dishes], lang) or (old.get(lang) if fits(lang, old.get(lang)) else None)
-            if not title[lang]:
+        # uk - сам ключ (після об'єднання «тар тар» -> «тартар» перші слова назв дали б «Тар»)
+        title = {"uk": capitalize(key), "v": TITLE_VERSION}
+        for lang in ("ru", "en"):
+            keep = old.get("v") == TITLE_VERSION and old.get("uk") == title["uk"] and fits(lang, old.get(lang))
+            title[lang] = old[lang] if keep else None
+            if not keep:
                 to_translate[lang].append((city, key))
         titles[(city, key)] = title
     for lang, pending in to_translate.items():
@@ -171,13 +180,22 @@ def main():
              json.dumps([d[0] for d in st.dishes])))
 
     # ключі, яких більше немає серед страв зовсім: 0 закладів - сторінка зникає
-    gone = [k for k in existing if k not in stats]
-    if not args.dry_run:
+    gone = [k for k in existing if k not in stats and k not in to_delete]
+    if args.dry_run:
+        for city, key in to_delete:
+            target = merged.get((city, key))
+            print(f"- {city[:8]} {key}" + (f" -> {target}" if target else ""))
+    else:
+        for city, key in to_delete:
+            cur.execute("DELETE FROM DishCityPages WHERE CityId = %s AND KeyUk = %s", (city, key))
+        for city, key in to_enable:
+            cur.execute("UPDATE DishCityPages SET Enabled = 1 WHERE CityId = %s AND KeyUk = %s", (city, key))
         for city, key in gone:
             cur.execute("UPDATE DishCityPages SET Venues = 0, Restaurants = 0, DishIds = '[]', UpdatedAt = NOW() "
                         "WHERE CityId = %s AND KeyUk = %s", (city, key))
         db.commit()
-    print(f"нових: {added}, оновлено: {updated}, зникли: {len(gone)}{' (dry-run)' if args.dry_run else ''}")
+    print(f"нових: {added}, оновлено: {updated}, видалено: {len(to_delete)}, зникли: {len(gone)}"
+          f"{' (dry-run)' if args.dry_run else ''}")
 
 
 if __name__ == "__main__":

@@ -159,4 +159,19 @@
   <data name="Related" xml:space="preserve">
     <value>Другие блюда в городе {0}</value>
   </data>
+  <data name="SeoText" xml:space="preserve">
+    <value>{0} в городе {1}: заведений — {2}, ресторанов с учетом филиалов — {3}.</value>
+  </data>
+  <data name="SeoPrices" xml:space="preserve">
+    <value>Обычно блюдо стоит около {0}, цены — от {1} до {2}.</value>
+  </data>
+  <data name="SeoTopRated" xml:space="preserve">
+    <value>Лучшие оценки посетителей: {0}.</value>
+  </data>
+  <data name="SeoUpdated" xml:space="preserve">
+    <value>Ниже — все заведения с фото, ценами и рейтингами блюд; список обновляется каждый день.</value>
+  </data>
+  <data name="From" xml:space="preserve">
+    <value>от</value>
+  </data>
 </root>

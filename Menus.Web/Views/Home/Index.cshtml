@@ -6,6 +6,7 @@
 @inject Menus.Web.Services.LocaleService LocaleSrvc;
 
 @inject Menus.Web.Services.UserService  UserService;
+@inject Menus.Web.Services.DishCityPageService DishCityPages
 @{
     ViewData["Title"] = Localizer["MetaTitle"];
     ViewData["Description"] = Localizer["MetaDescription"];
@@ -22,6 +23,10 @@
     // Culture contains the information of the requested culture
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
     var isMobileUser = UserService.IsMobileUser(Context.Request);
+    // сторінки «страва + місто» обраного міста
+    var popularDishes = selectedCity == null ? new List<Menus.Web.Services.DishCityPage>()
+        : (await DishCityPages.GetPublishedForCity(selectedCity.Id)).Take(12).ToList();
+    var selectedCitySlug = selectedCity?.Name.Get("en").ToLower();
 }
 
 
@@ -492,6 +497,27 @@
                 </div>
             }
 
+            @if (popularDishes.Any())
+            {
+                <div class="title_section">
+                    <h2>@string.Format(Localizer["PopularDishes"].Value, selectedCity.Name.Get(culture))</h2>
+                    <span>
+                        <a href="/@culture/@selectedCitySlug/dishes">@Localizer["AllDishes"]</a>
+                    </span>
+                </div>
+                <ul class="popular-dish-pages">
+                    @foreach (var dishPage in popularDishes)
+                    {
+                        <li>
+                            <a href="/@culture/@selectedCitySlug/dishes/@dishPage.Slug">
+                                <strong>@dishPage.GetTitle(culture)</strong>
+                                <span>~@dishPage.MedianPrice.ToString("0") ₴</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+
             @if (bestDishes.Any())
             {
                 <div class="title_section">
@@ -837,4 +863,14 @@
             //optional
         }
     </script>
+}
+
+@section Styles {
+    <style>
+        /* блок «Популярні страви»: 2 колонки на телефоні, далі скільки вміститься */
+        .popular-dish-pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 0 0 30px; padding: 0; list-style: none; }
+        .popular-dish-pages a { display: block; height: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 6px; }
+        .popular-dish-pages strong { display: block; }
+        .popular-dish-pages span { color: #777; font-size: 14px; }
+    </style>
 }

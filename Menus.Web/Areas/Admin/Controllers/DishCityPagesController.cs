@@ -32,6 +32,27 @@ namespace Menus.Web.Areas.Admin.Controllers
             return View(await _pages.GetAllForCity(cityId));
         }
 
+        // Власний SEO-текст сторінки (uk/ru/en); порожнє поле - автоматичний текст з даних
+        public async Task<IActionResult> Edit(string id)
+        {
+            var dishPage = await _pages.GetById(id);
+            if (dishPage == null) return NotFound();
+            var city = (await _core.Restaurants.GetCities()).FirstOrDefault(x => x.Id == dishPage.CityId);
+            ViewData["citySlug"] = city?.Name.Get("en").ToLower();
+            return View(dishPage);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(string id, string uk, string ru, string en)
+        {
+            var dishPage = await _pages.GetById(id);
+            if (dishPage == null) return NotFound();
+            await _pages.SaveCustomText(id, new Dictionary<string, string> { ["uk"] = uk, ["ru"] = ru, ["en"] = en });
+            TempData["saved"] = true;
+            return RedirectToAction("Index", new { cityId = dishPage.CityId });
+        }
+
         // shownIds - усі сторінки таблиці на екрані, enabledIds - з поставленою галочкою
         [HttpPost]
         [ValidateAntiForgeryToken]

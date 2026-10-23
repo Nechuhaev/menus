@@ -159,4 +159,19 @@
   <data name="Related" xml:space="preserve">
     <value>Інші страви в місті {0}</value>
   </data>
+  <data name="SeoText" xml:space="preserve">
+    <value>{0} у місті {1}: закладів — {2}, ресторанів з урахуванням філій — {3}.</value>
+  </data>
+  <data name="SeoPrices" xml:space="preserve">
+    <value>Зазвичай страва коштує близько {0}, ціни — від {1} до {2}.</value>
+  </data>
+  <data name="SeoTopRated" xml:space="preserve">
+    <value>Найкращі оцінки відвідувачів: {0}.</value>
+  </data>
+  <data name="SeoUpdated" xml:space="preserve">
+    <value>Нижче — усі заклади з фото, цінами та рейтингами страв; список оновлюється щодня.</value>
+  </data>
+  <data name="From" xml:space="preserve">
+    <value>від</value>
+  </data>
 </root>

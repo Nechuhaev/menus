@@ -282,4 +282,10 @@
 	<data name="RestarauntsNearMe" xml:space="preserve">
 		<value>Рестораны рядом со мной</value>
 	</data>
+  <data name="PopularDishes" xml:space="preserve">
+    <value>Популярные блюда — {0}</value>
+  </data>
+  <data name="AllDishes" xml:space="preserve">
+    <value>Все блюда</value>
+  </data>
 </root>

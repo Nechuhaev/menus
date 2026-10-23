@@ -159,4 +159,19 @@
   <data name="Related" xml:space="preserve">
     <value>Other Dishes in {0}</value>
   </data>
+  <data name="SeoText" xml:space="preserve">
+    <value>{0} in the city of {1}: establishments — {2}, restaurants (including branches) — {3}.</value>
+  </data>
+  <data name="SeoPrices" xml:space="preserve">
+    <value>A dish usually costs about {0}, with prices ranging from {1} to {2}.</value>
+  </data>
+  <data name="SeoTopRated" xml:space="preserve">
+    <value>Top visitor ratings: {0}.</value>
+  </data>
+  <data name="SeoUpdated" xml:space="preserve">
+    <value>Below is a list of all restaurants, complete with photos, prices, and dish ratings; the list is updated daily.</value>
+  </data>
+  <data name="From" xml:space="preserve">
+    <value>from</value>
+  </data>
 </root>
