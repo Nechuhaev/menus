@@ -57,17 +57,19 @@ def keys_for(name):
     return keys
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--min", type=int, default=5, help="мінімум різних закладів у місті")
-    parser.add_argument("--top", type=int, default=60, help="скільки ключів показати на місто")
-    args = parser.parse_args()
+class KeyStats:
+    """Страви одного ключа в одному місті."""
 
-    db = get_db()
+    def __init__(self):
+        self.brands = set()
+        self.restaurants = set()
+        self.prices = []
+        self.dishes = []  # (Id страви, назва uk, ru, en)
+
+
+def collect(db):
+    """(місто, ключ) -> KeyStats для всіх активних страв активних ресторанів, крім напоїв."""
     cur = db.cursor(dictionary=True)
-    cur.execute("SELECT Id, Name FROM Cities")
-    cities = {row["Id"]: get_localizable_value(row["Name"], "uk") or row["Id"] for row in cur.fetchall()}
-
     cur.execute(
         """SELECT d.Id, d.Name, d.Price, r.Id AS RestaurantId, r.Name AS RestaurantName, r.City,
                   GROUP_CONCAT(CONCAT_WS(' ', mc.Name, pc.Name) SEPARATOR ' ') AS Categories
@@ -80,10 +82,7 @@ def main():
            GROUP BY d.Id""",
         (DISH_STATUS_ACTIVE, RESTAURANT_STATUS_ACTIVE))
 
-    # (місто, ключ) -> заклади (бренди), ресторани, ціни
-    brands = defaultdict(set)
-    restaurants = defaultdict(set)
-    prices = defaultdict(list)
+    stats = defaultdict(KeyStats)
     drinks = 0
     for row in cur.fetchall():
         # назви категорій - JSON з мовами, для пошуку слів досить сирого тексту
@@ -91,32 +90,51 @@ def main():
         if DRINK_CATEGORY.search(categories):
             drinks += 1
             continue
-        name = get_localizable_value(row["Name"], "uk") or get_localizable_value(row["Name"], "ru")
+        names = {lang: get_localizable_value(row["Name"], lang) for lang in ("uk", "ru", "en")}
         brand = normalize_name(row["RestaurantName"])
-        for key in keys_for(name):
-            k = (row["City"], key)
-            brands[k].add(brand)
-            restaurants[k].add(row["RestaurantId"])
+        for key in keys_for(names["uk"] or names["ru"]):
+            st = stats[(row["City"], key)]
+            st.brands.add(brand)
+            st.restaurants.add(row["RestaurantId"])
+            st.dishes.append((row["Id"], names["uk"], names["ru"], names["en"]))
             if row["Price"] and row["Price"] > 0:
-                prices[k].append(float(row["Price"]))
+                st.prices.append(float(row["Price"]))
+    return stats, drinks
 
-    # найчастіша пара для кожного першого слова
+
+def candidates(stats, min_venues):
+    """Ключі з порогом закладів. Одне слово, яке майже завжди йде з тим самим другим
+    («теплий» -> «теплий салат», «картопляне» -> «картопляне пюре»), відкидається - лишається пара."""
     best_pair = defaultdict(int)
-    for (city, key), b in brands.items():
+    for (city, key), st in stats.items():
         if " " in key:
             first = key.split(" ", 1)[0]
-            best_pair[(city, first)] = max(best_pair[(city, first)], len(b))
+            best_pair[(city, first)] = max(best_pair[(city, first)], len(st.brands))
 
+    result = {}
+    for (city, key), st in stats.items():
+        if " " not in key and best_pair[(city, key)] >= 0.5 * len(st.brands):
+            continue
+        if len(st.brands) >= min_venues:
+            result[(city, key)] = st
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--min", type=int, default=5, help="мінімум різних закладів у місті")
+    parser.add_argument("--top", type=int, default=60, help="скільки ключів показати на місто")
+    args = parser.parse_args()
+
+    db = get_db()
+    cur = db.cursor(dictionary=True)
+    cur.execute("SELECT Id, Name FROM Cities")
+    cities = {row["Id"]: get_localizable_value(row["Name"], "uk") or row["Id"] for row in cur.fetchall()}
+
+    stats, drinks = collect(db)
     by_city = defaultdict(list)
-    for (city, key), b in brands.items():
-        # одне слово, яке майже завжди йде з тим самим другим («теплий» -> «теплий салат»,
-        # «картопляне» -> «картопляне пюре»): лишається лише пара
-        if " " not in key:
-            if best_pair[(city, key)] >= 0.5 * len(b):
-                continue
-        if len(b) >= args.min:
-            p = prices[(city, key)]
-            by_city[city].append((len(b), len(restaurants[(city, key)]), key, statistics.median(p) if p else 0))
+    for (city, key), st in candidates(stats, args.min).items():
+        by_city[city].append((len(st.brands), len(st.restaurants), key, statistics.median(st.prices) if st.prices else 0))
 
     total = 0
     for city, rows in sorted(by_city.items(), key=lambda x: -len(x[1])):

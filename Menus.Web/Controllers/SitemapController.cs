@@ -53,6 +53,7 @@ namespace Menus.Web.Controllers
         private readonly UrlGenerateService _urls;
         private readonly IConfiguration _config;
         private readonly IDbConnection _dapper;
+        private readonly EfDbContext _efContext;
         private readonly AbTestService _abTests;
 
         public SitemapController(
@@ -70,6 +71,7 @@ namespace Menus.Web.Controllers
             _urls = urls;
             _config = config;
             _dapper = efContext.Database.GetDbConnection();
+            _efContext = efContext;
             _abTests = abTests;
         }
 
@@ -380,6 +382,17 @@ namespace Menus.Web.Controllers
                     $"<loc>{SiteBaseUrl}/{ locale.Id}/home/bestdishes</loc>"
                 };
 
+
+                // сторінки «страва + місто»: хаб кожного міста зі сторінками і самі сторінки
+                var cities = (await _core.Restaurants.GetCities()).ToList();
+                var dishCityPages = await new DishCityPageService(_efContext).GetAllPublished();
+                foreach (var cityPages in dishCityPages.GroupBy(x => x.CityId))
+                {
+                    var citySlug = cities.FirstOrDefault(x => x.Id == cityPages.Key)?.Name.Get("en").ToLower();
+                    if (citySlug == null) continue;
+                    mainPages.Add($"<loc>{SiteBaseUrl}/{ locale.Id}/{citySlug}/dishes</loc>");
+                    mainPages.AddRange(cityPages.Select(x => $"<loc>{SiteBaseUrl}/{ locale.Id}/{citySlug}/dishes/{x.Slug}</loc>"));
+                }
 
                 foreach (string page in mainPages)
                 {

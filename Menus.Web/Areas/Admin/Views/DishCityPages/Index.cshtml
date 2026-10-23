@@ -1,0 +1,110 @@
+@model List<Menus.Web.Services.DishCityPage>
+@using Menus.Abstract.Models
+@{
+    ViewData["Title"] = "Страва + місто";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var cities = ViewData["cities"] as List<ICity>;
+    var cityId = ViewData["cityId"] as string;
+    var citySlug = ViewData["citySlug"] as string;
+    var minVenues = Menus.Web.Services.DishCityPageService.MinVenues;
+}
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li>Страва + місто</li>
+                </ul>
+            </div>
+
+            <div class="title-section">
+                <div class="title-section--left">
+                    <h2>Сторінки «страва + місто»</h2>
+                </div>
+            </div>
+
+            <p>
+                Кандидатів щоночі рахує бот із назв страв. Сторінка з'являється на сайті, коли її ввімкнено
+                і страва є щонайменше в @minVenues закладах міста. Вимикайте загальні слова («шоколадний», «курячі»).
+                Хаб міста: <a href="/uk/@citySlug/dishes" target="_blank">/uk/@citySlug/dishes</a>
+            </p>
+
+            <form method="get" style="margin-bottom: 16px;">
+                <select name="cityId" onchange="this.form.submit()">
+                    @foreach (var city in cities)
+                    {
+                        <option value="@city.Id" selected="@(city.Id == cityId)">@city.Name.Get("uk")</option>
+                    }
+                </select>
+                <input type="text" id="dish-city-filter" placeholder="Фільтр за назвою" style="margin-left: 12px;" />
+            </form>
+
+            @if (TempData["saved"] != null)
+            {
+                <p><strong>Збережено.</strong> Сторінки оновляться на сайті протягом 30 хвилин (кеш).</p>
+            }
+
+            @if (!Model.Any())
+            {
+                <p>Кандидатів ще немає: бот (dish_city_pages.py) ще не запускався для цього міста.</p>
+            }
+            else
+            {
+                <form method="post" asp-action="Save">
+                    <input type="hidden" name="cityId" value="@cityId" />
+                    <p><button type="submit">Зберегти</button></p>
+                    <table class="mainTable">
+                        <thead>
+                            <tr>
+                                <th>Увімк.</th>
+                                <th>Страва (uk / ru / en)</th>
+                                <th>Закладів</th>
+                                <th>Ресторанів</th>
+                                <th>Ціна: мін / медіана / макс</th>
+                                <th>Сторінка</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var page in Model)
+                            {
+                                var visible = page.Enabled && page.Venues >= minVenues;
+                                <tr data-key="@page.KeyUk">
+                                    <td>
+                                        <input type="hidden" name="shownIds" value="@page.Id" />
+                                        <input type="checkbox" name="enabledIds" value="@page.Id" checked="@page.Enabled" />
+                                    </td>
+                                    <td>@page.GetTitle("uk") / @page.GetTitle("ru") / @page.GetTitle("en")</td>
+                                    <td>@page.Venues@(page.Venues < minVenues ? " (менше порогу)" : "")</td>
+                                    <td>@page.Restaurants</td>
+                                    <td>@page.MinPrice.ToString("0") / @page.MedianPrice.ToString("0") / @page.MaxPrice.ToString("0")</td>
+                                    <td>
+                                        @if (visible)
+                                        {
+                                            <a href="/uk/@citySlug/dishes/@page.Slug" target="_blank">/@page.Slug</a>
+                                        }
+                                        else
+                                        {
+                                            <span>/@page.Slug</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <p><button type="submit">Зберегти</button></p>
+                </form>
+            }
+        </div>
+    </main>
+</div>
+
+<script>
+    document.getElementById('dish-city-filter').addEventListener('input', function () {
+        var q = this.value.trim().toLowerCase();
+        document.querySelectorAll('tr[data-key]').forEach(function (row) {
+            row.style.display = !q || row.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+        });
+    });
+</script>
