@@ -117,4 +117,22 @@
 	<resheader name="writer">
 		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</resheader>
+  <data name="Home" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="MetaTitle" xml:space="preserve">
+    <value>Dishes in {0}: Where to Try Them and Prices</value>
+  </data>
+  <data name="MetaDescription" xml:space="preserve">
+    <value>Popular dishes in {0} and the restaurants that serve them: prices, ratings, and photos on TipMyMenu.</value>
+  </data>
+  <data name="Header" xml:space="preserve">
+    <value>Dishes in {0}</value>
+  </data>
+  <data name="Empty" xml:space="preserve">
+    <value>Menu selections for this city will be available soon.</value>
+  </data>
+  <data name="Venues" xml:space="preserve">
+    <value>Establishments: {0} · Usually {1} ₴</value>
+  </data>
 </root>

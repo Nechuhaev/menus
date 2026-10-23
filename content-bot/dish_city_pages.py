@@ -6,16 +6,21 @@ Enabled не змінюється. Ключі, що впали нижче пор
 сайт сам не показує сторінку, де закладів менше MinVenues.
 
 Назва сторінки uk - сам ключ, ru/en - найчастіший початок назв цих страв відповідною мовою
-(«борщ» -> «Борщ» / «Борщ» / «Borscht»), тобто з уже перекладених назв страв, без AI.
+(«борщ» -> «Борщ» / «Борщ» / «Borscht»), тобто з уже перекладених назв страв. Якщо такої назви
+немає (у полі en часто лежить українська), назва перекладається DeepL один раз і далі береться з таблиці.
 
 Запуск:  python3 dish_city_pages.py --dry-run   # показати, що зміниться
          python3 dish_city_pages.py             # записати (cron щодня після sync_restaurants)
 """
 import argparse
 import json
+import os
+import re
 import statistics
 import uuid
 from collections import Counter
+
+import requests
 
 from dish_city_candidates import candidates, collect
 from sync_restaurants import get_db, match_key
@@ -53,13 +58,48 @@ def slugify(key):
     return "-".join("".join(TRANSLIT.get(ch, ch) for ch in word) for word in key.split())
 
 
-def title_for(key, names):
-    """Найчастіші перші слова назв (стільки ж слів, скільки в ключі), з великої літери."""
-    n = len(key.split())
-    starts = Counter(" ".join(match_key(name).split()[:n]) for name in names if name)
-    starts.pop("", None)
-    text = starts.most_common(1)[0][0] if starts else key
+CYRILLIC = re.compile(r"[а-яіїєґё]", re.I)
+UKRAINIAN_ONLY = re.compile(r"[іїєґ]", re.I)
+LATIN = re.compile(r"[a-z]", re.I)
+
+
+def fits(lang, text):
+    """Назва справді цією мовою: en - латиниця, ru - кирилиця без українських літер."""
+    if not text:
+        return False
+    if lang == "en":
+        return bool(LATIN.search(text)) and not CYRILLIC.search(text)
+    if lang == "ru":
+        return bool(CYRILLIC.search(text)) and not UKRAINIAN_ONLY.search(text)
+    return True
+
+
+def capitalize(text):
     return text[:1].upper() + text[1:]
+
+
+def title_for(key, names, lang):
+    """Найчастіші перші слова назв цією мовою (стільки ж слів, скільки в ключі); None, якщо таких немає."""
+    n = len(key.split())
+    starts = Counter(" ".join(match_key(name).split()[:n]) for name in names if fits(lang, name))
+    starts.pop("", None)
+    return capitalize(starts.most_common(1)[0][0]) if starts else None
+
+
+def deepl(texts, lang):
+    """Переклад назв з української (лише ті, яких немає серед назв страв)."""
+    if not texts:
+        return []
+    key = os.environ["DEEPL_API_KEY"]
+    url = "https://api-free.deepl.com" if key.endswith(":fx") else "https://api.deepl.com"
+    result = []
+    for i in range(0, len(texts), 50):
+        r = requests.post(url + "/v2/translate", timeout=60, headers={"Authorization": "DeepL-Auth-Key " + key},
+                          json={"text": texts[i:i + 50], "source_lang": "UK", "target_lang": {"ru": "RU", "en": "EN-US"}[lang],
+                                "context": "Назва страви в меню ресторану"})
+        r.raise_for_status()
+        result += [capitalize(t["text"]) for t in r.json()["translations"]]
+    return result
 
 
 def main():
@@ -70,7 +110,7 @@ def main():
     db = get_db()
     cur = db.cursor(dictionary=True)
     cur.execute(CREATE_TABLE_SQL)
-    cur.execute("SELECT Id, CityId, KeyUk, Slug, Enabled FROM DishCityPages")
+    cur.execute("SELECT Id, CityId, KeyUk, Slug, Title, Enabled FROM DishCityPages")
     existing = {(row["CityId"], row["KeyUk"]): row for row in cur.fetchall()}
     used_slugs = {(row["CityId"], row["Slug"]) for row in existing.values()}
 
@@ -79,15 +119,29 @@ def main():
     # ключі, що вже є в таблиці, оновлюються навіть нижче порогу (щоб сайт бачив нові цифри)
     keys = set(found) | {k for k in existing if k in stats}
 
+    # назви: з назв страв, інакше вже збережена в таблиці, інакше DeepL (один раз)
+    titles, to_translate = {}, {"ru": [], "en": []}
+    for city, key in keys:
+        st = stats[(city, key)]
+        old = json.loads(existing[(city, key)]["Title"]) if (city, key) in existing else {}
+        title = {"uk": title_for(key, [d[1] for d in st.dishes], "uk") or capitalize(key)}
+        for lang, idx in (("ru", 2), ("en", 3)):
+            title[lang] = title_for(key, [d[idx] for d in st.dishes], lang) or (old.get(lang) if fits(lang, old.get(lang)) else None)
+            if not title[lang]:
+                to_translate[lang].append((city, key))
+        titles[(city, key)] = title
+    for lang, pending in to_translate.items():
+        unique = sorted({titles[k]["uk"] for k in pending})
+        print(f"DeepL {lang}: {len(unique)} назв, {sum(len(t) for t in unique)} символів")
+        translated = dict(zip(unique, deepl(unique, lang) if not args.dry_run else unique))
+        for k in pending:
+            titles[k][lang] = translated[titles[k]["uk"]]
+
     added = updated = 0
     for city, key in sorted(keys):
         st = stats[(city, key)]
         prices = sorted(st.prices) or [0]
-        title = {
-            "uk": title_for(key, [d[1] for d in st.dishes]),
-            "ru": title_for(key, [d[2] for d in st.dishes]),
-            "en": title_for(key, [d[3] for d in st.dishes]),
-        }
+        title = titles[(city, key)]
         row = existing.get((city, key))
         if row:
             slug = row["Slug"]

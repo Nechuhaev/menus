@@ -117,4 +117,46 @@
 	<resheader name="writer">
 		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</resheader>
+  <data name="Home" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="Dishes" xml:space="preserve">
+    <value>Dishes</value>
+  </data>
+  <data name="MetaTitle" xml:space="preserve">
+    <value>{0} — {1}: Where to Eat and Prices</value>
+  </data>
+  <data name="MetaDescription" xml:space="preserve">
+    <value>{0} in {1}: {2} restaurants, prices ranging from {3} to {4}. Ratings, photos, and menus on TipMyMenu.</value>
+  </data>
+  <data name="Header" xml:space="preserve">
+    <value>{0} — {1}</value>
+  </data>
+  <data name="Intro" xml:space="preserve">
+    <value>{0} is listed in the menu of restaurants in {1} (total restaurants: {2}). Prices range from {3} to {4}, usually around {5}.</value>
+  </data>
+  <data name="FaqHeader" xml:space="preserve">
+    <value>Frequently Asked Questions</value>
+  </data>
+  <data name="FaqWhereQ" xml:space="preserve">
+    <value>Where can I try {0} in {1}?</value>
+  </data>
+  <data name="FaqWhereA" xml:space="preserve">
+    <value>Establishments: {0}. For example: {1}.</value>
+  </data>
+  <data name="FaqPriceQ" xml:space="preserve">
+    <value>How much does {0} cost in {1}?</value>
+  </data>
+  <data name="FaqPriceA" xml:space="preserve">
+    <value>From {0} to {1}, the regular price is about {2}.</value>
+  </data>
+  <data name="FaqCheapestQ" xml:space="preserve">
+    <value>Where is {0} the cheapest in {1}?</value>
+  </data>
+  <data name="FaqCheapestA" xml:space="preserve">
+    <value>At {0}: “{1}” for {2}.</value>
+  </data>
+  <data name="Related" xml:space="preserve">
+    <value>Other Dishes in {0}</value>
+  </data>
 </root>

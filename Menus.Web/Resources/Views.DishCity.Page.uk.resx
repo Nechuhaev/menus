@@ -117,4 +117,46 @@
 	<resheader name="writer">
 		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</resheader>
+  <data name="Home" xml:space="preserve">
+    <value>Головна</value>
+  </data>
+  <data name="Dishes" xml:space="preserve">
+    <value>Страви</value>
+  </data>
+  <data name="MetaTitle" xml:space="preserve">
+    <value>{0} — {1}: де скуштувати та ціни</value>
+  </data>
+  <data name="MetaDescription" xml:space="preserve">
+    <value>{0} у місті {1}: закладів — {2}, ціни від {3} до {4}. Рейтинги, фото та меню на TipMyMenu.</value>
+  </data>
+  <data name="Header" xml:space="preserve">
+    <value>{0} — {1}</value>
+  </data>
+  <data name="Intro" xml:space="preserve">
+    <value>{0} у меню закладів міста {1} (закладів: {2}). Ціни від {3} до {4}, зазвичай близько {5}.</value>
+  </data>
+  <data name="FaqHeader" xml:space="preserve">
+    <value>Поширені запитання</value>
+  </data>
+  <data name="FaqWhereQ" xml:space="preserve">
+    <value>Де можна скуштувати {0} у місті {1}?</value>
+  </data>
+  <data name="FaqWhereA" xml:space="preserve">
+    <value>Закладів: {0}. Наприклад: {1}.</value>
+  </data>
+  <data name="FaqPriceQ" xml:space="preserve">
+    <value>Скільки коштує {0} у місті {1}?</value>
+  </data>
+  <data name="FaqPriceA" xml:space="preserve">
+    <value>Від {0} до {1}, звичайна ціна — близько {2}.</value>
+  </data>
+  <data name="FaqCheapestQ" xml:space="preserve">
+    <value>Де {0} найдешевше у місті {1}?</value>
+  </data>
+  <data name="FaqCheapestA" xml:space="preserve">
+    <value>У закладі {0}: «{1}» за {2}.</value>
+  </data>
+  <data name="Related" xml:space="preserve">
+    <value>Інші страви в місті {0}</value>
+  </data>
 </root>

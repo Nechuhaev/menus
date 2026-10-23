@@ -117,4 +117,22 @@
 	<resheader name="writer">
 		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</resheader>
+  <data name="Home" xml:space="preserve">
+    <value>Головна</value>
+  </data>
+  <data name="MetaTitle" xml:space="preserve">
+    <value>Страви в місті {0}: де скуштувати та ціни</value>
+  </data>
+  <data name="MetaDescription" xml:space="preserve">
+    <value>Популярні страви в місті {0} та заклади, де їх подають: ціни, рейтинги та фото на TipMyMenu.</value>
+  </data>
+  <data name="Header" xml:space="preserve">
+    <value>Страви в місті {0}</value>
+  </data>
+  <data name="Empty" xml:space="preserve">
+    <value>Підбірки страв для цього міста незабаром з'являться.</value>
+  </data>
+  <data name="Venues" xml:space="preserve">
+    <value>закладів: {0} · зазвичай {1} ₴</value>
+  </data>
 </root>
