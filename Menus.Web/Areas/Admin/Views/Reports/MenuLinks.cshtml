@@ -1,0 +1,93 @@
+@model List<Menus.Web.Services.MenuLinkProposal>
+
+@{
+    ViewData["Title"] = "Посилання на меню";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var restaurants = Model.GroupBy(x => x.RestaurantId).ToList();
+    var recommended = restaurants.Count(g => g.Any(x => x.Recommended));
+}
+
+<style>
+    .linkRestaurant { border: 1px solid #ddd; border-radius: 6px; padding: 10px 12px; margin: 12px 0; }
+    .linkRestaurant h3 { margin: 0 0 4px; font-size: 17px; }
+    .linkRestaurant .address { color: #666; margin-bottom: 8px; }
+    .linkCandidate { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-start; border-top: 1px solid #eee; padding: 8px 0; }
+    .linkCandidate .info { flex: 1 1 320px; min-width: 0; overflow-wrap: anywhere; }
+    .linkCandidate .info small { color: #666; display: block; }
+    .linkCandidate .actions { display: flex; gap: 8px; flex: 0 0 auto; }
+    .linkCandidate .actions button { padding: 6px 12px; cursor: pointer; }
+    .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 12px; background: #eee; }
+    .badge.recommended { background: #d4f4d4; }
+</style>
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-action="Index">Звіти</a></li>
+                    <li>Посилання на меню</li>
+                </ul>
+            </div>
+
+            @if (TempData["message"] != null)
+            {
+                <p><strong>@TempData["message"]</strong></p>
+            }
+
+            <p>
+                Сторінки меню в Expirenza і ChoiceQR, знайдені пошуком за назвою ресторану. Підтверджене посилання
+                записується в поле «Посилання на меню» картки ресторану, і бот бере звідти страви, фото й ціни.
+                Інші варіанти цього ресторану при цьому відхиляються. Відхилене повторно не пропонується.
+            </p>
+
+            @if (!restaurants.Any())
+            {
+                <p>Нових пропозицій немає.</p>
+            }
+            else
+            {
+                if (recommended > 0)
+                {
+                    <form asp-action="ApproveRecommendedMenuLinks" method="post"
+                          onsubmit="return confirm('Підтвердити рекомендовані посилання для @recommended ресторанів?');">
+                        <button type="submit">Підтвердити всі рекомендовані (@recommended)</button>
+                    </form>
+                }
+
+                foreach (var group in restaurants)
+                {
+                    var first = group.First();
+                    <div class="linkRestaurant">
+                        <h3>@first.RestaurantName</h3>
+                        <div class="address">@first.Address</div>
+                        @foreach (var item in group)
+                        {
+                            <div class="linkCandidate">
+                                <div class="info">
+                                    <a href="@item.Url" target="_blank" rel="noopener">@item.PageTitle</a>
+                                    @if (item.Recommended)
+                                    {
+                                        <span class="badge recommended">рекомендовано</span>
+                                    }
+                                    <span class="badge">@(item.Platform == "expz" ? "Expirenza" : "ChoiceQR")</span>
+                                    <small>@item.Url</small>
+                                    @if (!string.IsNullOrWhiteSpace(item.PageDescription))
+                                    {
+                                        <small>@item.PageDescription</small>
+                                    }
+                                    <small>Схожість назви @item.NameScore.ToString("0.00"); @item.Reason</small>
+                                </div>
+                                <form asp-action="MenuLinkDecision" asp-route-id="@item.Id" method="post" class="actions">
+                                    <button type="submit" name="decision" value="approve">Підтвердити</button>
+                                    <button type="submit" name="decision" value="reject">Відхилити</button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </main>
+</div>
