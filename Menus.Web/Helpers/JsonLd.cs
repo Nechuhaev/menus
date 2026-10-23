@@ -200,6 +200,18 @@ namespace Menus.Web.Helpers
             return Obj(("@context", "https://schema.org"), ("@type", "FAQPage"), ("mainEntity", list));
         }
 
+        // Список сторінок (заклади зі стравою на сторінці «страва + місто»)
+        public static object ItemList(string name, IEnumerable<(string Name, string Url)> items)
+        {
+            var list = items.Where(x => !string.IsNullOrWhiteSpace(x.Name) && !string.IsNullOrWhiteSpace(x.Url))
+                .Select((x, i) => Obj(("@type", "ListItem"), ("position", i + 1), ("name", x.Name.Trim()), ("url", x.Url)))
+                .ToList();
+            if (list.Count == 0) return null;
+
+            return Obj(("@context", "https://schema.org"), ("@type", "ItemList"), ("name", name),
+                ("numberOfItems", list.Count), ("itemListElement", list));
+        }
+
         public static object Breadcrumbs(params (string Name, string Url)[] items)
         {
             var list = items.Where(x => !string.IsNullOrWhiteSpace(x.Name) && !string.IsNullOrWhiteSpace(x.Url))

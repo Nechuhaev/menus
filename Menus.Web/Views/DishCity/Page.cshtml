@@ -1,0 +1,143 @@
+@using Microsoft.AspNetCore.Mvc.Localization
+@using Menus.Web.Services
+@model Menus.Web.Services.DishCityPage
+@inject IViewLocalizer Localizer
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var culture = Context.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>().RequestCulture.Culture.TwoLetterISOLanguageName;
+    var items = ViewData["items"] as List<DishCityItem> ?? new List<DishCityItem>();
+    var related = ViewData["related"] as List<DishCityPage> ?? new List<DishCityPage>();
+    var cityName = ViewData["cityName"] as string;
+    var citySlug = ViewData["citySlug"] as string;
+    var title = Model.GetTitle(culture);
+    var currency = items.Select(x => x.Currency).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "₴";
+    var siteUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+    string Money(decimal value) => $"{value:0} {currency}";
+    string DishLink(DishCityItem x) => $"/{culture}/{citySlug}/restaurant/{x.RestaurantUrl}/{x.DishUrl}";
+
+    ViewData["Title"] = Menus.Web.Helpers.SeoText.Fit(Menus.Web.Helpers.SeoText.TitleMax,
+        string.Format(Localizer["MetaTitle"].Value, title, cityName),
+        $"{title} — {cityName} | TipMyMenu");
+    ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, title, cityName, items.Count, Money(Model.MinPrice), Money(Model.MaxPrice));
+
+    // FAQ і відповіді лише з даних сторінки
+    var cheapest = items.Where(x => x.Price > 0).OrderBy(x => x.Price).FirstOrDefault();
+    var faq = new List<(string Question, string Answer)>
+    {
+        (string.Format(Localizer["FaqWhereQ"].Value, title, cityName),
+            string.Format(Localizer["FaqWhereA"].Value, items.Count, string.Join(", ", items.Take(5).Select(x => x.RestaurantName)))),
+        (string.Format(Localizer["FaqPriceQ"].Value, title, cityName),
+            string.Format(Localizer["FaqPriceA"].Value, Money(Model.MinPrice), Money(Model.MaxPrice), Money(Model.MedianPrice)))
+    };
+    if (cheapest != null)
+    {
+        faq.Add((string.Format(Localizer["FaqCheapestQ"].Value, title, cityName),
+            string.Format(Localizer["FaqCheapestA"].Value, cheapest.RestaurantName, cheapest.DishName, Money(cheapest.Price))));
+    }
+}
+
+@section JsonLd {
+    @(Menus.Web.Helpers.JsonLd.Script(
+        Menus.Web.Helpers.JsonLd.ItemList($"{title} — {cityName}", items.Select(x => (x.RestaurantName, siteUrl + DishLink(x)))),
+        Menus.Web.Helpers.JsonLd.FaqPage(faq.ToArray()),
+        Menus.Web.Helpers.JsonLd.Breadcrumbs(
+            ("TipMyMenu", $"{siteUrl}/{culture}"),
+            (Localizer["Dishes"].Value, $"{siteUrl}/{culture}/{citySlug}/dishes"),
+            (title, $"{siteUrl}/{culture}/{citySlug}/dishes/{Model.Slug}"))))
+}
+
+@section Styles {
+    <style>
+        .dish-city-intro { margin: 0 0 20px; }
+        .dish-city-faq details { border-bottom: 1px solid #e5e5e5; padding: 10px 0; }
+        .dish-city-faq summary { cursor: pointer; font-weight: 600; }
+        .dish-city-faq details p { margin: 8px 0 0; }
+        .dish-city-related { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0; list-style: none; }
+    </style>
+}
+
+@await Html.PartialAsync("_Header")
+<div class="site-content">
+    <main>
+        <div class="breadcrumbs breadcrumbs-content">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
+                <li><breadcrumb href="/@culture/@citySlug/dishes">@Localizer["Dishes"]</breadcrumb></li>
+                <li><breadcrumb href="#">@title</breadcrumb></li>
+            </ul>
+        </div>
+
+        <div class="site-content-align">
+            <div class="our_recommendation">
+                <div class="recommendation_left">
+                    <div class="recommendation_top">
+                        <div class="left_area">
+                            <h1>@string.Format(Localizer["Header"].Value, title, cityName)</h1>
+                        </div>
+                    </div>
+                    <p class="dish-city-intro">@string.Format(Localizer["Intro"].Value, title, cityName, items.Count, Money(Model.MinPrice), Money(Model.MaxPrice), Money(Model.MedianPrice))</p>
+
+                    <ul class="list_of_dishes">
+                        @foreach (var item in items)
+                        {
+                            <li>
+                                <div class="caption">
+                                    <div class="caption_image">
+                                        <figure>
+                                            @if (item.Photo != null)
+                                            {
+                                                <a href="@DishLink(item)" style="background-image: url(@Img.Url(item.Photo, Quality.Medium))"></a>
+                                            }
+                                        </figure>
+                                    </div>
+                                    <div class="caption_content">
+                                        <h3><a href="@DishLink(item)">@item.DishName</a></h3>
+                                        @if (item.RatingsCount > 0)
+                                        {
+                                            <p class="dish_info">
+                                                <strong>@item.Rating.ToString("F1")</strong>
+                                                @await Html.PartialAsync("_StarRating", item.Rating)
+                                                <em>(@item.RatingsCount)</em>
+                                            </p>
+                                        }
+                                        <p class="location"><a href="/@culture/@citySlug/restaurant/@item.RestaurantUrl">@item.RestaurantName</a>@(string.IsNullOrWhiteSpace(item.Address) ? "" : ", " + item.Address)</p>
+                                    </div>
+                                    <div class="caption_info">
+                                        @if (item.Price > 0)
+                                        {
+                                            <span class="price">@Money(item.Price)</span>
+                                        }
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+
+                    <div class="dish-city-faq">
+                        <h2>@Localizer["FaqHeader"]</h2>
+                        @foreach (var item in faq)
+                        {
+                            <details>
+                                <summary>@item.Question</summary>
+                                <p>@item.Answer</p>
+                            </details>
+                        }
+                    </div>
+
+                    @if (related.Any())
+                    {
+                        <h2>@string.Format(Localizer["Related"].Value, cityName)</h2>
+                        <ul class="dish-city-related">
+                            @foreach (var dishPage in related)
+                            {
+                                <li><a href="/@culture/@citySlug/dishes/@dishPage.Slug">@dishPage.GetTitle(culture)</a></li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+@await Html.PartialAsync("_Footer")

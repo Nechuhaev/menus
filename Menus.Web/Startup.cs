@@ -109,6 +109,7 @@ namespace Menus.Web
             services.AddScoped<EmailService>();
             services.AddScoped<UrlGenerateService>();
             services.AddScoped<MenuSyncService>();
+            services.AddScoped<DishCityPageService>();
             services.AddScoped<RestaurantRegistrationService>();
 
             services.Configure<FormOptions>(x =>
@@ -429,6 +430,12 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                             name: "news",
                             template: custureRoutePath + "/news/{id?}",
                             defaults: new { controller = "Home", action = "NewsPage" });
+
+                        // місто - не назва області (/uk/admin/...), щоб не перехоплювати адмінку
+                        mvcRoutes.MapRoute(
+                            name: "dishCity",
+                            template: custureRoutePath + "/{city:regex(^(?!admin$|restaurants$)[[a-z-]]+$)}/dishes/{slug?}",
+                            defaults: new { controller = "DishCity", action = "Index" });
 
                         mvcRoutes.MapRoute(
                             name: "dish",
