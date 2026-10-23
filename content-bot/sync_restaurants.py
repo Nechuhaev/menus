@@ -797,12 +797,17 @@ def match_menu(our_dishes, site_menu, restaurant_name=""):
 
 
 # Службові слова й загальні слова-категорії не відрізняють страви: «Салат Цезар з куркою» = «Цезар з куркою»
-STOP_WORDS = {"з", "із", "зі", "с", "со", "та", "і", "и", "в", "у", "на", "по", "для", "салат", "суп", "соус"}
+STOP_WORDS = {"з", "із", "зі", "с", "со", "та", "і", "и", "в", "у", "на", "по", "для", "салат", "суп", "соус",
+              "and", "with", "or"}
+# закінчення й і/и між мовами та написаннями: «лимонний тарт» = «лимонна тарта», «різотто» = «ризото»
+STEM_ENDING = re.compile(r"[аяоеєиіїйуюь]+$")
+STEM_LETTERS = str.maketrans("іїєё", "ииее")
 
 
 def name_stems(value, noise_words=()):
-    """Основи слів назви (перші 5 літер) без службових слів, розмірів і назви ресторану."""
-    return {w[:5] for w in match_key(value, noise_words).split() if w not in STOP_WORDS and not w.isdigit()}
+    """Основи слів назви (перші 5 літер без закінчення) без службових слів, розмірів і назви ресторану."""
+    return {(STEM_ENDING.sub("", w) or w).translate(STEM_LETTERS)[:5]
+            for w in match_key(value, noise_words).split() if w not in STOP_WORDS and not w.isdigit()}
 
 
 def pair_by_stems(our_dishes, site_menu, restaurant_name=""):
