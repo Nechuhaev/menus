@@ -50,8 +50,8 @@
 
     var imgAlt = $"{Localizer["Photo"].Value} {Model.Restaurant.Name} {restaurantCity.Name.Get(culture)}";
 
-    var selectedCityId = Context.Request.Cookies[".Menus.SelectedCity"];
-    selectedCityId = !string.IsNullOrEmpty(selectedCityId) ? selectedCityId : "e2655e24-92dc-4179-abf6-c3908278a4de";
+    // Місто ресторану, а не з куки: сторінка кешується однаковою для всіх гостей
+    var selectedCityId = Model.Restaurant.City;
     var featuredRestaurants = Core.Restaurants.FindSimilarCuisineRestaurants(Model.RestaurantInfo.Cuisine.Get(culture).Split(",")[0], selectedCityId, Model.RestaurantInfo.RestaurantId).OrderBy(x => x.Name).Take(4).ToList();
 
     var topDishes = ViewData["topDishes"] as List<IDishWithSeoAndRatings>;
@@ -1168,6 +1168,7 @@
         }
 
         function getToken() {
+            if (window.freshAntiforgeryToken) return window.freshAntiforgeryToken;
             var token = '@Html.AntiForgeryToken()';
             token = $(token).val();
             return token;

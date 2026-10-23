@@ -77,6 +77,17 @@ namespace Menus.Web.Services
                 }
             }
 
+            // Cloudflare з Cache by device type кешує окремо mobile/tablet/desktop і передає свій тип:
+            // визначаємо так само, щоб у кожен кеш потрапляла відповідна верстка
+            switch (request.Headers["CF-Device-Type"].FirstOrDefault())
+            {
+                case "desktop":
+                    return false;
+                case "mobile":
+                case "tablet":
+                    return true;
+            }
+
             var userAgent = request.Headers["User-Agent"].FirstOrDefault();
             if (string.IsNullOrEmpty(userAgent)) userAgent = "";
             var macosPlatforms = new List<string> { "Macintosh", "MacIntel", "MacPPC", "Mac68K" };

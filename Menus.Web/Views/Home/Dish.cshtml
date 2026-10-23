@@ -1114,6 +1114,7 @@
 
         //--Page functions--
         function getToken() {
+            if (window.freshAntiforgeryToken) return window.freshAntiforgeryToken;
             var token = '@Html.AntiForgeryToken()';
             token = $(token).val();
             return token;
