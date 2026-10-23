@@ -151,7 +151,7 @@
     <value>Ознайомитися з меню ресторану</value>
   </data>
   <data name="YouCanAddPhoto" xml:space="preserve">
-    <value>Оцінити страву &lt;span&gt;(ваша оцінка допомогає іншим зробити правильный вибір у закладі!)&lt;/span&gt;</value>
+    <value>Оцініть страву &lt;span&gt;(ваша оцінка допомагає іншим зробити правильний вибір у ресторані!)&lt;/span&gt;</value>
   </data>
   <data name="YouCanRateViewDish" xml:space="preserve">
     <value>Знайти поруч улюблену страву</value>

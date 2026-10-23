@@ -136,7 +136,7 @@
 		<value>Сортувати</value>
 	</data>
 	<data name="TopTen" xml:space="preserve">
-		<value>Топ 10</value>
+		<value>Топ-10</value>
 	</data>
 	<data name="Distance" xml:space="preserve">
 		<value>Близькості</value>
