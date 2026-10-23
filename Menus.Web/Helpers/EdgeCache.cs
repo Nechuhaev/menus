@@ -13,7 +13,7 @@ using Newtonsoft.Json;
 namespace Menus.Web.Helpers
 {
     // Кеш HTML у Cloudflare для гостей. Сторінка з цим атрибутом віддається анонімам з
-    // Cache-Control: public, s-maxage=N і без Set-Cookie (інакше Cloudflare не кешує, а кука
+    // Cloudflare-CDN-Cache-Control: max-age=N і без Set-Cookie (інакше Cloudflare не кешує, а кука
     // одного відвідувача дісталась би всім). Антифорджері-токен такої сторінки
     // підміняється свіжим з /antiforgery/token (див. _Layout).
     public class EdgeCacheAttribute : ResultFilterAttribute
@@ -40,7 +40,10 @@ namespace Menus.Web.Helpers
                 {
                     http.Response.Headers.Remove(HeaderNames.SetCookie);
                     http.Response.Headers.Remove(HeaderNames.Pragma);
-                    http.Response.Headers[HeaderNames.CacheControl] = $"public, max-age=0, s-maxage={_seconds}";
+                    // Термін для Cloudflare - окремим заголовком (Cloudflare його прибирає), браузеру - no-store:
+                    // інакше браузер показував збережену гостьову копію після входу (зокрема кнопкою «Назад»)
+                    http.Response.Headers["Cloudflare-CDN-Cache-Control"] = $"max-age={_seconds}";
+                    http.Response.Headers[HeaderNames.CacheControl] = "no-store";
                 }
                 return Task.CompletedTask;
             });
