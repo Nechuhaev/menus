@@ -86,13 +86,51 @@ namespace Menus.Web.Helpers
         public static string PriceRange(IEnumerable<decimal> prices, string currency)
         {
             var code = CurrencyCode(currency);
+            return code == null ? null : TypicalPrices(prices, code);
+        }
+
+        // Те саме для тексту на сторінці: «150–450 грн»; null, якщо цін менше 5
+        public static string TypicalPrices(IEnumerable<decimal> prices, string unit)
+        {
             var list = prices.Where(x => x > 0).OrderBy(x => x).ToList();
-            if (code == null || list.Count < 5) return null;
+            if (list.Count < 5) return null;
 
             decimal Round10(decimal x) => Math.Max(10, Math.Round(x / 10) * 10);
             var low = Round10(list[list.Count / 4]);
             var high = Round10(list[list.Count * 3 / 4]);
-            return low == high ? $"{low:0} {code}" : $"{low:0}–{high:0} {code}";
+            return (low == high ? $"{low:0} {unit}" : $"{low:0}–{high:0} {unit}").Trim();
+        }
+
+        // Графік для тексту на сторінці: «Пн–Пт 10:00–22:00; Сб–Нд 11:00–23:00».
+        // Сусідні дні з однаковими годинами об'єднуються; некоректний графік - null
+        public static string ScheduleText(string scheduleJson, string[] dayNames)
+        {
+            JArray days;
+            try { days = JArray.Parse(scheduleJson ?? ""); }
+            catch (JsonException) { return null; }
+            if (days.Count != 7 || dayNames.Length != 7) return null;
+
+            var hours = new string[7];
+            for (var i = 0; i < 7; i++)
+            {
+                var day = days[i];
+                if (day?["active"]?.Type != JTokenType.Boolean || !day["active"].Value<bool>()) continue;
+                var opens = day["from"]?.ToString();
+                var closes = day["to"]?.ToString();
+                if (!IsTime(opens) || !IsTime(closes)) return null;
+                hours[i] = $"{opens}–{closes}";
+            }
+
+            var parts = new List<string>();
+            for (var i = 0; i < 7; i++)
+            {
+                if (hours[i] == null) continue;
+                var end = i;
+                while (end < 6 && hours[end + 1] == hours[i]) end++;
+                parts.Add($"{(end == i ? dayNames[i] : dayNames[i] + "–" + dayNames[end])} {hours[i]}");
+                i = end;
+            }
+            return parts.Count == 0 ? null : string.Join("; ", parts);
         }
 
         private static bool IsTime(string value) =>

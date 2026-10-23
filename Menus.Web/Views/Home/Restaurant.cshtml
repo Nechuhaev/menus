@@ -64,6 +64,41 @@
     var canSeeAddMenu = (Model.RestaurantInfo.UserAllowedAddMenu || Model.RestaurantInfo.UserAllowedOpenMenu) || !Model.Restaurant.IsModeratable;
     var canSeeAddDish = (Model.RestaurantInfo.UserAllowedAddDishes) || !Model.Restaurant.IsModeratable;
     var h1Text = !string.IsNullOrEmpty(seo.Header.Get(culture)) ? seo.Header.Get(culture): Model.Restaurant.Name;
+
+    // FAQ з даних ресторану: питання без даних не показуються
+    var faq = new List<(string Question, string Answer)>();
+    if (Model.Restaurant.Status != RestaurantStatus.Closed)
+    {
+        var faqName = Model.Restaurant.Name;
+        var faqAddress = Model.RestaurantInfo.DisplayAddress.Get(culture);
+        var faqCuisine = Model.RestaurantInfo.Cuisine.Get(culture);
+        var faqDays = new[] { "Mon", "Tue", "Wed", "Thr", "Fri", "Sat", "Sun" }.Select(d => Localizer[d].Value).ToArray();
+        var faqHours = Model.SchedulePerDay ? Menus.Web.Helpers.JsonLd.ScheduleText(Model.OpenHours, faqDays) : Model.OpenHours;
+        var faqPrices = Model.Menu.Categories.SelectMany(c => c.Dishes ?? new List<IDishWithSeoAndRatings>()).Select(d => d.Price).ToList();
+        var faqTypical = Menus.Web.Helpers.JsonLd.TypicalPrices(faqPrices, Model.RestaurantInfo.Currency);
+
+        if (!string.IsNullOrWhiteSpace(faqAddress))
+        {
+            faq.Add((string.Format(Localizer["FaqAddressQ"].Value, faqName), $"{restaurantCity.Name.Get(culture)}, {faqAddress}"));
+        }
+        if (!string.IsNullOrWhiteSpace(faqHours))
+        {
+            faq.Add((string.Format(Localizer["FaqHoursQ"].Value, faqName), faqHours));
+        }
+        if (!string.IsNullOrWhiteSpace(Model.Restaurant.Phone))
+        {
+            faq.Add((string.Format(Localizer["FaqPhoneQ"].Value, faqName), Model.Restaurant.Phone));
+        }
+        if (!string.IsNullOrWhiteSpace(faqCuisine))
+        {
+            faq.Add((string.Format(Localizer["FaqCuisineQ"].Value, faqName), faqCuisine));
+        }
+        if (faqTypical != null)
+        {
+            faq.Add((string.Format(Localizer["FaqPriceQ"].Value, faqName),
+                    string.Format(Localizer["FaqPriceA"].Value, faqPrices.Count(x => x > 0), faqTypical)));
+        }
+    }
 }
 
 @await Html.PartialAsync("_Header")
@@ -83,7 +118,8 @@
             Model.SchedulePerDay ? Menus.Web.Helpers.JsonLd.OpeningHours(Model.OpenHours) : null,
             Menus.Web.Helpers.JsonLd.PriceRange(Model.Menu.Categories.SelectMany(c => c.Dishes ?? new List<IDishWithSeoAndRatings>()).Select(d => d.Price),
                 Model.RestaurantInfo.Currency)),
-        Menus.Web.Helpers.JsonLd.Breadcrumbs(("TipMyMenu", ldHomeUrl), (Model.Restaurant.Name, ldPageUrl))))
+        Menus.Web.Helpers.JsonLd.Breadcrumbs(("TipMyMenu", ldHomeUrl), (Model.Restaurant.Name, ldPageUrl)),
+        Menus.Web.Helpers.JsonLd.FaqPage(faq.ToArray())))
 }
 
 @section Styles {
@@ -95,6 +131,10 @@
         button[data-user-id="@User.Identity.Name"] {
             display: initial;
         }
+
+        .restaurant-faq details { border-bottom: 1px solid #e5e5e5; padding: 10px 0; }
+        .restaurant-faq summary { cursor: pointer; font-weight: 600; }
+        .restaurant-faq details p { margin: 8px 0 0; }
     </style>
 }
 
@@ -784,6 +824,20 @@
                         </div>
                     }
 
+
+                    @if (faq.Any())
+                    {
+                        <div class="restaurant-faq">
+                            <h2>@Localizer["FaqHeader"]</h2>
+                            @foreach (var item in faq)
+                            {
+                                <details>
+                                    <summary>@item.Question</summary>
+                                    <p>@item.Answer</p>
+                                </details>
+                            }
+                        </div>
+                    }
 
                     @if (featuredRestaurants.Any())
                     {
