@@ -8,6 +8,7 @@
          python3 dish_city_candidates.py --min 8 --top 40
 """
 import argparse
+import re
 import statistics
 from collections import defaultdict
 
@@ -30,11 +31,22 @@ GENERIC_WORDS = {
 }
 
 
+# Напої відсікаються за назвою категорії страви або її батьківської категорії (будь-якою мовою)
+DRINK_CATEGORY = re.compile(
+    r"(?<!\w)(?:бар(?!бек)|напо(?!лео)|напи|алко|вин(?!егр)|пив|коктей|кав(?!ун)|коф|чай|сік|соки|соков|"
+    r"лимонад|фреш|смузі|віск|виск|горілк|водк|коньяк|лікер|ликер|ром\b|джин|текіл|текил|шампан|ігрист|игрист|"
+    r"drink|bar\b|wine|beer|coffee|tea\b|cocktail|whisk|vodka|juice|lemonade|spirits)", re.I)
+LATIN = re.compile(r"[a-z]")
+
+
 def keys_for(name):
     """Ключі - початок назви, де стоїть сама страва («Цезар з куркою» -> «цезар», «цезар куркою»
     не береться): перше слово (крім загальних категорій) і перші два слова. Інгредієнти після «з»
     у відмінкових формах («лососем», «сиром») сюди не потрапляють."""
     words = [w for w in match_key(name).split() if not w.isdigit()]
+    # латиниця в українській назві - бренд без перекладу (Jack Daniel's, Aperol), не страва
+    if any(LATIN.search(w) for w in words[:2]):
+        return set()
     if not words or words[0] in SKIP_WORDS or len(words[0]) < 3:
         return set()
     keys = set()
@@ -57,16 +69,28 @@ def main():
     cities = {row["Id"]: get_localizable_value(row["Name"], "uk") or row["Id"] for row in cur.fetchall()}
 
     cur.execute(
-        """SELECT d.Name, d.Price, r.Id AS RestaurantId, r.Name AS RestaurantName, r.City
+        """SELECT d.Id, d.Name, d.Price, r.Id AS RestaurantId, r.Name AS RestaurantName, r.City,
+                  GROUP_CONCAT(CONCAT_WS(' ', mc.Name, pc.Name) SEPARATOR ' ') AS Categories
            FROM Dishes d JOIN Restaurants r ON r.Id = d.RestaurantId
-           WHERE d.Status = %s AND r.Status = %s""",
+           LEFT JOIN DishCategories dc ON dc.DishId = d.Id
+           LEFT JOIN MenuCategories mc ON mc.Id = dc.MenuCategoryId
+           LEFT JOIN MenuCategoryRelations rel ON rel.ChildId = mc.Id
+           LEFT JOIN MenuCategories pc ON pc.Id = rel.ParentId
+           WHERE d.Status = %s AND r.Status = %s
+           GROUP BY d.Id""",
         (DISH_STATUS_ACTIVE, RESTAURANT_STATUS_ACTIVE))
 
     # (місто, ключ) -> заклади (бренди), ресторани, ціни
     brands = defaultdict(set)
     restaurants = defaultdict(set)
     prices = defaultdict(list)
+    drinks = 0
     for row in cur.fetchall():
+        # назви категорій - JSON з мовами, для пошуку слів досить сирого тексту
+        categories = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), row["Categories"] or "")
+        if DRINK_CATEGORY.search(categories):
+            drinks += 1
+            continue
         name = get_localizable_value(row["Name"], "uk") or get_localizable_value(row["Name"], "ru")
         brand = normalize_name(row["RestaurantName"])
         for key in keys_for(name):
@@ -76,8 +100,20 @@ def main():
             if row["Price"] and row["Price"] > 0:
                 prices[k].append(float(row["Price"]))
 
+    # найчастіша пара для кожного першого слова
+    best_pair = defaultdict(int)
+    for (city, key), b in brands.items():
+        if " " in key:
+            first = key.split(" ", 1)[0]
+            best_pair[(city, first)] = max(best_pair[(city, first)], len(b))
+
     by_city = defaultdict(list)
     for (city, key), b in brands.items():
+        # одне слово, яке майже завжди йде з тим самим другим («теплий» -> «теплий салат»,
+        # «картопляне» -> «картопляне пюре»): лишається лише пара
+        if " " not in key:
+            if best_pair[(city, key)] >= 0.5 * len(b):
+                continue
         if len(b) >= args.min:
             p = prices[(city, key)]
             by_city[city].append((len(b), len(restaurants[(city, key)]), key, statistics.median(p) if p else 0))
@@ -90,7 +126,7 @@ def main():
         print(f"{'закл.':>5} {'рест.':>5} {'медіана':>8}  ключ")
         for n_brands, n_rest, key, median in rows[:args.top]:
             print(f"{n_brands:>5} {n_rest:>5} {median:>8.0f}  {key}")
-    print(f"\nУсього кандидатів: {total}")
+    print(f"\nУсього кандидатів: {total}; страв-напоїв відкинуто: {drinks}")
 
 
 if __name__ == "__main__":
