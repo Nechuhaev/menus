@@ -112,6 +112,7 @@ namespace Menus.Web
             services.AddScoped<DishCityPageService>();
             services.AddScoped<SiteStatsService>();
             services.AddScoped<RestaurantMenuLinkService>();
+            services.AddScoped<MenuLinkProposalService>();
             services.AddScoped<RestaurantRegistrationService>();
 
             services.Configure<FormOptions>(x =>

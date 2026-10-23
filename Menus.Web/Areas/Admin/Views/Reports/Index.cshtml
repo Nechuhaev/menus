@@ -4,6 +4,7 @@
     ViewData["Title"] = "Звіти";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
     var aiCost = ViewData["aiCost"] as Menus.Web.Services.AiCostTotals;
+    var menuLinkRestaurants = ViewData["menuLinkRestaurants"] as int? ?? 0;
 }
 
 <div class="site-content">
@@ -21,6 +22,14 @@
                     <h2>Зміни меню з сайтів ресторанів</h2>
                 </div>
             </div>
+
+            @if (menuLinkRestaurants > 0)
+            {
+                <p>
+                    <a asp-action="MenuLinks"><strong>Посилання на меню (Expirenza, ChoiceQR): @menuLinkRestaurants</strong></a>
+                    - ресторани, для яких знайдено меню в QR-сервісах; підтвердіть або відхиліть посилання.
+                </p>
+            }
 
             @if (aiCost != null)
             {
