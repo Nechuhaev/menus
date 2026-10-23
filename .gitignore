@@ -284,3 +284,4 @@ Menus.Web/spreadsheet-api.json
 *.secrets.json
 .DS_Store
 content-bot/.env
+content-bot/*.csv
