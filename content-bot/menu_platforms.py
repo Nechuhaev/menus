@@ -90,9 +90,50 @@ def read_expz(url):
 
 # --- ChoiceQR: https://<заклад>.choiceqr.com/section:<меню>/<розділ> ---
 
+# розділи-магазин (подарунки, посуд, сертифікати) - не страви; у назві й у адресі (section:podarunki-...)
+CHOICEQR_SKIP_SECTION = re.compile(r"подарун|подарок|порцеля|посуд|сертиф|podarun|podarok|porcel|posud|sertyf|sertif|gift|merch", re.I)
+CHOICEQR_UNITS = {"g": "г", "ml": "мл", "kg": "кг", "l": "л", "pcs": "шт"}
+
+
+def parse_choiceqr_next_data(page_html):
+    """Сторінка меню: дані Next.js (__NEXT_DATA__) - страви цього меню з ціною в копійках,
+    вагою, фото й розділом. None, якщо на сторінці їх немає."""
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', page_html, re.S)
+    if not m:
+        return None
+    try:
+        app = json.loads(m.group(1))["props"]["app"]
+        menu = app["menu"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    categories = {c.get("_id"): (c.get("name") or "").strip() for c in app.get("categories") or []}
+    skip = {s.get("_id") for s in app.get("sections") or [] if CHOICEQR_SKIP_SECTION.search(s.get("name") or "")}
+    items = []
+    for d in menu or []:
+        if d.get("available") is False or d.get("section") in skip:
+            continue
+        weight = (d.get("weight") or "").strip()
+        # «за 100» - ціна за 100 г, як IsPriceMultiple у нас
+        price_from = bool(re.match(r"за\s", weight, re.I))
+        if weight and re.fullmatch(r"[\d.,/ ]+", weight):
+            weight = f"{weight} {CHOICEQR_UNITS.get(d.get('weightType'), d.get('weightType') or '')}".strip()
+        elif price_from:
+            weight = None
+        media = (d.get("media") or [{}])[0]
+        item = dish(d.get("name"), categories.get(d.get("category")),
+                    d["price"] / 100 if d.get("price") else None, weight,
+                    (d.get("description") or "").strip(), media.get("url") or media.get("big"))
+        item["price_from"] = price_from
+        items.append(item)
+    return items
+
+
 def parse_choiceqr_page(page_html):
-    """Сторінка розділу: JSON-LD Menu -> MenuSection -> MenuItem (усі розділи цього меню),
-    фото - з HTML за alt = назва страви."""
+    """Сторінка розділу: дані Next.js, а якщо їх немає - JSON-LD Menu -> MenuSection -> MenuItem
+    (усі розділи цього меню), фото - з HTML за alt = назва страви."""
+    items = parse_choiceqr_next_data(page_html)
+    if items is not None:
+        return items
     images = {html_lib.unescape(alt).strip(): src for src, alt in
               re.findall(r'<img[^>]+src="(https://cdn-media\.choiceqr\.com/[^"]+)"[^>]*alt="([^"]*)"', page_html)}
     items = []
@@ -124,7 +165,8 @@ def read_choiceqr(url):
     menus = {}
     # у HTML без JavaScript розділи - не лише в href, а й у data-url та JSON сторінки
     for path in re.findall(r'section:[a-z0-9-]+(?:/[a-z0-9-]+)?', pages_html, re.I):
-        menus.setdefault(path.split("/")[0], root + path)
+        if not CHOICEQR_SKIP_SECTION.search(path):
+            menus.setdefault(path.split("/")[0], root + path)
     items = []
     for page_url in list(menus.values())[:MAX_PAGES]:
         items += parse_choiceqr_page(fetch(page_url))
