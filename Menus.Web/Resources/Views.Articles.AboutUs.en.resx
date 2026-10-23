@@ -311,4 +311,22 @@ We are on the same wave with you</value>
 	<data name="AboutUsBlock6" xml:space="preserve">
 		<value>as possible as your regular guests!</value>
 	</data>
+  <data name="FactsHeader" xml:space="preserve">
+    <value>TipMyMenu by the Numbers</value>
+  </data>
+  <data name="FactSince" xml:space="preserve">
+    <value>year the service was launched</value>
+  </data>
+  <data name="FactRestaurants" xml:space="preserve">
+    <value>establishments in the directory</value>
+  </data>
+  <data name="FactDishes" xml:space="preserve">
+    <value>dishes with prices</value>
+  </data>
+  <data name="FactCities" xml:space="preserve">
+    <value>cities</value>
+  </data>
+  <data name="FactCompany" xml:space="preserve">
+    <value>The TipMyMenu service is owned by {0}. Contact us:</value>
+  </data>
 </root>
