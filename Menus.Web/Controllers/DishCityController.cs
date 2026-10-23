@@ -23,9 +23,9 @@ namespace Menus.Web.Controllers
             _config = config;
         }
 
-        [EdgeCache(1800)]
         public const int PageSize = 24;
 
+        [EdgeCache(1800)]
         public async Task<IActionResult> Index(string culture, string city, string slug, int page = 1)
         {
             if ((culture != "ru" && culture != "uk" && culture != "en") ||
