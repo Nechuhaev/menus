@@ -18,6 +18,8 @@
         ?? $"{baseUrl}{crq.Path}{(!string.IsNullOrEmpty(pageParam) && pageParam != "0" ? "?page=" + System.Net.WebUtility.UrlEncode(pageParam) : "")}";
     var ogLocale = culture == "uk" ? "uk_UA" : culture == "ru" ? "ru_RU" : "en_US";
     var isMobileUser = UserService.IsMobileUser(Context.Request);
+    // запасне обмеження для всіх сторінок; сторінки ресторанів і страв підбирають коротший варіант самі
+    var metaDescription = Menus.Web.Helpers.SeoText.Truncate(Menus.Web.Helpers.SeoText.AsText(ViewData["Description"]), Menus.Web.Helpers.SeoText.DescriptionMax);
 }
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="@culture" lang="@culture">
@@ -28,14 +30,14 @@
           data-content-non-zoomable="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="format-detection" content="telephone=no">
     <meta name="format-detection" content="address=no">
-    <meta name="description" content="@ViewData["Description"]" />
+    <meta name="description" content="@metaDescription" />
     <title>@ViewData["Title"]</title>
 
     <meta name="robots" content="@robots" />
     <link rel="canonical" href="@canonical" />
     @await Html.PartialAsync("_AlternativeLinks")
     <meta property="og:title" content="@ViewData["Title"]" />
-    <meta property="og:description" content="@ViewData["Description"]" />
+    <meta property="og:description" content="@metaDescription" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="@ogLocale" />
     <meta property="og:url" content="@canonical" />

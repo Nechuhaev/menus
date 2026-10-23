@@ -25,7 +25,11 @@
     var title = string.IsNullOrEmpty(seo.Title.Get(culture))
         ? string.Format(Localizer["MetaTitle"].Value, Model.Restaurant.Name, restaurantCity.Name.Get(culture))
         : seo.Title.Get(culture);
-    ViewData["Title"] = title;
+    ViewData["Title"] = Menus.Web.Helpers.SeoText.Fit(Menus.Web.Helpers.SeoText.TitleMax,
+        title,
+        $"{Model.Restaurant.Name}, {restaurantCity.Name.Get(culture)} | TipMyMenu",
+        $"{Model.Restaurant.Name} | TipMyMenu",
+        Model.Restaurant.Name);
     // og:image для соцмереж: фото ресторану замість загальної картинки
     if (Model.Photos != null && Model.Photos.Any()) { ViewData["MainImage"] = Img.Url(Model.Photos.First(), Quality.High); }
 
@@ -75,7 +79,10 @@
             Model.Photos.Any() ? Img.Url(Model.Photos.First(), Quality.High) : null,
             Model.Restaurant.Phone, Model.RestaurantInfo.Cuisine.Get(culture),
             Model.RestaurantInfo.DisplayAddress.Get(culture), restaurantCity.Name.Get(culture),
-            Model.RestaurantInfo.GpsLatitude, Model.RestaurantInfo.GpsLongitude, Model.RestaurantInfo.Website),
+            Model.RestaurantInfo.GpsLatitude, Model.RestaurantInfo.GpsLongitude, Model.RestaurantInfo.Website,
+            Model.SchedulePerDay ? Menus.Web.Helpers.JsonLd.OpeningHours(Model.OpenHours) : null,
+            Menus.Web.Helpers.JsonLd.PriceRange(Model.Menu.Categories.SelectMany(c => c.Dishes ?? new List<IDishWithSeoAndRatings>()).Select(d => d.Price),
+                Model.RestaurantInfo.Currency)),
         Menus.Web.Helpers.JsonLd.Breadcrumbs(("TipMyMenu", ldHomeUrl), (Model.Restaurant.Name, ldPageUrl))))
 }
 

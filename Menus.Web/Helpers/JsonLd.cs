@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using Microsoft.AspNetCore.Html;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Menus.Web.Helpers
 {
@@ -25,7 +26,8 @@ namespace Menus.Web.Helpers
         }
 
         public static object Restaurant(string name, string url, string image, string phone, string cuisine,
-            string street, string city, string latitude, string longitude, string website)
+            string street, string city, string latitude, string longitude, string website,
+            object openingHours = null, string priceRange = null)
         {
             var address = Obj(("@type", "PostalAddress"), ("streetAddress", street), ("addressLocality", city), ("addressCountry", "UA"));
             var hasAddress = !string.IsNullOrWhiteSpace(street) || !string.IsNullOrWhiteSpace(city);
@@ -45,8 +47,56 @@ namespace Menus.Web.Helpers
                 ("address", hasAddress ? address : null),
                 ("geo", geo),
                 ("hasMenu", url),
+                ("openingHoursSpecification", openingHours),
+                ("priceRange", priceRange),
                 ("sameAs", IsHttpUrl(website) ? website.Trim() : null));
         }
+
+        private static readonly string[] Weekdays = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+
+        // Графік із адмінки - JSON-масив 7 днів з понеділка: {active, from, to}. Дні з однаковими годинами
+        // об'єднуються в один запис; некоректний графік не виводиться зовсім
+        public static object OpeningHours(string scheduleJson)
+        {
+            JArray days;
+            try { days = JArray.Parse(scheduleJson ?? ""); }
+            catch (JsonException) { return null; }
+            if (days.Count != 7) return null;
+
+            var groups = new List<(string Opens, string Closes, List<string> Days)>();
+            for (var i = 0; i < 7; i++)
+            {
+                var day = days[i];
+                if (day?["active"]?.Type != JTokenType.Boolean || !day["active"].Value<bool>()) continue;
+                var opens = day["from"]?.ToString();
+                var closes = day["to"]?.ToString();
+                if (!IsTime(opens) || !IsTime(closes)) return null;
+
+                var group = groups.FirstOrDefault(g => g.Opens == opens && g.Closes == closes);
+                if (group.Days == null) groups.Add((opens, closes, new List<string> { Weekdays[i] }));
+                else group.Days.Add(Weekdays[i]);
+            }
+            if (groups.Count == 0) return null;
+
+            return groups.Select(g => Obj(("@type", "OpeningHoursSpecification"),
+                ("dayOfWeek", g.Days.ToArray()), ("opens", g.Opens), ("closes", g.Closes))).ToList();
+        }
+
+        // Діапазон типових цін меню (25-й - 75-й перцентиль, округлено до 10): «150–450 UAH»
+        public static string PriceRange(IEnumerable<decimal> prices, string currency)
+        {
+            var code = CurrencyCode(currency);
+            var list = prices.Where(x => x > 0).OrderBy(x => x).ToList();
+            if (code == null || list.Count < 5) return null;
+
+            decimal Round10(decimal x) => Math.Max(10, Math.Round(x / 10) * 10);
+            var low = Round10(list[list.Count / 4]);
+            var high = Round10(list[list.Count * 3 / 4]);
+            return low == high ? $"{low:0} {code}" : $"{low:0}–{high:0} {code}";
+        }
+
+        private static bool IsTime(string value) =>
+            !string.IsNullOrEmpty(value) && System.Text.RegularExpressions.Regex.IsMatch(value, @"^([01]?\d|2[0-4]):[0-5]\d$");
 
         // Google вимагає для Product хоча б offers або aggregateRating - без них розмітку не виводимо
         public static object Product(string name, string url, string image, string description, string brand,
