@@ -52,12 +52,12 @@
             else
             {
                 <ul class="dish-city-hub">
-                    @foreach (var page in Model)
+                    @foreach (var dishPage in Model)
                     {
                         <li>
-                            <a href="/@culture/@citySlug/dishes/@page.Slug">
-                                <strong>@page.GetTitle(culture)</strong>
-                                <span>@string.Format(Localizer["Venues"].Value, page.Venues, page.MedianPrice.ToString("0"))</span>
+                            <a href="/@culture/@citySlug/dishes/@dishPage.Slug">
+                                <strong>@dishPage.GetTitle(culture)</strong>
+                                <span>@string.Format(Localizer["Venues"].Value, dishPage.Venues, dishPage.MedianPrice.ToString("0"))</span>
                             </a>
                         </li>
                     }

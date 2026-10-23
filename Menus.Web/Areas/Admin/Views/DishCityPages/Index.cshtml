@@ -67,26 +67,26 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var page in Model)
+                            @foreach (var dishPage in Model)
                             {
-                                var visible = page.Enabled && page.Venues >= minVenues;
-                                <tr data-key="@page.KeyUk">
+                                var visible = dishPage.Enabled && dishPage.Venues >= minVenues;
+                                <tr data-key="@dishPage.KeyUk">
                                     <td>
-                                        <input type="hidden" name="shownIds" value="@page.Id" />
-                                        <input type="checkbox" name="enabledIds" value="@page.Id" checked="@page.Enabled" />
+                                        <input type="hidden" name="shownIds" value="@dishPage.Id" />
+                                        <input type="checkbox" name="enabledIds" value="@dishPage.Id" checked="@dishPage.Enabled" />
                                     </td>
-                                    <td>@page.GetTitle("uk") / @page.GetTitle("ru") / @page.GetTitle("en")</td>
-                                    <td>@page.Venues@(page.Venues < minVenues ? " (менше порогу)" : "")</td>
-                                    <td>@page.Restaurants</td>
-                                    <td>@page.MinPrice.ToString("0") / @page.MedianPrice.ToString("0") / @page.MaxPrice.ToString("0")</td>
+                                    <td>@dishPage.GetTitle("uk") / @dishPage.GetTitle("ru") / @dishPage.GetTitle("en")</td>
+                                    <td>@dishPage.Venues@(dishPage.Venues < minVenues ? " (менше порогу)" : "")</td>
+                                    <td>@dishPage.Restaurants</td>
+                                    <td>@dishPage.MinPrice.ToString("0") / @dishPage.MedianPrice.ToString("0") / @dishPage.MaxPrice.ToString("0")</td>
                                     <td>
                                         @if (visible)
                                         {
-                                            <a href="/uk/@citySlug/dishes/@page.Slug" target="_blank">/@page.Slug</a>
+                                            <a href="/uk/@citySlug/dishes/@dishPage.Slug" target="_blank">/@dishPage.Slug</a>
                                         }
                                         else
                                         {
-                                            <span>/@page.Slug</span>
+                                            <span>/@dishPage.Slug</span>
                                         }
                                     </td>
                                 </tr>

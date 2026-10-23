@@ -129,9 +129,9 @@
                     {
                         <h2>@string.Format(Localizer["Related"].Value, cityName)</h2>
                         <ul class="dish-city-related">
-                            @foreach (var page in related)
+                            @foreach (var dishPage in related)
                             {
-                                <li><a href="/@culture/@citySlug/dishes/@page.Slug">@page.GetTitle(culture)</a></li>
+                                <li><a href="/@culture/@citySlug/dishes/@dishPage.Slug">@dishPage.GetTitle(culture)</a></li>
                             }
                         </ul>
                     }
