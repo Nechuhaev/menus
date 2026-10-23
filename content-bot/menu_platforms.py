@@ -122,9 +122,8 @@ def read_choiceqr(url):
         pages_html += fetch(url)
     # одна сторінка розділу на кожне меню: JSON-LD містить усі розділи свого меню
     menus = {}
-    for href in re.findall(r'href="([^"]*section:[^"#?]+)"', pages_html):
-        # «section:...» без слеша urljoin сприймає як схему URL - шлях збираємо вручну
-        path = re.sub(r"^https?://[^/]+", "", href).strip("/")
+    # у HTML без JavaScript розділи - не лише в href, а й у data-url та JSON сторінки
+    for path in re.findall(r'section:[a-z0-9-]+(?:/[a-z0-9-]+)?', pages_html, re.I):
         menus.setdefault(path.split("/")[0], root + path)
     items = []
     for page_url in list(menus.values())[:MAX_PAGES]:
