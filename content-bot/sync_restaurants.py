@@ -541,13 +541,49 @@ def find_menu_url(raw_html, base_url):
     return url if url.startswith("http") and url.rstrip("/") != base_url.rstrip("/") else None
 
 
-SOCIAL_HOSTS = ("facebook.com", "instagram.com", "fb.com", "t.me", "tiktok.com")
+SOCIAL_HOSTS = ("facebook.com", "instagram.com", "fb.com", "fb.me", "t.me", "tiktok.com",
+                "linktr.ee", "taplink.cc", "taplink.at", "taplink.ws")
+# не сайт закладу: карти, каталоги й агрегатори відгуків (sites.google.com - сайт, тож google.com лише з www/maps);
+# business.site - сайти Google Business Profile, Google закрив їх у 2024 (переадресовують на карту)
+NOT_SITE_HOSTS = ("www.google.com", "maps.google.com", "www.google.com.ua", "maps.google.com.ua", "goo.gl", "g.page",
+                  "business.site", "tripadvisor.com", "tripadvisor.ru",
+                  "restaurantguru.com", "restaurantguru.ru", "2gis.ua", "2gis.ru", "foursquare.com",
+                  "tomato.ua", "glovoapp.com", "bolt.eu", "wolt.com", "youtube.com")
+
+
+def host_in(url, hosts):
+    host = (urlparse(url or "").hostname or "").lower()
+    return any(host == h or host.endswith("." + h) for h in hosts)
 
 
 def is_social_page(url):
     """Сторінки соцмереж віддають боту форму входу - меню там не прочитати."""
-    host = (urlparse(url or "").hostname or "").lower()
-    return any(host == h or host.endswith("." + h) for h in SOCIAL_HOSTS)
+    return host_in(url, SOCIAL_HOSTS)
+
+
+def is_not_site(url):
+    """Соцмережа, карта чи каталог - не сайт закладу: у поле «Сайт» не записується."""
+    return host_in(url, SOCIAL_HOSTS + NOT_SITE_HOSTS)
+
+
+# Журнал прибраних сайтів (clean_websites.py): що було в полі «Сайт» і чому прибрано - для відновлення
+WEBSITE_CLEANUP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS WebsiteCleanupLog (
+    Id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    RestaurantId VARCHAR(255) NOT NULL,
+    OldWebsite VARCHAR(1000) NOT NULL,
+    Reason VARCHAR(255) NOT NULL,
+    CreatedAt DATETIME NOT NULL,
+    KEY IX_WebsiteCleanupLog_Restaurant (RestaurantId)
+) DEFAULT CHARSET=utf8mb4"""
+
+
+def website_was_cleaned(db, restaurant_id):
+    cur = db.cursor()
+    cur.execute(WEBSITE_CLEANUP_TABLE_SQL)
+    cur.execute("SELECT 1 FROM WebsiteCleanupLog WHERE RestaurantId = %s LIMIT 1", (restaurant_id,))
+    found = cur.fetchone() is not None
+    cur.close()
+    return found
 
 
 def is_dead_website(url):
@@ -1020,13 +1056,20 @@ def _process_restaurant(db, restaurant):
     needs_osm = not website or not restaurant["GpsLatitude"]
     osm_data = osm_lookup(name, restaurant["Address"], restaurant["City"]) if needs_osm else {}
 
-    if not website:
+    if not website and not is_not_site(osm_data.get("website")):
         website = osm_data.get("website")
+
+    if not website and website_was_cleaned(db, restaurant["Id"]):
+        # сайт прибрав clean_websites.py (соцмережа, мертвий домен): ресторан не ховаємо і AI не питаємо -
+        # меню з'явиться, щойно адмін підтвердить посилання Expirenza/ChoiceQR у «Звітах»
+        log_check(db, restaurant["Id"], "no website (cleaned) - waiting for menu link", closed_detected=False)
+        print("  -> no website (cleaned), waiting for menu link")
+        return
 
     if not website:
         verification = verify_restaurant_closure(name, restaurant["Address"], restaurant["City"])
 
-        if verification and verification.get("website"):
+        if verification and verification.get("website") and not is_not_site(verification["website"]):
             website = verification["website"]
             notes.append("website found via web search verification")
         else:
@@ -1035,7 +1078,13 @@ def _process_restaurant(db, restaurant):
             return
     elif is_dead_website(website):
         # Статус і сайт не чіпаємо: DNS сервера не знаходив робочі домени (murakami.ua та ін.),
-        # тож це лише позначка в колонці «Меню (бот)» для перевірки адміном
+        # тож це лише позначка в колонці «Меню (бот)» для перевірки адміном.
+        # Посилання на меню з адмінки від сайту не залежить - меню з нього читаємо й тут
+        if restaurant.get("MenuUrl"):
+            summary = sync_menu(db, restaurant, restaurant["MenuUrl"])
+            log_check(db, restaurant["Id"], f"website unreachable (DNS): {website}; {summary}", closed_detected=False)
+            print(f"  -> website unreachable (DNS), menu link: {summary}")
+            return
         log_check(db, restaurant["Id"], f"website unreachable (DNS): {website} - check manually", closed_detected=False)
         print(f"  -> website unreachable (DNS): {website}")
         return
