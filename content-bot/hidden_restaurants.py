@@ -8,6 +8,7 @@
 
 Запуск:  python3 hidden_restaurants.py                                   # усі приховані ботом
          python3 hidden_restaurants.py --slugs very-well-cafe-sykorskoho,titka-klara-811
+         python3 hidden_restaurants.py --slugs-file lost.txt               # адреси з файлу, по одній у рядку
          python3 hidden_restaurants.py --slugs ... --restore             # повернути ці на сайт
          python3 hidden_restaurants.py --undo very-well-cafe-sykorskoho  # сховати назад (попередній статус)
 """
@@ -40,6 +41,7 @@ def page_status(url):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--slugs", help="адреси ресторанів (RestaurantSeo.Url) через кому; без них - усі приховані ботом")
+    parser.add_argument("--slugs-file", help="файл з адресами ресторанів, по одній у рядку (для довгого списку)")
     parser.add_argument("--restore", action="store_true", help="повернути на сайт (Status = 0) показані приховані")
     parser.add_argument("--undo", help="адреса ресторану - повернути статус, який був до --restore")
     args = parser.parse_args()
@@ -69,6 +71,8 @@ def main():
                     (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS Dishes
              FROM Restaurants r JOIN RestaurantSeo rs ON rs.ItemId = r.Id
              LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = r.Id"""
+    if args.slugs_file:
+        args.slugs = ",".join(open(args.slugs_file, encoding="utf-8").read().split())
     if args.slugs:
         slugs = [s.strip() for s in args.slugs.split(",") if s.strip()]
         cur.execute(sql + " WHERE rs.Url IN (" + ",".join(["%s"] * len(slugs)) + ")", slugs)
@@ -77,9 +81,16 @@ def main():
     rows = cur.fetchall()
     found = {r["Url"] for r in rows}
     if args.slugs:
-        for s in slugs:
-            if s not in found:
-                print(f"  {s}: немає в базі (адреса змінилась чи ресторан видалено)")
+        missing = [s for s in slugs if s not in found]
+        deleted = set()
+        if missing:
+            # SEO-запис лишився, а ресторану немає - ресторан видалено з бази (адмінка чи скрипт)
+            cur.execute("SELECT rs.Url FROM RestaurantSeo rs LEFT JOIN Restaurants r ON r.Id = rs.ItemId WHERE r.Id IS NULL AND rs.Url IN ("
+                        + ",".join(["%s"] * len(missing)) + ")", missing)
+            deleted = {row["Url"] for row in cur.fetchall()}
+        for s in missing:
+            print(f"  {s}: " + ("ресторан видалено з бази (лишився лише SEO-запис)" if s in deleted else "адреси немає в базі"))
+        print(f"видалено з бази: {len(deleted)}; адреси немає: {len(missing) - len(deleted)}")
 
     urls = [f"{SITE}/uk/{cities.get(r['City'], '')}/restaurant/{r['Url']}" for r in rows]
     with ThreadPoolExecutor(8) as pool:
