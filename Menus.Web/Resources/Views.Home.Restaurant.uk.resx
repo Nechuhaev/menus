@@ -363,4 +363,28 @@
   <data name="FaqPriceA" xml:space="preserve">
     <value>У меню {0} страв із цінами, більшість коштує {1}.</value>
   </data>
+  <data name="SeoTitleMenuYear" xml:space="preserve">
+    <value>Меню {0}, {1}: ціни {2} | TipMyMenu</value>
+  </data>
+  <data name="SeoTitleMenu" xml:space="preserve">
+    <value>Меню {0}, {1} | TipMyMenu</value>
+  </data>
+  <data name="SeoTitleMenuShort" xml:space="preserve">
+    <value>Меню {0} | TipMyMenu</value>
+  </data>
+  <data name="SeoDescMenu" xml:space="preserve">
+    <value>Меню {0}, {1}: {2} {3}, більшість коштує {4}.</value>
+  </data>
+  <data name="DishForms" xml:space="preserve">
+    <value>страва|страви|страв</value>
+  </data>
+  <data name="SeoDescCuisine" xml:space="preserve">
+    <value>Кухня: {0}.</value>
+  </data>
+  <data name="SeoDescTop" xml:space="preserve">
+    <value>Популярне: {0}.</value>
+  </data>
+  <data name="SeoDescTail" xml:space="preserve">
+    <value>Адреса, години роботи, фото й відгуки.</value>
+  </data>
 </root>
