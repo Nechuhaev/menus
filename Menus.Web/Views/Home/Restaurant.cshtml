@@ -143,7 +143,7 @@
         <div class="wrapper">
             <h1 itemprop="name">
                 <figure>
-                    <img itemprop="image" src="@Img.Url(Model.Photos.FirstOrDefault(), Quality.Low)" alt="@imgAlt" title="@imgAlt" />
+                    <img itemprop="image" src="@Img.Url(Model.Photos.FirstOrDefault(), Quality.Low)" alt="@imgAlt" title="@imgAlt" fetchpriority="high" />
                 </figure>
                 @h1Text
                 @if (Model.UserRole != null)
@@ -768,7 +768,7 @@
                                         <figure>
                                             <a href="#">
                                                 <span class="gallery_img" style="background-image: url(@Img.Url(Model.Photos.Count > 1 ? Model.Photos[1] : Model.Photos.FirstOrDefault(), Quality.Medium));">
-                                                    <img src="@Img.Url(Model.Photos.Count > 1 ? Model.Photos[1] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" />
+                                                    <img src="@Img.Url(Model.Photos.Count > 1 ? Model.Photos[1] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" loading="lazy" />
                                                 </span>
                                             </a>
                                         </figure>
@@ -777,7 +777,7 @@
                                         <figure>
                                             <a href="#">
                                                 <span class="gallery_img" style="background-image: url(@Img.Url(Model.Photos.Count > 2 ? Model.Photos[2] : Model.Photos.FirstOrDefault(), Quality.Medium));">
-                                                    <img src="@Img.Url(Model.Photos.Count > 2 ? Model.Photos[2] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" />
+                                                    <img src="@Img.Url(Model.Photos.Count > 2 ? Model.Photos[2] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" loading="lazy" />
                                                 </span>
                                             </a>
                                         </figure>
@@ -786,7 +786,7 @@
                                         <figure>
                                             <a href="#">
                                                 <span class="gallery_img" style="background-image: url(@Img.Url(Model.Photos.Count > 3 ? Model.Photos[3] : Model.Photos.FirstOrDefault(), Quality.Medium));">
-                                                    <img src="@Img.Url(Model.Photos.Count > 3 ? Model.Photos[3] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" />
+                                                    <img src="@Img.Url(Model.Photos.Count > 3 ? Model.Photos[3] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" loading="lazy" />
                                                 </span>
                                             </a>
                                         </figure>
@@ -795,7 +795,7 @@
                                         <figure>
                                             <a href="#">
                                                 <span class="gallery_img" style="background-image: url(@Img.Url(Model.Photos.Count > 4 ? Model.Photos[4] : Model.Photos.FirstOrDefault(), Quality.Medium));">
-                                                    <img src="@Img.Url(Model.Photos.Count > 4 ? Model.Photos[4] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" />
+                                                    <img src="@Img.Url(Model.Photos.Count > 4 ? Model.Photos[4] : Model.Photos.FirstOrDefault(), Quality.Medium)" title="@title" alt="@title" loading="lazy" />
                                                 </span>
                                             </a>
                                         </figure>
@@ -810,9 +810,10 @@
                         <div class="mobile_carousel_wrapper disableOnDesktop" id="mobile-carousel">
                             <div class="swiper-container mobile_carousel">
                                 <div class="swiper-wrapper">
-                                    @foreach (var photo in Model.Photos)
+                                    @for (var i = 0; i < Model.Photos.Count; i++)
                                     {
-                                        <div class="swiper-slide"><img src="@Img.Url(photo, Quality.High)" alt="@imgAlt" title="@imgAlt" /></div>
+                                        @* перше фото каруселі видно одразу (кандидат на LCP), решта - за межами екрана *@
+                                        <div class="swiper-slide"><img src="@Img.Url(Model.Photos[i], Quality.High)" alt="@imgAlt" title="@imgAlt" @(i == 0 ? "fetchpriority=high" : "loading=lazy") /></div>
                                     }
                                 </div>
                             </div>
@@ -1644,6 +1645,7 @@
             /*Map Blocks*/
             jQuery('[data-open-map]').on('click', function (e) {
                 e.preventDefault();
+                loadGoogleMaps();
                 jQuery('.popUpBlockMain').addClass('visible visible_map');
                 jQuery('.popUpCarousel').addClass('hidden');
                 jQuery('.popUpMap').fadeIn();
@@ -1870,5 +1872,16 @@
 
         });
     </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=@ViewData["googleMapsKey"]&callback=initMap" async defer></script>
+    <script>
+        // Карта - лише у спливному вікні «Карта»: скрипти Google Maps (~5 файлів) вантажаться при першому
+        // відкритті, а не з кожною сторінкою - на мобільних вони забирали час у головного фото й меню (LCP)
+        function loadGoogleMaps() {
+            if (window.googleMapsRequested) return;
+            window.googleMapsRequested = true;
+            var script = document.createElement('script');
+            script.src = 'https://maps.googleapis.com/maps/api/js?key=@ViewData["googleMapsKey"]&callback=initMap';
+            script.async = true;
+            document.head.appendChild(script);
+        }
+    </script>
 }
