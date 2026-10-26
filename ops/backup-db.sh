@@ -1,5 +1,7 @@
 #!/bin/bash
-# Щотижневий бекап БД menus в Amazon S3 (один об'єкт, перезаписується).
+# Щотижневий бекап БД menus в Amazon S3: menus-latest (перезаписується) і датована копія backups/weekly/ -
+# історія за кілька тижнів (ресторани, видалені до 15.10.2026, не знайшлись у жодному бекапі саме через перезапис).
+# Локально лишаються датовані копії за KEEP_DAYS днів; у S3 старі weekly/ прибирає правило життєвого циклу бакета.
 #
 # Секрети - лише на сервері, не в репозиторії:
 #   /root/menus.env   - рядок підключення сайту (звідси береться пароль root)
@@ -14,6 +16,7 @@ DB_CONTAINER=menus-mariadb-1
 DB_NAME=menus
 DIR=/root/backups
 MIN_SIZE=100000   # дамп менший за ~100 КБ вважаємо зламаним і не вивантажуємо
+KEEP_DAYS=56      # 8 тижнів датованих копій локально
 
 log() { echo "$(date '+%F %T') $*"; }
 trap 'log "ПОМИЛКА в рядку $LINENO - бекап не завершено"' ERR
@@ -39,10 +42,14 @@ zcat "$TMP" | tail -n 1 | grep -q "Dump completed" || { log "Дамп обірв
 # Локально: поточний + попередній
 [ -f "$DIR/menus-latest.sql.gz" ] && mv "$DIR/menus-latest.sql.gz" "$DIR/menus-prev.sql.gz"
 mv "$TMP" "$DIR/menus-latest.sql.gz"
+DATED="menus-$(date +%F).sql.gz"
+cp "$DIR/menus-latest.sql.gz" "$DIR/$DATED"
+find "$DIR" -maxdepth 1 -name 'menus-20??-??-??.sql.gz' -mtime +"$KEEP_DAYS" -delete
 
 docker run --rm \
   -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION \
-  -v "$DIR:/data:ro" amazon/aws-cli \
-  s3 cp /data/menus-latest.sql.gz "s3://$S3_BUCKET/backups/menus-latest.sql.gz" --only-show-errors
+  -v "$DIR:/data:ro" --entrypoint sh amazon/aws-cli \
+  -c "aws s3 cp /data/menus-latest.sql.gz 's3://$S3_BUCKET/backups/menus-latest.sql.gz' --only-show-errors &&
+         aws s3 cp '/data/$DATED' 's3://$S3_BUCKET/backups/weekly/$DATED' --only-show-errors"
 
-log "OK: $((SIZE / 1024)) КБ -> s3://$S3_BUCKET/backups/menus-latest.sql.gz"
+log "OK: $((SIZE / 1024)) КБ -> s3://$S3_BUCKET/backups/menus-latest.sql.gz і backups/weekly/$DATED"

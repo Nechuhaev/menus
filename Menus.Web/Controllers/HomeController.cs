@@ -236,6 +236,11 @@ namespace Menus.Web.Controllers
             var selectedCity = GetSelectedCityIdAndSetSelectedCityCookie();
             if (restaurant == null)
             {
+                // ресторан видалено, а адреса лишилась у Google - 301 на філію тієї ж мережі в місті, якщо є
+                var cityId = cities.First(x => x.Name.Get(cityCodeLanguage).ToLower() == city).Id;
+                var sibling = await DeletedRedirects.FindSibling(id, cityId);
+                if (sibling != null) return RedirectToActionPermanent("Restaurant", new { culture, city, id = sibling });
+
                 var seos = (await _core.Restaurants.FindRestaurantsAutocomplete(id?.Trim(), selectedCity)).ToList();
                 var seosIds = seos.Select(x => x.ItemId);
                 var restaurants = _core.Restaurants.GetCompleteRestaurants().Where(x => seosIds.Contains(x.Id)).OrderBy(x => x.Name).Take(4).ToList();
@@ -521,6 +526,7 @@ namespace Menus.Web.Controllers
         }
 
         private SeoNoindexService NoindexService => (SeoNoindexService)HttpContext.RequestServices.GetService(typeof(SeoNoindexService));
+        private DeletedRestaurantRedirectService DeletedRedirects => (DeletedRestaurantRedirectService)HttpContext.RequestServices.GetService(typeof(DeletedRestaurantRedirectService));
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         // Сторінка для необроблених винятків: код 500, а не 404, щоб пошукові системи
