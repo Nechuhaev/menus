@@ -191,9 +191,13 @@
     <div class="topSection">
         <div class="wrapper">
             <h1 itemprop="name">
-                <figure>
-                    <img itemprop="image" src="@Img.Url(Model.Photos.FirstOrDefault(), Quality.Low)" alt="@imgAlt" title="@imgAlt" fetchpriority="high" />
-                </figure>
+                @* без фото закладу не виводимо: інакше запит на «-small.jpg», 404 з високим пріоритетом *@
+                @if (Model.Photos.Any())
+                {
+                    <figure>
+                        <img itemprop="image" src="@Img.Url(Model.Photos.First(), Quality.Low)" alt="@imgAlt" title="@imgAlt" fetchpriority="high" />
+                    </figure>
+                }
                 @h1Text
                 @if (Model.UserRole != null)
                 {
@@ -1242,9 +1246,12 @@
                 });
                 marker.directionUrl = `https://www.google.com/maps/dir/?api=1&destination=${mapLat},${mapLon}`;
                 marker.description = `<div class="restaurant_caption">
-                                    <figure>
-                                        <img src="@Img.Url(Model.Photos.FirstOrDefault(), Quality.Low)" alt="Alternate Text" />
-                                    </figure>
+                                    @if (Model.Photos.Any())
+                                    {
+                                        <figure>
+                                            <img src="@Img.Url(Model.Photos.First(), Quality.Low)" alt="@imgAlt" />
+                                        </figure>
+                                    }
                                     <div class="info-window-content">
                                         <h3><a href="${marker.directionUrl}" target="_blank">@Model.Restaurant.Name</a></h3><span class="item_location">@Model.RestaurantInfo.DisplayAddress.Get(culture)</span></div>
                                     </div>

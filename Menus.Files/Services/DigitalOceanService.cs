@@ -93,6 +93,9 @@ namespace Menus.Files.Services
                 UseChunkEncoding = false
             };
             if (_publicRead) request.CannedACL = S3CannedACL.PublicRead;
+            // фото (files/) мають унікальні імена і не змінюються - браузер і Cloudflare тримають їх рік;
+            // iframes/*.html перезаписуються під тим самим іменем, тому без довгого кешу
+            if (name.StartsWith("files/")) request.Headers.CacheControl = "public, max-age=31536000, immutable";
             return request;
         }
     }

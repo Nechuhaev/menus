@@ -39,6 +39,8 @@ DO_SPACES_BUCKET = os.environ.get("DO_SPACES_BUCKET", "cdn-tipmymenus-com")
 DO_SPACES_ENDPOINT = os.environ.get("DO_SPACES_ENDPOINT", "https://fra1.digitaloceanspaces.com") or None
 DO_SPACES_REGION = os.environ.get("DO_SPACES_REGION", "fra1")
 PUT_ACL = {} if os.environ.get("DO_SPACES_PUBLIC_ACL", "true").lower() == "false" else {"ACL": "public-read"}
+# фото в files/ мають унікальні імена (uuid) і не змінюються - браузер і Cloudflare тримають їх рік
+PHOTO_CACHE = "public, max-age=31536000, immutable"
 
 DB_HOST = os.environ.get("DB_HOST", "127.0.0.1")
 DB_PORT = int(os.environ.get("DB_PORT", "3306"))
@@ -390,7 +392,8 @@ def upload_photo_to_spaces(image_bytes):
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=80)
         buf.seek(0)
-        s3.put_object(Bucket=DO_SPACES_BUCKET, Key=key, Body=buf.getvalue(), ContentType="image/jpeg", **PUT_ACL)
+        s3.put_object(Bucket=DO_SPACES_BUCKET, Key=key, Body=buf.getvalue(), ContentType="image/jpeg",
+                      CacheControl=PHOTO_CACHE, **PUT_ACL)
 
     def resized(img, max_height):
         ratio = max_height / img.height
