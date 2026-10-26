@@ -34,7 +34,7 @@ import requests
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-from menu_platforms import find_platform_link, platform_menu
+from menu_platforms import find_platform_link, plain_text, platform_menu
 
 load_dotenv()
 
@@ -438,7 +438,7 @@ def save_proposals(db, restaurant_id, to_add, to_remove, price_changes):
             """INSERT INTO MenuSyncProposals (Id, RestaurantId, Kind, Name, NameLang, Category, Price, Weight, Description, ImageUrl, CreatedAt)
                VALUES (%s, %s, 'add', %s, %s, %s, %s, %s, %s, %s, %s)""",
             (str(uuid.uuid4()), restaurant_id, d["name"], d.get("lang"), d.get("category"), d.get("price"),
-             d.get("weight"), d.get("description"), d.get("image_url"), now),
+             d.get("weight"), plain_text(d.get("description")) or None, d.get("image_url"), now),
         )
     for dish in to_remove:
         cur.execute(
@@ -1166,7 +1166,7 @@ def sync_menu(db, restaurant, menu_url):
         if not dish["Weight"] and site.get("weight"):
             updates["Weight"] = str(site["weight"])[:50]
 
-        site_desc = (site.get("description") or "").strip()
+        site_desc = plain_text(site.get("description"))
         site_lang = site.get("lang") if site.get("lang") in ("uk", "ru", "en") else "uk"
         if site_desc and is_localizable_empty(dish["Description"]):
             # мовою сайту; інші мови допише DeepL (translate_missing.py)
