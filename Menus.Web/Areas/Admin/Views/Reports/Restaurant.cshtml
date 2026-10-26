@@ -200,6 +200,17 @@
             byId('filterName').addEventListener('input', applyFilters);
             document.querySelectorAll('.proposal').forEach(function (box) { box.addEventListener('change', applyFilters); });
             applyFilters();
+
+            // Повторне натискання не надсилає форму вдруге (раніше подвійне «Застосувати» дублювало страви).
+            // Кнопки вимикаються після відправки, щоб name/value натиснутої кнопки потрапив у форму
+            var form = byId('reportForm'), sent = false;
+            form.addEventListener('submit', function (e) {
+                if (sent) { e.preventDefault(); return; }
+                sent = true;
+                setTimeout(function () {
+                    form.querySelectorAll('button[type=submit]').forEach(function (b) { b.disabled = true; });
+                }, 0);
+            });
         })();
     </script>
 }

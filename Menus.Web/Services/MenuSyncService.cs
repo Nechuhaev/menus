@@ -178,10 +178,29 @@ namespace Menus.Web.Services
         public async Task<MenuSyncResult> Apply(string restaurantId, IEnumerable<string> ids, bool includeBranches)
         {
             var idList = ids.ToList();
-            var proposals = (await GetPendingForRestaurant(restaurantId)).Where(x => idList.Contains(x.Id)).ToList();
             var result = new MenuSyncResult();
+            if (!idList.Any()) return result;
 
-            await ApplyToRestaurant(restaurantId, proposals, result, byDishId: true);
+            // Пропозиції спершу «бронюються» одним UPDATE: другий одночасний запит (подвійне натискання,
+            // повтор браузера) їх уже не побачить - раніше так страви й категорії додавались двічі
+            var claim = "a" + Guid.NewGuid().ToString("N").Substring(0, 15);
+            await _connection.ExecuteAsync(
+                "UPDATE MenuSyncProposals SET Status = @claim WHERE RestaurantId = @restaurantId AND Status = 'new' AND Id IN @idList",
+                new { claim, restaurantId, idList });
+            var proposals = (await _connection.QueryAsync<MenuSyncProposal>(
+                "SELECT * FROM MenuSyncProposals WHERE Status = @claim ORDER BY Kind, Category, Name", new { claim })).ToList();
+            if (!proposals.Any()) return result;
+
+            try
+            {
+                await ApplyToRestaurant(restaurantId, proposals, result, byDishId: true);
+            }
+            catch
+            {
+                // недодане повернеться в «Звіти»; уже додані страви повтор не задвоїть (перевірка назви)
+                await _connection.ExecuteAsync("UPDATE MenuSyncProposals SET Status = 'new' WHERE Status = @claim", new { claim });
+                throw;
+            }
             await MarkApplied(proposals.Select(x => x.Id));
             // ціни змінюються через Dapper повз репозиторії - оновлюємо кеші ресторану явно
             _taskRunner.RunUpdateRestaurantIframeCache(restaurantId);
@@ -207,17 +226,19 @@ namespace Menus.Web.Services
         private async Task ApplyToRestaurant(string restaurantId, List<MenuSyncProposal> proposals, MenuSyncResult result, bool byDishId)
         {
             var categories = (await _core.Restaurants.GetAllMenuCategoriesForRestaurant(restaurantId)).ToList();
-            var dishesByName = byDishId ? null : await GetActiveDishesByName(restaurantId);
+            var dishesByName = await GetActiveDishesByName(restaurantId);
 
             foreach (var proposal in proposals)
             {
-                var dishId = byDishId ? proposal.DishId : dishesByName.TryGetValue(Normalize(proposal.Name), out var found) ? found : null;
+                var nameKey = Normalize(proposal.Name);
+                var dishId = byDishId ? proposal.DishId : dishesByName.TryGetValue(nameKey, out var found) ? found : null;
 
                 if (proposal.Kind == "add")
                 {
-                    if (!byDishId && dishId != null) continue; // у філії така страва вже є
+                    // страва з такою назвою вже є (у філії, або додана раніше чи двічі в одній пропозиції) - не дублюємо
+                    if (dishesByName.ContainsKey(nameKey)) continue;
                     var category = await FindOrCreateCategory(restaurantId, proposal, categories);
-                    await AddDish(restaurantId, proposal, category);
+                    dishesByName[nameKey] = await AddDish(restaurantId, proposal, category);
                     result.Added++;
                 }
                 else if (proposal.Kind == "remove" && dishId != null)
@@ -277,7 +298,7 @@ namespace Menus.Web.Services
         private static string NormalizeSite(string url) =>
             Regex.Replace((url ?? "").Trim().ToLowerInvariant(), @"^https?://(www\.)?|[?#].*$", "").TrimEnd('/');
 
-        private async Task AddDish(string restaurantId, MenuSyncProposal proposal, IMenuCategory category)
+        private async Task<string> AddDish(string restaurantId, MenuSyncProposal proposal, IMenuCategory category)
         {
             var lang = string.IsNullOrEmpty(proposal.NameLang) ? "uk" : proposal.NameLang;
             var weight = ParseWeight(proposal.Weight, out var unit);
@@ -314,6 +335,7 @@ namespace Menus.Web.Services
             seo.Url = await _urls.GetNewUrlForDish(seo, dish);
             seo.SearchTerms = dish.Name.GetAll() + " " + UrlGenerateService.TranslitWithCaseSave(dish.Name.Get());
             await _core.Dishes.CreateSeo(seo);
+            return dish.Id;
         }
 
         // Категорія з такою ж назвою (будь-якою мовою); якщо немає - нова підкатегорія
