@@ -538,6 +538,9 @@ def find_menu_url(raw_html, base_url):
     if not m:
         return None
     url = urljoin(base_url, m.group(1))
+    # шаблон JS-сайту без даних («/undefined/menu», «/null/menu») - не сторінка меню
+    if re.search(r"/(?:undefined|null)(?:/|$)", urlparse(url).path):
+        return None
     return url if url.startswith("http") and url.rstrip("/") != base_url.rstrip("/") else None
 
 
@@ -822,6 +825,10 @@ def dish_display_name(dish):
 SIZE_NOISE = re.compile(r"\([^)]*\)|\b\d+(?:[.,]\d+)?\s*(?:см|cm|г|гр|g|кг|kg|мл|ml|л|l|шт|pcs)\b\.?|\bnew\b|\bnovelty\b|\bновинка\b", re.I)
 
 
+# українські й російські літери, що різняться в однакових назвах: «Антіпасті» = «Антипасти», «Сир» = «Сыр»
+MATCH_LETTERS = str.maketrans("іїєыэ", "ииеие")
+
+
 def match_key(value, noise_words=()):
     """Назва для зіставлення: без розміру, ваги, дужок і назви ресторану («Піца барбекю 30 см (Pesto)»
     -> «піца барбекю»). Для дедуплікації меню використовується normalize_name - там розміри важливі."""
@@ -829,13 +836,18 @@ def match_key(value, noise_words=()):
     return " ".join(w for w in words if w not in noise_words)
 
 
+def menu_key(value, noise_words=()):
+    """match_key, де і/и, е/є тощо однакові: назва в базі буває російською, а на сайті українською."""
+    return match_key(value, noise_words).translate(MATCH_LETTERS)
+
+
 def match_menu(our_dishes, site_menu, restaurant_name=""):
     """Зіставлення за назвою будь-якою мовою: точний збіг або дуже схожа (ratio >= 0.88)."""
     noise = set(normalize_name(restaurant_name).split())
-    site_keys = [match_key(d["name"], noise) for d in site_menu]
+    site_keys = [menu_key(d["name"], noise) for d in site_menu]
     matches, used = {}, set()
     for dish in our_dishes:
-        names = {match_key(get_localizable_value(dish["Name"], l), noise) for l in ("uk", "ru", "en")} - {""}
+        names = {menu_key(get_localizable_value(dish["Name"], l), noise) for l in ("uk", "ru", "en")} - {""}
         hit = next((j for j, k in enumerate(site_keys) if k in names and j not in used), None)
         if hit is None:
             best = max(((difflib.SequenceMatcher(None, n, k).ratio(), j) for n in names
