@@ -304,6 +304,9 @@ namespace Menus.Web.Controllers
             Response.Headers.Remove("Last-Modified");
             Response.Headers.Add("Last-Modified", restaurant.UpdateDate.ToString("R"));
 
+            // порожній заклад (мало страв і без опису) - noindex, список з content-bot/thin_pages.py
+            if (await NoindexService.IsNoindex(restaurant.Id)) ViewData["Robots"] = "NOINDEX,FOLLOW";
+
             return View(data);
         }
 
@@ -510,8 +513,13 @@ namespace Menus.Web.Controllers
             Response.Headers.Remove("Last-Modified");
             Response.Headers.Add("Last-Modified", restaurant.UpdateDate.ToString("R"));
 
+            // тонкий напій (без опису й фото, без кліків у Search Console) - noindex
+            if (await NoindexService.IsNoindex(dish.Id)) ViewData["Robots"] = "NOINDEX,FOLLOW";
+
             return page == 0 ? View(dish) : View("_DishRatingsAjax", dish);
         }
+
+        private SeoNoindexService NoindexService => (SeoNoindexService)HttpContext.RequestServices.GetService(typeof(SeoNoindexService));
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         // Сторінка для необроблених винятків: код 500, а не 404, щоб пошукові системи
