@@ -44,10 +44,13 @@ def detect_lang(value):
 
 def sure_lang(value):
     """Мова, лише коли текст її однозначно показує: і/ї/є/ґ - uk, ы/э/ъ/ё - ru, лише латиниця - en; інакше None
-    («Говядина, лук» може бути й ru, й uk)."""
-    if re.search(r"[іїєґ]", value or "", re.I):
+    («Говядина, лук» може бути й ru, й uk; у змішаному тексті є літери обох)."""
+    uk, ru = re.search(r"[іїєґ]", value or "", re.I), re.search(r"[ыэъё]", value or "", re.I)
+    if uk and ru:
+        return None  # змішаний текст («Пиво Оболонь Світле, легкое»)
+    if uk:
         return "uk"
-    if re.search(r"[ыэъё]", value or "", re.I):
+    if ru:
         return "ru"
     if re.search(r"[a-z]", value or "", re.I) and not re.search(r"[а-я]", value or "", re.I):
         return "en"
@@ -67,6 +70,8 @@ def plain_text(value):
     показує опис як текст. Абзаци й <br> - переноси рядків, сутності (&amp;, &nbsp;) - символи."""
     if not value:
         return ""
+    if not re.search(r"<[a-zA-Z/][^>]*>|&#?\w+;", value):
+        return value.strip()  # звичайний текст - як є, з порожніми рядками між абзацами
     value = re.sub(r"(?i)<br\s*/?>|</(?:p|div|li|h[1-6])\s*>", "\n", value)
     value = html_lib.unescape(re.sub(r"<[^>]+>", "", value))
     lines = (re.sub(r"[ \t\u00a0]+", " ", line).strip() for line in value.split("\n"))
