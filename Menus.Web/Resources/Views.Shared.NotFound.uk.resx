@@ -153,4 +153,7 @@
 	<data name="MetaDescription" xml:space="preserve">
 		<value>Результат пошуку страви {0} по закладах міста {1} - склад, інгредієнти, фото, ціна, відгуки клієнтів 🍽️ TipMyMenu (ТіпМайМеню) ✅ Унікальне електронне меню закладу</value>
 	</data>
+	<data name="PageNotFoundTitle" xml:space="preserve">
+		<value>Сторінку не знайдено: {0} ⭐ TipMyMenu</value>
+	</data>
 </root>

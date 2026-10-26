@@ -153,4 +153,7 @@
 	<data name="MetaDescription" xml:space="preserve">
 		<value>Search Result dishes {0} on the institutions of the city {1} - composition, ingredients, photos, price, customer reviews 🍽️ TipMyMenu ✅ unique electronic places menu</value>
 	</data>
+	<data name="PageNotFoundTitle" xml:space="preserve">
+		<value>Page not found: {0} ⭐ TipMyMenu</value>
+	</data>
 </root>
