@@ -1,8 +1,7 @@
-"""Дозаповнює переклади через DeepL: текст є хоч однією мовою - інші (uk/ru/en) перекладаються.
+"""Дозаповнює переклади через DeepL між українською й російською: текст є однією з них - друга перекладається.
 Спершу назви (страви й категорії меню: страви, додані зі «Звітів», мають назву лише мовою джерела, і на /ru/
 показувалась українська), потім описи страв: Description, ShortDescription (іде в JSON-LD), Ingredients.
-Назви перекладаються лише з української чи російської: латинська назва - бренд або власна назва
-(«PASTORALE», «Coca-Cola»), її не перекладаємо.
+Англійська не перекладається і не є джерелом: латинська назва - бренд або власна назва («PASTORALE»).
 
 translate_missing.py перекладає лише ru -> uk; тут - будь-який напрямок, зокрема описи, які
 clean_descriptions.py переніс з ru в uk (там тепер порожньо, сайт показує українську і російськомовним).
@@ -21,8 +20,9 @@ import requests
 
 from sync_restaurants import RESTAURANT_CLICKS_JOIN, KEEP_INDEXED_TABLE_SQL, get_db
 
-DEEPL_TARGET = {"uk": "UK", "ru": "RU", "en": "EN-US"}
-SOURCE_ORDER = ("uk", "ru", "en")
+# сайт працює з українською й російською: англійською не перекладаємо і з англійської теж
+DEEPL_TARGET = {"uk": "UK", "ru": "RU"}
+SOURCE_ORDER = ("uk", "ru")
 BATCH = 50
 MAX_CHARS = int(os.environ.get("DESC_DEEPL_MAX_CHARS", "15000"))
 FIELDS = ("Description", "ShortDescription", "Ingredients")
@@ -53,7 +53,7 @@ def deepl(texts, source, target, kind):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--langs", default="uk,ru,en", help="мови, які дозаповнювати")
+    parser.add_argument("--langs", default="uk,ru", help="мови, які дозаповнювати (uk, ru)")
     args = parser.parse_args()
     targets = [l for l in args.langs.split(",") if l in DEEPL_TARGET]
 
