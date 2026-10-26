@@ -416,6 +416,10 @@ namespace Menus.Web.Controllers
             var crq = Request;
             var restaurants = _core.Restaurants.GetCompleteRestaurants().Select(x => new { x.Id, x.Url, x.City }).ToList();
             var cities = (await _core.Restaurants.GetCities()).ToList();
+            // тонкі напої закриті від індексації (noindex) - у sitemap їх немає
+            var noindex = await new SeoNoindexService(_efContext).GetIds();
+            // кількість файлів у sitemap.xml рахується від усіх страв - зайві файли записуються порожніми
+            int indexedFiles = await _core.Dishes.GetAllDishesCount() / NUMBER_OF_RECORDS;
 
             foreach (var locale in GetLocales())
             {
@@ -454,6 +458,8 @@ namespace Menus.Web.Controllers
                     var dishes = await _core.Dishes.GetDishesForRestaurantWithSeoAndRatings(restaurant.Id, null);
                     foreach (var dish in dishes)
                     {
+                        if (noindex.Contains(dish.Id)) continue;
+
                         if (itemCounter > NUMBER_OF_RECORDS)
                         {
                             itemCounter = 0;
@@ -469,19 +475,18 @@ namespace Menus.Web.Controllers
                             if (xml.Root == null) throw new InvalidOperationException("Sitemap is empty");
                             xml.Root.RemoveAll();
                         }
-                        else
-                        {
-                            var urlElem = XElement.Parse(defaultSiteMapElement);
-                            var locElem = XElement.Parse($"<loc>{SiteBaseUrl}/{ locale.Id}/{ cities.First(x => x.Id == restaurant.City).Name.Get("en").ToLower()}/restaurant/{ restaurant.Url}/{ dish.Url}</loc>");
-                            var lastModElem = XElement.Parse($"<lastmod>{DateTime.Now:yyyy-MM-dd}</lastmod>");
-                            var changeFreqElem = XElement.Parse("<changefreq>weekly</changefreq>");
-                            var priorityElem = XElement.Parse("<priority>0.8</priority>");
 
-                            urlElem.Add(locElem, lastModElem, changeFreqElem, priorityElem);
-                            xml.Root.Add(urlElem);
+                        // страва на межі файлів теж іде в sitemap (раніше пропускалась)
+                        var urlElem = XElement.Parse(defaultSiteMapElement);
+                        var locElem = XElement.Parse($"<loc>{SiteBaseUrl}/{ locale.Id}/{ cities.First(x => x.Id == restaurant.City).Name.Get("en").ToLower()}/restaurant/{ restaurant.Url}/{ dish.Url}</loc>");
+                        var lastModElem = XElement.Parse($"<lastmod>{DateTime.Now:yyyy-MM-dd}</lastmod>");
+                        var changeFreqElem = XElement.Parse("<changefreq>weekly</changefreq>");
+                        var priorityElem = XElement.Parse("<priority>0.8</priority>");
 
-                            itemCounter++;
-                        }
+                        urlElem.Add(locElem, lastModElem, changeFreqElem, priorityElem);
+                        xml.Root.Add(urlElem);
+
+                        itemCounter++;
                     }
 
 
@@ -491,13 +496,22 @@ namespace Menus.Web.Controllers
 
                 document = replaceEmptyNamespace(xml.ToString());
                 await System.IO.File.WriteAllTextAsync(filePath, document);
+
+                for (int emptyFile = dishFilesCounter + 1; emptyFile <= indexedFiles; emptyFile++)
+                {
+                    await System.IO.File.WriteAllTextAsync($"wwwroot/sitemap{ locale.Id}dishes_{ emptyFile}.xml",
+                        replaceEmptyNamespace(XDocument.Parse(defaultXmlFileContent).ToString()));
+                }
             }
         }
 
         private async Task UpdateRestaurantSitemap()
         {
             var crq = Request;
-            var restaurants = _core.Restaurants.GetCompleteRestaurants().Select(x => new { x.Url, x.City }).ToList();
+            // порожні заклади закриті від індексації (noindex) - у sitemap їх немає
+            var noindex = await new SeoNoindexService(_efContext).GetIds();
+            var restaurants = _core.Restaurants.GetCompleteRestaurants().Select(x => new { x.Id, x.Url, x.City }).ToList()
+                .Where(x => !noindex.Contains(x.Id)).ToList();
             var cities = (await _core.Restaurants.GetCities()).ToList();
 
             string defaultSiteMapElement = "<url></url>";

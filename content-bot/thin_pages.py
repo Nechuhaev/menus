@@ -1,31 +1,53 @@
-"""Підрахунок «тонких» сторінок для noindex (лише читає базу, нічого не пише).
+"""«Тонкі» сторінки: підрахунок і список для noindex (таблиця SeoNoindex, її читає сайт).
 
 Сторінка страви тонка - немає ні опису, ні фото (лише назва й ціна - майже дубль рядка меню ресторану).
 Сторінка ресторану тонка - менше MIN_DISHES активних страв і немає опису закладу (ShortInfo/FullInfo).
-Правило оновлюється само: як тільки бот додасть опис чи фото, сторінка знову індексується.
+Тонкі страви діляться на напої (категорія страви - бар, кава, вино тощо, як у dish_city_candidates) та їжу.
 
-Тонкі страви діляться на напої (категорія страви - бар, кава, вино тощо, як у dish_city_candidates)
-та їжу: напої закриваються першими, їжу бот поступово наповнює описами й фото.
+Закривається від індексації (noindex, follow і без sitemap): тонкі ресторани й тонкі напої, крім
+сторінок, що мають кліки в Search Console (таблиця SeoKeepIndexed, оновлюється з --gsc --save).
+Тонка їжа лишається в індексі: за Search Console вона дає майже половину кліків сторінок страв.
+Правило оновлюється само (cron щоночі з --save): як тільки в напою з'явиться опис чи фото, сторінка
+повертається в індекс.
 
---gsc Pages.csv - експорт Search Console («Сторінки»: адреса, кліки, покази): скільки кліків і
-показів дають тонкі сторінки. Сторінка страви - /{мова}/{місто}/restaurant/{ресторан}/{страва}.
+--gsc Pages.csv - експорт Search Console («Сторінки»: адреса, кліки, покази): кліки й покази за видами
+сторінок і адреси з кліками, яких немає серед активних страв (з кодом відповіді сайту).
+Сторінка страви - /{мова}/{місто}/restaurant/{ресторан}/{страва}.
 
-Запуск:  python3 thin_pages.py                      # цифри по містах і приклади адрес
-         python3 thin_pages.py --min 3              # інший поріг страв для ресторану
-         python3 thin_pages.py --gsc Pages.csv      # + трафік тонких сторінок з Search Console
+Запуск:  python3 thin_pages.py                          # цифри по містах і приклади адрес
+         python3 thin_pages.py --gsc Pages.csv          # + трафік з Search Console
+         python3 thin_pages.py --gsc Pages.csv --save   # + оновити список сторінок з кліками і SeoNoindex
+         python3 thin_pages.py --save                   # оновити SeoNoindex (cron щоночі)
 """
 import argparse
 import csv
 import json
 import re
-from collections import Counter, defaultdict
+import time
+from collections import Counter
 from urllib.parse import unquote, urlparse
+
+import requests
 
 from dish_city_candidates import DRINK_CATEGORY
 from sync_restaurants import get_db, get_localizable_value
 
 MIN_DISHES = 5
 EXAMPLES = 10
+MISSING_SHOWN = 20
+
+NOINDEX_TABLE_SQL = """CREATE TABLE IF NOT EXISTS SeoNoindex (
+    ItemId VARCHAR(255) NOT NULL PRIMARY KEY,
+    Kind VARCHAR(20) NOT NULL,
+    UpdatedAt DATETIME NOT NULL
+) DEFAULT CHARSET=utf8mb4"""
+KEEP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS SeoKeepIndexed (
+    RestaurantUrl VARCHAR(255) NOT NULL,
+    DishUrl VARCHAR(255) NOT NULL,
+    Clicks INT NOT NULL,
+    UpdatedAt DATETIME NOT NULL,
+    PRIMARY KEY (RestaurantUrl, DishUrl)
+) DEFAULT CHARSET=utf8mb4"""
 
 
 def has_text(value):
@@ -67,27 +89,41 @@ def number(value):
     return int(digits) if digits else 0
 
 
-def gsc_report(path, page_kind):
-    """Кліки й покази з експорту Search Console за видами сторінок; адреси групуються без мови й міста."""
-    clicks, impressions, pages = Counter(), Counter(), Counter()
-    top = []
+def read_gsc(path):
+    """[(адреса, кліки, покази)] з експорту Search Console."""
     with open(path, encoding="utf-8-sig") as f:
         rows = list(csv.reader(f))
-    for row in rows[1:]:
-        if len(row) < 3:
-            continue
-        key = page_key(row[0])
+    return [(row[0], number(row[1]), number(row[2])) for row in rows[1:] if len(row) >= 3]
+
+
+def status_of(url):
+    """Код відповіді сайту й адреса редиректу (без переходу за редиректом)."""
+    try:
+        resp = requests.get(url, timeout=15, allow_redirects=False,
+                            headers={"User-Agent": "Mozilla/5.0 (compatible; TipMyMenuBot/1.0)"})
+        return resp.status_code, resp.headers.get("Location") or ""
+    except requests.RequestException as e:
+        return "помилка", str(e)[:60]
+
+
+def gsc_report(gsc_rows, page_kind, all_dishes):
+    """Кліки й покази за видами сторінок; адреси групуються без мови й міста."""
+    clicks, impressions, pages = Counter(), Counter(), Counter()
+    top, missing = [], []
+    for url, c, i in gsc_rows:
+        key = page_key(url)
         if key is None:
             kind = "інші сторінки"
         else:
             kind = page_kind.get(key, "ресторан" if key[1] is None else "страва не знайдена в базі")
-        c, i = number(row[1]), number(row[2])
         clicks[kind] += c
         impressions[kind] += i
         pages[kind] += 1
         if kind.startswith("тонк") and (c or i):
-            top.append((c, i, row[0]))
-    print(f"\nSearch Console ({len(rows) - 1} адрес у файлі):")
+            top.append((c, i, url))
+        if kind == "страва не знайдена в базі" and c:
+            missing.append((c, i, url, all_dishes.get(key, "немає в базі")))
+    print(f"\nSearch Console ({len(gsc_rows)} адрес у файлі):")
     print(f"{'вид сторінки':<28} {'адрес':>7} {'кліки':>8} {'покази':>10}")
     for kind in sorted(pages, key=lambda k: -clicks[k]):
         print(f"{kind:<28} {pages[kind]:>7} {clicks[kind]:>8} {impressions[kind]:>10}")
@@ -95,19 +131,54 @@ def gsc_report(path, page_kind):
     for c, i, url in sorted(top, reverse=True)[:15]:
         print(f"  {c:>5} {i:>7}  {url}")
 
+    print(f"\nАдреси з кліками, яких немає серед активних страв ({len(missing)}; перші {MISSING_SHOWN} - з кодом відповіді):")
+    print(f"  {'кліки':>5} {'код':>6}  {'в базі':<24} адреса -> редирект")
+    for c, i, url, state in sorted(missing, reverse=True)[:MISSING_SHOWN]:
+        code, location = status_of(url)
+        print(f"  {c:>5} {code:>6}  {state:<24} {url}{' -> ' + location if location else ''}")
+        time.sleep(0.5)
+
+
+def save(db, noindex, gsc_rows):
+    cur = db.cursor()
+    cur.execute(NOINDEX_TABLE_SQL)
+    cur.execute(KEEP_TABLE_SQL)
+    if gsc_rows is not None:
+        # сторінки, що вже дають кліки, лишаються в індексі, навіть тонкі
+        keep = Counter()
+        for url, c, _ in gsc_rows:
+            key = page_key(url)
+            if key and c:
+                keep[(key[0], key[1] or "")] += c
+        cur.execute("DELETE FROM SeoKeepIndexed")
+        cur.executemany("INSERT INTO SeoKeepIndexed (RestaurantUrl, DishUrl, Clicks, UpdatedAt) VALUES (%s, %s, %s, NOW())",
+                        [(r, d, c) for (r, d), c in keep.items()])
+    cur.execute("DELETE FROM SeoNoindex")
+    cur.executemany("INSERT INTO SeoNoindex (ItemId, Kind, UpdatedAt) VALUES (%s, %s, NOW())", noindex)
+    db.commit()
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=MIN_DISHES, help="мінімум активних страв для ресторану")
     parser.add_argument("--gsc", metavar="CSV", help="експорт Search Console «Сторінки» (адреса, кліки, покази)")
+    parser.add_argument("--save", action="store_true", help="записати список noindex (і сторінки з кліками з --gsc)")
     args = parser.parse_args()
 
+    gsc_rows = read_gsc(args.gsc) if args.gsc else None
     db = get_db()
     cur = db.cursor(dictionary=True)
+    cur.execute(KEEP_TABLE_SQL)
+    if gsc_rows is not None:
+        keep = {(k[0], k[1] or "") for k in (page_key(url) for url, c, _ in gsc_rows if c) if k}
+    else:
+        cur.execute("SELECT RestaurantUrl, DishUrl FROM SeoKeepIndexed")
+        keep = {(row["RestaurantUrl"], row["DishUrl"]) for row in cur.fetchall()}
+
     cur.execute("SELECT Id, Name FROM Cities")
     cities = {row["Id"]: get_localizable_value(row["Name"], "uk") or row["Id"] for row in cur.fetchall()}
 
-    cur.execute("""SELECT d.Description, d.PhotoLink, r.City, ds.Url, rs.Url AS RestaurantUrl,
+    cur.execute("""SELECT CONCAT(d.Id, '') AS Id, d.Description, d.PhotoLink, r.City, ds.Url, rs.Url AS RestaurantUrl,
                           GROUP_CONCAT(CONCAT_WS(' ', mc.Name, pc.Name) SEPARATOR ' ') AS Categories
                    FROM Dishes d JOIN Restaurants r ON r.Id = d.RestaurantId
                    LEFT JOIN DishSeo ds ON ds.ItemId = d.Id
@@ -120,9 +191,11 @@ def main():
                    GROUP BY d.Id""")
     dishes, thin_dishes, thin_drinks, dish_examples = Counter(), Counter(), Counter(), []
     page_kind = {}  # (ресторан, страва) -> вид сторінки для звіту Search Console
+    noindex, kept = [], 0
     for row in cur.fetchall():
         dishes[row["City"]] += 1
         kind = "страва з описом/фото"
+        key = ((row["RestaurantUrl"] or "").lower(), (row["Url"] or "").lower())
         if not has_text(row["Description"]) and not has_photo(row["PhotoLink"]):
             thin_dishes[row["City"]] += 1
             # назви категорій - JSON з мовами, для пошуку слів досить сирого тексту
@@ -130,14 +203,18 @@ def main():
             if DRINK_CATEGORY.search(categories):
                 thin_drinks[row["City"]] += 1
                 kind = "тонка: напій"
+                if key in keep:
+                    kept += 1
+                else:
+                    noindex.append((row["Id"], "dish"))
             else:
                 kind = "тонка: їжа"
             if len(dish_examples) < EXAMPLES and row["Url"]:
                 dish_examples.append(row["Url"])
         if row["Url"] and row["RestaurantUrl"]:
-            page_kind[(row["RestaurantUrl"].lower(), row["Url"].lower())] = kind
+            page_kind[key] = kind
 
-    cur.execute("""SELECT r.Name, r.City, ri.ShortInfo, ri.FullInfo, rs.Url,
+    cur.execute("""SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, ri.ShortInfo, ri.FullInfo, rs.Url,
                           (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS DishCount
                    FROM Restaurants r
                    LEFT JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
@@ -148,11 +225,21 @@ def main():
         restaurants[row["City"]] += 1
         if row["DishCount"] < args.min and not has_text(row["ShortInfo"]) and not has_text(row["FullInfo"]):
             thin_restaurants[row["City"]] += 1
+            noindex.append((row["Id"], "restaurant"))
             if row["Url"]:
                 page_kind[(row["Url"].lower(), None)] = "тонкий ресторан"
             if len(restaurant_examples) < EXAMPLES and row["Url"]:
                 restaurant_examples.append(f"{row['Url']}  ({row['Name']}, страв: {row['DishCount']})")
-    db.close()
+
+    all_dishes = {}
+    if gsc_rows is not None:
+        # усі страви (і приховані) - чому адреси з кліками немає серед активних
+        cur.execute("""SELECT LOWER(rs.Url) AS RestaurantUrl, LOWER(ds.Url) AS Url, d.Status, r.Status AS RestaurantStatus
+                       FROM DishSeo ds JOIN Dishes d ON d.Id = ds.ItemId JOIN Restaurants r ON r.Id = d.RestaurantId
+                       JOIN RestaurantSeo rs ON rs.ItemId = r.Id""")
+        for row in cur.fetchall():
+            all_dishes[(row["RestaurantUrl"], row["Url"])] = (
+                "ресторан неактивний" if row["RestaurantStatus"] != 0 else f"страва зі статусом {row['Status']}")
 
     def pct(part, whole):
         return f"{100 * part / whole:.0f}%" if whole else "-"
@@ -165,14 +252,21 @@ def main():
     total_r, total_tr = sum(restaurants.values()), sum(thin_restaurants.values())
     print(f"{'УСЬОГО':<20} {total_d:>8} {total_td:>8} {pct(total_td, total_d):>5} {total_dr:>11}   {total_r:>9} {total_tr:>6} {pct(total_tr, total_r):>5}")
     print(f"\nТонкі напої: {total_dr} ({pct(total_dr, total_d)} усіх сторінок страв); тонка їжа: {total_td - total_dr}")
-    if args.gsc:
-        gsc_report(args.gsc, page_kind)
+    print(f"noindex: сторінок страв {sum(1 for _, k in noindex if k == 'dish')} (тонкі напої; лишено в індексі через кліки: {kept}), "
+          f"ресторанів {sum(1 for _, k in noindex if k == 'restaurant')}")
     print("\nПриклади тонких сторінок страв (адреса з DishSeo):")
     for url in dish_examples:
         print(f"  {url}")
     print(f"\nПриклади тонких сторінок ресторанів (< {args.min} страв і без опису):")
     for line in restaurant_examples:
         print(f"  {line}")
+
+    if gsc_rows is not None:
+        gsc_report(gsc_rows, page_kind, all_dishes)
+    if args.save:
+        save(db, noindex, gsc_rows)
+        print(f"\nЗаписано в SeoNoindex: {len(noindex)}" + (" ; SeoKeepIndexed оновлено з Search Console" if gsc_rows is not None else ""))
+    db.close()
 
 
 if __name__ == "__main__":
