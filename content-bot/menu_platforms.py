@@ -42,6 +42,18 @@ def detect_lang(value):
     return "en"
 
 
+def sure_lang(value):
+    """Мова, лише коли текст її однозначно показує: і/ї/є/ґ - uk, ы/э/ъ/ё - ru, лише латиниця - en; інакше None
+    («Говядина, лук» може бути й ru, й uk)."""
+    if re.search(r"[іїєґ]", value or "", re.I):
+        return "uk"
+    if re.search(r"[ыэъё]", value or "", re.I):
+        return "ru"
+    if re.search(r"[a-z]", value or "", re.I) and not re.search(r"[а-я]", value or "", re.I):
+        return "en"
+    return None
+
+
 def parse_price(value):
     digits = re.sub(r"[^\d.,]", "", value or "").replace(",", ".")
     try:
@@ -61,11 +73,28 @@ def plain_text(value):
     return "\n".join(line for line in lines if line)
 
 
+WEIGHT_UNITS = re.compile(r"(?<!\w)(?:г|гр|кг|мл|л|шт|см|g|gr|kg|ml|l|pcs|cm|oz)(?!\w)\.?", re.I)
+
+
+def is_weight_only(value):
+    """«250/50 г», «0,5 л», «1 шт» - вага чи кількість замість опису (вона й так показується окремо)."""
+    # спершу цифри й знаки («300g» -> « g»), потім одиниці окремими словами
+    rest = WEIGHT_UNITS.sub("", re.sub(r"[\d.,/×+\-–()]", " ", value or ""))
+    rest = re.sub(r"(?<!\w)[xх](?!\w)|\s", "", rest)
+    return bool(value and value.strip()) and not rest
+
+
+def clean_description(value):
+    """Опис для страви: без HTML; вага замість опису - порожньо."""
+    value = plain_text(value)
+    return "" if is_weight_only(value) else value
+
+
 def dish(name, category, price, weight, description, image_url):
     name = plain_text(name)
     return {"name": name, "lang": detect_lang(name), "category": category or None, "price": price,
-            "weight": weight or None, "description": plain_text(description) or None, "image_url": image_url or None,
-            "url": None}
+            "weight": weight or None, "description": clean_description(description) or None,
+            "image_url": image_url or None, "url": None}
 
 
 # --- Expirenza: https://expz.menu/<uuid> ---
