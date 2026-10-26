@@ -442,8 +442,9 @@ namespace Menus.Web.Controllers
             var dish = await _core.Dishes.GetDishByIdOrSeoWithSeoAndRating(dishId, restaurant.Id, User.Identity.Name);
             if (dish == null)
             {
-                Response.StatusCode = 404;
-                return View("NotFound");
+                // страву видалили або перейменували, а ресторан є - 301 на ресторан: зовнішні посилання
+                // й переходи з пошуку (Search Console показує кліки на такі адреси) не губляться
+                return RedirectToActionPermanent("Restaurant", new { id, city });
             }
 
             //var reviews = await _core.Ratings.GetRatingForDish();
