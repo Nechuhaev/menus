@@ -41,6 +41,8 @@ NOINDEX_TABLE_SQL = """CREATE TABLE IF NOT EXISTS SeoNoindex (
     Kind VARCHAR(20) NOT NULL,
     UpdatedAt DATETIME NOT NULL
 ) DEFAULT CHARSET=utf8mb4"""
+
+
 def has_text(value):
     """Локалізоване поле ({"Values": [...]}) або звичайний рядок - чи є в ньому текст."""
     if not value or not value.strip():
