@@ -30,7 +30,7 @@ from urllib.parse import unquote, urlparse
 import requests
 
 from dish_city_candidates import DRINK_CATEGORY
-from sync_restaurants import get_db, get_localizable_value
+from sync_restaurants import KEEP_INDEXED_TABLE_SQL, get_db, get_localizable_value
 
 MIN_DISHES = 5
 EXAMPLES = 10
@@ -41,15 +41,6 @@ NOINDEX_TABLE_SQL = """CREATE TABLE IF NOT EXISTS SeoNoindex (
     Kind VARCHAR(20) NOT NULL,
     UpdatedAt DATETIME NOT NULL
 ) DEFAULT CHARSET=utf8mb4"""
-KEEP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS SeoKeepIndexed (
-    RestaurantUrl VARCHAR(255) NOT NULL,
-    DishUrl VARCHAR(255) NOT NULL,
-    Clicks INT NOT NULL,
-    UpdatedAt DATETIME NOT NULL,
-    PRIMARY KEY (RestaurantUrl, DishUrl)
-) DEFAULT CHARSET=utf8mb4"""
-
-
 def has_text(value):
     """Локалізоване поле ({"Values": [...]}) або звичайний рядок - чи є в ньому текст."""
     if not value or not value.strip():
@@ -142,7 +133,7 @@ def gsc_report(gsc_rows, page_kind, all_dishes):
 def save(db, noindex, gsc_rows):
     cur = db.cursor()
     cur.execute(NOINDEX_TABLE_SQL)
-    cur.execute(KEEP_TABLE_SQL)
+    cur.execute(KEEP_INDEXED_TABLE_SQL)
     if gsc_rows is not None:
         # сторінки, що вже дають кліки, лишаються в індексі, навіть тонкі
         keep = Counter()
@@ -168,7 +159,7 @@ def main():
     gsc_rows = read_gsc(args.gsc) if args.gsc else None
     db = get_db()
     cur = db.cursor(dictionary=True)
-    cur.execute(KEEP_TABLE_SQL)
+    cur.execute(KEEP_INDEXED_TABLE_SQL)
     if gsc_rows is not None:
         keep = {(k[0], k[1] or "") for k in (page_key(url) for url, c, _ in gsc_rows if c) if k}
     else:

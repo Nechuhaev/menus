@@ -26,7 +26,8 @@ from collections import defaultdict
 import requests
 
 from dish_city_pages import TRANSLIT
-from sync_restaurants import MENU_LINKS_TABLE_SQL, get_db, get_localizable_value, normalize_name
+from sync_restaurants import (KEEP_INDEXED_TABLE_SQL, MENU_LINKS_TABLE_SQL, RESTAURANT_CLICKS_JOIN, get_db,
+                              get_localizable_value, normalize_name)
 
 SEARCH_URL = "https://api.firecrawl.dev/v2/search"
 RESULTS_PER_QUERY = 10
@@ -257,6 +258,7 @@ def save(db, rows, searched_ids):
 
 
 RESTAURANTS_SQL = """SELECT CONCAT(r.Id, '') AS Id, r.Name, r.Address, r.City FROM Restaurants r
+                     LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id""" + RESTAURANT_CLICKS_JOIN + """
                      LEFT JOIN RestaurantMenuLinks ml ON ml.RestaurantId = r.Id
                      LEFT JOIN MenuLinkSearches s ON s.RestaurantId = r.Id
                      WHERE r.Status = 0 AND ml.Url IS NULL"""
@@ -271,7 +273,7 @@ def main():
 
     db = get_db()
     cur = db.cursor(dictionary=True)
-    for sql in (MENU_LINKS_TABLE_SQL, PROPOSALS_TABLE_SQL, SEARCHES_TABLE_SQL):
+    for sql in (MENU_LINKS_TABLE_SQL, PROPOSALS_TABLE_SQL, SEARCHES_TABLE_SQL, KEEP_INDEXED_TABLE_SQL):
         cur.execute(sql)
     cities = load_cities(db)
 
@@ -288,7 +290,8 @@ def main():
         db.close()
         return
 
-    cur.execute(RESTAURANTS_SQL + " AND (s.SearchedAt IS NULL OR s.SearchedAt < NOW() - INTERVAL %s DAY) ORDER BY r.Name",
+    cur.execute(RESTAURANTS_SQL + " AND (s.SearchedAt IS NULL OR s.SearchedAt < NOW() - INTERVAL %s DAY)"
+                " ORDER BY IFNULL(k.Clicks, 0) DESC, r.Name",
                 (SEARCH_AGAIN_DAYS,))
     restaurants = cur.fetchall()
     if args.limit:
