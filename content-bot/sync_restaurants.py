@@ -34,7 +34,7 @@ import requests
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-from menu_platforms import clean_description, find_platform_link, platform_menu, sure_lang
+from menu_platforms import clean_description, drop_generic_images, find_platform_link, platform_menu, sure_lang
 
 load_dotenv()
 
@@ -1195,6 +1195,7 @@ def sync_menu(db, restaurant, menu_url):
              if is_localizable_empty(ours_by_id[dish_id]["Description"]) or not ours_by_id[dish_id]["Weight"]
              or not ours_by_id[dish_id]["PhotoLink"] or ours_by_id[dish_id]["PhotoLink"] == "[]"]
     enrich_from_detail(name, needy + unmatched_site)
+    drop_generic_images(site_menu)
 
     updated, price_changes = 0, []
     for dish in our_dishes:
