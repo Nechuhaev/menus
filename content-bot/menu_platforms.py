@@ -102,6 +102,26 @@ def dish(name, category, price, weight, description, image_url):
             "image_url": image_url or None, "url": None}
 
 
+# картинка шапки/логотипа сайту чи og:image - не фото страви (боти ставили фото закладу на всі страви)
+GENERIC_IMAGE = re.compile(r"logo|favicon|banner|hero|cover|header|background|placeholder|no[-_]?(?:image|photo)|og[-_]?image|share", re.I)
+SAME_IMAGE_DISHES = 3
+
+
+def drop_generic_images(dishes, *site_images):
+    """Прибирає image_url, що не є фото саме цієї страви: та сама адреса на SAME_IMAGE_DISHES+ стравах,
+    фото з сайту закладу (og:image головної) чи назва файлу на кшталт logo/banner/hero."""
+    counts = {}
+    for d in dishes:
+        if d.get("image_url"):
+            counts[d["image_url"]] = counts.get(d["image_url"], 0) + 1
+    site = {u for u in site_images if u}
+    for d in dishes:
+        url = d.get("image_url")
+        if url and (counts[url] >= SAME_IMAGE_DISHES or url in site
+                    or GENERIC_IMAGE.search(urlparse(url).path.rsplit("/", 1)[-1])):
+            d["image_url"] = None
+
+
 # --- Expirenza: https://expz.menu/<uuid> ---
 # Сторінку малює JavaScript, а дані сайт бере з публічного кешу меню на CDN - усі меню закладу
 # одним JSON (menus, categories, dishes з title, description, imageUrl, minPrice, dishVariants)

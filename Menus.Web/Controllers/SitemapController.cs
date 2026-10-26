@@ -567,13 +567,24 @@ namespace Menus.Web.Controllers
             var digitalOceanSrvc = new DigitalOceanService(_config);
             var httpClient = new SitemapUpdateService();
 
+            var failed = new List<string>();
             foreach (var locale in _locales.GetLocales())
             {
                 foreach (var restaurant in restaurants)
                 {
-                    await ProcessRestaurantIframe(locale, cities, restaurant.City, restaurant.Url, httpClient, digitalOceanSrvc);
+                    // один ресторан (адреса з кирилицею, відмова сховища) не зупиняє решту
+                    try
+                    {
+                        await ProcessRestaurantIframe(locale, cities, restaurant.City, restaurant.Url, httpClient, digitalOceanSrvc);
+                    }
+                    catch (Exception e)
+                    {
+                        failed.Add($"{locale.Id}/{restaurant.Url}: {e.Message}");
+                    }
                 }
             }
+            if (failed.Count > 0)
+                Console.Error.WriteLine($"RegenerateRestaurantIframesCache: не вдалося {failed.Count}:\n" + string.Join("\n", failed.Take(50)));
         }
 
         private static async Task ProcessRestaurantIframe(ILocale locale, List<ICity> cities, string restaurantCity, string restaurantUrl,

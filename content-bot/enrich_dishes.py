@@ -24,6 +24,8 @@ import requests
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
+from menu_platforms import drop_generic_images
+
 load_dotenv()
 
 CLAUDE_API_KEY = os.environ["CLAUDE_API_KEY"]
@@ -325,6 +327,8 @@ def process_restaurant(db, restaurant):
         html, base_url = fetch_website_html(restaurant["Website"])
         if html:
             site_matches = match_dishes_on_site(restaurant["Name"], base_url, html, dishes)
+            # картинка, яку модель приписала багатьом стравам, - шапка чи логотип сайту, не фото страви
+            drop_generic_images(list(site_matches.values()))
 
     dishes_needing_description = [d for d in dishes if is_localizable_empty(d["Description"])]
     description_batch = {}
