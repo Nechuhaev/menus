@@ -58,16 +58,25 @@
                 Menus.Web.Helpers.SeoText.Plural(seoDishCount, Localizer["DishForms"].Value), seoTypical)
         };
         var seoCuisine = Model.RestaurantInfo.Cuisine.Get(culture);
-        if (!string.IsNullOrWhiteSpace(seoCuisine)) seoParts.Add(string.Format(Localizer["SeoDescCuisine"].Value, seoCuisine.Trim().TrimEnd('.')));
+        if (!string.IsNullOrWhiteSpace(seoCuisine))
+        {
+            seoParts.Add(string.Format(Localizer["SeoDescCuisine"].Value, seoCuisine.Trim().TrimEnd('.')));
+        }
         var seoTop = (ViewData["topDishes"] as List<IDishWithSeoAndRatings> ?? new List<IDishWithSeoAndRatings>())
             .Select(d => d.Name.Get(culture)).Where(n => !string.IsNullOrWhiteSpace(n)).Take(3).ToList();
-        if (seoTop.Any()) seoParts.Add(string.Format(Localizer["SeoDescTop"].Value, string.Join(", ", seoTop)));
+        if (seoTop.Any())
+        {
+            seoParts.Add(string.Format(Localizer["SeoDescTop"].Value, string.Join(", ", seoTop)));
+        }
         seoParts.Add(Localizer["SeoDescTail"].Value);
         // частини додаються, поки вміщаються: обрізаного посередині речення в описі не буде
         var seoDescription = seoParts[0];
         foreach (var part in seoParts.Skip(1))
         {
-            if (seoDescription.Length + 1 + part.Length <= Menus.Web.Helpers.SeoText.DescriptionMax) seoDescription += " " + part;
+            if (seoDescription.Length + 1 + part.Length <= Menus.Web.Helpers.SeoText.DescriptionMax)
+            {
+                seoDescription += " " + part;
+            }
         }
         ViewData["Description"] = seoDescription;
     }
