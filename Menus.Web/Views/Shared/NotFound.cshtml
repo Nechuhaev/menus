@@ -17,6 +17,19 @@
     var dishName = this.Context.Request.Query["q"];
     ViewData["Title"] = string.Format(Localizer["MetaTitle"].Value, dishName, city);
     ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, dishName, city);
+    if (string.IsNullOrEmpty(dishName.ToString()))
+    {
+        // не пошук, а відсутня сторінка: адреса в заголовку - GA (pageTitle) показує, яку саме сторінку шукали,
+        // бо сам 404 сервер малює за внутрішньою адресою /{мова}/home/statuscodeerror/404
+        var reExecute = Context.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodeReExecuteFeature>();
+        var missingPath = reExecute != null ? reExecute.OriginalPath + reExecute.OriginalQueryString : Context.Request.Path.ToString();
+        ViewData["Title"] = string.Format(Localizer["PageNotFoundTitle"].Value, missingPath);
+        ViewData["Robots"] = "NOINDEX,FOLLOW";
+        if (reExecute != null)
+        {
+            ViewData["Canonical"] = $"{Context.Request.Scheme}://{Context.Request.Host}{reExecute.OriginalPath}";
+        }
+    }
 }
 
 
