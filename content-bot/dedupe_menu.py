@@ -4,7 +4,8 @@
   переносяться, порожня копія видаляється);
 - той самий зв'язок страва-категорія двічі - зайвий видаляється (страва показувалась у категорії двічі);
 - страви: та сама назва (усіма мовами) й ціна в тих самих категоріях - лишається одна (з оцінками, фото, описом, адресою
-  без «-one»), копія видаляється, якщо в неї немає оцінок і фото; її адреса віддає 301 на ресторан.
+  без «-one»), копія видаляється, якщо її адреса - та сама чи «адреса оригіналу-one/-2» (слід подвійного
+  застосування) і в неї немає оцінок і фото; її адреса віддає 301 на ресторан.
   Копія з оцінками, фото чи без адреси сторінки не видаляється - лише показується в списку для ручної перевірки.
 
 Запуск:  python3 dedupe_menu.py --dry-run              # що зміниться, нічого не пише
@@ -128,8 +129,12 @@ def main():
         group.sort(key=keep_rank)
         for dup in group[1:]:
             has_photo = dup["Photos"] or (dup["PhotoLink"] and dup["PhotoLink"] not in ("[]", ""))
-            # без адреси сторінки - старі дані, а не подвійне застосування: лише на перевірку
-            risky = dup["RatingsCount"] or has_photo or not dup["Url"] or not group[0]["Url"]
+            # видаляється лише слід подвійного застосування: адреса копії - та сама або «адреса оригіналу-one/-2».
+            # Інша адреса («lef» і «lef-temnoe», «fraholyno» і «fraholyno-krasnoe») - різні страви, у яких
+            # назва колись обрізалась чи змінилась: лише на перевірку; так само без адреси й з оцінками чи фото
+            keep_url, dup_url = group[0]["Url"] or "", dup["Url"] or ""
+            same_page = bool(keep_url) and re.fullmatch(re.escape(keep_url) + r"(-one|-\d+)?", dup_url)
+            risky = dup["RatingsCount"] or has_photo or not same_page
             (to_check if risky else to_delete).append((dup, group[0]))
 
     restaurants = {d["RestaurantId"] for d, _ in to_delete} | {k[0] for k, g in groups.items() if len(g) > 1}
