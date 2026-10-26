@@ -198,7 +198,7 @@
                                 <td class="tableEdit">
                                     <a class="tableEditBtn" href="@Url.Action("Edit", new { id = item.Id })">Edit</a>
                                     <a class="" href="#" data-copy data-id="@item.Id">cp</a>
-                                    <a class="tableDeleteBtn" href="#" data-delete data-id="@item.Id">Delete</a>
+                                    <a class="tableDeleteBtn" href="#" data-delete data-id="@item.Id" title="Статус «Закрито»: ресторан ховається з сайту, дані лишаються">Закрити</a>
                                 </td>
                             </tr>
                         }
@@ -330,7 +330,7 @@
             e.preventDefault();
             var id = $(this).attr("data-id");
 
-            if (!confirm("Are you sure?")) return;
+            if (!confirm("Закрити ресторан? Він зникне з сайту, дані лишаться в базі.")) return;
 
             $.ajax({
                 url: "@Url.Action("Delete")",

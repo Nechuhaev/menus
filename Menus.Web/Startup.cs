@@ -114,6 +114,7 @@ namespace Menus.Web
             services.AddScoped<RestaurantMenuLinkService>();
             services.AddScoped<MenuLinkProposalService>();
             services.AddScoped<SeoNoindexService>();
+            services.AddScoped<DeletedRestaurantRedirectService>();
             services.AddScoped<RestaurantRegistrationService>();
 
             services.Configure<FormOptions>(x =>

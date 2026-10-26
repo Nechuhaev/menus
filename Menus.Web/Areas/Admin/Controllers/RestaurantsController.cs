@@ -433,11 +433,13 @@ namespace Menus.Web.Areas.Admin.Controllers
             return Ok();
         }
 
+        // «Видалити» в адмінці лише закриває ресторан (Status = Closed): дані й адреса лишаються в базі, повернути -
+        // зміною статусу. Справжнє видалення прибрало 35 ресторанів разом із меню, а їхні сторінки в Google стали 404
         [ValidateAntiForgeryToken]
         [HttpPost]
         public async Task<IActionResult> Delete(string id)
         {
-            await _core.Restaurants.Delete(id);
+            await Close(id);
             return Ok();
         }
 
@@ -447,9 +449,17 @@ namespace Menus.Web.Areas.Admin.Controllers
         {
             foreach (var id in ids)
             {
-                await _core.Restaurants.Delete(id);
+                await Close(id);
             }
             return Ok();
+        }
+
+        private async Task Close(string id)
+        {
+            var restaurant = await _core.Restaurants.GetRestaurantById(id);
+            if (restaurant == null) return;
+            restaurant.Status = RestaurantStatus.Closed;
+            await _core.Restaurants.Update(restaurant);
         }
 
         private async Task LogEvent(string name, object data)
