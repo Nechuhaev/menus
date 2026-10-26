@@ -287,4 +287,4 @@ content-bot/.env
 content-bot/*.csv
 
 # кеш відбитків фото страв (content-bot/fix_dish_photos.py)
-content-bot/dish_photo_fingerprints.json
+content-bot/dish_photo_md5.json
