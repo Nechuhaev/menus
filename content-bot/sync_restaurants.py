@@ -1017,8 +1017,24 @@ def log_check(db, restaurant_id, notes, closed_detected):
     cur.close()
 
 
+def restaurant_was_restored(db, restaurant_id):
+    """Адмін повернув ресторан на сайт (hidden_restaurants.py --restore): бот його більше не ховає."""
+    cur = db.cursor()
+    cur.execute("SHOW TABLES LIKE 'RestaurantRestoreLog'")
+    found = cur.fetchone() is not None
+    if found:
+        cur.execute("SELECT 1 FROM RestaurantRestoreLog WHERE RestaurantId = %s LIMIT 1", (restaurant_id,))
+        found = cur.fetchone() is not None
+    cur.close()
+    return found
+
+
 def set_pending(db, restaurant_id, note):
     """Не закриваємо автоматично: Pending ховає ресторан із сайту до перевірки адміном."""
+    if restaurant_was_restored(db, restaurant_id):
+        log_check(db, restaurant_id, f"not hidden (restored by admin): {note}", closed_detected=False)
+        print(f"  -> {note} - not hidden: restored by admin")
+        return
     cur = db.cursor()
     cur.execute("UPDATE Restaurants SET Status = %s WHERE Id = %s", (RESTAURANT_STATUS_PENDING, restaurant_id))
     db.commit()
