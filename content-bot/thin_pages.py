@@ -1,6 +1,6 @@
 """«Тонкі» сторінки: підрахунок і список для noindex (таблиця SeoNoindex, її читає сайт).
 
-Сторінка страви тонка - немає ні опису, ні фото (лише назва й ціна - майже дубль рядка меню ресторану).
+Сторінка страви тонка - немає ні опису (Description, ShortDescription чи Ingredients), ні фото (лише назва й ціна - майже дубль рядка меню ресторану).
 Сторінка ресторану тонка - менше MIN_DISHES активних страв і немає опису закладу (ShortInfo/FullInfo).
 Тонкі страви діляться на напої (категорія страви - бар, кава, вино тощо, як у dish_city_candidates) та їжу.
 
@@ -171,7 +171,7 @@ def main():
     cur.execute("SELECT Id, Name FROM Cities")
     cities = {row["Id"]: get_localizable_value(row["Name"], "uk") or row["Id"] for row in cur.fetchall()}
 
-    cur.execute("""SELECT CONCAT(d.Id, '') AS Id, d.Description, d.PhotoLink, r.City, ds.Url, rs.Url AS RestaurantUrl,
+    cur.execute("""SELECT CONCAT(d.Id, '') AS Id, d.Description, d.ShortDescription, d.Ingredients, d.PhotoLink, r.City, ds.Url, rs.Url AS RestaurantUrl,
                           GROUP_CONCAT(CONCAT_WS(' ', mc.Name, pc.Name) SEPARATOR ' ') AS Categories
                    FROM Dishes d JOIN Restaurants r ON r.Id = d.RestaurantId
                    LEFT JOIN DishSeo ds ON ds.ItemId = d.Id
@@ -189,7 +189,9 @@ def main():
         dishes[row["City"]] += 1
         kind = "страва з описом/фото"
         key = ((row["RestaurantUrl"] or "").lower(), (row["Url"] or "").lower())
-        if not has_text(row["Description"]) and not has_photo(row["PhotoLink"]):
+        # опис буває в трьох полях: Description, ShortDescription (короткий, у JSON-LD), Ingredients (склад)
+        described = any(has_text(row[f]) for f in ("Description", "ShortDescription", "Ingredients"))
+        if not described and not has_photo(row["PhotoLink"]):
             thin_dishes[row["City"]] += 1
             # назви категорій - JSON з мовами, для пошуку слів досить сирого тексту
             categories = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), row["Categories"] or "")
