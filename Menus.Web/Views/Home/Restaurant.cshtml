@@ -123,6 +123,8 @@
 }
 
 @section Styles {
+    @* фон шапки (.topSection) задано в CSS - браузер дізнається про нього лише після main-*.css; вантажимо одразу *@
+    <link rel="preload" as="image" href="~/images/@(isMobile ? "topSection_mobile.jpg" : "topSection.jpg")" fetchpriority="high" />
     <style>
         button[data-user-id] {
             display: none;
