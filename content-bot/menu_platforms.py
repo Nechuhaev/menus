@@ -50,10 +50,22 @@ def parse_price(value):
         return None
 
 
+def plain_text(value):
+    """Опис без HTML: сервіси віддають його з тегами («<p>Японський рис...</p><p>Подаємо...</p>»), а сайт
+    показує опис як текст. Абзаци й <br> - переноси рядків, сутності (&amp;, &nbsp;) - символи."""
+    if not value:
+        return ""
+    value = re.sub(r"(?i)<br\s*/?>|</(?:p|div|li|h[1-6])\s*>", "\n", value)
+    value = html_lib.unescape(re.sub(r"<[^>]+>", "", value))
+    lines = (re.sub(r"[ \t\u00a0]+", " ", line).strip() for line in value.split("\n"))
+    return "\n".join(line for line in lines if line)
+
+
 def dish(name, category, price, weight, description, image_url):
-    name = (name or "").strip()
+    name = plain_text(name)
     return {"name": name, "lang": detect_lang(name), "category": category or None, "price": price,
-            "weight": weight or None, "description": description or None, "image_url": image_url or None, "url": None}
+            "weight": weight or None, "description": plain_text(description) or None, "image_url": image_url or None,
+            "url": None}
 
 
 # --- Expirenza: https://expz.menu/<uuid> ---

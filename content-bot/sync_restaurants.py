@@ -34,7 +34,7 @@ import requests
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-from menu_platforms import find_platform_link, platform_menu
+from menu_platforms import find_platform_link, plain_text, platform_menu
 
 load_dotenv()
 
@@ -325,15 +325,31 @@ MENU_LINKS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS RestaurantMenuLinks (
 ) DEFAULT CHARSET=utf8mb4"""
 
 
+# Сторінки з кліками в Search Console (оновлює thin_pages.py --gsc --save): лишаються в індексі
+# навіть тонкі, а їхні ресторани бот перевіряє першими - описи й фото там дадуть найбільше
+KEEP_INDEXED_TABLE_SQL = """CREATE TABLE IF NOT EXISTS SeoKeepIndexed (
+    RestaurantUrl VARCHAR(255) NOT NULL,
+    DishUrl VARCHAR(255) NOT NULL,
+    Clicks INT NOT NULL,
+    UpdatedAt DATETIME NOT NULL,
+    PRIMARY KEY (RestaurantUrl, DishUrl)
+) DEFAULT CHARSET=utf8mb4"""
+# кліки ресторану (сума по його сторінках) - для черги перевірки
+RESTAURANT_CLICKS_JOIN = """
+        LEFT JOIN (SELECT RestaurantUrl, SUM(Clicks) AS Clicks FROM SeoKeepIndexed GROUP BY RestaurantUrl) k
+               ON k.RestaurantUrl = LOWER(rs.Url)"""
+
+
 def fetch_restaurants_due_for_check(db, limit):
     ensure_log_table(db)
     cur = db.cursor(dictionary=True)
+    cur.execute(KEEP_INDEXED_TABLE_SQL)
     cur.execute(
-        RESTAURANT_COLUMNS + """
+        RESTAURANT_COLUMNS + RESTAURANT_CLICKS_JOIN + """
         LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = r.Id
         WHERE r.Status = %s
           AND (l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY))
-        ORDER BY l.LastCheckedAt IS NOT NULL, l.LastCheckedAt ASC
+        ORDER BY IFNULL(k.Clicks, 0) DESC, l.LastCheckedAt IS NOT NULL, l.LastCheckedAt ASC
         LIMIT %s
         """,
         (RESTAURANT_STATUS_ACTIVE, RECHECK_AFTER_DAYS, limit),
@@ -422,7 +438,7 @@ def save_proposals(db, restaurant_id, to_add, to_remove, price_changes):
             """INSERT INTO MenuSyncProposals (Id, RestaurantId, Kind, Name, NameLang, Category, Price, Weight, Description, ImageUrl, CreatedAt)
                VALUES (%s, %s, 'add', %s, %s, %s, %s, %s, %s, %s, %s)""",
             (str(uuid.uuid4()), restaurant_id, d["name"], d.get("lang"), d.get("category"), d.get("price"),
-             d.get("weight"), d.get("description"), d.get("image_url"), now),
+             d.get("weight"), plain_text(d.get("description")) or None, d.get("image_url"), now),
         )
     for dish in to_remove:
         cur.execute(
@@ -1150,7 +1166,7 @@ def sync_menu(db, restaurant, menu_url):
         if not dish["Weight"] and site.get("weight"):
             updates["Weight"] = str(site["weight"])[:50]
 
-        site_desc = (site.get("description") or "").strip()
+        site_desc = plain_text(site.get("description"))
         site_lang = site.get("lang") if site.get("lang") in ("uk", "ru", "en") else "uk"
         if site_desc and is_localizable_empty(dish["Description"]):
             # мовою сайту; інші мови допише DeepL (translate_missing.py)
