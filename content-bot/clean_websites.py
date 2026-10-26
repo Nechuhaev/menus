@@ -9,7 +9,8 @@
 - домен не існує: DNS сервера не знаходить і публічний DNS Cloudflare підтверджує NXDOMAIN - прибирається
   (DNS сервера сам помилявся на робочих доменах, тому лише з підтвердженням);
 - домен є, але сайт не відповідає чи віддає помилку - НЕ прибирається, лише список для ручної перевірки
-  (--http): 403/5xx від захисту від ботів чи тимчасові збої - не підстава видаляти.
+  (--http): 403/5xx від захисту від ботів чи тимчасові збої - не підстава видаляти;
+- сайт переадресовує на Expirenza/ChoiceQR (--http) - сайт лишається, адреса меню йде в «Посилання на меню».
 
 Кожне прибрання пишеться в WebsiteCleanupLog (старе значення й причина): бот бачить, що сайт прибрано,
 і не ховає ресторан, а чекає посилання на меню. Повернути: --restore <адреса ресторану> або --restore all.
@@ -67,17 +68,19 @@ def dns_missing(host):
 
 
 def http_problem(url):
-    """Опис проблеми сайту або None; лише для звіту."""
+    """(опис проблеми сайту або None - лише для звіту, адреса меню, куди сайт переадресовує, або None)."""
     try:
         r = requests.get(url, headers=HEADERS, timeout=20, allow_redirects=True)
     except requests.RequestException as e:
-        return type(e).__name__
+        return type(e).__name__, None
     if r.status_code >= 400:
-        return f"HTTP {r.status_code}"
+        return f"HTTP {r.status_code}", None
     final = r.url
-    if is_menu_link(final) or host_in(final, SOCIAL_HOSTS + NOT_SITE_HOSTS):
-        return f"переадресовує на {final}"
-    return None
+    if is_menu_link(final):
+        return None, final
+    if host_in(final, SOCIAL_HOSTS + NOT_SITE_HOSTS):
+        return f"переадресовує на {final}", None
+    return None, None
 
 
 def classify(url):
@@ -120,7 +123,7 @@ def restore(db, target):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--http", action="store_true", help="також перевірити, чи сайти відповідають (лише звіт)")
+    parser.add_argument("--http", action="store_true", help="також перевірити, чи сайти відповідають (лише звіт) і чи не переадресовують на меню")
     parser.add_argument("--restore", help="адреса ресторану (RestaurantSeo.Url) або all - повернути прибрані сайти")
     args = parser.parse_args()
 
@@ -172,8 +175,15 @@ def main():
 
     if args.http:
         with ThreadPoolExecutor(WORKERS) as pool:
-            problems = list(pool.map(lambda item: http_problem(item[1]), alive))
-        bad = [(r, url, p) for (r, url), p in zip(alive, problems) if p]
+            checks = list(pool.map(lambda item: http_problem(item[1]), alive))
+        # сайт сам переадресовує на Expirenza/ChoiceQR: сайт лишається, адреса меню - у «Посилання на меню»
+        redirects = [(r, menu) for (r, _), (_, menu) in zip(alive, checks)
+                     if menu and not r["MenuUrl"] and not menu_links_for(menu_links, r["Id"])]
+        menu_links.extend((r["Id"], menu) for r, menu in redirects)
+        print(f"\nсайт переадресовує на меню - додати в «Посилання на меню» (сайт лишається): {len(redirects)}")
+        for r, menu in redirects:
+            print(f"  {r['RestaurantUrl']}: {menu}")
+        bad = [(r, url, p) for (r, url), (p, _) in zip(alive, checks) if p]
         print(f"\nне відповідають (не прибираються, перевір вручну): {len(bad)}")
         for r, url, problem in bad:
             print(f"  {r['RestaurantUrl']}: {url} - {problem}")
