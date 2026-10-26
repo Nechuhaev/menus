@@ -8,8 +8,9 @@
 - не адреса («-», «немає», без домену) - прибирається;
 - домен не існує: DNS сервера не знаходить і публічний DNS Cloudflare підтверджує NXDOMAIN - прибирається
   (DNS сервера сам помилявся на робочих доменах, тому лише з підтвердженням);
-- домен є, але сайт не відповідає чи віддає помилку - НЕ прибирається, лише список для ручної перевірки
-  (--http): 403/5xx від захисту від ботів чи тимчасові збої - не підстава видаляти;
+- домен є, але сайт не відповідає чи віддає помилку (--http) - прибирається, лише якщо не відповідав і при
+  перевірці щонайменше --min-days днів тому (WebsiteCheckFails): тимчасовий збій чи 5xx на день-два - не підстава;
+  403 (захист від ботів - людям сайт відкривається) не прибирається ніколи, лише в списку;
 - сайт переадресовує на Expirenza/ChoiceQR (--http) - сайт лишається, адреса меню йде в «Посилання на меню».
 
 Кожне прибрання пишеться в WebsiteCleanupLog (старе значення й причина): бот бачить, що сайт прибрано,
@@ -18,6 +19,8 @@
 Запуск:  python3 clean_websites.py --dry-run           # що прибере, нічого не пише
          python3 clean_websites.py --dry-run --http    # плюс список сайтів, що не відповідають (довше)
          python3 clean_websites.py                     # записати
+         python3 clean_websites.py --http              # записати й запам'ятати сайти, що не відповідають;
+                                                       # ті, що не відповідали й тиждень тому, - прибрати
          python3 clean_websites.py --restore titka-klara-811
 """
 import argparse
@@ -25,7 +28,7 @@ import re
 import socket
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import requests
@@ -38,7 +41,16 @@ WORKERS = 16
 SEPARATORS = re.compile(r"[\s,;|]+")
 HOST_RE = re.compile(r"^(?:[a-z0-9а-яіїєґ](?:[a-z0-9а-яіїєґ-]{0,61}[a-z0-9а-яіїєґ])?\.)+[a-zа-яіїєґ]{2,}$", re.I)
 REASONS = {"menu": "посилання на меню (Expirenza/ChoiceQR)", "social": "соцмережа", "not_site": "карта/каталог",
-           "malformed": "не адреса", "nxdomain": "домен не існує"}
+           "malformed": "не адреса", "nxdomain": "домен не існує", "unreachable": "сайт не відповідає"}
+# перша невдала перевірка сайту (--http): прибирається, лише коли не відповідає й через --min-days днів
+FAILS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS WebsiteCheckFails (
+    RestaurantId VARCHAR(255) NOT NULL,
+    Url VARCHAR(500) NOT NULL,
+    Problem VARCHAR(255) NOT NULL,
+    FirstFailedAt DATETIME NOT NULL,
+    LastFailedAt DATETIME NOT NULL,
+    PRIMARY KEY (RestaurantId, Url)
+) DEFAULT CHARSET=utf8mb4"""
 
 
 def normalize(url):
@@ -124,6 +136,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--http", action="store_true", help="також перевірити, чи сайти відповідають (лише звіт) і чи не переадресовують на меню")
+    parser.add_argument("--min-days", type=int, default=7, help="--http: прибрати сайт, що не відповідав і стільки днів тому")
     parser.add_argument("--restore", help="адреса ресторану (RestaurantSeo.Url) або all - повернути прибрані сайти")
     args = parser.parse_args()
 
@@ -150,12 +163,55 @@ def main():
     with ThreadPoolExecutor(WORKERS) as pool:
         missing = dict(zip(hosts, pool.map(dns_missing, hosts)))
 
-    changes, menu_links, alive = [], [], []
+    def host(url):
+        return (urlparse(url).hostname or "").lower()
+
+    # адреси без причини прибрати одразу - живі домени; їх (--http) перевіряємо запитом
+    alive = [(r, url) for r in restaurants for _, url in parsed[r["Id"]] if not classify(url) and not missing.get(host(url))]
+    now = datetime.utcnow()
+    menu_links, stale, fails, recovered = [], set(), [], []
+    if args.http:
+        cur.execute(FAILS_TABLE_SQL)
+        cur.execute("SELECT RestaurantId, Url, FirstFailedAt FROM WebsiteCheckFails")
+        first_failed = {(row["RestaurantId"], row["Url"]): row["FirstFailedAt"] for row in cur.fetchall()}
+        with ThreadPoolExecutor(WORKERS) as pool:
+            checks = list(pool.map(lambda item: http_problem(item[1]), alive))
+        # сайт сам переадресовує на Expirenza/ChoiceQR: сайт лишається, адреса меню - у «Посилання на меню»
+        redirects = [(r, menu) for (r, _), (_, menu) in zip(alive, checks) if menu and not r["MenuUrl"]]
+        for r, menu in redirects:
+            if not menu_links_for(menu_links, r["Id"]):
+                menu_links.append((r["Id"], menu))
+        print(f"сайт переадресовує на меню - додати в «Посилання на меню» (сайт лишається): {len(redirects)}")
+        for r, menu in redirects:
+            print(f"  {r['RestaurantUrl']}: {menu}")
+        for (r, url), (problem, _) in zip(alive, checks):
+            key = (r["Id"], url[:500])
+            if not problem:
+                if key in first_failed:
+                    recovered.append(key)
+            elif problem != "HTTP 403":
+                fails.append((key, problem))
+                since = first_failed.get(key)
+                if since and now - since >= timedelta(days=args.min_days):
+                    stale.add(key)
+        print(f"\nне відповідають: {len(fails)}; з них не відповідали й {args.min_days}+ днів тому - прибрати: {len(stale)}")
+        for (rid, url), problem in fails:
+            r = next(x for x in restaurants if x["Id"] == rid)
+            since = first_failed.get((rid, url))
+            mark = "прибрати" if (rid, url) in stale else (f"не відповідає з {since:%d.%m}" if since else "перший раз")
+            print(f"  {r['RestaurantUrl']}: {url} - {problem} ({mark})")
+        forbidden = [(r, url) for (r, url), (problem, _) in zip(alive, checks) if problem == "HTTP 403"]
+        print(f"\n403 - захист від ботів, не прибираються: {len(forbidden)}")
+        for r, url in forbidden:
+            print(f"  {r['RestaurantUrl']}: {url}")
+
+    changes = []
     totals = Counter()
     for r in restaurants:
         keep, reasons = [], []
         for raw, url in parsed[r["Id"]]:
-            reason = classify(url) or ("nxdomain" if missing.get((urlparse(url).hostname or "").lower()) else None)
+            reason = (classify(url) or ("nxdomain" if missing.get(host(url)) else None)
+                      or ("unreachable" if (r["Id"], url[:500]) in stale else None))
             if reason:
                 reasons.append(reason)
                 totals[reason] += 1
@@ -163,37 +219,29 @@ def main():
                     menu_links.append((r["Id"], url))
             else:
                 keep.append(raw)
-                alive.append((r, url))
         if reasons:
             changes.append((r, " ".join(keep), ", ".join(REASONS[x] for x in dict.fromkeys(reasons))))
 
-    print(f"ресторанів із сайтом: {len(restaurants)}; змінити поле «Сайт»: {len(changes)}; "
-          f"перенести в «Посилання на меню»: {len(menu_links)}")
+    print(f"\nресторанів із сайтом: {len(restaurants)}; змінити поле «Сайт»: {len(changes)}; "
+          f"додати в «Посилання на меню»: {len(menu_links)}")
     print("причини: " + ", ".join(f"{REASONS[k]} {v}" for k, v in totals.items()))
     for r, new, reason in changes:
         print(f"  {r['RestaurantUrl']}: {r['Website'].strip()[:90]} -> {new or 'порожньо'} ({reason})")
-
-    if args.http:
-        with ThreadPoolExecutor(WORKERS) as pool:
-            checks = list(pool.map(lambda item: http_problem(item[1]), alive))
-        # сайт сам переадресовує на Expirenza/ChoiceQR: сайт лишається, адреса меню - у «Посилання на меню»
-        redirects = [(r, menu) for (r, _), (_, menu) in zip(alive, checks)
-                     if menu and not r["MenuUrl"] and not menu_links_for(menu_links, r["Id"])]
-        menu_links.extend((r["Id"], menu) for r, menu in redirects)
-        print(f"\nсайт переадресовує на меню - додати в «Посилання на меню» (сайт лишається): {len(redirects)}")
-        for r, menu in redirects:
-            print(f"  {r['RestaurantUrl']}: {menu}")
-        bad = [(r, url, p) for (r, url), (p, _) in zip(alive, checks) if p]
-        print(f"\nне відповідають (не прибираються, перевір вручну): {len(bad)}")
-        for r, url, problem in bad:
-            print(f"  {r['RestaurantUrl']}: {url} - {problem}")
 
     if args.dry_run:
         db.close()
         return
 
-    now = datetime.utcnow()
     write = db.cursor()
+    for (rid, url), problem in fails:
+        if (rid, url) in stale:
+            write.execute("DELETE FROM WebsiteCheckFails WHERE RestaurantId = %s AND Url = %s", (rid, url))
+        else:
+            write.execute("INSERT INTO WebsiteCheckFails (RestaurantId, Url, Problem, FirstFailedAt, LastFailedAt) "
+                          "VALUES (%s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE Problem = VALUES(Problem), "
+                          "LastFailedAt = VALUES(LastFailedAt)", (rid, url, problem[:255], now, now))
+    # знову відповідає - відлік з нуля
+    write.executemany("DELETE FROM WebsiteCheckFails WHERE RestaurantId = %s AND Url = %s", recovered)
     for restaurant_id, url in menu_links:
         write.execute("INSERT IGNORE INTO RestaurantMenuLinks (RestaurantId, Url, UpdatedAt) VALUES (%s, %s, %s)",
                       (restaurant_id, url, now))
