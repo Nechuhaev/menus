@@ -5,7 +5,8 @@ enrich_dishes) брали og:image сторінки чи картинку шап
 - те саме зображення стоїть на 3+ стравах (порівнюється вміст, а не адреса: бот завантажував ту саму
   картинку щоразу під новою адресою), або
 - воно збігається з фото самого ресторану (ri.Photos).
-Порівняння - за відбитком зображення (16x16 у відтінках сірого, допуск MAX_DIFF точок), тож перезбережені\nй зменшені копії теж збігаються.
+Порівняння точне - за вмістом файлу (MD5): бот завантажував ту саму картинку тим самим способом, тож копії
+однакові байт у байт. Схожі, але різні фото (страва по центру білої тарілки) не склеюються.
 
 Файли в сховищі не видаляються; старе значення PhotoLink пишеться в DishPhotoCleanupLog -
 --restore повертає. Без --dry-run лише записує.
@@ -16,7 +17,7 @@ enrich_dishes) брали og:image сторінки чи картинку шап
          python3 fix_dish_photos.py --restore all                 # повернути все прибране
 """
 import argparse
-import io
+import hashlib
 import json
 import os
 import re
@@ -25,16 +26,14 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import requests
-from PIL import Image
 
 from sync_restaurants import get_db
 
 SAME_PHOTO_DISHES = 3
-MAX_DIFF = 10  # з 256 точок відбитка
 WORKERS = 16
 GUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
 SITE_ENV = "/root/menus.env"
-CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dish_photo_fingerprints.json")
+CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dish_photo_md5.json")
 
 
 def media_base():
@@ -69,23 +68,15 @@ def photo_ids(value):
 
 
 def fingerprint(photo_id):
-    """Відбиток зображення: 16x16 сірих пікселів, кожен - вище чи нижче середнього; None - файла немає."""
+    """MD5 вмісту зменшеної копії фото; None - файла немає."""
     for name in (f"{photo_id}-small.jpg", f"{photo_id}.jpg"):
         try:
             r = requests.get(f"{MEDIA_BASE}/files/{name}", timeout=20)
             r.raise_for_status()
-            img = Image.open(io.BytesIO(r.content)).convert("L").resize((16, 16))
-            pixels = list(img.tobytes())
-            mean = sum(pixels) / len(pixels)
-            return "".join("1" if p > mean else "0" for p in pixels)
+            return hashlib.md5(r.content).hexdigest()
         except Exception:
             continue
     return None
-
-
-def similar(a, b):
-    """Те саме зображення: відбитки відрізняються не більше ніж у MAX_DIFF точках (перезбережена чи зменшена копія)."""
-    return sum(x != y for x, y in zip(a, b)) <= MAX_DIFF
 
 
 def restore(db, target):
@@ -162,16 +153,11 @@ def main():
     to_clear = []
     for rid, items in by_restaurant.items():
         own = [prints.get(i) for i in restaurant_photos.get(rid, []) if prints.get(i)]
-        # групи схожих фото в ресторані: перше фото групи - її зразок
-        groups = []
+        groups = defaultdict(list)
         for fp, d in items:
-            group = next((g for g in groups if similar(g[0], fp)), None)
-            if group:
-                group[1].append(d)
-            else:
-                groups.append((fp, [d]))
-        for fp, group in groups:
-            if any(similar(fp, o) for o in own):
+            groups[fp].append(d)
+        for fp, group in groups.items():
+            if fp in own:
                 to_clear += [(d, "фото ресторану") for d in group]
             elif len(group) >= SAME_PHOTO_DISHES:
                 to_clear += [(d, f"те саме фото на {len(group)} стравах") for d in group]
