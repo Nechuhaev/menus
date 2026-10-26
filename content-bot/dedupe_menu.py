@@ -3,9 +3,9 @@
 - категорії: дві категорії ресторану з тією ж назвою під тим самим розділом - зливаються в одну (страви
   переносяться, порожня копія видаляється);
 - той самий зв'язок страва-категорія двічі - зайвий видаляється (страва показувалась у категорії двічі);
-- страви: та сама назва й ціна в тих самих категоріях - лишається одна (з оцінками, фото, описом, адресою
+- страви: та сама назва (усіма мовами) й ціна в тих самих категоріях - лишається одна (з оцінками, фото, описом, адресою
   без «-one»), копія видаляється, якщо в неї немає оцінок і фото; її адреса віддає 301 на ресторан.
-  Копія з оцінками чи фото не видаляється - лише показується в списку для ручної перевірки.
+  Копія з оцінками, фото чи без адреси сторінки не видаляється - лише показується в списку для ручної перевірки.
 
 Запуск:  python3 dedupe_menu.py --dry-run              # що зміниться, нічого не пише
          python3 dedupe_menu.py --restaurant titka-klara-811 --dry-run
@@ -34,6 +34,17 @@ def first_value(localizable):
 
 def norm(value):
     return re.sub(r"[^\w]+", " ", (value or "").lower().replace("ё", "е")).strip()
+
+
+def name_key(localizable):
+    """Назва всіма мовами: «Леф» з ru «Леф темное» і «Леф» з ru «Леф светлое» - різні страви."""
+    try:
+        parsed = json.loads(localizable or "")
+    except ValueError:
+        return (("", norm(localizable)),)
+    if not isinstance(parsed, dict):
+        return ()
+    return tuple(sorted((v.get("Locale") or "", norm(v.get("Value"))) for v in parsed.get("Values") or [] if norm(v.get("Value"))))
 
 
 def has_text(localizable):
@@ -107,7 +118,7 @@ def main():
 
     dish_groups = defaultdict(list)
     for d in dishes:
-        name = norm(first_value(d["Name"]))
+        name = name_key(d["Name"])
         if name:
             dish_groups[(d["RestaurantId"], name, float(d["Price"] or 0), frozenset(dish_categories[d["Id"]]))].append(d)
     to_delete, to_check = [], []
@@ -117,7 +128,9 @@ def main():
         group.sort(key=keep_rank)
         for dup in group[1:]:
             has_photo = dup["Photos"] or (dup["PhotoLink"] and dup["PhotoLink"] not in ("[]", ""))
-            (to_check if (dup["RatingsCount"] or has_photo) else to_delete).append((dup, group[0]))
+            # без адреси сторінки - старі дані, а не подвійне застосування: лише на перевірку
+            risky = dup["RatingsCount"] or has_photo or not dup["Url"] or not group[0]["Url"]
+            (to_check if risky else to_delete).append((dup, group[0]))
 
     restaurants = {d["RestaurantId"] for d, _ in to_delete} | {k[0] for k, g in groups.items() if len(g) > 1}
     print(f"категорій-дублів: {len(merged_categories)}; зв'язків перенести: {len(link_moves)}, зайвих зв'язків: {len(link_deletes)}")
@@ -126,7 +139,7 @@ def main():
     for dup, keep in to_delete[:10]:
         print(f"  {dup['RestaurantUrl']}: {first_value(dup['Name'])} - видалити /{dup['Url']}, лишити /{keep['Url']}")
     for dup, keep in to_check[:20]:
-        print(f"  перевірити: {dup['RestaurantUrl']}/{dup['Url']} (дубль /{keep['Url']}, оцінок {dup['RatingsCount']})")
+        print(f"  перевірити: {dup['RestaurantUrl']}/{dup['Url']} (дубль /{keep['Url']}, оцінок {dup['RatingsCount']}): {first_value(dup['Name'])}")
     if args.dry_run:
         db.close()
         return
