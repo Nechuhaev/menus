@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using SharpRaven.Data;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Menus.Web.Middleware
 {
@@ -32,10 +33,13 @@ namespace Menus.Web.Middleware
             catch (Exception e)
             {
                 var crq = context.Request;
+                // пароль службових адрес (?pwd=) не пишемо ні в LogItems, ні в Sentry
+                var url = Regex.Replace($"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{crq.Path}{crq.QueryString}",
+                    @"([?&]pwd=)[^&]*", "$1***", RegexOptions.IgnoreCase);
 
                 await LogEvent("Exception", new
                 {
-                    url = $"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{crq.Path}{crq.QueryString}",
+                    url,
                     userAgent = context.Request.Headers["User-Agent"],
                     //requestPayload = (await context.Request.ReadFormAsync()).Select(x => new { key = x.Key, value = x.Value.FirstOrDefault() }),
                     exception = e,
@@ -44,7 +48,7 @@ namespace Menus.Web.Middleware
 
                 var raven = context.RequestServices.GetService<RavenClient>();
 
-                e.Data.Add("Url", $"http{(crq.IsHttps ? "s" : "")}://{crq.Host}{crq.Path}{crq.QueryString}");
+                e.Data.Add("Url", url);
                 e.Data.Add("RequestId", context.TraceIdentifier);
                 await raven.CaptureAsync(new SentryEvent(e));
                 throw;
