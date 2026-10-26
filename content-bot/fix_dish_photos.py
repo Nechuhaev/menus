@@ -34,6 +34,7 @@ MAX_DIFF = 10  # з 256 точок відбитка
 WORKERS = 16
 GUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
 SITE_ENV = "/root/menus.env"
+CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dish_photo_fingerprints.json")
 
 
 def media_base():
@@ -74,7 +75,7 @@ def fingerprint(photo_id):
             r = requests.get(f"{MEDIA_BASE}/files/{name}", timeout=20)
             r.raise_for_status()
             img = Image.open(io.BytesIO(r.content)).convert("L").resize((16, 16))
-            pixels = list(img.getdata())
+            pixels = list(img.tobytes())
             mean = sum(pixels) / len(pixels)
             return "".join("1" if p > mean else "0" for p in pixels)
         except Exception:
@@ -137,9 +138,21 @@ def main():
     ids = {photo_ids(d["PhotoLink"])[0] for d in dishes} | {i for ps in restaurant_photos.values() for i in ps}
     print(f"фото з {MEDIA_BASE}")
     print(f"страв із фото: {len(dishes)}; ресторанів: {len(restaurant_ids)}; файлів перевірити: {len(ids)}")
-    ids = sorted(ids)
+    # відбиток файлу не змінюється - зберігаються між запусками, повторний запуск не качає все заново
+    try:
+        cache = json.load(open(CACHE_FILE, encoding="utf-8"))
+    except (OSError, ValueError):
+        cache = {}
+    todo = sorted(i for i in ids if i not in cache)
+    print(f"уже перевірено раніше: {len(ids) - len(todo)}; завантажити: {len(todo)}", flush=True)
     with ThreadPoolExecutor(WORKERS) as pool:
-        prints = dict(zip(ids, pool.map(fingerprint, ids)))
+        for n, (photo_id, fp) in enumerate(zip(todo, pool.map(fingerprint, todo)), 1):
+            if fp:
+                cache[photo_id] = fp
+            if n % 500 == 0 or n == len(todo):
+                print(f"  завантажено {n}/{len(todo)}", flush=True)
+                json.dump(cache, open(CACHE_FILE, "w", encoding="utf-8"))
+    prints = {i: cache.get(i) for i in ids}
 
     by_restaurant = defaultdict(list)
     for d in dishes:
