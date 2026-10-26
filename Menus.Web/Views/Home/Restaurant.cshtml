@@ -22,21 +22,59 @@
     // Culture contains the information of the requested culture
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
 
-    var title = string.IsNullOrEmpty(seo.Title.Get(culture))
-        ? string.Format(Localizer["MetaTitle"].Value, Model.Restaurant.Name, restaurantCity.Name.Get(culture))
-        : seo.Title.Get(culture);
+    // Title і description для видачі - з даних меню (кількість страв, типові ціни, кухня, топ-страви), без AI.
+    // Найважливіше спочатку: на мобільному Google обрізає опис приблизно до 120 символів.
+    // Свій title/description (адмін) лишається, якщо він не шаблонний текст бота і вміщається.
+    var seoCity = restaurantCity.Name.Get(culture);
+    var seoPrices = Model.Menu.Categories.SelectMany(c => c.Dishes ?? new List<IDishWithSeoAndRatings>()).Select(d => d.Price).ToList();
+    var seoDishCount = seoPrices.Count(x => x > 0);
+    var seoTypical = Menus.Web.Helpers.JsonLd.TypicalPrices(seoPrices, Model.RestaurantInfo.Currency);
+    var seoHasMenu = seoDishCount >= 5 && seoTypical != null;
+    var customTitle = seo.Title.Get(culture);
+    var title = !Menus.Web.Helpers.SeoText.IsGeneric(customTitle) && customTitle.Length <= Menus.Web.Helpers.SeoText.TitleMax
+        ? customTitle
+        : null;
     ViewData["Title"] = Menus.Web.Helpers.SeoText.Fit(Menus.Web.Helpers.SeoText.TitleMax,
         title,
-        $"{Model.Restaurant.Name}, {restaurantCity.Name.Get(culture)} | TipMyMenu",
+        string.Format(Localizer["SeoTitleMenuYear"].Value, Model.Restaurant.Name, seoCity, DateTime.Now.Year),
+        string.Format(Localizer["SeoTitleMenu"].Value, Model.Restaurant.Name, seoCity),
+        string.Format(Localizer["SeoTitleMenuShort"].Value, Model.Restaurant.Name),
         $"{Model.Restaurant.Name} | TipMyMenu",
         Model.Restaurant.Name);
     // og:image для соцмереж: фото ресторану замість загальної картинки
     if (Model.Photos != null && Model.Photos.Any()) { ViewData["MainImage"] = Img.Url(Model.Photos.First(), Quality.High); }
 
     var restaurantDescription = Model.RestaurantInfo.ShortInfo.Get(culture);
-    ViewData["Description"] = string.IsNullOrEmpty(seo.Description.Get(culture))
-        ? string.Format(Localizer["MetaDescription"].Value, Model.Restaurant.Name, restaurantCity.Name.Get(culture))
-        : seo.Description.Get(culture);
+    var customDescription = seo.Description.Get(culture);
+    if (!Menus.Web.Helpers.SeoText.IsGeneric(customDescription))
+    {
+        ViewData["Description"] = customDescription;
+    }
+    else if (seoHasMenu)
+    {
+        var seoParts = new List<string>
+        {
+            string.Format(Localizer["SeoDescMenu"].Value, Model.Restaurant.Name, seoCity, seoDishCount,
+                Menus.Web.Helpers.SeoText.Plural(seoDishCount, Localizer["DishForms"].Value), seoTypical)
+        };
+        var seoCuisine = Model.RestaurantInfo.Cuisine.Get(culture);
+        if (!string.IsNullOrWhiteSpace(seoCuisine)) seoParts.Add(string.Format(Localizer["SeoDescCuisine"].Value, seoCuisine.Trim().TrimEnd('.')));
+        var seoTop = (ViewData["topDishes"] as List<IDishWithSeoAndRatings> ?? new List<IDishWithSeoAndRatings>())
+            .Select(d => d.Name.Get(culture)).Where(n => !string.IsNullOrWhiteSpace(n)).Take(3).ToList();
+        if (seoTop.Any()) seoParts.Add(string.Format(Localizer["SeoDescTop"].Value, string.Join(", ", seoTop)));
+        seoParts.Add(Localizer["SeoDescTail"].Value);
+        // частини додаються, поки вміщаються: обрізаного посередині речення в описі не буде
+        var seoDescription = seoParts[0];
+        foreach (var part in seoParts.Skip(1))
+        {
+            if (seoDescription.Length + 1 + part.Length <= Menus.Web.Helpers.SeoText.DescriptionMax) seoDescription += " " + part;
+        }
+        ViewData["Description"] = seoDescription;
+    }
+    else
+    {
+        ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, Model.Restaurant.Name, seoCity);
+    }
 
     var currentDay = (int)DateTime.Now.DayOfWeek;
     currentDay = currentDay == 0 ? 6 : currentDay - 1;

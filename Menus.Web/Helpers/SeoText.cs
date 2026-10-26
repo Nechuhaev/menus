@@ -17,6 +17,23 @@ namespace Menus.Web.Helpers
             return filled.FirstOrDefault(x => x.Length <= max) ?? Truncate(filled.LastOrDefault(), max);
         }
 
+        // Множина для укр/рос: forms = «страва|страви|страв» (1, 2-4, 5+)
+        public static string Plural(int n, string forms)
+        {
+            var f = (forms ?? "").Split('|');
+            if (f.Length < 3) return forms;
+            int mod10 = n % 10, mod100 = n % 100;
+            return mod10 == 1 && mod100 != 11 ? f[0] : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? f[1] : f[2];
+        }
+
+        // Шаблонний title/description, згенерований ботом для всіх ресторанів однаково (і з «?» замість емодзі,
+        // бо база не зберігає 4-байтові символи) - замість нього сторінка будує текст із даних меню
+        private static readonly System.Text.RegularExpressions.Regex GenericSeo = new System.Text.RegularExpressions.Regex(
+            "відгуки клієнтів|отзывы клиентов|ТіпМайМеню|ТипМайМеню|електронне меню закладу|электронное меню заведения|\\?\uFE0F",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        public static bool IsGeneric(string text) => string.IsNullOrWhiteSpace(text) || GenericSeo.IsMatch(text);
+
         public static string Truncate(string text, int max)
         {
             text = text?.Trim();
