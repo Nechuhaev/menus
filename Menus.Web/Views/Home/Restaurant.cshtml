@@ -182,6 +182,7 @@
         }
 
         .restaurant-faq details { border-bottom: 1px solid #e5e5e5; padding: 10px 0; }
+        .menu-verified { margin: 0 0 10px; font-size: 13px; color: #777; }
         .restaurant-faq summary { cursor: pointer; font-weight: 600; }
         .restaurant-faq details p { margin: 8px 0 0; }
     </style>
@@ -540,6 +541,11 @@
                         </div>
                     }
 
+                    @if (notEmptyCategories && ViewData["menuVerifiedAt"] is DateTime menuVerifiedAt)
+                    {
+                        @* дата з content-bot: коли меню востаннє звірено з меню закладу (не старше 60 днів) *@
+                        <p class="menu-verified"><time datetime="@menuVerifiedAt.ToString("yyyy-MM-dd")">@string.Format(Localizer["MenuVerified"].Value, menuVerifiedAt.ToString("dd.MM.yyyy"))</time></p>
+                    }
                     <div id="table_food_top"></div>
                     @if (isDesktop)
                     {

@@ -387,4 +387,7 @@
   <data name="SeoDescTail" xml:space="preserve">
     <value>Адреса, години роботи, фото й відгуки.</value>
   </data>
+  <data name="MenuVerified" xml:space="preserve">
+    <value>Ціни звірено з меню закладу {0}</value>
+  </data>
 </root>
