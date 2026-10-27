@@ -6,7 +6,7 @@
     var restaurantId = ViewData["restaurantId"] as string;
     var kind = ViewData["kind"] as string;
     var branches = ViewData["branches"] as List<Menus.Web.Services.MenuSyncBranch> ?? new List<Menus.Web.Services.MenuSyncBranch>();
-    var kinds = new[] { ("add", "Додати"), ("remove", "Прибрати"), ("price", "Змінити ціну") };
+    var kinds = new[] { ("add", "Додати"), ("remove", "Прибрати"), ("price", "Змінити ціну"), ("rename", "Перейменувати") };
     var categories = Model.Select(x => x.Category).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x).ToList();
 }
 
@@ -44,6 +44,7 @@
                     <p>
                         Додані страви одразу з'являються на сайті. «Прибрати» не видаляє страву, а ставить їй статус Pending.
                         «Змінити ціну» - ціни, що відрізняються від нашої більш ніж удвічі.
+                        «Перейменувати» - заклад змінив назву страви (стара → нова): страва лишається тією самою, з фото й рейтингами.
                         Застосовуються лише видимі (не відфільтровані) рядки з галочкою.
                     </p>
 
@@ -127,13 +128,13 @@
                             @foreach (var item in Model)
                             {
                                 <tr class="proposalRow" data-kind="@item.Kind" data-category="@item.Category"
-                                    data-name="@((item.Name ?? "").ToLowerInvariant())"
+                                    data-name="@((item.Name + " " + item.OldName).ToLowerInvariant())"
                                     data-weight="@(string.IsNullOrWhiteSpace(item.Weight) ? "no" : "yes")"
                                     data-description="@(string.IsNullOrWhiteSpace(item.Description) ? "no" : "yes")">
                                     <td><input type="checkbox" class="proposal" name="ids" value="@item.Id" checked /></td>
-                                    <td>@(item.Kind == "add" ? "Додати" : item.Kind == "price" ? "Змінити ціну" : "Прибрати")</td>
+                                    <td>@(kinds.FirstOrDefault(k => k.Item1 == item.Kind).Item2 ?? item.Kind)</td>
                                     <td>@item.Category</td>
-                                    <td>@item.Name</td>
+                                    <td>@(item.Kind == "rename" ? $"{item.OldName} → {item.Name}" : item.Name)</td>
                                     <td>
                                         @if (!string.IsNullOrEmpty(item.ImageUrl))
                                         {
@@ -142,7 +143,7 @@
                                             </a>
                                         }
                                     </td>
-                                    <td>@(item.Kind == "price" ? $"{item.OldPrice:0.##} → {item.Price:0.##}" : item.Price?.ToString("0.##"))</td>
+                                    <td>@(item.Kind == "price" || (item.Kind == "rename" && item.OldPrice != item.Price) ? $"{item.OldPrice:0.##} → {item.Price:0.##}" : item.Price?.ToString("0.##"))</td>
                                     <td>@item.Weight</td>
                                     <td>@item.Description</td>
                                 </tr>

@@ -21,13 +21,14 @@ namespace Menus.Web.Services
     {
         public string Id { get; set; }
         public string RestaurantId { get; set; }
-        public string Kind { get; set; } // add | remove | price
+        public string Kind { get; set; } // add | remove | price | rename
         public string DishId { get; set; }
         public string Name { get; set; }
         public string NameLang { get; set; }
         public string Category { get; set; }
         public decimal? Price { get; set; }
-        public decimal? OldPrice { get; set; } // лише для price
+        public decimal? OldPrice { get; set; } // для price і rename
+        public string OldName { get; set; } // лише для rename: наша назва, яку заклад змінив
         public string Weight { get; set; }
         public string Description { get; set; }
         public string ImageUrl { get; set; }
@@ -42,6 +43,7 @@ namespace Menus.Web.Services
         public int ToAdd { get; set; }
         public int ToRemove { get; set; }
         public int ToChangePrice { get; set; }
+        public int ToRename { get; set; }
         public DateTime CreatedAt { get; set; }
         // витрати AI на останню перевірку ресторану ботом (AiUsageLog)
         public long InputTokens { get; set; }
@@ -69,6 +71,7 @@ namespace Menus.Web.Services
         public int Added { get; set; }
         public int Removed { get; set; }
         public int Repriced { get; set; }
+        public int Renamed { get; set; }
         public int Branches { get; set; }
     }
 
@@ -93,6 +96,7 @@ namespace Menus.Web.Services
                 INDEX IX_MenuSyncProposals_Restaurant (RestaurantId, Status)
             );
             ALTER TABLE MenuSyncProposals ADD COLUMN IF NOT EXISTS OldPrice DECIMAL(10,2) NULL;
+            ALTER TABLE MenuSyncProposals ADD COLUMN IF NOT EXISTS OldName TEXT NULL;
             CREATE TABLE IF NOT EXISTS AiUsageLog (
                 Id INT AUTO_INCREMENT PRIMARY KEY,
                 RestaurantId VARCHAR(255) NOT NULL,
@@ -122,7 +126,7 @@ namespace Menus.Web.Services
             var rows = await _connection.QueryAsync<MenuSyncRestaurantSummary>(@"
                 SELECT p.RestaurantId, r.Name,
                        CAST(SUM(p.Kind = 'add') AS SIGNED) AS ToAdd, CAST(SUM(p.Kind = 'remove') AS SIGNED) AS ToRemove,
-                       CAST(SUM(p.Kind = 'price') AS SIGNED) AS ToChangePrice,
+                       CAST(SUM(p.Kind = 'price') AS SIGNED) AS ToChangePrice, CAST(SUM(p.Kind = 'rename') AS SIGNED) AS ToRename,
                        MAX(p.CreatedAt) AS CreatedAt,
                        IFNULL(MAX(u.InputTokens), 0) AS InputTokens, IFNULL(MAX(u.OutputTokens), 0) AS OutputTokens,
                        IFNULL(MAX(u.CostUsd), 0) AS CostUsd
@@ -231,7 +235,9 @@ namespace Menus.Web.Services
             foreach (var proposal in proposals)
             {
                 var nameKey = Normalize(proposal.Name);
-                var dishId = byDishId ? proposal.DishId : dishesByName.TryGetValue(nameKey, out var found) ? found : null;
+                // перейменування: у філії страва ще зі старою назвою
+                var lookupKey = proposal.Kind == "rename" ? Normalize(proposal.OldName) : nameKey;
+                var dishId = byDishId ? proposal.DishId : dishesByName.TryGetValue(lookupKey, out var found) ? found : null;
 
                 if (proposal.Kind == "add")
                 {
@@ -247,6 +253,28 @@ namespace Menus.Web.Services
                     result.Removed += await _connection.ExecuteAsync(
                         "UPDATE Dishes SET Status = @status WHERE Id = @dishId AND RestaurantId = @restaurantId",
                         new { status = (int)DishStatus.Pending, dishId, restaurantId });
+                }
+                else if (proposal.Kind == "rename" && dishId != null)
+                {
+                    // страва та сама (адреса сторінки, фото, рейтинги лишаються) - нова назва з меню закладу;
+                    // інші мови допише DeepL (translate_missing.py). Страва з новою назвою вже є - не чіпаємо
+                    if (dishesByName.TryGetValue(nameKey, out var other) && other != dishId) continue;
+                    var lang = string.IsNullOrEmpty(proposal.NameLang) ? "uk" : proposal.NameLang;
+                    var renamed = await _connection.ExecuteAsync(
+                        "UPDATE Dishes SET Name = @name WHERE Id = @dishId AND RestaurantId = @restaurantId",
+                        new { name = JsonConvert.SerializeObject(Localizable(lang, proposal.Name)), dishId, restaurantId });
+                    if (renamed == 0) continue;
+                    if (proposal.Price > 0)
+                    {
+                        var repriced = await _connection.ExecuteAsync(
+                            "UPDATE Dishes SET Price = @price WHERE Id = @dishId AND IsPriceMultiple = 0 AND Price <> @price",
+                            new { price = proposal.Price, dishId });
+                        if (repriced > 0)
+                            await _connection.ExecuteAsync("UPDATE DishVariations SET Price = @price WHERE DishId = @dishId",
+                                new { price = proposal.Price, dishId });
+                    }
+                    dishesByName[nameKey] = dishId;
+                    result.Renamed++;
                 }
                 else if (proposal.Kind == "price" && dishId != null && proposal.Price > 0)
                 {
