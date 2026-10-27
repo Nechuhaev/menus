@@ -387,4 +387,7 @@
   <data name="SeoDescTail" xml:space="preserve">
     <value>Адрес, часы работы, фото и отзывы.</value>
   </data>
+  <data name="MenuVerified" xml:space="preserve">
+    <value>Цены сверены с меню заведения {0}</value>
+  </data>
 </root>
