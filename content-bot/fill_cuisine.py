@@ -56,8 +56,9 @@ CUISINES = {
                r"creme.?brul|буйабес|bouillab|confit|еклер|эклер|eclair"),  # не «конфітюр», не «макарони»
 }
 # в українському полі буває російський текст («Японская кухня») - беремо лише справжні uk/ru форми
-UK_FORM = re.compile(r"^[^ыэёъ]*ськ[аі]?(\s+кухня)?$", re.I)
-RU_FORM = re.compile(r"^[^іїєґ]*ск(ая|ие)(\s+кухня)?$", re.I)
+# одна кухня на назву: «Азіатська та тайська» не годиться
+UK_FORM = re.compile(r"^[^ыэёъ,;/\s]*ськ[аі]?(\s+кухня)?$", re.I)
+RU_FORM = re.compile(r"^[^іїєґ,;/\s]*ск(ая|ие)(\s+кухня)?$", re.I)
 COMPILED = {k: (re.compile(uk, re.I), re.compile(ru, re.I), re.compile(words, re.I)) for k, (uk, ru, words) in CUISINES.items()}
 
 LOG_TABLE_SQL = """CREATE TABLE IF NOT EXISTS CuisineFillLog (
