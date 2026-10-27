@@ -11,6 +11,8 @@ Enabled не змінюється. Ключі, що впали нижче пор
 
 Запуск:  python3 dish_city_pages.py --dry-run   # показати, що зміниться
          python3 dish_city_pages.py             # записати (cron щодня після sync_restaurants)
+
+Сторінки з AUTO_ENABLE_VENUES і більше закладами бот вмикає сам (крім гарнірів/інгредієнтів), один раз.
 """
 import argparse
 import json
@@ -25,6 +27,13 @@ from dish_city_candidates import ADJECTIVE, NOT_ADJECTIVES, candidates, collect,
 from sync_restaurants import get_db
 
 MIN_VENUES = 5
+# Сторінку з такою кількістю закладів бот вмикає сам (раніше - лише адмін галочкою). Кожен рядок бот
+# перевіряє один раз (AutoChecked): вимкнене адміном після цього вже не вмикається знову
+AUTO_ENABLE_VENUES = 10
+# гарніри й інгредієнти - «рис Київ» не шукають як страву, сторінка вийшла б тонкою
+NOT_AUTO_ENABLED = {"рис", "пюре", "картопляне пюре", "картопля", "шпинат", "бульйон", "курячий бульйон", "курча",
+                    "каре", "медальйони", "лосось", "овочі гриль", "овочі", "хліб", "соус", "гарнір", "броколі",
+                    "спаржа", "гриби", "сир", "яйце", "лимон", "вершки", "зелень", "салат"}
 TITLE_VERSION = 2  # назви ru/en перекладені DeepL з uk
 
 CREATE_TABLE_SQL = """
@@ -102,7 +111,8 @@ def main():
     db = get_db()
     cur = db.cursor(dictionary=True)
     cur.execute(CREATE_TABLE_SQL)
-    cur.execute("SELECT Id, CityId, KeyUk, Slug, Title, Enabled FROM DishCityPages")
+    cur.execute("ALTER TABLE DishCityPages ADD COLUMN IF NOT EXISTS AutoChecked TINYINT(1) NOT NULL DEFAULT 0")
+    cur.execute("SELECT Id, CityId, KeyUk, Slug, Title, Enabled, AutoChecked FROM DishCityPages")
     existing = {(row["CityId"], row["KeyUk"]): row for row in cur.fetchall()}
     used_slugs = {(row["CityId"], row["Slug"]) for row in existing.values()}
 
@@ -179,6 +189,14 @@ def main():
              len(st.brands), len(st.restaurants), prices[0], statistics.median(prices), prices[-1],
              json.dumps([d[0] for d in st.dishes])))
 
+    # автоувімкнення: ще не перевірені ботом рядки, що дійшли до порогу; вже увімкнені лише позначаються
+    auto_checked = [k for k in sorted(keys)
+                    if len(stats[k].brands) >= AUTO_ENABLE_VENUES and not (existing.get(k) or {}).get("AutoChecked")]
+    auto_on = [k for k in auto_checked
+               if not (existing.get(k) or {}).get("Enabled") and k[1] not in NOT_AUTO_ENABLED and k not in to_delete]
+    for city, key in auto_on:
+        print(f"ON {city[:8]} {len(stats[(city, key)].brands):>4} закл.  {key}")
+
     # ключі, яких більше немає серед страв зовсім: 0 закладів - сторінка зникає
     gone = [k for k in existing if k not in stats and k not in to_delete]
     if args.dry_run:
@@ -190,11 +208,15 @@ def main():
             cur.execute("DELETE FROM DishCityPages WHERE CityId = %s AND KeyUk = %s", (city, key))
         for city, key in to_enable:
             cur.execute("UPDATE DishCityPages SET Enabled = 1 WHERE CityId = %s AND KeyUk = %s", (city, key))
+        for city, key in auto_checked:
+            cur.execute("UPDATE DishCityPages SET AutoChecked = 1, Enabled = Enabled OR %s WHERE CityId = %s AND KeyUk = %s",
+                        ((city, key) in auto_on, city, key))
         for city, key in gone:
             cur.execute("UPDATE DishCityPages SET Venues = 0, Restaurants = 0, DishIds = '[]', UpdatedAt = NOW() "
                         "WHERE CityId = %s AND KeyUk = %s", (city, key))
         db.commit()
-    print(f"нових: {added}, оновлено: {updated}, видалено: {len(to_delete)}, зникли: {len(gone)}"
+    print(f"нових: {added}, оновлено: {updated}, видалено: {len(to_delete)}, зникли: {len(gone)}, "
+          f"увімкнено автоматично: {len(auto_on)} (поріг {AUTO_ENABLE_VENUES} закладів)"
           f"{' (dry-run)' if args.dry_run else ''}")
 
 
