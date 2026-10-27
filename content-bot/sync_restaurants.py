@@ -273,6 +273,8 @@ def ensure_log_table(db):
         )
         """
     )
+    # коли меню востаннє впевнено звірено з меню закладу - дата «Ціни звірено» на сторінці ресторану
+    cur.execute("ALTER TABLE RestaurantSyncLog ADD COLUMN IF NOT EXISTS MenuVerifiedAt DATETIME NULL")
     db.commit()
     cur.close()
 
@@ -1284,6 +1286,11 @@ def sync_menu(db, restaurant, menu_url):
 
     unmatched_ours = [d for d in our_dishes if d["Id"] not in matches]
     save_proposals(db, restaurant["Id"], unmatched_site, unmatched_ours, price_changes)
+    cur = db.cursor()
+    cur.execute("""INSERT INTO RestaurantSyncLog (RestaurantId, LastCheckedAt, MenuVerifiedAt) VALUES (%s, NOW(), NOW())
+                   ON DUPLICATE KEY UPDATE MenuVerifiedAt = NOW()""", (restaurant["Id"],))
+    db.commit()
+    cur.close()
     return f"menu ok ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)} price {len(price_changes)}"
 
 

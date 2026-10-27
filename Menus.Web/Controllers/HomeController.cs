@@ -311,6 +311,7 @@ namespace Menus.Web.Controllers
 
             // порожній заклад (мало страв і без опису) - noindex, список з content-bot/thin_pages.py
             if (await NoindexService.IsNoindex(restaurant.Id)) ViewData["Robots"] = "NOINDEX,FOLLOW";
+            ViewData["menuVerifiedAt"] = await MenuVerified.Get(restaurant.Id);
 
             return View(data);
         }
@@ -526,6 +527,7 @@ namespace Menus.Web.Controllers
         }
 
         private SeoNoindexService NoindexService => (SeoNoindexService)HttpContext.RequestServices.GetService(typeof(SeoNoindexService));
+        private MenuVerifiedService MenuVerified => (MenuVerifiedService)HttpContext.RequestServices.GetService(typeof(MenuVerifiedService));
         private DeletedRestaurantRedirectService DeletedRedirects => (DeletedRestaurantRedirectService)HttpContext.RequestServices.GetService(typeof(DeletedRestaurantRedirectService));
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
