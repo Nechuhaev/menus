@@ -307,7 +307,7 @@ namespace Menus.Web.Services
             dish.Id = Guid.NewGuid().ToString();
             dish.RestaurantId = restaurantId;
             dish.Name = Localizable(lang, proposal.Name);
-            dish.Description = string.IsNullOrWhiteSpace(proposal.Description) ? new LocalizableString() : Localizable(lang, proposal.Description);
+            dish.Description = string.IsNullOrWhiteSpace(Bmp(proposal.Description)) ? new LocalizableString() : Localizable(lang, proposal.Description);
             dish.Ingredients = new LocalizableString();
             dish.ShortDescription = new LocalizableString();
             dish.Photos = new List<string>(); // фото допише бот при наступній перевірці ресторану
@@ -372,7 +372,12 @@ namespace Menus.Web.Services
         }
 
         private static LocalizableString Localizable(string locale, string value) =>
-            new LocalizableString { Values = new List<LocalizableStringValue> { new LocalizableStringValue { Locale = locale, Value = value.Trim() } } };
+            new LocalizableString { Values = new List<LocalizableStringValue> { new LocalizableStringValue { Locale = locale, Value = Bmp(value) } } };
+
+        // Таблиці бази в utf8 (до 3 байтів на символ): емодзі з сайтів ресторанів («🌿 Салат») MariaDB не приймає -
+        // падав увесь запис («Застосувати вибрані» в «Звітах»). Прибираємо 4-байтові символи й залишки емодзі
+        private static string Bmp(string value) =>
+            Regex.Replace(Regex.Replace(value ?? "", @"[\uD800-\uDFFF\uFE0F\u200D]", ""), @"[ \t]{2,}", " ").Trim();
 
         private static string Normalize(string value) =>
             Regex.Replace((value ?? "").ToLowerInvariant().Replace('ё', 'е'), @"[^\p{L}\p{N}]+", " ").Trim();
