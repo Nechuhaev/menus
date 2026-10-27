@@ -865,8 +865,9 @@
                                 <div class="swiper-wrapper">
                                     @for (var i = 0; i < Model.Photos.Count; i++)
                                     {
-                                        @* перше фото каруселі видно одразу (кандидат на LCP), решта - за межами екрана *@
-                                        <div class="swiper-slide"><img src="@Img.Url(Model.Photos[i], Quality.High)" alt="@imgAlt" title="@imgAlt" @(i == 0 ? "fetchpriority=high" : "loading=lazy") /></div>
+                                        @* перше фото каруселі видно одразу (кандидат на LCP), решта - за межами екрана.
+                                           Medium (600 px заввишки) досить для ширини телефона; large важить 150-350 КБ *@
+                                        <div class="swiper-slide"><img src="@Img.Url(Model.Photos[i], Quality.Medium)" alt="@imgAlt" title="@imgAlt" @(i == 0 ? "fetchpriority=high" : "loading=lazy") /></div>
                                     }
                                 </div>
                             </div>
