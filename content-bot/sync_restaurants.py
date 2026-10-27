@@ -421,11 +421,13 @@ def ensure_proposals_table(db):
     )
     # колонка з'явилася пізніше за таблицю - для пропозицій «змінити ціну»
     cur.execute("ALTER TABLE MenuSyncProposals ADD COLUMN IF NOT EXISTS OldPrice DECIMAL(10,2) NULL")
+    # стара назва страви - для пропозицій «перейменувати»
+    cur.execute("ALTER TABLE MenuSyncProposals ADD COLUMN IF NOT EXISTS OldName TEXT NULL")
     db.commit()
     cur.close()
 
 
-def save_proposals(db, restaurant_id, to_add, to_remove, price_changes):
+def save_proposals(db, restaurant_id, to_add, to_remove, price_changes, renames=()):
     """Старі невирішені пропозиції ресторану замінюються новими; застосовує їх адмін у «Звітах»."""
     ensure_proposals_table(db)
     cur = db.cursor()
@@ -436,6 +438,7 @@ def save_proposals(db, restaurant_id, to_add, to_remove, price_changes):
     to_add = [d for d in to_add if ("add", match_key(d["name"]), None) not in rejected]
     to_remove = [d for d in to_remove if ("remove", match_key(dish_display_name(d)), None) not in rejected]
     price_changes = [(d, p) for d, p in price_changes if ("price", match_key(dish_display_name(d)), float(p)) not in rejected]
+    renames = [(dish, site) for dish, site in renames if ("rename", match_key(site["name"]), None) not in rejected]
     now = datetime.now()
     for d in to_add:
         cur.execute(
@@ -449,6 +452,15 @@ def save_proposals(db, restaurant_id, to_add, to_remove, price_changes):
             """INSERT INTO MenuSyncProposals (Id, RestaurantId, Kind, DishId, Name, Price, CreatedAt)
                VALUES (%s, %s, 'remove', %s, %s, %s, %s)""",
             (str(uuid.uuid4()), restaurant_id, dish["Id"], dish_display_name(dish), dish["Price"], now),
+        )
+    for dish, site in renames:
+        cur.execute(
+            """INSERT INTO MenuSyncProposals (Id, RestaurantId, Kind, DishId, Name, OldName, NameLang, Category, Price,
+                                              OldPrice, Weight, Description, ImageUrl, CreatedAt)
+               VALUES (%s, %s, 'rename', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (str(uuid.uuid4()), restaurant_id, dish["Id"], site["name"], dish_display_name(dish), site.get("lang"),
+             site.get("category"), parse_price(site.get("price")), dish["Price"], site.get("weight"),
+             clean_description(site.get("description")) or None, site.get("image_url"), now),
         )
     for dish, new_price in price_changes:
         cur.execute(
@@ -901,6 +913,39 @@ def pair_by_stems(our_dishes, site_menu, restaurant_name=""):
     return pairs
 
 
+RENAME_PRICE_DIFF = 0.15
+
+
+def pair_renames(to_add, to_remove, restaurant_name=""):
+    """Третє коло: страва, яку заклад перейменував («Тигрова креветка» -> «Тигрова креветка з головою»), інакше
+    стала б парою «прибрати» + «додати». Пара - коли основи слів однієї назви містяться в іншій і різниця - одне
+    слово, а ціни відрізняються не більше ніж на 15%. Сам бот нічого не перейменовує: пара йде у «Звіти»
+    пропозицією «перейменувати», адмін підтверджує. Повертає (пари, решта to_add, решта to_remove)."""
+    noise = set(normalize_name(restaurant_name).split())
+    candidates = []
+    for i, site in enumerate(to_add):
+        theirs = name_stems(site["name"], noise)
+        site_price = parse_price(site.get("price"))
+        for dish in to_remove:
+            our_price = float(dish["Price"] or 0)
+            if not site_price or not our_price or abs(site_price - our_price) / max(site_price, our_price) > RENAME_PRICE_DIFF:
+                continue
+            for lang in ("uk", "ru", "en"):
+                ours = name_stems(get_localizable_value(dish["Name"], lang), noise)
+                small, big = sorted((ours, theirs), key=len)
+                if len(small) >= 2 and small <= big and len(big) - len(small) <= 1:
+                    candidates.append((len(small) / len(big), i, dish["Id"], dish))
+                    break
+    pairs, used_site, used_ours = [], set(), set()
+    for _, i, dish_id, dish in sorted(candidates, key=lambda c: c[0], reverse=True):
+        if i not in used_site and dish_id not in used_ours:
+            pairs.append((dish, to_add[i]))
+            used_site.add(i)
+            used_ours.add(dish_id)
+    return (pairs, [d for i, d in enumerate(to_add) if i not in used_site],
+            [d for d in to_remove if d["Id"] not in used_ours])
+
+
 MAX_DETAIL_PAGES = 200
 DETAIL_CACHE = {}  # одна сторінка страви на всі філії мережі за запуск
 # Склад на сторінці страви стоїть рядком під заголовком («Інгредієнти» у pesto-family.com)
@@ -1285,13 +1330,14 @@ def sync_menu(db, restaurant, menu_url):
         return f"menu not recognized ({stats}) at {menu_url}"
 
     unmatched_ours = [d for d in our_dishes if d["Id"] not in matches]
-    save_proposals(db, restaurant["Id"], unmatched_site, unmatched_ours, price_changes)
+    renames, unmatched_site, unmatched_ours = pair_renames(unmatched_site, unmatched_ours, name)
+    save_proposals(db, restaurant["Id"], unmatched_site, unmatched_ours, price_changes, renames)
     cur = db.cursor()
     cur.execute("""INSERT INTO RestaurantSyncLog (RestaurantId, LastCheckedAt, MenuVerifiedAt) VALUES (%s, NOW(), NOW())
                    ON DUPLICATE KEY UPDATE MenuVerifiedAt = NOW()""", (restaurant["Id"],))
     db.commit()
     cur.close()
-    return f"menu ok ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)} price {len(price_changes)}"
+    return f"menu ok ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)} price {len(price_changes)} rename {len(renames)}"
 
 
 def main():

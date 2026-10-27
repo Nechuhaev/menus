@@ -51,7 +51,7 @@ namespace Menus.Web.Areas.Admin.Controllers
                 else
                 {
                     var r = await _menuSync.Apply(id, ids, includeBranches);
-                    TempData["message"] = $"Додано страв: {r.Added}, приховано: {r.Removed}, змінено цін: {r.Repriced}" +
+                    TempData["message"] = $"Додано страв: {r.Added}, приховано: {r.Removed}, змінено цін: {r.Repriced}, перейменовано: {r.Renamed}" +
                         (includeBranches ? $" (разом із філіями: {r.Branches})" : "");
                 }
             }
