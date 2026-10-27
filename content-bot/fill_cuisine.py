@@ -55,6 +55,9 @@ CUISINES = {
                r"круасан|круассан|croissant|кіш\b|киш\b|quiche|рататуй|ratatouil|фуа.?гра|foie|крем.?брюле|"
                r"creme.?brul|буйабес|bouillab|confit|еклер|эклер|eclair"),  # не «конфітюр», не «макарони»
 }
+# в українському полі буває російський текст («Японская кухня») - беремо лише справжні uk/ru форми
+UK_FORM = re.compile(r"^[^ыэёъ]*ськ[аі]?(\s+кухня)?$", re.I)
+RU_FORM = re.compile(r"^[^іїєґ]*ск(ая|ие)(\s+кухня)?$", re.I)
 COMPILED = {k: (re.compile(uk, re.I), re.compile(ru, re.I), re.compile(words, re.I)) for k, (uk, ru, words) in CUISINES.items()}
 
 LOG_TABLE_SQL = """CREATE TABLE IF NOT EXISTS CuisineFillLog (
@@ -85,8 +88,8 @@ def labels_in_use(cur):
                     used[lang][part] += 1
     labels = {}
     for key, (uk_re, ru_re, _) in COMPILED.items():
-        uk = next((name for name, _ in used["uk"].most_common() if uk_re.search(name)), None)
-        ru = next((name for name, _ in used["ru"].most_common() if ru_re.search(name)), None)
+        uk = next((name for name, _ in used["uk"].most_common() if uk_re.search(name) and UK_FORM.search(name)), None)
+        ru = next((name for name, _ in used["ru"].most_common() if ru_re.search(name) and RU_FORM.search(name)), None)
         if uk and ru:
             labels[key] = (uk, ru)
     return labels
