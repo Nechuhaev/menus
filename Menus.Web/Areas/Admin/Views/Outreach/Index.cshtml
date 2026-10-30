@@ -9,7 +9,7 @@
     var q = ViewData["q"] as string;
     var cityId = ViewData["cityId"] as string;
     var filter = ViewData["filter"] as string;
-    var page = (int)ViewData["page"];
+    var currentPage = (int)ViewData["page"];
     var pages = (int)ViewData["pages"];
     var cityNames = cities.ToDictionary(x => x.Id, x => x.Name.Get("uk"));
     var filters = new[] { ("contacts", "З контактами"), ("new", "Ще не писали"), ("sent", "Уже писали"), ("all", "Усі ресторани") };
@@ -68,7 +68,7 @@
                 <input type="hidden" name="q" value="@q" />
                 <input type="hidden" name="cityId" value="@cityId" />
                 <input type="hidden" name="filter" value="@filter" />
-                <input type="hidden" name="page" value="@page" />
+                <input type="hidden" name="page" value="@currentPage" />
                 <p>
                     <label><input type="checkbox" id="toggleAll" /> вибрати ще не надіслані email на сторінці</label>
                     <span id="emailCount"></span>
@@ -126,15 +126,15 @@
                 <div class="pager">
                     @for (var i = 1; i <= pages; i++)
                     {
-                        if (i == page)
+                        if (i == currentPage)
                         {
                             <span>@i</span>
                         }
-                        else if (i == 1 || i == pages || Math.Abs(i - page) <= 3)
+                        else if (i == 1 || i == pages || Math.Abs(i - currentPage) <= 3)
                         {
                             <a asp-action="Index" asp-route-q="@q" asp-route-cityId="@cityId" asp-route-filter="@filter" asp-route-page="@i">@i</a>
                         }
-                        else if (Math.Abs(i - page) == 4)
+                        else if (Math.Abs(i - currentPage) == 4)
                         {
                             <span>…</span>
                         }
