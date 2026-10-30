@@ -9,7 +9,10 @@
     var optOuts = ViewData["optOuts"] as HashSet<string>;
     var kinds = new Dictionary<string, string> { ["email"] = "Email", ["telegram"] = "Telegram", ["instagram"] = "Instagram", ["phone"] = "Телефон" };
     var templateNames = templates.ToDictionary(x => x.Id, x => x.Name);
-    var statuses = new Dictionary<string, string> { ["queued"] = "у черзі", ["sent"] = "надіслано", ["failed"] = "помилка", ["skipped"] = "пропущено", ["manual"] = "надіслано вручну" };
+    var statuses = new Dictionary<string, string> { ["queued"] = "у черзі", ["sent"] = "надіслано", ["failed"] = "помилка", ["skipped"] = "пропущено", ["manual"] = "надіслано вручну", ["received"] = "від власника" };
+    var telegramLinks = ViewData["telegramLinks"] as List<TelegramOwnerLink>;
+    var telegramStart = ViewData["telegramStart"] as string;
+    var telegramConfigured = (bool)ViewData["telegramConfigured"];
 }
 
 <style>
@@ -81,6 +84,32 @@
                             }
                         </div>
                     }
+                    <h3>Telegram-бот</h3>
+                    @if (!telegramConfigured)
+                    {
+                        <p class="muted">Бот не налаштований: немає TelegramOwnersBot__Token у /root/menus.env.</p>
+                    }
+                    else
+                    {
+                        foreach (var link in telegramLinks)
+                        {
+                            <div class="contact">
+                                <strong>@link.Title</strong> <span class="muted">підключився @link.LinkedAt.ToString("dd.MM.yyyy")</span>
+                                <form asp-action="UnlinkTelegram" method="post" class="inline" onsubmit="return confirm('Відключити цей чат від ресторану?')">
+                                    <input type="hidden" name="id" value="@Model.Id" />
+                                    <input type="hidden" name="chatId" value="@link.ChatId" />
+                                    <input type="hidden" name="templateId" value="@template.Id" />
+                                    <button type="submit">Відключити</button>
+                                </form>
+                            </div>
+                        }
+                        <p class="muted">
+                            Персональне посилання ресторану (у шаблоні - {Telegram}): власник натискає Start, і з цієї сторінки можна писати йому в Telegram.<br />
+                            <input type="text" value="@telegramStart" readonly onclick="this.select()" style="width:100%" />
+                        </p>
+                    }
+
+                    <h3>Додати контакт</h3>
                     <form asp-action="AddContact" method="post" class="contact">
                         <input type="hidden" name="id" value="@Model.Id" />
                         <input type="hidden" name="templateId" value="@template.Id" />
@@ -112,6 +141,15 @@
                     <div class="preview" id="previewText">@text.Body</div>
                     <p class="muted">У листі в кінці додається рядок «відписатися» з посиланням.</p>
 
+                    @foreach (var link in telegramLinks)
+                    {
+                        <form asp-action="SendTelegram" method="post" class="contact" onsubmit="return confirm('Надіслати в Telegram @link.Title?')">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <input type="hidden" name="templateId" value="@template.Id" />
+                            <input type="hidden" name="chatId" value="@link.ChatId" />
+                            <button type="submit">Надіслати в Telegram @link.Title</button>
+                        </form>
+                    }
                     @foreach (var email in Model.Emails)
                     {
                         <form asp-action="SendEmail" method="post" class="contact" onsubmit="return confirm('Надіслати лист на @email?')">
@@ -136,7 +174,7 @@
                             </form>
                         }
                     }
-                    @if (!Model.Contacts.Any())
+                    @if (!Model.Contacts.Any() && !telegramLinks.Any())
                     {
                         <p>Контактів немає - додайте ліворуч.</p>
                     }

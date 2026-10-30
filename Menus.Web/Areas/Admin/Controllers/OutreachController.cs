@@ -18,11 +18,13 @@ namespace Menus.Web.Areas.Admin.Controllers
     {
         private readonly Core _core;
         private readonly OutreachService _outreach;
+        private readonly TelegramOwnersService _telegram;
 
-        public OutreachController(Core core, OutreachService outreach)
+        public OutreachController(Core core, OutreachService outreach, TelegramOwnersService telegram)
         {
             _core = core;
             _outreach = outreach;
+            _telegram = telegram;
         }
 
         // filter: contacts - є контакти (за замовчуванням), new - є контакти й ще не писали, sent - уже писали, all - усі
@@ -66,7 +68,46 @@ namespace Menus.Web.Areas.Admin.Controllers
             ViewData["text"] = Render(template, r, cities, null);
             ViewData["cityName"] = cities.FirstOrDefault(x => x.Id == r.City)?.Name.Get("uk");
             ViewData["optOuts"] = await _outreach.GetOptOuts();
+            ViewData["telegramLinks"] = await _telegram.GetLinks(id);
+            ViewData["telegramStart"] = _telegram.StartLink(id);
+            ViewData["telegramConfigured"] = _telegram.IsConfigured;
             return View(r);
+        }
+
+        // Повідомлення в Telegram власнику, що підключився до бота
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendTelegram(string id, int templateId, long chatId)
+        {
+            var r = await _outreach.GetRestaurant(id);
+            var link = (await _telegram.GetLinks(id)).FirstOrDefault(x => x.ChatId == chatId);
+            if (r == null || link == null) return NotFound();
+            var cities = (await _core.Restaurants.GetCities()).ToList();
+            var body = Render(await _outreach.GetTemplate(templateId), r, cities, null).Body;
+            var error = await _telegram.SendMessage(chatId, body);
+            await _outreach.LogTelegram(id, link.Title, body, error == null ? "sent" : "failed", templateId, error);
+            TempData["message"] = error == null ? $"Надіслано в Telegram: {link.Title}" : $"Telegram не надіслав ({link.Title}): {error}";
+            return RedirectToAction("Restaurant", new { id, templateId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UnlinkTelegram(string id, long chatId, int? templateId)
+        {
+            await _telegram.Unlink(id, chatId);
+            TempData["message"] = "Telegram відключено від ресторану";
+            return RedirectToAction("Restaurant", new { id, templateId });
+        }
+
+        // Один раз після налаштування токена: Telegram надсилатиме повідомлення боту на сайт
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetTelegramWebhook()
+        {
+            var url = Url.Action("Webhook", "TelegramOwners", new { area = "", culture = "uk" }, "https");
+            var error = _telegram.IsConfigured ? await _telegram.SetWebhook(url) : "немає TelegramOwnersBot__Token у /root/menus.env";
+            TempData["message"] = error == null ? $"Вебхук бота підключено: {url}" : $"Вебхук не підключено: {error}";
+            return RedirectToAction("Templates");
         }
 
         [HttpPost]
@@ -145,7 +186,12 @@ namespace Menus.Web.Areas.Admin.Controllers
             return RedirectToAction("Index", new { q, cityId, filter, page });
         }
 
-        public async Task<IActionResult> Templates() => View(await _outreach.GetTemplates());
+        public async Task<IActionResult> Templates()
+        {
+            ViewData["telegramConfigured"] = _telegram.IsConfigured;
+            ViewData["telegramBot"] = _telegram.BotName;
+            return View(await _outreach.GetTemplates());
+        }
 
         [HttpGet]
         public async Task<IActionResult> EditTemplate(int? id)
@@ -180,7 +226,7 @@ namespace Menus.Web.Areas.Admin.Controllers
         {
             var city = cities.FirstOrDefault(x => x.Id == r.City);
             return OutreachService.Render(template, r, city?.Name.Get("uk") ?? "", city?.Name.Get("en")?.ToLower() ?? "kyiv",
-                $"{Request.Scheme}://{Request.Host}", unsubscribeUrl);
+                $"{Request.Scheme}://{Request.Host}", unsubscribeUrl, _telegram.StartLink(r.Id));
         }
     }
 }

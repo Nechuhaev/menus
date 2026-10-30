@@ -23,6 +23,21 @@
 
             <p><a asp-action="EditTemplate">+ Новий шаблон</a></p>
 
+            <h3>Telegram-бот @@@ViewData["telegramBot"]</h3>
+            @if ((bool)ViewData["telegramConfigured"])
+            {
+                <form asp-action="SetTelegramWebhook" method="post">
+                    <p class="muted">Один раз після додавання токена (і після зміни токена): Telegram почне пересилати повідомлення боту на сайт.</p>
+                    <button type="submit">Підключити вебхук бота</button>
+                </form>
+            }
+            else
+            {
+                <p>Додайте токен у /root/menus.env рядком <code>TelegramOwnersBot__Token=...</code> і зробіть деплой.</p>
+            }
+
+            <h3>Шаблони</h3>
+
             <table class="mainTable">
                 <thead>
                     <tr><th>Назва</th><th>Тема</th><th></th></tr>

@@ -131,7 +131,7 @@ https://tipmymenu.com
 {Відписатися}"
         };
 
-        public static readonly string[] Placeholders = { "{Назва}", "{Місто}", "{Сторінка}", "{Страв}", "{ДляВласників}", "{Iframe}", "{Відписатися}" };
+        public static readonly string[] Placeholders = { "{Назва}", "{Місто}", "{Сторінка}", "{Страв}", "{ДляВласників}", "{Iframe}", "{Telegram}", "{Відписатися}" };
 
         public static readonly string[] Kinds = { "email", "telegram", "instagram", "phone" };
         public const int PageSize = 30;
@@ -306,7 +306,7 @@ https://tipmymenu.com
 
         // Підстановки в шаблон; unsubscribeUrl порожній - рядок «відписатися» прибирається (Telegram/Instagram)
         public static (string Subject, string Body) Render(OutreachTemplate template, OutreachRecipient r, string cityName,
-            string citySlug, string baseUrl, string unsubscribeUrl)
+            string citySlug, string baseUrl, string unsubscribeUrl, string telegramLink = "")
         {
             var page = $"{baseUrl}/uk/{citySlug}/restaurant/{r.Slug}";
             var values = new Dictionary<string, string>
@@ -317,6 +317,7 @@ https://tipmymenu.com
                 ["{Страв}"] = r.Dishes.ToString(),
                 ["{ДляВласників}"] = $"{baseUrl}/uk/articles/forowners",
                 ["{Iframe}"] = $"{baseUrl}/uk/{citySlug}/iframe/{r.Slug}",
+                ["{Telegram}"] = telegramLink ?? "",
                 ["{Відписатися}"] = string.IsNullOrEmpty(unsubscribeUrl) ? "" : $"Не хочете отримувати листи від TipMyMenu? Відписатися: {unsubscribeUrl}"
             };
             string FillText(string text) => values.Aggregate(text ?? "", (acc, kv) => acc.Replace(kv.Key, kv.Value));
@@ -389,6 +390,15 @@ https://tipmymenu.com
         {
             await Ensure();
             await InsertLog(Guid.NewGuid().ToString("N"), restaurantId, templateId, channel, recipient, null, body, "manual");
+        }
+
+        // Telegram-бот власників: надіслане з адмінки (sent/failed) і відповіді власника (received)
+        public async Task LogTelegram(string restaurantId, string recipient, string body, string status, int? templateId = null, string error = null)
+        {
+            await Ensure();
+            await _connection.ExecuteAsync(@"INSERT INTO OutreachLog (Id, RestaurantId, TemplateId, Channel, Recipient, Body, Status, Error, CreatedAt, SentAt)
+                VALUES (@id, @restaurantId, @templateId, 'telegram', @recipient, @body, @status, @error, NOW(), NOW())",
+                new { id = Guid.NewGuid().ToString("N"), restaurantId, templateId, recipient, body, status, error });
         }
 
         public async Task<string> Unsubscribe(string token)

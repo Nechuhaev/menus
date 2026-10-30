@@ -117,6 +117,7 @@ namespace Menus.Web
             services.AddScoped<DeletedRestaurantRedirectService>();
             services.AddScoped<MenuVerifiedService>();
             services.AddScoped<OutreachService>();
+            services.AddScoped<TelegramOwnersService>();
             services.AddScoped<RestaurantRegistrationService>();
 
             services.Configure<FormOptions>(x =>
