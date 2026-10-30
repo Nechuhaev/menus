@@ -30,14 +30,14 @@
             <ul>
                 <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
                 <li><breadcrumb asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurantSeo.Url">@restaurant.Name</breadcrumb></li>
-                <li><breadcrumb asp-action="Dish" asp-route-id="@restaurantSeo.Url" asp-route-dishId="@dish.Url">@(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))</breadcrumb></li>
+                <li><breadcrumb asp-action="Dish" asp-route-id="@restaurantSeo.Url" asp-route-dishId="@dish.Url">@(Menus.Web.Helpers.DishName.Title(dish.Name, culture))</breadcrumb></li>
                 <li><breadcrumb href="#">@Localizer["AddPhoto"]</breadcrumb></li>
             </ul>
         </div>
 
         <div class="addPhoto">
 
-            <h2>@(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1)) <strong><span class="dish_rate_star" asp-rate="dish.Rating"></span> <em>@dish.RatingFloat.ToString("F1")</em></strong></h2>
+            <h2>@(Menus.Web.Helpers.DishName.Title(dish.Name, culture)) <strong><span class="dish_rate_star" asp-rate="dish.Rating"></span> <em>@dish.RatingFloat.ToString("F1")</em></strong></h2>
             <div class="addPhotoImage">
                 <figure>
                     <img id="cropper-img" src="~/images/add_photo_empty.jpg" alt="Alternate Text" />

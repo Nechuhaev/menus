@@ -367,7 +367,7 @@
                                                                 <a class="show-dish-image"
                                                                    href="javascript:void(0);"
                                                                    data-image-url="@Img.Url(dish.Photos.FirstOrDefault(), Quality.Low)">
-                                                                    @(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))
+                                                                    @(Menus.Web.Helpers.DishName.Title(dish.Name, culture))
                                                                 </a>
                                                                 @if (iframeSettings.ShowDishImagesIcons)
                                                                 {
@@ -387,7 +387,7 @@
                                                             }
                                                             else
                                                             {
-                                                                <a href="javascript:void(0);">@(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))</a>
+                                                                <a href="javascript:void(0);">@(Menus.Web.Helpers.DishName.Title(dish.Name, culture))</a>
                                                             }
                                                         </h3>
                                                         @if (dish.ShortDescription.Get(culture).Length > 0)
@@ -539,7 +539,7 @@
                                                                 </div>
                                                             }
                                                             <h3>
-                                                                @(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))
+                                                                @(Menus.Web.Helpers.DishName.Title(dish.Name, culture))
                                                                 @if (iframeSettings.ShowDishImagesIcons && dish.Photos.Any())
                                                                 {
                                                                     <span class="show-dish-image">
