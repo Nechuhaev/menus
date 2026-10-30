@@ -68,8 +68,8 @@
                                 <option value="">Категория</option>
                                 @foreach (var category in Model.Categories.Where(x => !string.IsNullOrEmpty(x.Id)))
                                 {
-                                    var categoryName = ((Menus.Abstract.Models.IMenuCategory) category).Name.Get(culture.TwoLetterISOLanguageName);
-                                    <option value="@category.Id">@(Char.ToUpper(categoryName[0]) + categoryName.Substring(1))</option>
+                                    var categoryName = Menus.Web.Helpers.DishName.Title(((Menus.Abstract.Models.IMenuCategory) category).Name, culture.TwoLetterISOLanguageName);
+                                    <option value="@category.Id">@categoryName</option>
                                 }
                             </select>
                         </p>

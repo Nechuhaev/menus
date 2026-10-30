@@ -28,7 +28,7 @@
             <ul>
                 <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">@Localizer["Home"]</breadcrumb></li>
                 <li><breadcrumb asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurantSeo.Url">@restaurant.Name</breadcrumb></li>
-                <li><breadcrumb asp-action="Dish" asp-route-id="@restaurantSeo.Url" asp-route-dishId="@dish.Url">@(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))</breadcrumb></li>
+                <li><breadcrumb asp-action="Dish" asp-route-id="@restaurantSeo.Url" asp-route-dishId="@dish.Url">@(Menus.Web.Helpers.DishName.Title(dish.Name, culture))</breadcrumb></li>
                 <li><breadcrumb href="#">@Localizer["Review"]</breadcrumb></li>
             </ul>
         </div>
@@ -36,7 +36,7 @@
         <div class="mobileReview">
             <div class="mobileReviewHeader">
                 <div class="mobileReviewHeaderLeft">
-                    <h2>@(Char.ToUpper(dish.Name.Get(culture)[0]) + dish.Name.Get(culture).Substring(1))</h2>
+                    <h2>@(Menus.Web.Helpers.DishName.Title(dish.Name, culture))</h2>
                     <strong>
                         @if (dish.IsPriceMultiple)
                         {
