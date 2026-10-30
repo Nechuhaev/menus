@@ -1,8 +1,8 @@
-"""Контакти власників для розсилки: email і Telegram із сайтів ресторанів, без AI.
+"""Контакти власників для розсилки: email, Telegram і Instagram із сайтів ресторанів і їхніх QR-меню, без AI.
 
-Поле Email у ресторанах здебільшого порожнє. Скрипт відкриває сайт ресторану (головну й до двох сторінок
-«Контакти»/«Про нас»), бере адреси з mailto: і тексту та посилання t.me / telegram.me і пише їх у
-RestaurantContacts. Restaurants.Email не змінюється. Адмінка «Розсилка» бере email звідси й з поля Email,
+Поле Email у ресторанах здебільшого порожнє. Скрипт відкриває сторінку меню закладу в ChoiceQR/Expirenza
+(там контакти актуальніші: їх веде сам заклад) і сайт ресторану (головну й до двох сторінок «Контакти»/«Про нас»),
+бере адреси з mailto: і тексту, посилання t.me / telegram.me та instagram.com і пише їх у RestaurantContacts. Restaurants.Email не змінюється. Адмінка «Розсилка» бере email звідси й з поля Email,
 а Telegram-контакти показує для ручного надсилання (бот не може написати людині першим).
 
 Запуск:  python3 collect_contacts.py --dry-run          # показати знайдене, нічого не записувати
@@ -36,10 +36,14 @@ CHECKED_SQL = """CREATE TABLE IF NOT EXISTS RestaurantContactsChecked (
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; TipMyMenuBot/1.0; +https://tipmymenu.com)"}
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}")
+INSTAGRAM = re.compile(r"instagram\.com/([A-Za-z0-9_.]{2,30})(?![A-Za-z0-9_.])", re.I)
 TELEGRAM = re.compile(r"(?:https?://)?(?:t\.me|telegram\.me)/([A-Za-z0-9_]{5,32})(?![A-Za-z0-9_/])", re.I)
 # службові адреси й «адреси» з імен файлів (logo@2x.png), конструкторів сайтів і трекерів
 BAD_EMAIL = re.compile(r"\.(png|jpe?g|gif|svg|webp|css|js)$|@(example|domain|email|sentry|wixpress|sentry-next|"
-                       r"godaddy|mysite)\.|^(no-?reply|noreply|test|user|name|email|your)@", re.I)
+                       r"godaddy|mysite|choiceqr|expirenza|expz|monobank|shaketopay)\.|^(no-?reply|noreply|test|user|name|email|your)@", re.I)
+# акаунти самих сервісів меню й службові шляхи Instagram
+BAD_SOCIAL = {"choiceqr", "choiceqr_ua", "expirenza", "expirenza.menu", "monobank", "p", "reel", "reels", "explore",
+              "accounts", "stories", "tv", "direct"}
 BAD_TELEGRAM = {"share", "joinchat", "addstickers", "iv", "proxy", "socks", "telegram", "durov"}
 CONTACT_LINK = re.compile(r"contact|kontakt|контакт|about|про-нас|o-nas|о-нас", re.I)
 MAX_EXTRA_PAGES = 2
@@ -58,8 +62,18 @@ def get(url):
 def extract(page, url):
     text = html.unescape(page)
     emails = {m.lower().rstrip(".") for m in EMAIL.findall(text) if not BAD_EMAIL.search(m)}
-    telegram = {m for m in TELEGRAM.findall(text) if m.lower() not in BAD_TELEGRAM and not m.lower().endswith("bot")}
-    return {("email", e, url) for e in emails} | {("telegram", "t.me/" + t, url) for t in telegram}
+    telegram = {m for m in TELEGRAM.findall(text) if m.lower() not in BAD_TELEGRAM | BAD_SOCIAL and not m.lower().endswith("bot")}
+    instagram = {m.lower().rstrip(".") for m in INSTAGRAM.findall(text) if m.lower().rstrip(".") not in BAD_SOCIAL}
+    return ({("email", e, url) for e in emails} | {("telegram", "t.me/" + t, url) for t in telegram}
+            | {("instagram", "instagram.com/" + i, url) for i in instagram})
+
+
+def menu_contacts(menu_url):
+    """Контакти зі сторінки меню закладу: ChoiceQR - головна заклада (дані Next.js, place.contactInfo),
+    Expirenza - сторінка закладу (блок «Про заклад»)."""
+    parsed = urlparse(menu_url if menu_url.startswith("http") else "https://" + menu_url)
+    url = f"{parsed.scheme}://{parsed.netloc}/" if parsed.netloc.endswith(".choiceqr.com") else parsed.geturl()
+    return extract(get(url), url)
 
 
 def contacts_of(site):
@@ -90,24 +104,31 @@ def main():
     cur = db.cursor(dictionary=True)
     cur.execute(TABLE_SQL)
     cur.execute(CHECKED_SQL)
-    cur.execute("""SELECT CONCAT(r.Id, '') AS Id, r.Name, ri.Website FROM Restaurants r
+    cur.execute("""SELECT CONCAT(r.Id, '') AS Id, r.Name, IFNULL(ri.Website, '') AS Website, IFNULL(ml.Url, '') AS MenuUrl
+                   FROM Restaurants r
                    JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
+                   LEFT JOIN RestaurantMenuLinks ml ON ml.RestaurantId = r.Id
                    LEFT JOIN RestaurantContactsChecked c ON c.RestaurantId = r.Id
-                   WHERE r.Status = 0 AND ri.Website IS NOT NULL AND ri.Website <> ''"""
+                   WHERE r.Status = 0 AND (IFNULL(ri.Website, '') <> '' OR IFNULL(ml.Url, '') <> '')"""
                 + ("" if args.recheck else " AND c.RestaurantId IS NULL"))
     rows = cur.fetchall()
-    # мережа з одним сайтом - сайт читається один раз
-    sites = sorted({r["Website"].strip() for r in rows})
-    print(f"ресторанів із сайтом до перевірки: {len(rows)}, різних сайтів: {len(sites)}")
+    # мережа з одним сайтом чи меню - сторінка читається один раз
+    sites = sorted({r["Website"].strip() for r in rows if r["Website"].strip()})
+    menus = sorted({r["MenuUrl"].strip() for r in rows if r["MenuUrl"].strip()})
+    print(f"ресторанів до перевірки: {len(rows)}; різних сайтів: {len(sites)}, меню ChoiceQR/Expirenza: {len(menus)}")
     with ThreadPoolExecutor(8) as pool:
         by_site = dict(zip(sites, pool.map(contacts_of, sites)))
+        by_menu = dict(zip(menus, pool.map(menu_contacts, menus)))
 
     now = datetime.now()
     write = db.cursor()
-    stats = {"email": 0, "telegram": 0}
+    stats = {"email": 0, "telegram": 0, "instagram": 0}
     with_any = 0
     for r in rows:
-        found = by_site.get(r["Website"].strip(), set())
+        found = by_menu.get(r["MenuUrl"].strip(), set()) | by_site.get(r["Website"].strip(), set())
+        # одна адреса з кількох сторінок - один рядок (джерело - меню, якщо є там)
+        found = {min((f for f in found if f[:2] == key), key=lambda f: "choiceqr" not in f[2] and "expz" not in f[2])
+                 for key in {f[:2] for f in found}}
         with_any += bool(found)
         for kind, value, source in sorted(found):
             stats[kind] += 1
@@ -122,7 +143,8 @@ def main():
     if not args.dry_run:
         db.commit()
     db.close()
-    print(f"\nз контактами: {with_any} із {len(rows)}; email: {stats['email']}, telegram: {stats['telegram']}"
+    print(f"\nз контактами: {with_any} із {len(rows)}; email: {stats['email']}, telegram: {stats['telegram']}, "
+          f"instagram: {stats['instagram']}"
           f"{' (dry-run, нічого не записано)' if args.dry_run else ''}")
 
 
