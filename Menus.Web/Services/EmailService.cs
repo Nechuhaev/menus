@@ -25,6 +25,13 @@ namespace Menus.Web.Services
 
         public void SendEmail(string email, string subject, string message)
         {
+            Send(email, subject, message);
+        }
+
+        // null - надіслано, інакше текст помилки (розсилка пише його в журнал).
+        // unsubscribeUrl - заголовок List-Unsubscribe: поштові сервіси показують кнопку «відписатися»
+        public string Send(string email, string subject, string message, string unsubscribeUrl = null)
+        {
 
             //From Address 
             string FromAddress = "admin@tipmymenu.com";
@@ -44,6 +51,7 @@ namespace Menus.Web.Services
             mimeMessage.From.Add(new MailboxAddress(FromAdressTitle, FromAddress));
             mimeMessage.To.Add(new MailboxAddress(ToAdressTitle, ToAddress));
             mimeMessage.Subject = Subject;
+            if (!string.IsNullOrEmpty(unsubscribeUrl)) mimeMessage.Headers.Add("List-Unsubscribe", $"<{unsubscribeUrl}>");
             mimeMessage.Body = new TextPart("html")
             {
                 Text = BodyContent
@@ -68,10 +76,12 @@ namespace Menus.Web.Services
                     client.Authenticate(_configuration["Smtp:User"], _configuration["Smtp:Password"]);
                     client.Send(mimeMessage);
                     client.Disconnect(true);
+                    return null;
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"EmailService SEND FAILED to {ToAddress}: {ex}");
+                    return ex.Message;
                 }
             }
         }
