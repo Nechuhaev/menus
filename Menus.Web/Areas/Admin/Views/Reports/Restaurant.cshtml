@@ -48,6 +48,13 @@
                         Застосовуються лише видимі (не відфільтровані) рядки з галочкою.
                     </p>
 
+                    @* ті самі кнопки й над фільтрами: у довгому звіті не треба гортати вниз *@
+                    <p>
+                        <span class="selectedCount"></span>
+                        <button type="submit" name="decision" value="apply">Застосувати вибрані</button>
+                        <button type="submit" name="decision" value="reject">Відхилити вибрані</button>
+                    </p>
+
                     <div class="reportFilters">
                         <strong>Вибрати:</strong>
                         @foreach (var (key, title) in kinds)
@@ -151,7 +158,7 @@
                         </tbody>
                     </table>
                     <p>
-                        <span id="selectedCount"></span>
+                        <span class="selectedCount"></span>
                         <button type="submit" name="decision" value="apply">Застосувати вибрані</button>
                         <button type="submit" name="decision" value="reject">Відхилити вибрані</button>
                     </p>
@@ -185,7 +192,7 @@
                     box.disabled = !visible;
                     if (visible && box.checked) selected++;
                 });
-                byId('selectedCount').textContent = 'Вибрано: ' + selected;
+                document.querySelectorAll('.selectedCount').forEach(function (el) { el.textContent = 'Вибрано: ' + selected; });
             }
 
             document.querySelectorAll('.kindToggle').forEach(function (toggle) {
