@@ -1,0 +1,51 @@
+@model List<Menus.Web.Services.OutreachTemplate>
+
+@{
+    ViewData["Title"] = "Шаблони листів";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+}
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-action="Index">Розсилка</a></li>
+                    <li>Шаблони</li>
+                </ul>
+            </div>
+
+            @if (TempData["message"] != null)
+            {
+                <p><strong>@TempData["message"]</strong></p>
+            }
+
+            <p><a asp-action="EditTemplate">+ Новий шаблон</a></p>
+
+            <table class="mainTable">
+                <thead>
+                    <tr><th>Назва</th><th>Тема</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model)
+                    {
+                        <tr>
+                            <td><a asp-action="EditTemplate" asp-route-id="@t.Id">@t.Name</a></td>
+                            <td>@t.Subject</td>
+                            <td>
+                                @if (Model.Count > 1)
+                                {
+                                    <form asp-action="DeleteTemplate" method="post" onsubmit="return confirm('Видалити шаблон?')">
+                                        <input type="hidden" name="id" value="@t.Id" />
+                                        <button type="submit">Видалити</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>

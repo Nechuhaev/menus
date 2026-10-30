@@ -1,0 +1,38 @@
+@model Menus.Web.Services.OutreachTemplate
+
+@{
+    ViewData["Title"] = Model.Id == 0 ? "Новий шаблон" : "Шаблон: " + Model.Name;
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .template-form input[type=text] { width: 100%; box-sizing: border-box; padding: 4px 6px; }
+    .template-form textarea { width: 100%; min-height: 360px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
+</style>
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center template-form">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-action="Index">Розсилка</a></li>
+                    <li><a asp-action="Templates">Шаблони</a></li>
+                    <li>@ViewData["Title"]</li>
+                </ul>
+            </div>
+
+            <form asp-action="EditTemplate" method="post">
+                @if (Model.Id != 0)
+                {
+                    <input type="hidden" name="id" value="@Model.Id" />
+                }
+                <p><label>Назва (бачите лише ви)<br /><input type="text" name="name" value="@Model.Name" required /></label></p>
+                <p><label>Тема листа<br /><input type="text" name="subject" value="@Model.Subject" /></label></p>
+                <p><label>Текст<br /><textarea name="body">@Model.Body</textarea></label></p>
+                <p><small>Підстановки: @string.Join(" ", OutreachService.Placeholders). Текст лише українською.</small></p>
+                <button type="submit">Зберегти</button>
+            </form>
+        </div>
+    </main>
+</div>

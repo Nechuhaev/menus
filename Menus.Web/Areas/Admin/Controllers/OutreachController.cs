@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Menus.Abstract.Models;
 using Menus.Domain;
 using Menus.Web.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -9,8 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Menus.Web.Areas.Admin.Controllers
 {
-    // Розсилка власникам ресторанів: шаблон листа, список закладів з контактами, відправка email,
-    // Telegram/Instagram - текст для ручного надсилання
+    // Розсилка власникам ресторанів: список закладів (сторінками), картка закладу (контакти, відправка, історія),
+    // шаблони листів з назвами
     [Area("Admin")]
     [Authorize(Roles = "admin")]
     public class OutreachController : Controller
@@ -24,73 +25,158 @@ namespace Menus.Web.Areas.Admin.Controllers
             _outreach = outreach;
         }
 
-        public async Task<IActionResult> Index(string cityId, string preview)
+        // filter: contacts - є контакти (за замовчуванням), new - є контакти й ще не писали, sent - уже писали, all - усі
+        public async Task<IActionResult> Index(string q, string cityId, string filter = "contacts", int page = 1)
         {
             var cities = (await _core.Restaurants.GetCities()).ToList();
-            var recipients = await _outreach.GetRecipients();
-            if (!string.IsNullOrEmpty(cityId)) recipients = recipients.Where(x => x.City == cityId).ToList();
-            var template = await _outreach.GetTemplate();
+            IEnumerable<OutreachRecipient> list = await _outreach.GetRestaurants();
+            if (!string.IsNullOrWhiteSpace(q)) list = list.Where(x => (x.Name ?? "").IndexOf(q.Trim(), StringComparison.OrdinalIgnoreCase) >= 0);
+            if (!string.IsNullOrEmpty(cityId)) list = list.Where(x => x.City == cityId);
+            switch (filter)
+            {
+                case "new": list = list.Where(x => x.Contacts.Any() && x.LastSent == null); break;
+                case "sent": list = list.Where(x => x.LastSent != null); break;
+                case "all": break;
+                default: list = list.Where(x => x.Contacts.Any()); break;
+            }
+            var filtered = list.ToList();
+            var pages = Math.Max(1, (filtered.Count + OutreachService.PageSize - 1) / OutreachService.PageSize);
+            page = Math.Min(Math.Max(1, page), pages);
 
-            // текст для кожного закладу: перегляд листа, копіювання для Telegram/Instagram
-            var texts = recipients.ToDictionary(x => x.Id, x => Render(template, x, cities, null));
             ViewData["cities"] = cities;
+            ViewData["q"] = q;
             ViewData["cityId"] = cityId;
-            ViewData["template"] = template;
-            ViewData["texts"] = texts;
+            ViewData["filter"] = filter;
+            ViewData["page"] = page;
+            ViewData["pages"] = pages;
+            ViewData["total"] = filtered.Count;
+            ViewData["templates"] = await _outreach.GetTemplates();
             ViewData["optOuts"] = await _outreach.GetOptOuts();
-            ViewData["preview"] = recipients.FirstOrDefault(x => x.Id == preview) ?? recipients.FirstOrDefault();
-            return View(recipients);
+            return View(filtered.Skip((page - 1) * OutreachService.PageSize).Take(OutreachService.PageSize).ToList());
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SaveTemplate(string subject, string body, string cityId)
+        public async Task<IActionResult> Restaurant(string id, int? templateId)
         {
-            await _outreach.SaveTemplate(subject, body);
-            TempData["message"] = "Шаблон збережено";
-            return RedirectToAction("Index", new { cityId });
+            var r = await _outreach.GetRestaurant(id);
+            if (r == null) return NotFound();
+            var cities = (await _core.Restaurants.GetCities()).ToList();
+            var template = await _outreach.GetTemplate(templateId);
+            ViewData["templates"] = await _outreach.GetTemplates();
+            ViewData["template"] = template;
+            ViewData["text"] = Render(template, r, cities, null);
+            ViewData["cityName"] = cities.FirstOrDefault(x => x.Id == r.City)?.Name.Get("uk");
+            ViewData["optOuts"] = await _outreach.GetOptOuts();
+            return View(r);
         }
 
-        // emails - значення «restaurantId|email» з галочок у таблиці
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Send(List<string> emails, string cityId)
+        public async Task<IActionResult> SendEmail(string id, int templateId, string email)
+        {
+            var r = await _outreach.GetRestaurant(id);
+            if (r == null || !r.Emails.Contains(email)) return NotFound();
+            var cities = (await _core.Restaurants.GetCities()).ToList();
+            var token = Guid.NewGuid().ToString("N");
+            var (subject, body) = Render(await _outreach.GetTemplate(templateId), r, cities, UnsubscribeUrl(token));
+            var error = await _outreach.SendEmailNow(id, templateId, email, subject, body, token);
+            TempData["message"] = error == null ? $"Лист надіслано: {email}" : $"Не надіслано ({email}): {error}";
+            return RedirectToAction("Restaurant", new { id, templateId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Manual(string id, int templateId, string channel, string recipient)
+        {
+            var r = await _outreach.GetRestaurant(id);
+            if (r == null || !r.Values(channel).Contains(recipient)) return NotFound();
+            var cities = (await _core.Restaurants.GetCities()).ToList();
+            await _outreach.MarkManual(id, templateId, channel, recipient, Render(await _outreach.GetTemplate(templateId), r, cities, null).Body);
+            TempData["message"] = $"Позначено надісланим: {recipient}";
+            return RedirectToAction("Restaurant", new { id, templateId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddContact(string id, string kind, string value, int? templateId)
+        {
+            var error = await _outreach.AddContact(id, kind, value);
+            TempData["message"] = error ?? "Контакт додано";
+            return RedirectToAction("Restaurant", new { id, templateId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateContact(string id, int contactId, string value, int? templateId)
+        {
+            var error = await _outreach.UpdateContact(id, contactId, value);
+            TempData["message"] = error ?? "Контакт змінено";
+            return RedirectToAction("Restaurant", new { id, templateId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteContact(string id, int contactId, int? templateId)
+        {
+            await _outreach.HideContact(id, contactId);
+            TempData["message"] = "Контакт видалено";
+            return RedirectToAction("Restaurant", new { id, templateId });
+        }
+
+        // Масово зі списку: emails - значення «restaurantId|email» з галочок
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Send(List<string> emails, int templateId, string q, string cityId, string filter, int page = 1)
         {
             var cities = (await _core.Restaurants.GetCities()).ToList();
-            var recipients = (await _outreach.GetRecipients()).ToDictionary(x => x.Id);
-            var template = await _outreach.GetTemplate();
+            var restaurants = (await _outreach.GetRestaurants()).ToDictionary(x => x.Id);
+            var template = await _outreach.GetTemplate(templateId);
             var letters = new List<(OutreachRecipient, string, string, string, string)>();
             foreach (var pair in emails ?? new List<string>())
             {
                 var parts = pair.Split('|');
-                if (parts.Length != 2 || !recipients.TryGetValue(parts[0], out var r) || !r.Emails.Contains(parts[1])) continue;
+                if (parts.Length != 2 || !restaurants.TryGetValue(parts[0], out var r) || !r.Emails.Contains(parts[1])) continue;
                 var token = Guid.NewGuid().ToString("N");
-                var (subject, body) = Render(template, r, cities, Url.Action("Unsubscribe", "Outreach",
-                    new { area = "", culture = "uk", id = token }, Request.Scheme));
+                var (subject, body) = Render(template, r, cities, UnsubscribeUrl(token));
                 letters.Add((r, parts[1], subject, body, token));
             }
-            var queued = await _outreach.QueueEmails(letters);
-            TempData["message"] = $"У черзі листів: {queued} (по одному на {OutreachService.IntervalSeconds} с). " +
+            var queued = await _outreach.QueueEmails(letters, template.Id);
+            TempData["message"] = $"«{template.Name}»: у черзі листів {queued} (по одному на {OutreachService.IntervalSeconds} с). " +
                                   $"Пропущено (вже надіслано чи відписались): {letters.Count - queued}";
-            return RedirectToAction("Index", new { cityId });
+            return RedirectToAction("Index", new { q, cityId, filter, page });
+        }
+
+        public async Task<IActionResult> Templates() => View(await _outreach.GetTemplates());
+
+        [HttpGet]
+        public async Task<IActionResult> EditTemplate(int? id)
+        {
+            var template = id == null ? new OutreachTemplate { Name = "", Subject = "", Body = "" } : (await _outreach.GetTemplates()).FirstOrDefault(x => x.Id == id);
+            if (template == null) return NotFound();
+            return View(template);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Manual(string restaurantId, string channel, string recipient, string cityId)
+        public async Task<IActionResult> EditTemplate(int? id, string name, string subject, string body)
         {
-            var cities = (await _core.Restaurants.GetCities()).ToList();
-            var r = (await _outreach.GetRecipients()).FirstOrDefault(x => x.Id == restaurantId);
-            if (r != null && (channel == "telegram" || channel == "instagram"))
-            {
-                await _outreach.MarkManual(restaurantId, channel, recipient, Render(await _outreach.GetTemplate(), r, cities, null).Body);
-                TempData["message"] = $"Позначено: {r.Name} - {recipient}";
-            }
-            return RedirectToAction("Index", new { cityId });
+            await _outreach.SaveTemplate(id, name, subject, body);
+            TempData["message"] = "Шаблон збережено";
+            return RedirectToAction("Templates");
         }
 
-        private (string Subject, string Body) Render(OutreachTemplate template, OutreachRecipient r,
-            List<Menus.Abstract.Models.ICity> cities, string unsubscribeUrl)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteTemplate(int id)
+        {
+            await _outreach.DeleteTemplate(id);
+            TempData["message"] = "Шаблон видалено";
+            return RedirectToAction("Templates");
+        }
+
+        private string UnsubscribeUrl(string token) =>
+            Url.Action("Unsubscribe", "Outreach", new { area = "", culture = "uk", id = token }, Request.Scheme);
+
+        private (string Subject, string Body) Render(OutreachTemplate template, OutreachRecipient r, List<ICity> cities, string unsubscribeUrl)
         {
             var city = cities.FirstOrDefault(x => x.Id == r.City);
             return OutreachService.Render(template, r, city?.Name.Get("uk") ?? "", city?.Name.Get("en")?.ToLower() ?? "kyiv",

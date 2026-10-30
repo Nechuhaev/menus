@@ -1,34 +1,28 @@
 @model List<Menus.Web.Services.OutreachRecipient>
-@using Menus.Web.Services
 
 @{
     ViewData["Title"] = "Розсилка";
     Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
     var cities = ViewData["cities"] as List<Menus.Abstract.Models.ICity>;
-    var cityId = ViewData["cityId"] as string;
-    var template = ViewData["template"] as OutreachTemplate;
-    var texts = ViewData["texts"] as Dictionary<string, (string Subject, string Body)>;
+    var templates = ViewData["templates"] as List<OutreachTemplate>;
     var optOuts = ViewData["optOuts"] as HashSet<string>;
-    var preview = ViewData["preview"] as OutreachRecipient;
-    string Status(OutreachRecipient r, string recipient)
-    {
-        var last = r.Log.LastOrDefault(x => string.Equals(x.Recipient, recipient, System.StringComparison.OrdinalIgnoreCase));
-        if (optOuts.Contains(recipient)) { return "відписався"; }
-        if (last == null) { return ""; }
-        var title = last.Status == "sent" || last.Status == "manual" ? "надіслано" : last.Status == "queued" ? "у черзі" : last.Status == "failed" ? "помилка" : last.Status;
-        return $"{title} {(last.SentAt ?? last.CreatedAt):dd.MM}";
-    }
+    var q = ViewData["q"] as string;
+    var cityId = ViewData["cityId"] as string;
+    var filter = ViewData["filter"] as string;
+    var currentPage = (int)ViewData["page"];
+    var pages = (int)ViewData["pages"];
+    var cityNames = cities.ToDictionary(x => x.Id, x => x.Name.Get("uk"));
+    var filters = new[] { ("contacts", "З контактами"), ("new", "Ще не писали"), ("sent", "Уже писали"), ("all", "Усі ресторани") };
 }
 
 <style>
-    .outreach textarea { width: 100%; min-height: 320px; font-family: inherit; font-size: 14px; box-sizing: border-box; }
-    .outreach input[type=text] { width: 100%; box-sizing: border-box; padding: 4px 6px; }
-    .outreach .preview { white-space: pre-wrap; background: #f6f6f6; padding: 12px; border: 1px solid #ddd; }
-    .outreach .cols { display: flex; flex-wrap: wrap; gap: 24px; }
-    .outreach .cols > div { flex: 1 1 420px; min-width: 0; }
+    .outreach .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+    .outreach .filters input[type=text] { padding: 4px 6px; min-width: 220px; }
     .outreach table td { vertical-align: top; overflow-wrap: anywhere; }
-    .outreach .status { color: #777; font-size: 12px; }
-    .outreach form.inline { display: inline; }
+    .outreach .muted { color: #777; font-size: 12px; }
+    .outreach .pager { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+    .outreach .pager a, .outreach .pager span { padding: 3px 8px; border: 1px solid #ddd; }
+    .outreach .pager span { background: #eee; }
 </style>
 
 <div class="site-content">
@@ -47,114 +41,105 @@
             }
 
             <p>
-                Лист власникам ресторанів. Контакти збирає <code>content-bot/collect_contacts.py</code> (сайти й QR-меню ChoiceQR/Expirenza).
-                Email надсилаються по одному раз на @OutreachService.IntervalSeconds с, кожній адресі один раз; у листі є посилання «відписатися».
-                Telegram і Instagram бот першим не напише: відкрийте контакт, скопіюйте текст, надішліть і позначте «надіслано».
+                <a asp-action="Templates">Шаблони листів (@templates.Count)</a> ·
+                контакти збирає <code>content-bot/collect_contacts.py</code> (сайти й QR-меню), їх можна змінювати в картці ресторану.
             </p>
 
-            <div class="cols">
-                <div>
-                    <h3>Шаблон</h3>
-                    <form asp-action="SaveTemplate" method="post">
-                        <input type="hidden" name="cityId" value="@cityId" />
-                        <p><label>Тема<br /><input type="text" name="subject" value="@template.Subject" /></label></p>
-                        <p><label>Текст<br /><textarea name="body">@template.Body</textarea></label></p>
-                        <p><small>Підстановки: @string.Join(" ", OutreachService.Placeholders)</small></p>
-                        <button type="submit">Зберегти шаблон</button>
-                    </form>
-                </div>
-                <div>
-                    <h3>Перегляд</h3>
-                    @if (preview != null)
-                    {
-                        <form method="get">
-                            <input type="hidden" name="cityId" value="@cityId" />
-                            <select name="preview" onchange="this.form.submit()">
-                                @foreach (var r in Model)
-                                {
-                                    <option value="@r.Id" selected="@(r.Id == preview.Id)">@r.Name</option>
-                                }
-                            </select>
-                        </form>
-                        <p><strong>@texts[preview.Id].Subject</strong></p>
-                        <div class="preview">@texts[preview.Id].Body</div>
-                        <p><small>У листі рядок «відписатися» з посиланням додається до {Відписатися}; у тексті для Telegram/Instagram його немає.</small></p>
-                    }
-                </div>
-            </div>
-
-            <h3>Заклади з контактами (@Model.Count)</h3>
-            <form method="get">
-                <select name="cityId" onchange="this.form.submit()">
+            <form method="get" class="filters">
+                <input type="text" name="q" value="@q" placeholder="Пошук за назвою" />
+                <select name="cityId">
                     <option value="">Усі міста</option>
                     @foreach (var c in cities)
                     {
                         <option value="@c.Id" selected="@(c.Id == cityId)">@c.Name.Get("uk")</option>
                     }
                 </select>
+                <select name="filter">
+                    @foreach (var (key, title) in filters)
+                    {
+                        <option value="@key" selected="@(key == filter)">@title</option>
+                    }
+                </select>
+                <button type="submit">Показати</button>
+                <span class="muted">знайдено: @ViewData["total"]</span>
             </form>
 
-            <form asp-action="Send" method="post" id="sendForm">
+            <form asp-action="Send" method="post">
+                <input type="hidden" name="q" value="@q" />
                 <input type="hidden" name="cityId" value="@cityId" />
+                <input type="hidden" name="filter" value="@filter" />
+                <input type="hidden" name="page" value="@currentPage" />
                 <p>
-                    <label><input type="checkbox" id="toggleAll" /> вибрати всі ще не надіслані email</label>
+                    <label><input type="checkbox" id="toggleAll" /> вибрати ще не надіслані email на сторінці</label>
                     <span id="emailCount"></span>
+                    <select name="templateId">
+                        @foreach (var t in templates)
+                        {
+                            <option value="@t.Id">@t.Name</option>
+                        }
+                    </select>
                     <button type="submit" onclick="return confirm('Надіслати лист на вибрані адреси?')">Надіслати email вибраним</button>
                 </p>
+
                 <table class="mainTable">
                     <thead>
-                        <tr><th>Заклад</th><th>Страв</th><th>Email</th><th>Telegram / Instagram</th></tr>
+                        <tr><th>Ресторан</th><th>Місто</th><th>Страв</th><th>Email</th><th>Telegram / Instagram</th><th>Остання відправка</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var r in Model)
                         {
                             <tr>
-                                <td><a asp-action="Index" asp-route-cityId="@cityId" asp-route-preview="@r.Id">@r.Name</a></td>
+                                <td><a asp-action="Restaurant" asp-route-id="@r.Id">@r.Name</a></td>
+                                <td>@(cityNames.TryGetValue(r.City ?? "", out var cityName) ? cityName : "")</td>
                                 <td>@r.Dishes</td>
                                 <td>
                                     @foreach (var email in r.Emails)
                                     {
-                                        var status = Status(r, email);
+                                        var sent = r.Log.Any(x => x.Channel == "email" && x.Recipient == email && (x.Status == "sent" || x.Status == "queued"));
+                                        var optedOut = optOuts.Contains(email);
                                         <div>
                                             <label>
                                                 <input type="checkbox" class="emailBox" name="emails" value="@r.Id|@email"
-                                                       data-fresh="@(string.IsNullOrEmpty(status) ? "1" : "0")" disabled="@(status == "відписався")" />
+                                                       data-fresh="@(sent ? "0" : "1")" disabled="@optedOut" />
                                                 @email
                                             </label>
-                                            <span class="status">@status</span>
+                                            @if (optedOut) { <span class="muted">відписався</span> }
+                                            else if (sent) { <span class="muted">надіслано</span> }
                                         </div>
                                     }
                                 </td>
                                 <td>
-                                    @foreach (var (channel, value) in r.Telegram.Select(x => ("telegram", x)).Concat(r.Instagram.Select(x => ("instagram", x))))
+                                    @foreach (var value in r.Values("telegram").Concat(r.Values("instagram")))
                                     {
-                                        <div>
-                                            <a href="https://@value" target="_blank" rel="noopener">@value</a>
-                                            <button type="button" class="copyText" data-id="@r.Id">копіювати текст</button>
-                                            <button type="submit" form="manual-@r.Id-@channel-@value.GetHashCode()">надіслано</button>
-                                            <span class="status">@Status(r, value)</span>
-                                        </div>
+                                        <div><a href="https://@value" target="_blank" rel="noopener">@value</a></div>
                                     }
-                                    <textarea id="text-@r.Id" hidden>@texts[r.Id].Body</textarea>
                                 </td>
+                                <td class="muted">@(r.LastSent?.ToString("dd.MM.yyyy HH:mm"))</td>
                             </tr>
                         }
                     </tbody>
                 </table>
             </form>
 
-            @* окремі форми «надіслано вручну»: вкладені форми в HTML неможливі, кнопки посилаються на них через form="..." *@
-            @foreach (var r in Model)
+            @if (pages > 1)
             {
-                foreach (var (channel, value) in r.Telegram.Select(x => ("telegram", x)).Concat(r.Instagram.Select(x => ("instagram", x))))
-                {
-                    <form asp-action="Manual" method="post" id="manual-@r.Id-@channel-@value.GetHashCode()" class="inline">
-                        <input type="hidden" name="restaurantId" value="@r.Id" />
-                        <input type="hidden" name="channel" value="@channel" />
-                        <input type="hidden" name="recipient" value="@value" />
-                        <input type="hidden" name="cityId" value="@cityId" />
-                    </form>
-                }
+                <div class="pager">
+                    @for (var i = 1; i <= pages; i++)
+                    {
+                        if (i == currentPage)
+                        {
+                            <span>@i</span>
+                        }
+                        else if (i == 1 || i == pages || Math.Abs(i - currentPage) <= 3)
+                        {
+                            <a asp-action="Index" asp-route-q="@q" asp-route-cityId="@cityId" asp-route-filter="@filter" asp-route-page="@i">@i</a>
+                        }
+                        else if (Math.Abs(i - currentPage) == 4)
+                        {
+                            <span>…</span>
+                        }
+                    }
+                </div>
             }
         </div>
     </main>
@@ -174,11 +159,5 @@
         });
         boxes.forEach(function (b) { b.addEventListener('change', count); });
         count();
-        document.querySelectorAll('.copyText').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var text = document.getElementById('text-' + btn.dataset.id).value;
-                navigator.clipboard.writeText(text).then(function () { btn.textContent = 'скопійовано'; });
-            });
-        });
     })();
 </script>

@@ -1,0 +1,187 @@
+@model Menus.Web.Services.OutreachRecipient
+
+@{
+    ViewData["Title"] = "Розсилка: " + Model.Name;
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var templates = ViewData["templates"] as List<OutreachTemplate>;
+    var template = ViewData["template"] as OutreachTemplate;
+    var text = ((string Subject, string Body))ViewData["text"];
+    var optOuts = ViewData["optOuts"] as HashSet<string>;
+    var kinds = new Dictionary<string, string> { ["email"] = "Email", ["telegram"] = "Telegram", ["instagram"] = "Instagram", ["phone"] = "Телефон" };
+    var templateNames = templates.ToDictionary(x => x.Id, x => x.Name);
+    var statuses = new Dictionary<string, string> { ["queued"] = "у черзі", ["sent"] = "надіслано", ["failed"] = "помилка", ["skipped"] = "пропущено", ["manual"] = "надіслано вручну" };
+}
+
+<style>
+    .outreach .cols { display: flex; flex-wrap: wrap; gap: 24px; }
+    .outreach .cols > div { flex: 1 1 420px; min-width: 0; }
+    .outreach .preview { white-space: pre-wrap; background: #f6f6f6; padding: 12px; border: 1px solid #ddd; overflow-wrap: anywhere; }
+    .outreach table td { vertical-align: top; overflow-wrap: anywhere; }
+    .outreach .muted { color: #777; font-size: 12px; }
+    .outreach form.inline { display: inline; }
+    .outreach .contact { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
+    .outreach .contact input[type=text] { min-width: 200px; padding: 3px 5px; }
+    .outreach details { margin: 6px 0; }
+</style>
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center outreach">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-action="Index">Розсилка</a></li>
+                    <li>@Model.Name</li>
+                </ul>
+            </div>
+
+            @if (TempData["message"] != null)
+            {
+                <p><strong>@TempData["message"]</strong></p>
+            }
+
+            <h2>@Model.Name</h2>
+            <p class="muted">@ViewData["cityName"] · страв у меню: @Model.Dishes</p>
+
+            <div class="cols">
+                <div>
+                    <h3>Контакти</h3>
+                    @foreach (var c in Model.Contacts)
+                    {
+                        <div class="contact">
+                            <strong>@kinds[c.Kind]:</strong>
+                            @if (c.Id == 0)
+                            {
+                                <span>@c.Value</span> <span class="muted">(з картки ресторану)</span>
+                            }
+                            else
+                            {
+                                <form asp-action="UpdateContact" method="post" class="inline">
+                                    <input type="hidden" name="id" value="@Model.Id" />
+                                    <input type="hidden" name="contactId" value="@c.Id" />
+                                    <input type="hidden" name="templateId" value="@template.Id" />
+                                    <input type="text" name="value" value="@c.Value" />
+                                    <button type="submit">Зберегти</button>
+                                </form>
+                                <form asp-action="DeleteContact" method="post" class="inline" onsubmit="return confirm('Видалити контакт?')">
+                                    <input type="hidden" name="id" value="@Model.Id" />
+                                    <input type="hidden" name="contactId" value="@c.Id" />
+                                    <input type="hidden" name="templateId" value="@template.Id" />
+                                    <button type="submit">Видалити</button>
+                                </form>
+                                <span class="muted">@(c.SourceUrl == "admin" ? "додав адмін" : c.SourceUrl)</span>
+                            }
+                            @if (c.Kind != "phone")
+                            {
+                                <a href="@(c.Kind == "email" ? "mailto:" + c.Value : "https://" + c.Value)" target="_blank" rel="noopener">відкрити</a>
+                            }
+                            @if (optOuts.Contains(c.Value))
+                            {
+                                <span class="muted">відписався</span>
+                            }
+                        </div>
+                    }
+                    <form asp-action="AddContact" method="post" class="contact">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="templateId" value="@template.Id" />
+                        <select name="kind">
+                            @foreach (var k in kinds)
+                            {
+                                <option value="@k.Key">@k.Value</option>
+                            }
+                        </select>
+                        <input type="text" name="value" placeholder="адреса, @@нік або посилання" />
+                        <button type="submit">Додати</button>
+                    </form>
+                </div>
+
+                <div>
+                    <h3>Відправити</h3>
+                    <form method="get">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        Шаблон:
+                        <select name="templateId" onchange="this.form.submit()">
+                            @foreach (var t in templates)
+                            {
+                                <option value="@t.Id" selected="@(t.Id == template.Id)">@t.Name</option>
+                            }
+                        </select>
+                        <a asp-action="EditTemplate" asp-route-id="@template.Id">змінити шаблон</a>
+                    </form>
+                    <p><strong>@text.Subject</strong></p>
+                    <div class="preview" id="previewText">@text.Body</div>
+                    <p class="muted">У листі в кінці додається рядок «відписатися» з посиланням.</p>
+
+                    @foreach (var email in Model.Emails)
+                    {
+                        <form asp-action="SendEmail" method="post" class="contact" onsubmit="return confirm('Надіслати лист на @email?')">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <input type="hidden" name="templateId" value="@template.Id" />
+                            <input type="hidden" name="email" value="@email" />
+                            <button type="submit" disabled="@optOuts.Contains(email)">Надіслати на @email</button>
+                        </form>
+                    }
+                    @foreach (var channel in new[] { "telegram", "instagram" })
+                    {
+                        foreach (var value in Model.Values(channel))
+                        {
+                            <form asp-action="Manual" method="post" class="contact">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <input type="hidden" name="templateId" value="@template.Id" />
+                                <input type="hidden" name="channel" value="@channel" />
+                                <input type="hidden" name="recipient" value="@value" />
+                                <a href="https://@value" target="_blank" rel="noopener">@value</a>
+                                <button type="button" class="copyText">копіювати текст</button>
+                                <button type="submit">надіслано вручну</button>
+                            </form>
+                        }
+                    }
+                    @if (!Model.Contacts.Any())
+                    {
+                        <p>Контактів немає - додайте ліворуч.</p>
+                    }
+                </div>
+            </div>
+
+            <h3>Історія відправок (@Model.Log.Count)</h3>
+            @if (!Model.Log.Any())
+            {
+                <p class="muted">Ще нічого не надсилали.</p>
+            }
+            else
+            {
+                <table class="mainTable">
+                    <thead>
+                        <tr><th>Дата</th><th>Канал</th><th>Кому</th><th>Шаблон</th><th>Статус</th><th>Текст</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Log.OrderByDescending(x => x.CreatedAt))
+                        {
+                            <tr>
+                                <td>@((row.SentAt ?? row.CreatedAt).ToString("dd.MM.yyyy HH:mm"))</td>
+                                <td>@(kinds.TryGetValue(row.Channel, out var channelName) ? channelName : row.Channel)</td>
+                                <td>@row.Recipient</td>
+                                <td>@(row.TemplateId.HasValue && templateNames.TryGetValue(row.TemplateId.Value, out var templateName) ? templateName : "")</td>
+                                <td>@(statuses.TryGetValue(row.Status, out var statusName) ? statusName : row.Status) <span class="muted">@row.Error</span></td>
+                                <td>
+                                    <details>
+                                        <summary>@row.Subject</summary>
+                                        <div class="preview">@row.Body</div>
+                                    </details>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </main>
+</div>
+
+<script>
+    document.querySelectorAll('.copyText').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            navigator.clipboard.writeText(document.getElementById('previewText').textContent).then(function () { btn.textContent = 'скопійовано'; });
+        });
+    });
+</script>
