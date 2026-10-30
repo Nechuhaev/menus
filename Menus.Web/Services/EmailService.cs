@@ -34,8 +34,8 @@ namespace Menus.Web.Services
         {
 
             //From Address 
-            string FromAddress = "admin@tipmymenu.com";
-            string FromAdressTitle = "Tipmymenus";
+            string FromAddress = "info@tipmymenu.com"; // на неї ж приходять відповіді власників
+            string FromAdressTitle = "TipMyMenu";
             //To Address 
             string ToAddress = email;
             string ToAdressTitle = "";
