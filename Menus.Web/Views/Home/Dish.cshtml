@@ -128,6 +128,17 @@
                                 </div>
                             }
 
+                            @* сторінка «страва + місто» з цією стравою: де ще скуштувати *@
+                            @if (ViewData["dishCityPages"] is List<Menus.Web.Services.DishCityPage> dishCityPages && dishCityPages.Any())
+                            {
+                                <p class="dish-city-links">
+                                    @foreach (var dishCityPage in dishCityPages.Take(2))
+                                    {
+                                        <a href="/@culture/@restaurantCitySlug/dishes/@dishCityPage.Slug">@string.Format(Localizer["DishCityLink"].Value, dishCityPage.GetTitle(culture), dishCityPage.Venues)</a><br />
+                                    }
+                                </p>
+                            }
+
                             @{
                                 var numberOfPhotos = Model.Photos.Count() < 4 ? Model.Photos.Count() : 4;
                                 var additionalClass = numberOfPhotos == 0 ? "article_photos_one" : "";

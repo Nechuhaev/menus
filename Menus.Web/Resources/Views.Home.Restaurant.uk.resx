@@ -390,4 +390,7 @@
   <data name="MenuVerified" xml:space="preserve">
     <value>Ціни звірено з меню закладу {0}</value>
   </data>
+  <data name="DishCityHeader" xml:space="preserve">
+    <value>Ці страви в інших закладах міста</value>
+  </data>
 </root>

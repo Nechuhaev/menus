@@ -312,6 +312,9 @@ namespace Menus.Web.Controllers
             // порожній заклад (мало страв і без опису) - noindex, список з content-bot/thin_pages.py
             if (await NoindexService.IsNoindex(restaurant.Id)) ViewData["Robots"] = "NOINDEX,FOLLOW";
             ViewData["menuVerifiedAt"] = await MenuVerified.Get(restaurant.Id);
+            // посилання на сторінки «страва + місто» зі стравами цього закладу
+            ViewData["dishCityPages"] = await DishCityPages.GetPagesWithDishes(restaurant.City,
+                menu.Categories.SelectMany(c => c.Dishes ?? new List<IDishWithSeoAndRatings>()).Select(d => d.Id));
 
             return View(data);
         }
@@ -522,11 +525,13 @@ namespace Menus.Web.Controllers
 
             // тонкий напій (без опису й фото, без кліків у Search Console) - noindex
             if (await NoindexService.IsNoindex(dish.Id)) ViewData["Robots"] = "NOINDEX,FOLLOW";
+            ViewData["dishCityPages"] = await DishCityPages.GetPagesWithDishes(restaurant.City, new[] { dish.Id });
 
             return page == 0 ? View(dish) : View("_DishRatingsAjax", dish);
         }
 
         private SeoNoindexService NoindexService => (SeoNoindexService)HttpContext.RequestServices.GetService(typeof(SeoNoindexService));
+        private DishCityPageService DishCityPages => (DishCityPageService)HttpContext.RequestServices.GetService(typeof(DishCityPageService));
         private MenuVerifiedService MenuVerified => (MenuVerifiedService)HttpContext.RequestServices.GetService(typeof(MenuVerifiedService));
         private DeletedRestaurantRedirectService DeletedRedirects => (DeletedRestaurantRedirectService)HttpContext.RequestServices.GetService(typeof(DeletedRestaurantRedirectService));
 

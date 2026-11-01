@@ -183,6 +183,7 @@
 
         .restaurant-faq details { border-bottom: 1px solid #e5e5e5; padding: 10px 0; }
         .menu-verified { margin: 0 0 10px; font-size: 13px; color: #777; }
+        .restaurant-dish-city ul { list-style: none; padding: 0; margin: 8px 0 16px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
         .restaurant-faq summary { cursor: pointer; font-weight: 600; }
         .restaurant-faq details p { margin: 8px 0 0; }
     </style>
@@ -885,6 +886,21 @@
                         </div>
                     }
 
+
+                    @* сторінки «страва + місто» зі стравами закладу: внутрішні посилання на них *@
+                    @if (ViewData["dishCityPages"] is List<Menus.Web.Services.DishCityPage> dishCityPages && dishCityPages.Any())
+                    {
+                        var dishCitySlug = restaurantCity.Name.Get("en").ToLower();
+                        <div class="restaurant-dish-city">
+                            <h2>@Localizer["DishCityHeader"]</h2>
+                            <ul>
+                                @foreach (var dishCityPage in dishCityPages.Take(8))
+                                {
+                                    <li><a href="/@culture/@dishCitySlug/dishes/@dishCityPage.Slug">@dishCityPage.GetTitle(culture)</a> (@dishCityPage.Venues)</li>
+                                }
+                            </ul>
+                        </div>
+                    }
 
                     @if (faq.Any())
                     {

@@ -152,6 +152,44 @@ namespace Menus.Web.Services
                 new { id, text = clean.Count == 0 ? null : JsonConvert.SerializeObject(clean) });
         }
 
+        // Опубліковані сторінки «страва + місто», де є ця страва, - для посилань зі сторінок страви й ресторану
+        // (без внутрішніх посилань нові сторінки Google знаходить лише в sitemap). Місто кешується на 10 хвилин
+        private static readonly Dictionary<string, (DateTime At, Dictionary<string, List<DishCityPage>> ByDish)> _byDish =
+            new Dictionary<string, (DateTime, Dictionary<string, List<DishCityPage>>)>();
+
+        public async Task<List<DishCityPage>> GetPagesWithDishes(string cityId, IEnumerable<string> dishIds)
+        {
+            if (string.IsNullOrEmpty(cityId)) return new List<DishCityPage>();
+            Dictionary<string, List<DishCityPage>> byDish;
+            lock (_byDish)
+            {
+                byDish = _byDish.TryGetValue(cityId, out var cached) && DateTime.UtcNow - cached.At < TimeSpan.FromMinutes(10) ? cached.ByDish : null;
+            }
+            if (byDish == null)
+            {
+                await EnsureTable();
+                byDish = new Dictionary<string, List<DishCityPage>>(StringComparer.OrdinalIgnoreCase);
+                var pages = await _connection.QueryAsync<DishCityPage>(
+                    $"SELECT {Columns}, DishIds FROM DishCityPages WHERE CityId = @cityId AND Enabled = 1 AND Venues >= @MinVenues",
+                    new { cityId, MinVenues });
+                foreach (var page in pages)
+                {
+                    List<string> ids;
+                    try { ids = JsonConvert.DeserializeObject<List<string>>(page.DishIds ?? "[]") ?? new List<string>(); }
+                    catch (JsonException) { continue; }
+                    page.DishIds = null; // список страв великий, у кеші він не потрібен
+                    foreach (var id in ids)
+                    {
+                        if (!byDish.TryGetValue(id, out var list)) byDish[id] = list = new List<DishCityPage>();
+                        list.Add(page);
+                    }
+                }
+                lock (_byDish) _byDish[cityId] = (DateTime.UtcNow, byDish);
+            }
+            return dishIds.Where(x => x != null && byDish.ContainsKey(x)).SelectMany(x => byDish[x])
+                .GroupBy(x => x.Id).Select(g => g.First()).OrderByDescending(x => x.Venues).ToList();
+        }
+
         // Міста з опублікованими сторінками - для футера на кожній сторінці, тому кешується на 10 хвилин
         private static List<string> _citiesWithPages;
         private static DateTime _citiesWithPagesAt;
