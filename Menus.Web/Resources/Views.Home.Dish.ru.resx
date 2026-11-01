@@ -246,4 +246,7 @@
   <data name="AddPhoto" xml:space="preserve">
     <value>Добавить фото</value>
   </data>
+  <data name="DishCityLink" xml:space="preserve">
+    <value>{0} в городе — все заведения ({1})</value>
+  </data>
 </root>
