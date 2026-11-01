@@ -190,6 +190,7 @@ namespace Menus.Web.Areas.Admin.Controllers
         {
             ViewData["telegramConfigured"] = _telegram.IsConfigured;
             ViewData["telegramBot"] = _telegram.BotName;
+            ViewData["webhookInfo"] = await _telegram.GetWebhookInfo();
             return View(await _outreach.GetTemplates());
         }
 
