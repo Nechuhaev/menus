@@ -26,6 +26,18 @@
             <h3>Telegram-бот @@@ViewData["telegramBot"]</h3>
             @if ((bool)ViewData["telegramConfigured"])
             {
+                var info = ViewData["webhookInfo"] as Newtonsoft.Json.Linq.JObject;
+                <table class="mainTable" style="max-width:900px">
+                    <tr><td>Адреса вебхука (Telegram)</td><td>@(info?.Value<string>("url") is string url && url.Length > 0 ? url : "не підключено")</td></tr>
+                    <tr><td>Повідомлень у черзі Telegram</td><td>@(info?.Value<int?>("pending_update_count"))</td></tr>
+                    <tr><td>Остання помилка доставки (Telegram)</td><td>@(info?.Value<string>("last_error_message") ?? "немає")
+                        @if (info?.Value<long?>("last_error_date") is long errorDate)
+                        {
+                            <span class="muted">(@DateTimeOffset.FromUnixTimeSeconds(errorDate).ToLocalTime().ToString("dd.MM HH:mm"))</span>
+                        }
+                    </td></tr>
+                    <tr><td>Останній запит на сайт</td><td>@(TelegramOwnersService.LastWebhookAt?.ToString("dd.MM HH:mm:ss") ?? "з моменту запуску сайту не було") @TelegramOwnersService.LastWebhookResult</td></tr>
+                </table>
                 <form asp-action="SetTelegramWebhook" method="post">
                     <p class="muted">Один раз після додавання токена (і після зміни токена): Telegram почне пересилати повідомлення боту на сайт.</p>
                     <button type="submit">Підключити вебхук бота</button>

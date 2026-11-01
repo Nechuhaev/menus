@@ -33,6 +33,10 @@ namespace Menus.Web.Services
     {
         private static readonly HttpClient Http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
 
+        // Останній запит Telegram на вебхук (до перезапуску сайту) - діагностика на сторінці шаблонів
+        public static DateTime? LastWebhookAt;
+        public static string LastWebhookResult;
+
         private const string CreateTableSql = @"
             CREATE TABLE IF NOT EXISTS OutreachTelegramLinks (
                 RestaurantId VARCHAR(255) NOT NULL,
@@ -130,6 +134,21 @@ namespace Menus.Web.Services
             return await Call("sendMessage", new { chat_id = chatId, text, disable_web_page_preview = true });
         }
 
+        // Стан вебхука з боку Telegram: адреса, запити в черзі, остання помилка доставки
+        public async Task<JObject> GetWebhookInfo()
+        {
+            if (!IsConfigured) return null;
+            try
+            {
+                var body = JObject.Parse(await Http.GetStringAsync($"https://api.telegram.org/bot{_token}/getWebhookInfo"));
+                return body["result"] as JObject;
+            }
+            catch (Exception ex)
+            {
+                return new JObject { ["last_error_message"] = "getWebhookInfo: " + ex.Message };
+            }
+        }
+
         public async Task<string> SetWebhook(string url) =>
             await Call("setWebhook", new { url, secret_token = WebhookSecret, allowed_updates = new[] { "message" }, drop_pending_updates = true });
 
@@ -152,11 +171,12 @@ namespace Menus.Web.Services
         // --- вебхук ---
 
         // Повідомлення боту: /start <код> - підключення до ресторану; інше - відповідь власника в історію розсилки
-        public async Task HandleUpdate(JObject update, OutreachService outreach)
+        // Повертає помилку відповіді бота (null - відповів або відповідати не треба)
+        public async Task<string> HandleUpdate(JObject update, OutreachService outreach)
         {
             var message = update["message"] as JObject;
             var chatId = message?["chat"]?.Value<long?>("id");
-            if (message == null || chatId == null || message["chat"]?.Value<string>("type") != "private") return;
+            if (message == null || chatId == null || message["chat"]?.Value<string>("type") != "private") return null;
             var from = message["from"] as JObject;
             var username = from?.Value<string>("username");
             var firstName = from?.Value<string>("first_name");
@@ -170,23 +190,23 @@ namespace Menus.Web.Services
                     "SELECT Name FROM Restaurants WHERE Id = @restaurantId", new { restaurantId });
                 if (name == null)
                 {
-                    await SendMessage(chatId.Value, "Вітаємо! Це бот TipMyMenu для власників закладів. Щоб підключитися, відкрийте персональне посилання з нашого листа.");
-                    return;
+                    return await SendMessage(chatId.Value, "Вітаємо! Це бот TipMyMenu для власників закладів. Щоб підключитися, відкрийте персональне посилання з нашого листа.");
                 }
                 await _connection.ExecuteAsync(@"INSERT INTO OutreachTelegramLinks (RestaurantId, ChatId, Username, FirstName, LinkedAt)
                     VALUES (@restaurantId, @chatId, @username, @firstName, NOW())
                     ON DUPLICATE KEY UPDATE Username = VALUES(Username), FirstName = VALUES(FirstName)",
                     new { restaurantId, chatId, username, firstName });
                 await outreach.LogTelegram(restaurantId, Title(chatId.Value, username, firstName), "підключився до бота", "received");
-                await SendMessage(chatId.Value, $"Дякуємо! Telegram підключено до «{name}» на TipMyMenu. Сюди ми напишемо щодо меню закладу, а ви можете відповідати прямо тут.");
-                return;
+                return await SendMessage(chatId.Value, $"Дякуємо! Telegram підключено до «{name}» на TipMyMenu. Сюди ми напишемо щодо меню закладу, а ви можете відповідати прямо тут.");
             }
 
             var restaurants = (await _connection.QueryAsync<string>(
                 "SELECT CONCAT(RestaurantId, '') FROM OutreachTelegramLinks WHERE ChatId = @chatId", new { chatId })).ToList();
             foreach (var restaurantId in restaurants)
                 await outreach.LogTelegram(restaurantId, Title(chatId.Value, username, firstName), text, "received");
-            if (restaurants.Any()) await SendMessage(chatId.Value, "Дякуємо, повідомлення отримали - відповімо найближчим часом.");
+            return restaurants.Any()
+                ? await SendMessage(chatId.Value, "Дякуємо, повідомлення отримали - відповімо найближчим часом.")
+                : await SendMessage(chatId.Value, "Щоб підключитися, відкрийте персональне посилання з листа TipMyMenu.");
         }
 
         private static string Title(long chatId, string username, string firstName) =>

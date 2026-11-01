@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using Menus.Web.Services;
@@ -23,22 +24,28 @@ namespace Menus.Web.Controllers
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> Webhook()
         {
+            TelegramOwnersService.LastWebhookAt = DateTime.UtcNow;
             if (!_telegram.IsConfigured || Request.Headers["X-Telegram-Bot-Api-Secret-Token"] != _telegram.WebhookSecret)
-                return Unauthorized();
-            string json;
-            using (var reader = new StreamReader(Request.Body))
             {
-                json = await reader.ReadToEndAsync();
+                TelegramOwnersService.LastWebhookResult = "відхилено: не збігся секретний заголовок (натисніть «Підключити вебхук бота» ще раз)";
+                return Unauthorized();
             }
             try
             {
-                await _telegram.HandleUpdate(JObject.Parse(json), _outreach);
+                string json;
+                using (var reader = new StreamReader(Request.Body))
+                {
+                    json = await reader.ReadToEndAsync();
+                }
+                var replyError = await _telegram.HandleUpdate(JObject.Parse(json), _outreach);
+                TelegramOwnersService.LastWebhookResult = replyError == null ? "оброблено" : "оброблено, але бот не відповів: " + replyError;
             }
-            catch (Newtonsoft.Json.JsonException)
+            catch (Exception ex)
             {
-                return BadRequest();
+                // 200 і при помилці: інакше Telegram повторюватиме те саме оновлення без кінця
+                TelegramOwnersService.LastWebhookResult = "помилка: " + ex.Message;
+                Console.WriteLine($"TelegramOwners webhook FAILED: {ex}");
             }
-            // 200 навіть якщо оновлення не стосується нас: інакше Telegram повторюватиме його
             return Ok();
         }
     }
