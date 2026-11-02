@@ -2,3 +2,4 @@ User-agent: *
 Disallow:
 
 Sitemap: https://tipmymenu.com/sitemap.xml
+Sitemap: https://tipmymenu.com/sitemap-recrawl.xml
