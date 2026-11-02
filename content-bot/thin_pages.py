@@ -10,14 +10,18 @@
 Правило оновлюється само (cron щоночі з --save): як тільки в напою з'явиться опис чи фото, сторінка
 повертається в індекс.
 
---gsc Pages.csv - експорт Search Console («Сторінки»: адреса, кліки, покази): кліки й покази за видами
+Кліки сторінок береться з API Search Console (gsc.py, за 90 днів), якщо є ключ сервісного акаунта;
+без ключа чи при помилці API - з останнього збереженого списку SeoKeepIndexed.
+
+--gsc Pages.csv - експорт Search Console (замість API) («Сторінки»: адреса, кліки, покази): кліки й покази за видами
 сторінок і адреси з кліками, яких немає серед активних страв (з кодом відповіді сайту).
 Сторінка страви - /{мова}/{місто}/restaurant/{ресторан}/{страва}.
 
 Запуск:  python3 thin_pages.py                          # цифри по містах і приклади адрес
-         python3 thin_pages.py --gsc Pages.csv          # + трафік з Search Console
+         python3 thin_pages.py --report                 # + трафік з Search Console (API)
+         python3 thin_pages.py --gsc Pages.csv          # + трафік з експорту CSV
          python3 thin_pages.py --gsc Pages.csv --save   # + оновити список сторінок з кліками і SeoNoindex
-         python3 thin_pages.py --save                   # оновити SeoNoindex (cron щоночі)
+         python3 thin_pages.py --save                   # оновити SeoNoindex і кліки з API (cron щоночі)
 """
 import argparse
 import csv
@@ -29,11 +33,13 @@ from urllib.parse import unquote, urlparse
 
 import requests
 
+import gsc
 from dish_city_candidates import DRINK_CATEGORY
 from sync_restaurants import KEEP_INDEXED_TABLE_SQL, get_db, get_localizable_value
 
 MIN_DISHES = 5
 EXAMPLES = 10
+KEEP_DAYS = 90  # сторінка з кліком за 3 місяці лишається в індексі
 MISSING_SHOWN = 20
 
 NOINDEX_TABLE_SQL = """CREATE TABLE IF NOT EXISTS SeoNoindex (
@@ -155,10 +161,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=MIN_DISHES, help="мінімум активних страв для ресторану")
     parser.add_argument("--gsc", metavar="CSV", help="експорт Search Console «Сторінки» (адреса, кліки, покази)")
+    parser.add_argument("--report", action="store_true", help="звіт Search Console за видами сторінок (дані з API)")
     parser.add_argument("--save", action="store_true", help="записати список noindex (і сторінки з кліками з --gsc)")
     args = parser.parse_args()
 
     gsc_rows = read_gsc(args.gsc) if args.gsc else None
+    if gsc_rows is None and gsc.available():
+        try:
+            gsc_rows = [(url, clicks, impressions) for url, clicks, impressions, _ in gsc.pages(days=KEEP_DAYS)]
+            print(f"Search Console API: {len(gsc_rows)} сторінок за {KEEP_DAYS} днів")
+        except Exception as e:
+            # нічний cron не падає: лишається попередній список сторінок з кліками
+            print(f"Search Console API недоступний ({e}) - сторінки з кліками з SeoKeepIndexed")
     db = get_db()
     cur = db.cursor(dictionary=True)
     cur.execute(KEEP_INDEXED_TABLE_SQL)
@@ -227,7 +241,7 @@ def main():
                 restaurant_examples.append(f"{row['Url']}  ({row['Name']}, страв: {row['DishCount']})")
 
     all_dishes = {}
-    if gsc_rows is not None:
+    if gsc_rows is not None and (args.gsc or args.report):
         # усі страви (і приховані) - чому адреси з кліками немає серед активних
         cur.execute("""SELECT LOWER(rs.Url) AS RestaurantUrl, LOWER(ds.Url) AS Url, d.Status, r.Status AS RestaurantStatus
                        FROM DishSeo ds JOIN Dishes d ON d.Id = ds.ItemId JOIN Restaurants r ON r.Id = d.RestaurantId
@@ -256,7 +270,8 @@ def main():
     for line in restaurant_examples:
         print(f"  {line}")
 
-    if gsc_rows is not None:
+    # звіт про трафік (з перевіркою адрес на сайті) - лише на запит, не в нічному cron
+    if gsc_rows is not None and (args.gsc or args.report):
         gsc_report(gsc_rows, page_kind, all_dishes)
     if args.save:
         save(db, noindex, gsc_rows)

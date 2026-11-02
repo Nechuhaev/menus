@@ -13,19 +13,13 @@
          python3 popular_restaurants.py             # записати (cron раз на тиждень)
 """
 import argparse
-import os
 import re
 from collections import defaultdict
-from datetime import date, timedelta
-from urllib.parse import quote, unquote, urlparse
+from urllib.parse import unquote, urlparse
 
-from google.auth.transport.requests import AuthorizedSession
-from google.oauth2 import service_account
-
+import gsc
 from sync_restaurants import get_db
 
-KEY_FILE = os.environ.get("GSC_KEY_FILE", "/root/gsc-key.json")
-SITE = os.environ.get("GSC_SITE", "https://tipmymenu.com/")
 MIN_POSITION, MAX_POSITION = 4.5, 12.5
 MIN_IMPRESSIONS = 100
 TOP_PER_CITY = 8
@@ -44,32 +38,13 @@ TABLE_SQL = """CREATE TABLE IF NOT EXISTS PopularRestaurants (
 ) DEFAULT CHARSET=utf8mb4"""
 
 
-def gsc_pages():
-    """[(адреса, кліки, покази, позиція)] за останні 28 днів (без 3 останніх - дані ще неповні)."""
-    credentials = service_account.Credentials.from_service_account_file(
-        KEY_FILE, scopes=["https://www.googleapis.com/auth/webmasters.readonly"])
-    session = AuthorizedSession(credentials)
-    url = f"https://searchconsole.googleapis.com/webmasters/v3/sites/{quote(SITE, safe='')}/searchAnalytics/query"
-    end = date.today() - timedelta(days=3)
-    rows, start_row = [], 0
-    while True:
-        resp = session.post(url, json={"startDate": str(end - timedelta(days=27)), "endDate": str(end),
-                                       "dimensions": ["page"], "rowLimit": 25000, "startRow": start_row}, timeout=60)
-        resp.raise_for_status()
-        batch = resp.json().get("rows", [])
-        rows += [(r["keys"][0], r["clicks"], r["impressions"], r["position"]) for r in batch]
-        if len(batch) < 25000:
-            return rows
-        start_row += 25000
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     stats = defaultdict(lambda: [0, 0, 0.0])  # slug -> кліки, покази, сума позиція*покази
-    for page, clicks, impressions, position in gsc_pages():
+    for page, clicks, impressions, position in gsc.pages():
         m = RESTAURANT_PAGE.match(unquote(urlparse(page).path))
         if m:
             s = stats[m.group(1).lower()]
