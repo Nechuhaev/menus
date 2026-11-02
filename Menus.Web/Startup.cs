@@ -176,7 +176,9 @@ namespace Menus.Web
                     })));
                 // 2 обробники замість 20 за замовчуванням: фонові задачі рендерять сторінки сайту й не мають
                 // забирати в нього з'єднання з базою
-                services.AddHangfireServer(options => options.WorkerCount = 2);
+                // (Hangfire 1.7.2: AddHangfireServer бере параметри з DI, перевантаження з options ще немає)
+                services.AddSingleton(new BackgroundJobServerOptions { WorkerCount = 2 });
+                services.AddHangfireServer();
 
                 Task.Run(() =>
                 {
