@@ -15,6 +15,7 @@
     var latestRestaurants = (ViewData["latestViewedRestaurants"] as List<ICompleteRestaurant>) ?? new List<ICompleteRestaurant>();
     var featuredRestaurants = (ViewData["featuredRestaurants"] as List<ICompleteRestaurant>) ?? new List<ICompleteRestaurant>();
     var nearestRestaurants = (ViewData["nearestRestaurants"] as List<ICompleteRestaurant>) ?? new List<ICompleteRestaurant>();
+    var popularRestaurants = (ViewData["popularRestaurants"] as List<ICompleteRestaurant>) ?? new List<ICompleteRestaurant>();
     var bestDishes = ViewData["bestDishes"] as List<ISearchDish>;
 
     var locales = LocaleSrvc.GetLocales();
@@ -267,6 +268,82 @@
                 </div>
             }
 
+
+            @* «Популярні заклади міста»: список з Search Console (content-bot/popular_restaurants.py) *@
+            @if (popularRestaurants.Any())
+            {
+                <div class="title_section">
+                    <h2>@string.Format(Localizer["PopularRestaurants"].Value, selectedCity?.Name.Get(culture))</h2>
+                </div>
+            }
+
+            @if (popularRestaurants.Any() && !isMobileUser)
+            {
+                <div class="restaurants-container disableOnMobile">
+                    @foreach (var restaurant in popularRestaurants)
+                    {
+                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                        <div class="restaurant">
+                            <a class="restaurant" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                @if (photos.Count > 0)
+                                {
+                                    <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Medium));"></figure>
+                                }
+                                else
+                                {
+                                    <figure class="restaurant-image"></figure>
+                                }
+                                <p class="restaurant-name">
+                                    @restaurant.Name
+                                </p>
+                                <p class="restaurant-kitchen">
+                                    @restaurant.Cuisine.Get()
+                                </p>
+                                <p class="rating-count">
+                                    @Localizer["RatingCount"]: @restaurant.RatingsCount
+                                </p>
+                            </a>
+                            @await Html.PartialAsync("_ServiceButtons")
+                        </div>
+                    }
+                </div>
+            }
+            else if (popularRestaurants.Any())
+            {
+                <!-- Swiper -->
+                <div class="swiper-area disableOnDesktop">
+                    <div class="swiper-container">
+                        <div class="swiper-wrapper">
+                            @foreach (var restaurant in popularRestaurants)
+                            {
+                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                <a class="swiper-slide" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
+                                    @if (photos.Count > 0)
+                                    {
+                                        <figure class="restaurant-image" style="background-image: url(@Img.Url(photos.FirstOrDefault(), Quality.Low));"></figure>
+                                    }
+                                    else
+                                    {
+                                        <figure class="restaurant-image"></figure>
+                                    }
+                                    <p class="restaurant-name">
+                                        @restaurant.Name
+                                    </p>
+                                    <p class="restaurant-kitchen">
+                                        @restaurant.Cuisine.Get()
+                                    </p>
+                                    <p class="rating-count">
+                                        @Localizer["RatingCount"]: @restaurant.RatingsCount
+                                    </p>
+                                    @await Html.PartialAsync("_ServiceButtons")
+                                </a>
+                            }
+                        </div>
+                        <!-- Add Pagination -->
+                        <div class="swiper-pagination"></div>
+                    </div>
+                </div>
+            }
 
             @if (featuredRestaurants.Any())
             {
