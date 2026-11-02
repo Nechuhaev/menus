@@ -37,10 +37,15 @@ GENERIC_NAMES = {
     "кондитерская", "їдальня", "столовая", "сніданки", "завтраки", "вино", "пиво", "бургер", "бургери", "бургеры",
     "cafe", "café", "bar", "pub", "pizza", "sushi", "coffee", "grill", "bistro", "wine", "beer", "food", "home",
     "kitchen", "lounge", "street", "burger", "bakery", "terrace", "breakfast", "brunch", "menu",
+    # знайдені перевіркою --dry-run: у статтях це звичайні слова, страви чи імена, а не заклади
+    "свіжість", "свежесть", "чилі", "чили", "хінкалі", "хинкали", "тарас", "gogi",
 }
 SKIP_TAGS = {"a", "h1", "h2", "h3", "h4", "h5", "h6", "script", "style"}
 TAG = re.compile(r"<(/?)([a-zA-Z0-9]+)[^>]*>")
 WORD = r"[\w'’]"
+# назва не всередині адреси сайту чи пошти: «sho.kyiv.ua», «info@sho»
+BEFORE = r"(?<![\w'’./@-])"
+AFTER = r"(?![\w'’@/-]|\.\w)"
 
 LOG_TABLE_SQL = """CREATE TABLE IF NOT EXISTS ArticleLinksLog (
     PageId VARCHAR(255) NOT NULL,
@@ -151,7 +156,7 @@ def segments(content):
 
 
 def link_first(parts, name, href, ignore_case):
-    pattern = re.compile(r"(?<!" + WORD + ")" + re.escape(html.escape(name, quote=False)) + "(?!" + WORD + ")",
+    pattern = re.compile(BEFORE + re.escape(html.escape(name, quote=False)) + AFTER,
                          re.I if ignore_case else 0)
     for i, (text, linkable) in enumerate(parts):
         if not linkable:
