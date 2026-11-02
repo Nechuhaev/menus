@@ -236,6 +236,11 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                 {
                     ctx.Request.Path = new PathString($"/robots.{env.EnvironmentName}.txt");
                 }
+                else if (ctx.Request.Path == "/sitemap-recrawl.xml")
+                {
+                    // сторінки, що повернулися на сайт після зникнення з видачі (SeoRecrawlController)
+                    ctx.Request.Path = new PathString("/uk/seorecrawl/sitemap");
+                }
 
                 await next.Invoke();
             });
