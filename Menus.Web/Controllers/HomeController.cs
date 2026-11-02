@@ -127,6 +127,11 @@ namespace Menus.Web.Controllers
             var latestViewedRestaurants = _core.Restaurants.GetCompleteRestaurants().Where(x => latestRestaurants.Contains(x.Url)).ToList();
             ViewData["latestViewedRestaurants"] = latestViewedRestaurants;
             ViewData["featuredRestaurants"] = _core.Restaurants.GetCompleteRestaurants().Where(x => x.IsFeatured && x.City == selectedCity).OrderBy(x => x.Name).Take(4).ToList();
+            // «Популярні заклади міста» (content-bot/popular_restaurants.py, Search Console), у порядку списку
+            var popularIds = await PopularRestaurants.GetIds(selectedCity);
+            ViewData["popularRestaurants"] = popularIds.Any()
+                ? _core.Restaurants.GetCompleteRestaurants().Where(x => popularIds.Contains(x.Id)).ToList().OrderBy(x => popularIds.FindIndex(id => string.Equals(id, x.Id, StringComparison.OrdinalIgnoreCase))).ToList()
+                : new List<ICompleteRestaurant>();
 
             var latestAddedRestaurants = await Task.Run(() => _core.Restaurants.GetCompleteRestaurants()
                 //.Where(x => !string.IsNullOrEmpty(x.Photos) && x.Photos.Length > 4)
@@ -531,6 +536,7 @@ namespace Menus.Web.Controllers
         }
 
         private SeoNoindexService NoindexService => (SeoNoindexService)HttpContext.RequestServices.GetService(typeof(SeoNoindexService));
+        private PopularRestaurantService PopularRestaurants => (PopularRestaurantService)HttpContext.RequestServices.GetService(typeof(PopularRestaurantService));
         private DishCityPageService DishCityPages => (DishCityPageService)HttpContext.RequestServices.GetService(typeof(DishCityPageService));
         private MenuVerifiedService MenuVerified => (MenuVerifiedService)HttpContext.RequestServices.GetService(typeof(MenuVerifiedService));
         private DeletedRestaurantRedirectService DeletedRedirects => (DeletedRestaurantRedirectService)HttpContext.RequestServices.GetService(typeof(DeletedRestaurantRedirectService));

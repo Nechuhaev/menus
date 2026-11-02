@@ -288,4 +288,7 @@
   <data name="AllDishes" xml:space="preserve">
     <value>Все блюда</value>
   </data>
+  <data name="PopularRestaurants" xml:space="preserve">
+    <value>Популярные заведения — {0}</value>
+  </data>
 </root>
