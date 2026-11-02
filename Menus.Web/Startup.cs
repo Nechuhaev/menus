@@ -174,6 +174,10 @@ namespace Menus.Web
                         TransactionTimeout = TimeSpan.FromMinutes(1),
                         TablesPrefix = "Hangfire"
                     })));
+                // 2 обробники замість 20 за замовчуванням: фонові задачі рендерять сторінки сайту й не мають
+                // забирати в нього з'єднання з базою
+                // (Hangfire 1.7.2: AddHangfireServer бере параметри з DI, перевантаження з options ще немає)
+                services.AddSingleton(new BackgroundJobServerOptions { WorkerCount = 2 });
                 services.AddHangfireServer();
 
                 Task.Run(() =>

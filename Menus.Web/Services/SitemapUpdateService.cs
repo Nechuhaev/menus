@@ -2,11 +2,15 @@
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Hangfire;
 
 namespace Menus.Web.Services
 {
     public class SitemapUpdateService
     {
+        // без автоповторів: невдала перебудова (сховище відхилило, сторінка впала) повторювалась до 10 разів
+        // і разом з новими задачами забивала з'єднання з базою; sitemap і так оновлюється щодня, iframe - при зміні
+        [AutomaticRetry(Attempts = 0)]
         public void Update(string url)
         {
             GetRequest(url).Wait();
