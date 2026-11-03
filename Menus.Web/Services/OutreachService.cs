@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -38,6 +38,17 @@ namespace Menus.Web.Services
         public string Slug { get; set; }
         public int Dishes { get; set; }
         public string Email { get; set; }
+        // посилання на меню (картка ресторану) чи сайт - щоб визначити QR-меню сервіс
+        public string MenuUrl { get; set; }
+        public string Website { get; set; }
+        // коли адмін востаннє застосував пропозиції синхронізації меню («Звіти» -> страви ресторану)
+        public DateTime? MenuAppliedAt { get; set; }
+        public string MenuPlatform =>
+            new[] { MenuUrl, Website }.Any(u => (u ?? "").IndexOf("choiceqr", StringComparison.OrdinalIgnoreCase) >= 0) ? "ChoiceQR" :
+            new[] { MenuUrl, Website }.Any(u => (u ?? "").IndexOf("expz.menu", StringComparison.OrdinalIgnoreCase) >= 0
+                                            || (u ?? "").IndexOf("expirenza", StringComparison.OrdinalIgnoreCase) >= 0) ? "Expirenza" : null;
+        // меню оновлено з ChoiceQR/Expirenza: є QR-меню сервіс і застосовані пропозиції
+        public bool MenuUpdatedFromQr => MenuPlatform != null && MenuAppliedAt != null;
         public List<OutreachContact> Contacts { get; set; } = new List<OutreachContact>();
         public List<OutreachLogRow> Log { get; set; } = new List<OutreachLogRow>();
         public IEnumerable<string> Values(string kind) => Contacts.Where(x => x.Kind == kind).Select(x => x.Value);
@@ -195,7 +206,10 @@ https://tipmymenu.com
             await Ensure();
             var restaurants = (await _connection.QueryAsync<OutreachRecipient>(@"
                 SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, r.Email,
-                       (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS Dishes
+                       (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS Dishes,
+                       (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl,
+                       (SELECT ri.Website FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS Website,
+                       (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                 WHERE r.Status = 0")).ToDictionary(x => x.Id);
             await Fill(restaurants, null);
@@ -207,7 +221,10 @@ https://tipmymenu.com
             await Ensure();
             var r = await _connection.QueryFirstOrDefaultAsync<OutreachRecipient>(@"
                 SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, r.Email,
-                       (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS Dishes
+                       (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS Dishes,
+                       (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl,
+                       (SELECT ri.Website FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS Website,
+                       (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                 WHERE r.Id = @id", new { id });
             if (r == null) return null;
