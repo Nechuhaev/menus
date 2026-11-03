@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -38,6 +38,8 @@ namespace Menus.Web.Areas.Admin.Controllers
             {
                 case "new": list = list.Where(x => x.Contacts.Any() && x.LastSent == null); break;
                 case "sent": list = list.Where(x => x.LastSent != null); break;
+                case "qr": list = list.Where(x => x.MenuUpdatedFromQr); break;
+                case "noqr": list = list.Where(x => !x.MenuUpdatedFromQr && x.Contacts.Any()); break;
                 case "all": break;
                 default: list = list.Where(x => x.Contacts.Any()); break;
             }
