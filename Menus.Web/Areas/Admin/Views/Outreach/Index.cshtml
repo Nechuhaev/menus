@@ -13,7 +13,8 @@
     var pages = (int)ViewData["pages"];
     var cityNames = cities.ToDictionary(x => x.Id, x => x.Name.Get("uk"));
     var filters = new[] { ("contacts", "З контактами"), ("new", "Ще не писали"), ("sent", "Уже писали"),
-                          ("qr", "Меню оновлено з ChoiceQR/Expirenza"), ("noqr", "З контактами, меню не з QR"), ("all", "Усі ресторани") };
+                          ("qr", "Меню оновлено з ChoiceQR/Expirenza"), ("noqr", "З контактами, меню не з QR"),
+                          ("doubt", "Перевірка: сумнівні"), ("closed", "ЗАКРИТО"), ("qrsuspended", "QR-меню призупинено"), ("all", "Усі ресторани") };
 }
 
 <style>
@@ -82,13 +83,36 @@
                 <div class="table-wrap">
                 <table class="mainTable">
                     <thead>
-                        <tr><th>Ресторан</th><th>Місто</th><th>Страв</th><th title="Меню оновлено з QR-меню сервісу: дата останньої застосованої пропозиції синхронізації">Меню з QR</th><th>Email</th><th>Telegram / Instagram</th><th>Остання відправка</th></tr>
+                        <tr><th>Ресторан</th><th title="Чи заклад працює: content-bot/check_alive.py (сайт і QR-меню) або позначка адміна">Перевірка</th><th>Місто</th><th>Страв</th><th title="Меню оновлено з QR-меню сервісу: дата останньої застосованої пропозиції синхронізації">Меню з QR</th><th>Email</th><th>Telegram / Instagram</th><th>Остання відправка</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var r in Model)
                         {
-                            <tr>
+                            <tr class="@(r.Closed ? "row-closed" : "")">
                                 <td><a asp-action="Restaurant" asp-route-id="@r.Id">@r.Name</a></td>
+                                <td>
+                                    @if (r.Closed)
+                                    {
+                                        <span class="closed-badge">ЗАКРИТО</span>
+                                    }
+                                    else if (r.QrSuspended)
+                                    {
+                                        <span class="doubt-badge">QR-меню призупинено</span>
+                                    }
+                                    else if (r.AliveStatus == "doubt")
+                                    {
+                                        <span class="doubt-badge" title="@r.AliveReason">⚠ сумнівно</span>
+                                        <div class="muted">@r.AliveReason</div>
+                                    }
+                                    else if (r.AliveStatus == "ok")
+                                    {
+                                        <span class="ok-badge">✓</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
                                 <td>@(cityNames.TryGetValue(r.City ?? "", out var cityName) ? cityName : "")</td>
                                 <td>@r.Dishes</td>
                                 <td>
@@ -114,7 +138,7 @@
                                         <div>
                                             <label>
                                                 <input type="checkbox" class="emailBox" name="emails" value="@r.Id|@email"
-                                                       data-fresh="@(sent ? "0" : "1")" disabled="@optedOut" />
+                                                       data-fresh="@(sent ? "0" : "1")" disabled="@(optedOut || r.Closed)" />
                                                 @email
                                             </label>
                                             @if (optedOut) { <span class="muted">відписався</span> }

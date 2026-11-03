@@ -43,7 +43,39 @@
                 <p><strong>@TempData["message"]</strong></p>
             }
 
-            <h2>@Model.Name</h2>
+            <h2>@Model.Name @if (Model.Closed) { <span class="closed-badge">ЗАКРИТО</span> }</h2>
+            <div class="alive-box">
+                @if (Model.Closed)
+                {
+                    <span>Розсилка цьому закладу вимкнена (@(Model.AliveReason + (Model.AliveCheckedAt != null ? ", " + Model.AliveCheckedAt.Value.ToString("dd.MM.yyyy") : ""))).</span>
+                }
+                else if (Model.QrSuspended)
+                {
+                    <span class="doubt-badge">QR-меню призупинено</span> <span class="muted">@Model.AliveReason</span>
+                }
+                else if (Model.AliveStatus == "doubt")
+                {
+                    <span class="doubt-badge">⚠ сумнівно</span> <span class="muted">@Model.AliveReason</span>
+                }
+                else if (Model.AliveStatus == "ok")
+                {
+                    <span class="ok-badge">✓ працює</span> <span class="muted">@Model.AliveReason</span>
+                }
+                <form asp-action="SetClosed" method="post" class="inline">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <input type="hidden" name="templateId" value="@template.Id" />
+                    @if (Model.Closed)
+                    {
+                        <input type="hidden" name="closed" value="false" />
+                        <button type="submit">Заклад працює - зняти позначку</button>
+                    }
+                    else
+                    {
+                        <input type="hidden" name="closed" value="true" />
+                        <button type="submit" class="danger" onclick="return confirm('Позначити заклад ЗАКРИТО і виключити з розсилки?')">Заклад закрито</button>
+                    }
+                </form>
+            </div>
             <p class="muted">@ViewData["cityName"] · страв у меню: @Model.Dishes</p>
 
             <div class="cols">
@@ -72,11 +104,18 @@
                                     <input type="hidden" name="templateId" value="@template.Id" />
                                     <button type="submit">Видалити</button>
                                 </form>
-                                <span class="muted">@(c.SourceUrl == "admin" ? "додав адмін" : c.SourceUrl)</span>
                             }
                             @if (c.Kind != "phone")
                             {
-                                <a href="@(c.Kind == "email" ? "mailto:" + c.Value : "https://" + c.Value)" target="_blank" rel="noopener">відкрити</a>
+                                <a href="@(c.Kind == "email" ? "mailto:" + c.Value : "https://" + c.Value)" target="_blank" rel="noopener">відкрити @kinds[c.Kind]</a>
+                            }
+                            @if (c.Id != 0)
+                            {
+                                <div class="muted source">
+                                    @if (c.SourceUrl == "admin") { <span>джерело: додав адмін</span> }
+                                    else if ((c.SourceUrl ?? "").StartsWith("http")) { <span>джерело:</span> <a href="@c.SourceUrl" target="_blank" rel="noopener">@c.SourceUrl</a> }
+                                    else { <span>джерело: @c.SourceUrl</span> }
+                                </div>
                             }
                             @if (optOuts.Contains(c.Value))
                             {

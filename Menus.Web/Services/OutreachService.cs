@@ -48,7 +48,14 @@ namespace Menus.Web.Services
             new[] { MenuUrl, Website }.Any(u => (u ?? "").IndexOf("expz.menu", StringComparison.OrdinalIgnoreCase) >= 0
                                             || (u ?? "").IndexOf("expirenza", StringComparison.OrdinalIgnoreCase) >= 0) ? "Expirenza" : null;
         // меню оновлено з ChoiceQR/Expirenza: є QR-меню сервіс і застосовані пропозиції
-        public bool MenuUpdatedFromQr => MenuPlatform != null && MenuAppliedAt != null;
+        public bool MenuUpdatedFromQr => MenuPlatform != null && MenuAppliedAt != null && !QrSuspended;
+        // перевірка «чи заклад працює» (RestaurantAliveCheck): ok | doubt | closed | qr_suspended
+        public string AliveStatus { get; set; }
+        public string AliveReason { get; set; }
+        public bool AliveManual { get; set; }
+        public DateTime? AliveCheckedAt { get; set; }
+        public bool Closed => AliveStatus == "closed";
+        public bool QrSuspended => AliveStatus == "qr_suspended";
         public List<OutreachContact> Contacts { get; set; } = new List<OutreachContact>();
         public List<OutreachLogRow> Log { get; set; } = new List<OutreachLogRow>();
         public IEnumerable<string> Values(string kind) => Contacts.Where(x => x.Kind == kind).Select(x => x.Value);
@@ -115,7 +122,15 @@ namespace Menus.Web.Services
             ) DEFAULT CHARSET=utf8mb4;
             ALTER TABLE OutreachTemplate ADD COLUMN IF NOT EXISTS Name VARCHAR(255) NULL;
             ALTER TABLE OutreachLog ADD COLUMN IF NOT EXISTS TemplateId INT NULL;
-            ALTER TABLE RestaurantContacts ADD COLUMN IF NOT EXISTS Hidden TINYINT(1) NOT NULL DEFAULT 0;";
+            ALTER TABLE RestaurantContacts ADD COLUMN IF NOT EXISTS Hidden TINYINT(1) NOT NULL DEFAULT 0;
+            -- чи заклад ще працює: пише content-bot/check_alive.py (сайт і QR-меню, без AI) або адмін кнопкою (Manual = 1)
+            CREATE TABLE IF NOT EXISTS RestaurantAliveCheck (
+                RestaurantId VARCHAR(255) NOT NULL PRIMARY KEY,
+                Status VARCHAR(16) NOT NULL,
+                Reason TEXT NULL,
+                Manual TINYINT(1) NOT NULL DEFAULT 0,
+                CheckedAt DATETIME NOT NULL
+            ) DEFAULT CHARSET=utf8mb4;";
 
         // Перший шаблон, якщо в базі ще немає жодного
         public static readonly OutreachTemplate DefaultTemplate = new OutreachTemplate
@@ -209,8 +224,10 @@ https://tipmymenu.com
                        (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS Dishes,
                        (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl,
                        (SELECT ri.Website FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS Website,
-                       (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt
+                       (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt,
+                       a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
+                LEFT JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id
                 WHERE r.Status = 0")).ToDictionary(x => x.Id);
             await Fill(restaurants, null);
             return restaurants.Values.OrderBy(x => x.Name).ToList();
@@ -224,8 +241,10 @@ https://tipmymenu.com
                        (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS Dishes,
                        (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl,
                        (SELECT ri.Website FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS Website,
-                       (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt
+                       (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt,
+                       a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
+                LEFT JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id
                 WHERE r.Id = @id", new { id });
             if (r == null) return null;
             await Fill(new Dictionary<string, OutreachRecipient> { [r.Id] = r }, id);
@@ -254,6 +273,20 @@ https://tipmymenu.com
             {
                 if (restaurants.TryGetValue(row.RestaurantId, out var r)) r.Log.Add(row);
             }
+        }
+
+        // кнопка «Заклад закрито» / «Працює» в картці: ручна позначка (Manual = 1), бот її не перезаписує
+        public async Task SetClosed(string restaurantId, bool closed)
+        {
+            await Ensure();
+            if (closed)
+                await _connection.ExecuteAsync(@"INSERT INTO RestaurantAliveCheck (RestaurantId, Status, Reason, Manual, CheckedAt)
+                    VALUES (@restaurantId, 'closed', 'позначив адмін', 1, NOW())
+                    ON DUPLICATE KEY UPDATE Status = 'closed', Reason = 'позначив адмін', Manual = 1, CheckedAt = NOW()", new { restaurantId });
+            else // адмін підтвердив, що заклад працює: бот більше не позначає його сам
+                await _connection.ExecuteAsync(@"INSERT INTO RestaurantAliveCheck (RestaurantId, Status, Reason, Manual, CheckedAt)
+                    VALUES (@restaurantId, 'ok', 'адмін: працює', 1, NOW())
+                    ON DUPLICATE KEY UPDATE Status = 'ok', Reason = 'адмін: працює', Manual = 1, CheckedAt = NOW()", new { restaurantId });
         }
 
         public async Task<string> AddContact(string restaurantId, string kind, string value)
