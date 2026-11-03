@@ -100,8 +100,9 @@ body.admin-ux { margin: 0; }
 .admin-ux .site-content table tbody tr.row-closed td { background: #fdecec; }
 .admin-ux .site-content table tbody tr.row-closed td a { color: var(--ux-danger); }
 .admin-ux .site-content .alive-box { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 14px; }
-.admin-ux .site-content button.danger { background: var(--ux-danger); border-color: var(--ux-danger); color: #fff; }
-.admin-ux .site-content button.danger:hover { background: #a91f1f; }
+/* червона кнопка сильніша за білі другорядні кнопки у формах рядка (form.inline button) */
+.admin-ux .site-content button.danger, .admin-ux .site-content form.inline button.danger { background: var(--ux-danger); border-color: var(--ux-danger); color: #fff; }
+.admin-ux .site-content button.danger:hover, .admin-ux .site-content form.inline button.danger:hover { background: #a91f1f; }
 .admin-ux .site-content .contact .source { flex-basis: 100%; overflow-wrap: anywhere; }
 
 /* телефон */
