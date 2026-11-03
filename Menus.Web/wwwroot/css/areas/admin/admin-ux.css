@@ -1,5 +1,5 @@
 /* Новий вигляд адмінки: читабельні розміри (px замість vw), темний текст, контрастні таблиці.
-   Діє лише всередині .admin-ux - сторінки вмикаються по одній (спершу «Розсилка"). */
+   Увімкнено на всій адмінці: клас admin-ux на <body> в Areas/Admin/Views/Shared/_Layout.cshtml. */
 .admin-ux {
     --ux-text: #1f2328;
     --ux-muted: #5f6670;
@@ -10,90 +10,98 @@
     --ux-accent: #ffb80e;
     --ux-accent-hover: #f0a800;
     --ux-danger: #c62828;
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 16px 16px 40px;
     color: var(--ux-text);
     font-size: 15px;
     line-height: 1.5;
     letter-spacing: normal;
 }
+body.admin-ux { margin: 0; }
+/* вміст сторінки: замість ширини у vw - до 1400px по центру */
+.admin-ux .site-content .site-content-center, .site-content-center.admin-ux {
+    width: auto; max-width: 1400px; margin: 0 auto; padding: 16px 16px 40px; box-sizing: border-box;
+}
+.admin-ux .site-content { padding-left: 0; padding-right: 0; }
+/* меню адмінки: читабельні пункти */
+.admin-ux .header-nav li { margin: 4px 10px; font-size: 15px !important; }
+.admin-ux .header-nav li a { padding: 4px 2px; }
 /* старі стилі задають розміри у vw (на телефоні 3-4px) - вирівнюємо все до базового розміру */
 .admin-ux *:not(h1):not(h2):not(h3):not(h4) { font-size: inherit; letter-spacing: normal; line-height: inherit; }
-.admin-ux h1, .admin-ux h2 { font-size: 24px; line-height: 1.25; margin: 8px 0 12px; font-weight: 700; color: var(--ux-text); }
-.admin-ux h3 { font-size: 18px; line-height: 1.3; margin: 20px 0 10px; font-weight: 700; color: var(--ux-text); }
-.admin-ux h4 { font-size: 16px; margin: 14px 0 8px; font-weight: 600; }
-.admin-ux p { margin: 8px 0; }
-.admin-ux a { color: var(--ux-link); text-decoration: none; }
-.admin-ux a:hover { text-decoration: underline; }
-.admin-ux .muted { color: var(--ux-muted) !important; font-size: 13px !important; }
-.admin-ux code { background: var(--ux-bg); padding: 1px 5px; border-radius: 4px; font-size: 13px !important; }
+.admin-ux .site-content h1, .admin-ux .site-content h2 { text-transform: none; font-size: 24px; line-height: 1.25; margin: 8px 0 12px; font-weight: 700; color: var(--ux-text); }
+.admin-ux .site-content h3 { font-size: 18px; line-height: 1.3; margin: 20px 0 10px; font-weight: 700; color: var(--ux-text); }
+.admin-ux .site-content h4 { font-size: 16px; margin: 14px 0 8px; font-weight: 600; }
+.admin-ux .site-content p { margin: 8px 0; }
+.admin-ux .site-content a { color: var(--ux-link); text-decoration: none; }
+.admin-ux .site-content a:hover { text-decoration: underline; }
+.admin-ux .site-content .muted { color: var(--ux-muted) !important; font-size: 13px !important; }
+.admin-ux .site-content code { background: var(--ux-bg); padding: 1px 5px; border-radius: 4px; font-size: 13px !important; }
 
 /* хлібні крихти */
-.admin-ux .breadcrumbs ul { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 0 0 12px; color: var(--ux-muted); font-size: 14px !important; }
-.admin-ux .breadcrumbs li + li::before { content: "›"; margin-right: 6px; color: #9aa0a8; }
+.admin-ux .site-content .breadcrumbs ul { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 0 0 12px; color: var(--ux-muted); font-size: 14px !important; }
+.admin-ux .site-content .breadcrumbs li + li::before { content: "›"; margin-right: 6px; color: #9aa0a8; }
 
 /* повідомлення після дії */
-.admin-ux > p > strong:only-child { display: block; padding: 10px 14px; background: #fff7e0; border: 1px solid #ffe2a0; border-radius: 8px; font-weight: 600; }
+.admin-ux .site-content-center > p > strong:only-child { display: block; padding: 10px 14px; background: #fff7e0; border: 1px solid #ffe2a0; border-radius: 8px; font-weight: 600; }
 
 /* поля, списки, кнопки */
-.admin-ux input[type=text], .admin-ux input[type=email], .admin-ux input[type=search], .admin-ux input:not([type]),
-.admin-ux select, .admin-ux textarea {
+.admin-ux .site-content input[type=text], .admin-ux .site-content input[type=email], .admin-ux .site-content input[type=search], .admin-ux .site-content input:not([type]),
+.admin-ux .site-content select, .admin-ux .site-content textarea {
     min-height: 38px; padding: 6px 10px; border: 1px solid var(--ux-border); border-radius: 8px;
     background: #fff; color: var(--ux-text); font: inherit; box-sizing: border-box; max-width: 100%;
 }
-.admin-ux textarea { min-height: 220px; width: 100%; line-height: 1.5; }
-.admin-ux input:focus, .admin-ux select:focus, .admin-ux textarea:focus { outline: 2px solid #c9d5f0; border-color: var(--ux-link); }
-.admin-ux input[type=checkbox] { width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px; accent-color: var(--ux-link); }
-.admin-ux button, .admin-ux input[type=submit], .admin-ux .button {
+.admin-ux .site-content textarea { min-height: 220px; width: 100%; line-height: 1.5; }
+.admin-ux .site-content input:focus, .admin-ux .site-content select:focus, .admin-ux .site-content textarea:focus { outline: 2px solid #c9d5f0; border-color: var(--ux-link); }
+.admin-ux .site-content input[type=checkbox] { width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px; accent-color: var(--ux-link); }
+.admin-ux .site-content button, .admin-ux .site-content input[type=submit], .admin-ux .site-content .button {
     min-height: 38px; padding: 6px 16px; border: 1px solid var(--ux-accent); border-radius: 8px; background: var(--ux-accent);
     color: #1f2328; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
-.admin-ux button:hover { background: var(--ux-accent-hover); }
-.admin-ux button:disabled { opacity: .45; cursor: not-allowed; }
+.admin-ux .site-content button:hover { background: var(--ux-accent-hover); }
+.admin-ux .site-content button:disabled { opacity: .45; cursor: not-allowed; }
 /* другорядні кнопки у формах рядка (Зберегти / Видалити / Відключити біля контакту) */
-.admin-ux form.inline button, .admin-ux .contact button { background: #fff; border-color: var(--ux-border); font-weight: 500; }
-.admin-ux form.inline button:hover, .admin-ux .contact button:hover { background: var(--ux-bg); }
+.admin-ux .site-content form.inline button, .admin-ux .site-content .contact button { background: #fff; border-color: var(--ux-border); font-weight: 500; }
+.admin-ux .site-content form.inline button:hover, .admin-ux .site-content .contact button:hover { background: var(--ux-bg); }
 
 /* панель фільтрів - картка */
-.admin-ux .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px; margin: 12px 0;
+.admin-ux .site-content .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px; margin: 12px 0;
     background: var(--ux-card); border: 1px solid var(--ux-border); border-radius: 10px; }
-.admin-ux .filters input[type=text] { flex: 1 1 220px; }
+.admin-ux .site-content .filters input[type=text] { flex: 1 1 220px; }
 
 /* таблиці */
-.admin-ux .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--ux-border); border-radius: 10px; background: var(--ux-card); }
-.admin-ux table { width: 100%; border-collapse: collapse; background: var(--ux-card); }
-.admin-ux table.mainTable thead, .admin-ux table.mainTable tbody { border: 0; }
-.admin-ux table thead tr th, .admin-ux table.mainTable thead tr th {
+.admin-ux .site-content .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--ux-border); border-radius: 10px; background: var(--ux-card); }
+.admin-ux .site-content table { width: 100%; border-collapse: collapse; background: var(--ux-card); }
+.admin-ux .site-content table.mainTable thead, .admin-ux .site-content table.mainTable tbody { border: 0; }
+.admin-ux .site-content table thead tr th, .admin-ux .site-content table.mainTable thead tr th {
     position: sticky; top: 0; z-index: 1; padding: 10px 12px; background: #eef1f6; color: var(--ux-text);
     font-size: 13px !important; font-weight: 700; text-transform: none; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--ux-border);
 }
-.admin-ux table tbody tr td, .admin-ux table.mainTable tbody tr td { padding: 10px 12px; color: var(--ux-text); vertical-align: top; border-bottom: 1px solid #eceef2; }
-.admin-ux table tbody tr:nth-child(even) td { background: #fafbfc; }
-.admin-ux table tbody tr:hover td { background: #f1f5fd; }
-.admin-ux table tbody tr:last-child td { border-bottom: 0; }
+.admin-ux .site-content table tbody tr td, .admin-ux .site-content table.mainTable tbody tr td { padding: 10px 12px; color: var(--ux-text); vertical-align: top; border-bottom: 1px solid #eceef2; }
+.admin-ux .site-content table tbody tr:nth-child(even) td { background: #fafbfc; }
+.admin-ux .site-content table tbody tr:hover td { background: #f1f5fd; }
+.admin-ux .site-content table tbody tr:last-child td { border-bottom: 0; }
 /* без розривів слів по буквах: вузька таблиця гортається вбік у .table-wrap */
-.admin-ux table td, .admin-ux .outreach table td, .admin-ux.outreach table td { overflow-wrap: normal; word-break: normal; }
-.admin-ux table td label { white-space: nowrap; }
+.admin-ux .site-content table td, .admin-ux .site-content .outreach table td, .admin-ux.outreach table td { overflow-wrap: normal; word-break: normal; }
+.admin-ux .site-content table td label { white-space: nowrap; }
 
 /* сторінка ресторану: колонки-картки */
-.admin-ux .cols { gap: 16px !important; }
-.admin-ux .cols > div { background: var(--ux-card); border: 1px solid var(--ux-border); border-radius: 10px; padding: 4px 16px 16px; }
-.admin-ux .preview { background: var(--ux-bg) !important; border: 1px solid var(--ux-border) !important; border-radius: 8px; padding: 14px !important; }
-.admin-ux details summary { cursor: pointer; color: var(--ux-link); }
+.admin-ux .site-content .cols { gap: 16px !important; }
+.admin-ux .site-content .cols > div { background: var(--ux-card); border: 1px solid var(--ux-border); border-radius: 10px; padding: 4px 16px 16px; }
+.admin-ux .site-content .preview { background: var(--ux-bg) !important; border: 1px solid var(--ux-border) !important; border-radius: 8px; padding: 14px !important; }
+.admin-ux .site-content details summary { cursor: pointer; color: var(--ux-link); }
 
 /* пагінація */
-.admin-ux .pager { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
-.admin-ux .pager a, .admin-ux .pager span { min-width: 36px; padding: 6px 10px; text-align: center; border: 1px solid var(--ux-border); border-radius: 8px; background: #fff; }
-.admin-ux .pager span.current { background: var(--ux-link); border-color: var(--ux-link); color: #fff; font-weight: 600; }
+.admin-ux .site-content .pager { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+.admin-ux .site-content .pager a, .admin-ux .site-content .pager span { min-width: 36px; padding: 6px 10px; text-align: center; border: 1px solid var(--ux-border); border-radius: 8px; background: #fff; }
+.admin-ux .site-content .pager span.current { background: var(--ux-link); border-color: var(--ux-link); color: #fff; font-weight: 600; }
 
 /* телефон */
 @media (max-width: 760px) {
-    .admin-ux { padding: 12px 12px 32px; font-size: 15px; }
-    .admin-ux h1, .admin-ux h2 { font-size: 21px; }
-    .admin-ux .filters > * { flex: 1 1 100%; }
-    .admin-ux button { white-space: normal; }
-    .admin-ux table thead tr th, .admin-ux table tbody tr td { padding: 8px 10px; }
-    .admin-ux .table-wrap table { min-width: 860px; }
-    .admin-ux .cols > div { padding: 4px 12px 12px; }
+    .admin-ux .site-content .site-content-center, .site-content-center.admin-ux { padding: 12px 12px 32px; }
+    /* таблиці без обгортки .table-wrap (інші сторінки адмінки) - гортаються вбік самі */
+    .admin-ux .site-content table:not(.table-wrap > table) { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .admin-ux .site-content h1, .admin-ux .site-content h2 { font-size: 21px; }
+    .admin-ux .site-content .filters > * { flex: 1 1 100%; }
+    .admin-ux .site-content button { white-space: normal; }
+    .admin-ux .site-content table thead tr th, .admin-ux .site-content table tbody tr td { padding: 8px 10px; }
+    .admin-ux .site-content .table-wrap table { min-width: 860px; }
+    .admin-ux .site-content .cols > div { padding: 4px 12px 12px; }
 }
