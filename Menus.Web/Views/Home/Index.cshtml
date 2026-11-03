@@ -1,4 +1,4 @@
-@using System.Text.RegularExpressions
+﻿@using System.Text.RegularExpressions
 @using Menus.Abstract.Models
 @using Microsoft.AspNetCore.Mvc.Localization
 @inject IViewLocalizer Localizer
@@ -191,7 +191,7 @@
                     @for (int nearestRestCounter = 0; nearestRestCounter < maxNearestCounter; nearestRestCounter++)
                     {
                         var restaurant = nearestRestaurants[nearestRestCounter];
-                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                        var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                         <div class="restaurant">
                             <a class="restaurant" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
                                 @if (photos.Count > 0)
@@ -229,7 +229,7 @@
                         <div class="swiper-wrapper">
                             @foreach (var restaurant in nearestRestaurants)
                             {
-                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                                 <a class="swiper-slide" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
                                     @if (photos.Count > 0)
                                     {
@@ -282,7 +282,7 @@
                 <div class="restaurants-container disableOnMobile">
                     @foreach (var restaurant in popularRestaurants)
                     {
-                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                        var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                         <div class="restaurant">
                             <a class="restaurant" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
                                 @if (photos.Count > 0)
@@ -316,7 +316,7 @@
                         <div class="swiper-wrapper">
                             @foreach (var restaurant in popularRestaurants)
                             {
-                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                                 <a class="swiper-slide" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
                                     @if (photos.Count > 0)
                                     {
@@ -360,7 +360,7 @@
                 <div class="restaurants-container disableOnMobile">
                     @foreach (var restaurant in featuredRestaurants)
                     {
-                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                        var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                         <div class="restaurant">
                             <a class="restaurant" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
                                 @if (photos.Count > 0)
@@ -394,7 +394,7 @@
                         <div class="swiper-wrapper">
                             @foreach (var restaurant in featuredRestaurants)
                             {
-                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                                 <a class="swiper-slide" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
                                     @if (photos.Count > 0)
                                     {
@@ -437,7 +437,7 @@
                     @for (int latestRestCounter = 0; latestRestCounter < maxLatestCounter; latestRestCounter++)
                     {
                         var restaurant = latestRestaurants[latestRestCounter];
-                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                        var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                         <div class="restaurant">
 
                             <a class="restaurant" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
@@ -473,7 +473,7 @@
                         <div class="swiper-wrapper">
                             @foreach (var restaurant in latestRestaurants)
                             {
-                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                                 <a class="swiper-slide" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
                                     @if (photos.Count > 0)
                                     {

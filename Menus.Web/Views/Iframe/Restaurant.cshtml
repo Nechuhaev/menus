@@ -837,7 +837,7 @@
                         <div class="restaurants-container extra disableOnMobile">
                             @foreach (var restaurant in featuredRestaurants)
                             {
-                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                                 <a class="restaurant" asp-controller="Home" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
                                     @if (photos.Count > 0)
                                     {
@@ -868,7 +868,7 @@
                                 <div class="swiper-wrapper">
                                     @foreach (var restaurant in featuredRestaurants)
                                     {
-                                        var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                        var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                                         <a class="swiper-slide" asp-controller="Home" asp-action="Restaurant" asp-route-city="@ViewData["selectedCityName"]" asp-route-id="@restaurant.Url">
                                             @if (photos.Count > 0)
                                             {

@@ -12,7 +12,7 @@
 
 @foreach (var restaurant in Model)
 {
-    var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+    var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
     <li>
         <div class="caption">
             <figure>
@@ -35,7 +35,7 @@
 
 @foreach (var restaurant in Model.Where(x => x.GpsLatitude != null))
 {
-    var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+    var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
     var photo = photos.Count > 0 ? Img.Url(photos.FirstOrDefault(), Quality.Low) : "/images/rest_01.jpg";
     <script>
         (function() {
