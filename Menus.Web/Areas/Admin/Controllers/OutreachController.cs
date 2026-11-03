@@ -34,9 +34,14 @@ namespace Menus.Web.Areas.Admin.Controllers
             IEnumerable<OutreachRecipient> list = await _outreach.GetRestaurants();
             if (!string.IsNullOrWhiteSpace(q)) list = list.Where(x => (x.Name ?? "").IndexOf(q.Trim(), StringComparison.OrdinalIgnoreCase) >= 0);
             if (!string.IsNullOrEmpty(cityId)) list = list.Where(x => x.City == cityId);
+            // QR-меню «Сервіс призупинено» - у розсилку не беремо (видно лише у своєму фільтрі)
+            if (filter != "qrsuspended" && filter != "all") list = list.Where(x => !x.QrSuspended);
             switch (filter)
             {
-                case "new": list = list.Where(x => x.Contacts.Any() && x.LastSent == null); break;
+                case "closed": list = list.Where(x => x.Closed); break;
+                case "doubt": list = list.Where(x => x.AliveStatus == "doubt"); break;
+                case "qrsuspended": list = list.Where(x => x.QrSuspended); break;
+                case "new": list = list.Where(x => x.Contacts.Any() && x.LastSent == null && !x.Closed); break;
                 case "sent": list = list.Where(x => x.LastSent != null); break;
                 case "qr": list = list.Where(x => x.MenuUpdatedFromQr); break;
                 case "noqr": list = list.Where(x => !x.MenuUpdatedFromQr && x.Contacts.Any()); break;
@@ -118,6 +123,11 @@ namespace Menus.Web.Areas.Admin.Controllers
         {
             var r = await _outreach.GetRestaurant(id);
             if (r == null || !r.Emails.Contains(email)) return NotFound();
+            if (r.Closed)
+            {
+                TempData["message"] = "Заклад позначено ЗАКРИТО - лист не надіслано";
+                return RedirectToAction("Restaurant", new { id, templateId });
+            }
             var cities = (await _core.Restaurants.GetCities()).ToList();
             var token = Guid.NewGuid().ToString("N");
             var (subject, body) = Render(await _outreach.GetTemplate(templateId), r, cities, UnsubscribeUrl(token));
@@ -178,6 +188,7 @@ namespace Menus.Web.Areas.Admin.Controllers
             {
                 var parts = pair.Split('|');
                 if (parts.Length != 2 || !restaurants.TryGetValue(parts[0], out var r) || !r.Emails.Contains(parts[1])) continue;
+                if (r.Closed || r.QrSuspended) continue; // закриті не отримують розсилку
                 var token = Guid.NewGuid().ToString("N");
                 var (subject, body) = Render(template, r, cities, UnsubscribeUrl(token));
                 letters.Add((r, parts[1], subject, body, token));
@@ -188,7 +199,16 @@ namespace Menus.Web.Areas.Admin.Controllers
             return RedirectToAction("Index", new { q, cityId, filter, page });
         }
 
-        public async Task<IActionResult> Templates()
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetClosed(string id, bool closed, int? templateId)
+        {
+            await _outreach.SetClosed(id, closed);
+            TempData["message"] = closed ? "Позначено: заклад ЗАКРИТО (з розсилки виключено)" : "Позначку «ЗАКРИТО» знято";
+            return RedirectToAction("Restaurant", new { id, templateId });
+        }
+
+                public async Task<IActionResult> Templates()
         {
             ViewData["telegramConfigured"] = _telegram.IsConfigured;
             ViewData["telegramBot"] = _telegram.BotName;

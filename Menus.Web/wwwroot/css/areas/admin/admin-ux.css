@@ -93,6 +93,17 @@ body.admin-ux { margin: 0; }
 .admin-ux .site-content .pager a, .admin-ux .site-content .pager span { min-width: 36px; padding: 6px 10px; text-align: center; border: 1px solid var(--ux-border); border-radius: 8px; background: #fff; }
 .admin-ux .site-content .pager span.current { background: var(--ux-link); border-color: var(--ux-link); color: #fff; font-weight: 600; }
 
+/* статус «чи заклад працює» (розсилка) */
+.admin-ux .site-content .closed-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--ux-danger); color: #fff; font-weight: 800; font-size: 13px !important; letter-spacing: .5px; vertical-align: middle; }
+.admin-ux .site-content .doubt-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; background: #fff3cd; color: #7a5200; font-weight: 600; font-size: 13px !important; }
+.admin-ux .site-content .ok-badge { color: #1b7f3b; font-weight: 700; }
+.admin-ux .site-content table tbody tr.row-closed td { background: #fdecec; }
+.admin-ux .site-content table tbody tr.row-closed td a { color: var(--ux-danger); }
+.admin-ux .site-content .alive-box { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 14px; }
+.admin-ux .site-content button.danger { background: var(--ux-danger); border-color: var(--ux-danger); color: #fff; }
+.admin-ux .site-content button.danger:hover { background: #a91f1f; }
+.admin-ux .site-content .contact .source { flex-basis: 100%; overflow-wrap: anywhere; }
+
 /* телефон */
 @media (max-width: 760px) {
     .admin-ux .site-content .site-content-center, .site-content-center.admin-ux { padding: 12px 12px 32px; }
