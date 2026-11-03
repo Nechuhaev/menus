@@ -123,7 +123,7 @@ namespace Menus.Web.Controllers
             //ViewData["restaurants"] = JsonConvert.SerializeObject(cityRestaurants.Select(x => new { name = $"{x.Name} ({x.Address})", id = x.Id }).ToList());
 
             var latestRestaurantsString = Request.Cookies[".Menus.LatestRestaurants"];
-            var latestRestaurants = !string.IsNullOrEmpty(latestRestaurantsString) ? JsonConvert.DeserializeObject<List<string>>(latestRestaurantsString) : new List<string>();
+            var latestRestaurants = Menus.Web.Helpers.JsonList.Parse(latestRestaurantsString);
             var latestViewedRestaurants = _core.Restaurants.GetCompleteRestaurants().Where(x => latestRestaurants.Contains(x.Url)).ToList();
             ViewData["latestViewedRestaurants"] = latestViewedRestaurants;
             ViewData["featuredRestaurants"] = _core.Restaurants.GetCompleteRestaurants().Where(x => x.IsFeatured && x.City == selectedCity).OrderBy(x => x.Name).Take(4).ToList();
@@ -287,7 +287,7 @@ namespace Menus.Web.Controllers
 
             var menu = await GetMenuForRestaurant(restaurant);
 
-            var photos = string.IsNullOrEmpty(restaurantInfo.Photos) ? new List<string>() : JsonConvert.DeserializeObject<List<string>>(restaurantInfo.Photos);
+            var photos = Menus.Web.Helpers.JsonList.Parse(restaurantInfo.Photos);
             var (openHours, schedulePerDay) = OpenHoursHelper.Parse(restaurantInfo.OpenHours);
             var menuPhotos = (await _core.Restaurants.GetMenuPhotosForRestaurant(restaurant.Id)).ToList();
             var role = await _core.Restaurants.GetUserRoleForRestaurant(restaurantInfo.RestaurantId,
@@ -358,6 +358,8 @@ namespace Menus.Web.Controllers
 
             foreach (var dishCategory in dishCategories)
             {
+                // зв'язок зі стравою чи категорією, яких уже немає (видалені, приховані) - пропускаємо, інакше меню падало з 500
+                if (!categories.Any(x => x.Id == dishCategory.MenuCategoryId) || !dishes.Any(x => x.Id == dishCategory.DishId)) continue;
                 var modelCategory = menu.Categories.FirstOrDefault(x => x.Id == dishCategory.MenuCategoryId);
                 if (modelCategory == null)
                 {
@@ -606,7 +608,7 @@ namespace Menus.Web.Controllers
         private static void UpdateLatestRestaurants(string restaurantId, HttpContext context)
         {
             var latestRestaurantsString = context.Request.Cookies[".Menus.LatestRestaurants"];
-            var latestRestaurants = !string.IsNullOrEmpty(latestRestaurantsString) ? JsonConvert.DeserializeObject<List<string>>(latestRestaurantsString) : new List<string>();
+            var latestRestaurants = Menus.Web.Helpers.JsonList.Parse(latestRestaurantsString);
 
             if (latestRestaurants.FirstOrDefault() == restaurantId) return;
 

@@ -117,7 +117,7 @@
                         <ul class="recommendationList">
                             @foreach (var restaurant in featuredRestaurants)
                             {
-                                var photos = string.IsNullOrEmpty(restaurant.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(restaurant.Photos);
+                                var photos = Menus.Web.Helpers.JsonList.Parse(restaurant.Photos);
                                 <li>
                                     <figure>
                                         <img src="@(string.IsNullOrEmpty(photos.FirstOrDefault()) ? "/images/rest_02.jpg" : Img.Url(photos.FirstOrDefault(), Quality.Medium))" alt="Alternate Text" />

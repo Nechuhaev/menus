@@ -175,6 +175,8 @@ namespace Menus.Web.Areas.Restaurants.Controllers
                 var model = new DishesListViewModel { Categories = new List<DishesListViewModelCategory>() };
                 foreach (var dishCategory in dishCategories)
                 {
+                    // зв'язок зі стравою чи категорією, яких уже немає (видалені, приховані) - пропускаємо, інакше меню падало з 500
+                    if (!categories.Any(x => x.Id == dishCategory.MenuCategoryId) || !dishes.Any(x => x.Id == dishCategory.DishId)) continue;
                     var modelCategory = model.Categories.FirstOrDefault(x => x.Id == dishCategory.MenuCategoryId);
                     if (modelCategory == null)
                     {
@@ -591,8 +593,8 @@ namespace Menus.Web.Areas.Restaurants.Controllers
             displayAddress.Replace(model.DisplayAddress.Select(x => x as ILocalizableStringValue));
             iInfo.DisplayAddress = displayAddress;
 
-            var newImages = string.IsNullOrEmpty(model.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(model.Photos);
-            var oldImages = string.IsNullOrEmpty(existingInfo.Photos) ? new List<string>() : Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(existingInfo.Photos);
+            var newImages = Menus.Web.Helpers.JsonList.Parse(model.Photos);
+            var oldImages = Menus.Web.Helpers.JsonList.Parse(existingInfo.Photos);
             var photosToRemove = oldImages.Except(newImages);
 
             //foreach (var oldPhoto in photosToRemove)
