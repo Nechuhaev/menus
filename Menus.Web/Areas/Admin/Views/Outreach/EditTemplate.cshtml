@@ -1,4 +1,4 @@
-@model Menus.Web.Services.OutreachTemplate
+﻿@model Menus.Web.Services.OutreachTemplate
 
 @{
     ViewData["Title"] = Model.Id == 0 ? "Новий шаблон" : "Шаблон: " + Model.Name;
@@ -12,7 +12,7 @@
 
 <div class="site-content">
     <main>
-        <div class="site-content-center template-form">
+        <div class="site-content-center template-form admin-ux">
             <div class="breadcrumbs">
                 <ul>
                     <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
