@@ -1,4 +1,4 @@
-@model Menus.Web.Services.OutreachRecipient
+﻿@model Menus.Web.Services.OutreachRecipient
 
 @{
     ViewData["Title"] = "Розсилка: " + Model.Name;
@@ -23,13 +23,13 @@
     .outreach .muted { color: #777; font-size: 12px; }
     .outreach form.inline { display: inline; }
     .outreach .contact { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
-    .outreach .contact input[type=text] { min-width: 200px; padding: 3px 5px; }
+    .outreach .contact input[type=text] { min-width: 200px; }
     .outreach details { margin: 6px 0; }
 </style>
 
 <div class="site-content">
     <main>
-        <div class="site-content-center outreach">
+        <div class="site-content-center outreach admin-ux">
             <div class="breadcrumbs">
                 <ul>
                     <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
@@ -188,6 +188,7 @@
             }
             else
             {
+                <div class="table-wrap">
                 <table class="mainTable">
                     <thead>
                         <tr><th>Дата</th><th>Канал</th><th>Кому</th><th>Шаблон</th><th>Статус</th><th>Текст</th></tr>
@@ -211,6 +212,7 @@
                         }
                     </tbody>
                 </table>
+                </div>
             }
         </div>
     </main>

@@ -1,4 +1,4 @@
-@model List<Menus.Web.Services.OutreachTemplate>
+﻿@model List<Menus.Web.Services.OutreachTemplate>
 
 @{
     ViewData["Title"] = "Шаблони листів";
@@ -7,7 +7,7 @@
 
 <div class="site-content">
     <main>
-        <div class="site-content-center">
+        <div class="site-content-center admin-ux">
             <div class="breadcrumbs">
                 <ul>
                     <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
@@ -27,6 +27,7 @@
             @if ((bool)ViewData["telegramConfigured"])
             {
                 var info = ViewData["webhookInfo"] as Newtonsoft.Json.Linq.JObject;
+                <div class="table-wrap">
                 <table class="mainTable" style="max-width:900px">
                     <tr><td>Адреса вебхука (Telegram)</td><td>@(info?.Value<string>("url") is string url && url.Length > 0 ? url : "не підключено")</td></tr>
                     <tr><td>Повідомлень у черзі Telegram</td><td>@(info?.Value<int?>("pending_update_count"))</td></tr>
@@ -38,6 +39,7 @@
                     </td></tr>
                     <tr><td>Останній запит на сайт</td><td>@(TelegramOwnersService.LastWebhookAt?.ToString("dd.MM HH:mm:ss") ?? "з моменту запуску сайту не було") @TelegramOwnersService.LastWebhookResult</td></tr>
                 </table>
+                </div>
                 <form asp-action="SetTelegramWebhook" method="post">
                     <p class="muted">Один раз після додавання токена (і після зміни токена): Telegram почне пересилати повідомлення боту на сайт.</p>
                     <button type="submit">Підключити вебхук бота</button>
@@ -50,6 +52,7 @@
 
             <h3>Шаблони</h3>
 
+            <div class="table-wrap">
             <table class="mainTable">
                 <thead>
                     <tr><th>Назва</th><th>Тема</th><th></th></tr>
@@ -73,6 +76,7 @@
                     }
                 </tbody>
             </table>
+            </div>
         </div>
     </main>
 </div>

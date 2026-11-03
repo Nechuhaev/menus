@@ -18,17 +18,14 @@
 
 <style>
     .outreach .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
-    .outreach .filters input[type=text] { padding: 4px 6px; min-width: 220px; }
     .outreach table td { vertical-align: top; overflow-wrap: anywhere; }
     .outreach .muted { color: #777; font-size: 12px; }
     .outreach .pager { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
-    .outreach .pager a, .outreach .pager span { padding: 3px 8px; border: 1px solid #ddd; }
-    .outreach .pager span { background: #eee; }
 </style>
 
 <div class="site-content">
     <main>
-        <div class="site-content-center outreach">
+        <div class="site-content-center outreach admin-ux">
             <div class="breadcrumbs">
                 <ul>
                     <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
@@ -82,6 +79,7 @@
                     <button type="submit" onclick="return confirm('Надіслати лист на вибрані адреси?')">Надіслати email вибраним</button>
                 </p>
 
+                <div class="table-wrap">
                 <table class="mainTable">
                     <thead>
                         <tr><th>Ресторан</th><th>Місто</th><th>Страв</th><th title="Меню оновлено з QR-меню сервісу: дата останньої застосованої пропозиції синхронізації">Меню з QR</th><th>Email</th><th>Telegram / Instagram</th><th>Остання відправка</th></tr>
@@ -135,6 +133,7 @@
                         }
                     </tbody>
                 </table>
+                </div>
             </form>
 
             @if (pages > 1)
@@ -144,7 +143,7 @@
                     {
                         if (i == currentPage)
                         {
-                            <span>@i</span>
+                            <span class="current">@i</span>
                         }
                         else if (i == 1 || i == pages || Math.Abs(i - currentPage) <= 3)
                         {
