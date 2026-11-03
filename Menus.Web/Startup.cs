@@ -322,7 +322,10 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
 
             if (!env.IsDevelopment())
             {
-                app.UseHangfireDashboard("/hangfireWDAyULeoRJ34k8xUitnV");
+                // адреса малими літерами: сайт переадресовує адреси з великими літерами на малі (вище), і стара
+                // /hangfireWDAy... віддавала 404; доступ - лише адмінам
+                app.UseHangfireDashboard("/hangfirewdayuleorj34k8xuitnv",
+                    new DashboardOptions { Authorization = new[] { new Menus.Web.Helpers.HangfireAdminFilter() } });
             }
 
             var dbContext = provider.GetService<EfDbContext>();
