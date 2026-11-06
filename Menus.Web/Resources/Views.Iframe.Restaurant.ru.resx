@@ -321,4 +321,7 @@
 	<data name="MenuSearch" xml:space="preserve">
 		<value>поиск по меню ресторана</value>
 	</data>
+	<data name="AboutPlace" xml:space="preserve">
+		<value>О заведении</value>
+	</data>
 </root>
