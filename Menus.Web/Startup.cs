@@ -120,6 +120,7 @@ namespace Menus.Web
             services.AddScoped<TelegramOwnersService>();
             services.AddScoped<PopularRestaurantService>();
             services.AddScoped<SeoReportService>();
+            services.AddScoped<UserVisitService>();
             services.AddScoped<RestaurantRegistrationService>();
 
             services.Configure<FormOptions>(x =>
@@ -286,6 +287,24 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
             });
             app.UseCookiePolicy();
             app.UseAuthentication();
+
+            // перший / останній візит залогіненого користувача з IP (адмінка «Пользователи»), не частіше ніж раз на 15 хв
+            app.Use(async (ctx, next) =>
+            {
+                var userId = ctx.User?.Identity?.IsAuthenticated == true ? ctx.User.Identity.Name : null;
+                if (ctx.Request.Method == "GET" && UserVisitService.ShouldTrack(userId))
+                {
+                    try
+                    {
+                        await ctx.RequestServices.GetService<UserVisitService>().Track(userId, Menus.Web.Controllers.HomeController.GetIpAddress(ctx.Request));
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"UserVisit: {e.Message}");
+                    }
+                }
+                await next.Invoke();
+            });
 
             app.Use(async (ctx, next) =>
             {
