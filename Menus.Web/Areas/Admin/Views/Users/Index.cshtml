@@ -132,6 +132,10 @@
                             <td>
                                 @Html.DisplayFor(modelItem => item.Email)
                             </td>
+                            <td>
+                                <select class="form-control" asp-for="@item.Status"
+                                        asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.UserStatus>()"></select>
+                            </td>
                             @{ visits.TryGetValue(item.Id ?? "", out var visit); }
                             <td>
                                 @if (visit != null)
@@ -154,10 +158,6 @@
                                 {
                                     <span class="muted">—</span>
                                 }
-                            </td>
-                            <td>
-                                <select class="form-control" asp-for="@item.Status"
-                                        asp-items="Html.GetEnumSelectList<Menus.Abstract.Models.UserStatus>()"></select>
                             </td>
                             @if (!(bool)ViewData["hideRoles"])
                             {
