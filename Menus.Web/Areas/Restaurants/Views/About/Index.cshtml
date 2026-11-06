@@ -1,4 +1,4 @@
-@inject Menus.Web.Services.LocaleService LocaleSrvc;
+﻿@inject Menus.Web.Services.LocaleService LocaleSrvc;
 @using Menus.Abstract.Models
 @model Menus.Abstract.Models.IRestaurantInfo
 @{
@@ -326,6 +326,69 @@
                     <input type="submit" value="сохранить" />
                 </div>
             </form>
+
+            @if (ViewData["iframeUrl"] is string iframeUrl)
+            {
+                <section class="embed-menu">
+                    <h3>Меню для вашого сайту</h3>
+                    <p class="embed-hint">Вставте цей код на сторінку вашого сайту - там з'явиться меню закладу з TipMyMenu. Меню оновлюється саме, коли ви змінюєте страви тут.</p>
+                    <div class="embed-row">
+                        <label>Мова
+                            <select id="embedLang">
+                                <option value="uk">Українська</option>
+                                <option value="ru">Русский</option>
+                            </select>
+                        </label>
+                        <label>Висота, px <input id="embedHeight" type="number" min="300" max="3000" step="50" value="800" /></label>
+                        <button type="button" id="embedCopy">Скопіювати код</button>
+                        <a id="embedOpen" href="#" target="_blank" rel="noopener">Відкрити меню</a>
+                    </div>
+                    <textarea id="embedCode" readonly rows="3"></textarea>
+                    <div class="embed-preview">
+                        <div class="embed-phone"><iframe id="embedPreview" title="Попередній перегляд меню" loading="lazy"></iframe></div>
+                    </div>
+                </section>
+                <style>
+                    .embed-menu { margin: 32px 0 16px; padding: 20px; background: #fff; border: 1px solid #dfe2e8; border-radius: 12px; font-size: 15px; line-height: 1.5; color: #1f2328; }
+                    .embed-menu h3 { font-size: 20px; margin: 0 0 8px; }
+                    .embed-menu .embed-hint { color: #5f6670; font-size: 14px; margin: 0 0 12px; }
+                    .embed-menu .embed-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 10px; }
+                    .embed-menu label { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+                    .embed-menu select, .embed-menu input { min-height: 36px; padding: 4px 8px; border: 1px solid #dfe2e8; border-radius: 8px; font-size: 14px; }
+                    .embed-menu input { width: 90px; }
+                    .embed-menu button { min-height: 36px; padding: 6px 16px; border: 0; border-radius: 8px; background: #ffb80e; font-weight: 600; font-size: 14px; cursor: pointer; }
+                    .embed-menu textarea { width: 100%; box-sizing: border-box; font: 13px/1.4 monospace; padding: 10px; border: 1px solid #dfe2e8; border-radius: 8px; background: #f5f6f9; resize: vertical; }
+                    .embed-menu .embed-preview { margin-top: 14px; }
+                    .embed-menu .embed-phone { width: 390px; max-width: 100%; height: 720px; box-sizing: border-box; border: 8px solid #1f2328; border-radius: 28px; overflow: hidden; background: #fff; }
+                    .embed-menu .embed-phone iframe { width: 100%; height: 100%; border: 0; }
+                </style>
+                <script>
+                    (function () {
+                        var base = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(iframeUrl));
+                        var name = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewData["iframeName"] as string ?? ""));
+                        var lang = document.getElementById('embedLang'), height = document.getElementById('embedHeight');
+                        var code = document.getElementById('embedCode'), preview = document.getElementById('embedPreview'), open = document.getElementById('embedOpen');
+                        function esc(v) { return String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+                        function update() {
+                            var url = base.replace('{0}', lang.value);
+                            var h = Math.max(300, parseInt(height.value, 10) || 800);
+                            code.value = '<iframe src="' + url + '" width="100%" height="' + h + '" style="border:0;max-width:100%" loading="lazy" title="Меню ' + esc(name) + '"></iframe>';
+                            if (preview.getAttribute('src') !== url) preview.setAttribute('src', url);
+                            open.href = url;
+                        }
+                        lang.addEventListener('change', update);
+                        height.addEventListener('input', update);
+                        document.getElementById('embedCopy').addEventListener('click', function () {
+                            var btn = this;
+                            code.select();
+                            var done = function () { btn.textContent = 'Скопійовано ✓'; setTimeout(function () { btn.textContent = 'Скопіювати код'; }, 2000); };
+                            if (navigator.clipboard) navigator.clipboard.writeText(code.value).then(done, function () { document.execCommand('copy'); done(); });
+                            else { document.execCommand('copy'); done(); }
+                        });
+                        update();
+                    })();
+                </script>
+            }
 
         </div>
 

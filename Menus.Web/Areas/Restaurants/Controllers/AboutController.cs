@@ -95,6 +95,13 @@ namespace Menus.Web.Areas.Restaurants.Controllers
             ViewData["owner"] = await _core.Users.GetUserById(ownerId ?? "1a950ec5-7fd3-4d82-adca-d27fda6025b5");
             ViewData["menuUrl"] = await HttpContext.RequestServices.GetRequiredService<RestaurantMenuLinkService>().Get(selectedRestaurant.Id);
 
+            // код для вбудовування меню на сайт закладу (блок «Меню для вашого сайту»): {0} - мова
+            var iframeSeo = await _core.Restaurants.GetSeoByRestaurantId(selectedRestaurant.Id);
+            var iframeCity = (await _core.Restaurants.GetCities()).FirstOrDefault(x => x.Id == selectedRestaurant.City);
+            ViewData["iframeUrl"] = string.IsNullOrEmpty(iframeSeo?.Url) || iframeCity == null ? null
+                : "https://tipmymenu.com/{0}/" + iframeCity.Name.Get("en").ToLower() + "/iframe/" + iframeSeo.Url;
+            ViewData["iframeName"] = selectedRestaurant.Name;
+
             return View(restaurantInfo);
         }
 
