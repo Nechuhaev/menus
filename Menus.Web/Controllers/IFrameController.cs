@@ -272,7 +272,7 @@ namespace Menus.Web.Controllers
 
             ViewData["iframeSettings"] = iframeSettings;
 
-            return View(data);
+            return View("Restaurant", data); // той самий новий шаблон, що й жива сторінка iframe
         }
 
         public async Task<IActionResult> Cache(string culture, string id, string city)
