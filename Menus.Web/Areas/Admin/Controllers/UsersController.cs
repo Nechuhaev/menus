@@ -28,6 +28,10 @@ namespace Menus.Web.Areas.Admin.Controllers
             _db = db;
         }
 
+        // перший / останній візит з IP (UserVisitService)
+        private Task<Dictionary<string, Menus.Web.Services.UserVisit>> Visits(IEnumerable<IUser> users) =>
+            ((Menus.Web.Services.UserVisitService)HttpContext.RequestServices.GetService(typeof(Menus.Web.Services.UserVisitService))).Get(users.Select(x => x.Id));
+
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> Index(string q, UserStatus? status, UserRole? role)
         {
@@ -40,7 +44,9 @@ namespace Menus.Web.Areas.Admin.Controllers
             ViewData["role"] = role;
             ViewData["hideRoles"] = false;
 
-            return View(users.Take(50));
+            var page = users.Take(50).ToList();
+            ViewData["visits"] = await Visits(page);
+            return View(page);
         }
 
         [Authorize(Roles = "admin")]
@@ -66,7 +72,9 @@ namespace Menus.Web.Areas.Admin.Controllers
             ViewData["role"] = role;
             ViewData["hideRoles"] = true;
 
-            return View("Index", users.Take(50));
+            var page = users.Take(50).ToList();
+            ViewData["visits"] = await Visits(page);
+            return View("Index", page);
         }
 
         [Authorize(Roles = "admin, manager")]

@@ -1,8 +1,22 @@
 ﻿@model IEnumerable<Menus.Abstract.Models.IUser>
 
 @inject Menus.Web.Services.UserService UserService
+@functions {
+    // час у базі - UTC; показуємо київський
+    private static readonly TimeZoneInfo KyivZone = FindKyivZone();
+    private static TimeZoneInfo FindKyivZone()
+    {
+        foreach (var id in new[] { "Europe/Kyiv", "Europe/Kiev", "FLE Standard Time" })
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch (Exception) { }
+        }
+        return TimeZoneInfo.Utc;
+    }
+    private static string Kyiv(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), KyivZone).ToString("dd.MM.yyyy HH:mm");
+}
 @{
     var CurrentUser = await UserService.GetUserById(User.Identity.Name);
+    var visits = ViewData["visits"] as Dictionary<string, Menus.Web.Services.UserVisit> ?? new Dictionary<string, Menus.Web.Services.UserVisit>();
 }
 
 <div class="site-content">
@@ -80,6 +94,8 @@
                         <th>
                             Статус
                         </th>
+                        <th title="Перший і останній візит залогіненого користувача (облік з листопада 2026). Час - київський">Перший візит</th>
+                        <th>Останній візит</th>
                         @if (!(bool)ViewData["hideRoles"])
                         {
                         <th>
@@ -115,6 +131,29 @@
                             </td>
                             <td>
                                 @Html.DisplayFor(modelItem => item.Email)
+                            </td>
+                            @{ visits.TryGetValue(item.Id ?? "", out var visit); }
+                            <td>
+                                @if (visit != null)
+                                {
+                                    <div>@Kyiv(visit.FirstSeenAt)</div>
+                                    <div class="muted">@visit.FirstIp</div>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (visit != null)
+                                {
+                                    <div>@Kyiv(visit.LastSeenAt)</div>
+                                    <div class="muted">@visit.LastIp</div>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
                             </td>
                             <td>
                                 <select class="form-control" asp-for="@item.Status"
