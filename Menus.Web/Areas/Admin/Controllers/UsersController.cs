@@ -29,8 +29,8 @@ namespace Menus.Web.Areas.Admin.Controllers
         }
 
         // перший / останній візит з IP (UserVisitService)
-        private Task<Dictionary<string, UserVisit>> Visits(IEnumerable<IUser> users) =>
-            ((UserVisitService)HttpContext.RequestServices.GetService(typeof(UserVisitService))).Get(users.Select(x => x.Id));
+        private Task<Dictionary<string, Menus.Web.Services.UserVisit>> Visits(IEnumerable<IUser> users) =>
+            ((Menus.Web.Services.UserVisitService)HttpContext.RequestServices.GetService(typeof(Menus.Web.Services.UserVisitService))).Get(users.Select(x => x.Id));
 
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> Index(string q, UserStatus? status, UserRole? role)
