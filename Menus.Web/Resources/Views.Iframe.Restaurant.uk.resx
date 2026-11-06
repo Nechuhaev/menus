@@ -222,6 +222,9 @@
   <data name="BecomeFirstWhoWillAddDish" xml:space="preserve">
     <value>Будь першим хто додасть страву</value>
   </data>
+  <data name="AboutPlace" xml:space="preserve">
+    <value>Про заклад</value>
+  </data>
   <data name="LastMenuUpdate" xml:space="preserve">
     <value>Останнє оновлення меню</value>
   </data>
