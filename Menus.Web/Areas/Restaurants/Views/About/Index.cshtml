@@ -329,8 +329,14 @@
 
             @if (ViewData["iframeUrl"] is string iframeUrl)
             {
-                <section class="embed-menu">
+                var design = ViewData["iframeDesign"] as Menus.Web.Services.IframeDesign ?? new Menus.Web.Services.IframeDesign();
+                var designPhotos = Menus.Web.Helpers.JsonList.Parse(Model.Photos);
+                <section class="embed-menu" id="embed-menu">
                     <h3>Меню для вашого сайту</h3>
+                    @if (TempData["iframeDesignSaved"] != null)
+                    {
+                        <p class="embed-saved">Вигляд збережено. Меню на сайті оновиться протягом кількох хвилин.</p>
+                    }
                     <p class="embed-hint">Вставте цей код на сторінку вашого сайту - там з'явиться меню закладу з TipMyMenu. Меню оновлюється саме, коли ви змінюєте страви тут.</p>
                     <div class="embed-row">
                         <label>Мова
@@ -344,6 +350,38 @@
                         <a id="embedOpen" href="#" target="_blank" rel="noopener">Відкрити меню</a>
                     </div>
                     <textarea id="embedCode" readonly rows="3"></textarea>
+
+                    <form method="post" asp-action="IframeDesign" class="embed-design">
+                        <h4>Вигляд меню</h4>
+                        <div class="embed-field">
+                            <span class="embed-label">Обкладинка</span>
+                            <div class="embed-covers">
+                                <label class="cover-opt"><input type="radio" name="Cover" value="" @(string.IsNullOrEmpty(design.Cover) ? "checked" : "") /><span class="cover-auto">Перше фото закладу</span></label>
+                                <label class="cover-opt"><input type="radio" name="Cover" value="brand" @(design.Cover == "brand" ? "checked" : "") /><span class="cover-brand">Фірмовий фон</span></label>
+                                @foreach (var photo in designPhotos)
+                                {
+                                    <label class="cover-opt"><input type="radio" name="Cover" value="@photo" @(design.Cover == photo ? "checked" : "") /><span style="background-image: url('@Img.Url(photo, Quality.Low)')"></span></label>
+                                }
+                            </div>
+                            <small>Фото закладу й логотип завантажуються вище у формі «Про заклад».</small>
+                        </div>
+                        <div class="embed-row">
+                            <label>Колір акценту <input type="color" name="Accent" value="@design.Accent" /></label>
+                            <label>Тема
+                                <select name="Theme">
+                                    <option value="light" selected="@(!design.Dark)">Світла</option>
+                                    <option value="dark" selected="@design.Dark">Темна</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="embed-row">
+                            <label><input type="checkbox" name="ShowPhotos" value="true" checked="@(!design.HidePhotos)" /> Фото страв</label>
+                            <label><input type="checkbox" name="ShowDescriptions" value="true" checked="@(!design.HideDescriptions)" /> Описи</label>
+                            <label><input type="checkbox" name="ShowWeight" value="true" checked="@(!design.HideWeight)" /> Вага</label>
+                            <label><input type="checkbox" name="ShowLanguages" value="true" checked="@(!design.HideLanguages)" /> Перемикач мов</label>
+                        </div>
+                        <button type="submit">Зберегти вигляд</button>
+                    </form>
                     <div class="embed-preview">
                         <div class="embed-phone"><iframe id="embedPreview" title="Попередній перегляд меню" loading="lazy"></iframe></div>
                     </div>
@@ -359,6 +397,20 @@
                     .embed-menu button { min-height: 36px; padding: 6px 16px; border: 0; border-radius: 8px; background: #ffb80e; font-weight: 600; font-size: 14px; cursor: pointer; }
                     .embed-menu textarea { width: 100%; box-sizing: border-box; font: 13px/1.4 monospace; padding: 10px; border: 1px solid #dfe2e8; border-radius: 8px; background: #f5f6f9; resize: vertical; }
                     .embed-menu .embed-preview { margin-top: 14px; }
+                    .embed-menu .embed-saved { background: #e9f7ee; color: #1b7f3b; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+                    .embed-menu .embed-design { margin-top: 16px; padding-top: 14px; border-top: 1px solid #eceef2; }
+                    .embed-menu h4 { font-size: 17px; margin: 0 0 10px; }
+                    .embed-menu .embed-field { margin-bottom: 12px; }
+                    .embed-menu .embed-label { display: block; font-size: 14px; margin-bottom: 6px; }
+                    .embed-menu small { color: #5f6670; font-size: 13px; }
+                    .embed-menu .embed-covers { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+                    .embed-menu .cover-opt { position: relative; cursor: pointer; }
+                    .embed-menu .cover-opt input { position: absolute; opacity: 0; }
+                    .embed-menu .cover-opt span { display: flex; align-items: center; justify-content: center; width: 110px; height: 64px; border-radius: 8px; border: 2px solid #dfe2e8; background: #f5f6f9 center/cover no-repeat; font-size: 12px; text-align: center; padding: 4px; }
+                    .embed-menu .cover-opt .cover-brand { background: radial-gradient(circle at 25% 30%, rgba(255,184,14,.45), transparent 50%), #231f20; color: #fff; }
+                    .embed-menu .cover-opt input:checked + span { border-color: #ffb80e; box-shadow: 0 0 0 2px #ffb80e; }
+                    .embed-menu input[type=color] { width: 48px; height: 36px; padding: 2px; }
+                    .embed-menu input[type=checkbox] { width: auto; min-height: 0; }
                     .embed-menu .embed-phone { width: 390px; max-width: 100%; height: 720px; box-sizing: border-box; border: 8px solid #1f2328; border-radius: 28px; overflow: hidden; background: #fff; }
                     .embed-menu .embed-phone iframe { width: 100%; height: 100%; border: 0; }
                 </style>

@@ -64,6 +64,46 @@ namespace Menus.Web.Areas.Restaurants.Controllers
         }
 
         [HttpGet]
+        // вигляд iframe (блок «Меню для вашого сайту»): адмін і власник свого закладу
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> IframeDesign()
+        {
+            // галочки у формі - «показувати», у базі - «приховати» (за замовчуванням усе видно)
+            var form = Request.Form;
+            var model = new Menus.Web.Services.IframeDesign
+            {
+                Cover = form["Cover"],
+                Accent = form["Accent"],
+                Theme = form["Theme"],
+                HidePhotos = form["ShowPhotos"] != "true",
+                HideDescriptions = form["ShowDescriptions"] != "true",
+                HideWeight = form["ShowWeight"] != "true",
+                HideLanguages = form["ShowLanguages"] != "true"
+            };
+            var selectedRestaurant = await _usrService.GetSelecedRestaurant(User, Request);
+            if (selectedRestaurant == null ||
+                (!(await _core.Restaurants.IsUserAllowedToEdit(selectedRestaurant.Id, User.Identity.Name)) && !User.IsInRole("admin") && !User.IsInRole("manager")))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+            model.RestaurantId = selectedRestaurant.Id;
+            await HttpContext.RequestServices.GetRequiredService<IframeDesignService>().Save(model);
+
+            // новий вигляд одразу: кеш Cloudflare для iframe (uk/ru) і кеш iframe на CDN
+            var seo = await _core.Restaurants.GetSeoByRestaurantId(selectedRestaurant.Id);
+            var city = (await _core.Restaurants.GetCities()).FirstOrDefault(x => x.Id == selectedRestaurant.City);
+            if (!string.IsNullOrEmpty(seo?.Url) && city != null)
+            {
+                var citySlug = city.Name.Get("en").ToLower();
+                await EdgeCachePurge.Purge(_configuration, new[] { "uk", "ru" }.Select(l => $"https://tipmymenu.com/{l}/{citySlug}/iframe/{seo.Url}"));
+            }
+            HttpContext.RequestServices.GetRequiredService<ITaskRunner>().RunUpdateRestaurantIframeCache(selectedRestaurant.Id);
+
+            TempData["iframeDesignSaved"] = true;
+            return Redirect(Url.Action("Index") + "#embed-menu");
+        }
+
         public async Task<IActionResult> Index()
         {
             var selectedRestaurant = await _usrService.GetSelecedRestaurant(User, Request);
@@ -101,6 +141,7 @@ namespace Menus.Web.Areas.Restaurants.Controllers
             ViewData["iframeUrl"] = string.IsNullOrEmpty(iframeSeo?.Url) || iframeCity == null ? null
                 : "https://tipmymenu.com/{0}/" + iframeCity.Name.Get("en").ToLower() + "/iframe/" + iframeSeo.Url;
             ViewData["iframeName"] = selectedRestaurant.Name;
+            ViewData["iframeDesign"] = await HttpContext.RequestServices.GetRequiredService<IframeDesignService>().Get(selectedRestaurant.Id);
 
             return View(restaurantInfo);
         }
