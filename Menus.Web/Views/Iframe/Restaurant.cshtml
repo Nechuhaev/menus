@@ -31,7 +31,7 @@
         if (v.Length == 0 || v == "0") return null;
         var u = (unit ?? "").Trim().Trim('.').ToLowerInvariant();
         string norm;
-        if (u == "г" || u == "g" || u == "gr" || u == "гр" || u == "грам" || u == "gram" || u == "grams" || u == "/" || u == "\") norm = "г";
+        if (u == "г" || u == "g" || u == "gr" || u == "гр" || u == "грам" || u == "gram" || u == "grams" || u == "/" || u == "\\") norm = "г";
         else if (u == "мл" || u == "ml") norm = "мл";
         else if (u == "кг" || u == "kg") norm = "кг";
         else if (u == "л" || u == "l") norm = "л";
