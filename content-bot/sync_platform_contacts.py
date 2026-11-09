@@ -10,8 +10,12 @@
 Що змінюється (лише якщо в QR-меню значення є і воно інше):
 - RestaurantInfo.OpenHours - графік по днях {"perDay":true,"data":[7 днів з понеділка]};
 - Restaurants.Phone - перший телефон (порівняння за останніми 9 цифрами, формат не чіпаємо, якщо номер той самий);
-- RestaurantInfo.Website - якщо в QR-меню вказано сайт закладу (не соцмережу й не саме QR-меню);
+- RestaurantInfo.Website - лише якщо в нас порожньо і в QR-меню вказано сайт закладу (не соцмережу й не саме QR-меню);
 - Restaurants.Email - лише якщо в нас порожньо (email може бути логіном власника).
+Не чіпаємо:
+- телефон і години, коли одне QR-меню прив'язане до кількох наших ресторанів (мережа: у кожної філії свої);
+- увесь ресторан, коли в QR-меню іноземний телефон / сайт / email - посилання, ймовірно, на інший заклад;
+- години з помилкою в QR-меню (день «02:00-02:00»).
 Кожна зміна пишеться в PlatformContactSync зі старим значенням - відкат: --rollback <RestaurantId>.
 
 Запуск:  python3 sync_platform_contacts.py            # показати, що змінилося б (нічого не пише)
@@ -30,7 +34,8 @@ from sync_restaurants import get_db
 
 EXPZ_INFO = "https://static.shaketopay.com.ua/menu/prod/cache/menu/{id}/uk/restaurant_menu_info.json"
 NOT_SITE = re.compile(r"choiceqr\.com|expz\.menu|expirenza|shaketopay|instagram\.com|facebook\.com|fb\.com|t\.me/|tiktok\.com|"
-                      r"google\.|goo\.gl|maps\.app|linktr\.ee|taplink|wa\.me|viber", re.I)
+                      r"google\.|goo\.gl|maps\.app|linktr\.ee|taplink|wa\.me|viber|business\.site", re.I)
+FOREIGN_TLD = re.compile(r"\.(cz|pl|sk|de|at|it|es|fr|uk|us|ee|lt|lv|ge|md|ro|hu|bg)(/|$)", re.I)
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$", re.I)
 
 LOG_SQL = """CREATE TABLE IF NOT EXISTS PlatformContactSync (
@@ -54,8 +59,11 @@ def clock(value):
 
 
 def week(by_day):
-    """{0..6 з понеділка: (from, to) | None} -> data для OpenHours; None, якщо днів немає взагалі."""
+    """{0..6 з понеділка: (from, to) | None} -> data для OpenHours; None, якщо днів немає взагалі
+    або в QR-меню помилка (початок = кінець, напр. «02:00-02:00»)."""
     if not any(by_day.get(i) for i in range(7)):
+        return None
+    if any(d and d[0] == d[1] for d in by_day.values()):
         return None
     return [{"from": by_day[i][0], "to": by_day[i][1], "active": True} if by_day.get(i)
             else {"from": "", "to": "", "active": False} for i in range(7)]
@@ -129,6 +137,38 @@ def digits(phone):
     return re.sub(r"\D", "", phone or "")[-9:]
 
 
+def ua_phone(phone):
+    """'+38 (067) 123-45-67', '0671234567', '380671234567' -> '+380 67 123 45 67'; None - не український номер."""
+    d = re.sub(r"\D", "", phone or "")
+    if re.fullmatch(r"0800\d{6}", d):
+        return f"0 800 {d[4:7]} {d[7:]}"  # безкоштовна лінія - без +380
+    if re.fullmatch(r"380\d{9}", d):
+        d = d[3:]
+    elif re.fullmatch(r"80\d{9}", d):
+        d = d[2:]
+    elif re.fullmatch(r"0\d{9}", d):
+        d = d[1:]
+    else:
+        return None
+    return f"+380 {d[:2]} {d[2:5]} {d[5:7]} {d[7:]}"
+
+
+def foreign(found):
+    """Іноземний телефон / сайт / email у QR-меню - посилання, ймовірно, не на цей заклад."""
+    if found["phone"] and not ua_phone(found["phone"]):
+        return f"телефон {found['phone'].strip()}"
+    for key in ("website", "email"):
+        if found[key] and FOREIGN_TLD.search(found[key].split("@")[-1]):
+            return f"{key} {found[key]}"
+    return None
+
+
+def link_key(url):
+    """Одне QR-меню під різними адресами: Expirenza - id, ChoiceQR - піддомен."""
+    m = EXPZ_ROOT.match(url)
+    return m.group(1).lower() if m else urlparse(url).netloc.lower()
+
+
 def site_key(url):
     host = urlparse(url if re.match(r"https?://", url or "", re.I) else "https://" + (url or "")).hostname or ""
     return re.sub(r"^www\.", "", host.lower())
@@ -142,15 +182,17 @@ def current_hours(raw):
         return None
 
 
-def changes_for(r, found):
-    """[(поле, старе, нове)] - лише те, що в QR-меню є і відрізняється."""
+def changes_for(r, found, shared=False):
+    """[(поле, старе, нове)] - лише те, що в QR-меню є і відрізняється.
+    shared - QR-меню однієї мережі на кількох наших ресторанах: телефон і години не чіпаємо."""
     result = []
-    if found["hours"] and current_hours(r["OpenHours"]) != found["hours"]:
+    if not shared and found["hours"] and current_hours(r["OpenHours"]) != found["hours"]:
         result.append(("OpenHours", r["OpenHours"], json.dumps({"perDay": True, "data": found["hours"]}, ensure_ascii=False)))
-    if found["phone"] and digits(found["phone"]) != digits(r["Phone"]):
-        result.append(("Phone", r["Phone"], found["phone"]))
+    phone = ua_phone(found["phone"]) or (found["phone"] or "").strip() or None
+    if not shared and phone and digits(phone) != digits(r["Phone"]):
+        result.append(("Phone", r["Phone"], phone))
     site = found["website"]
-    if site and not NOT_SITE.search(site) and site_key(site) != site_key(r["Website"]):
+    if site and not NOT_SITE.search(site) and not (r["Website"] or "").strip():
         result.append(("Website", r["Website"], site if re.match(r"https?://", site, re.I) else "https://" + site))
     if found["email"] and not (r["Email"] or "").strip():
         result.append(("Email", r["Email"], found["email"]))
@@ -209,13 +251,24 @@ def main():
                     FROM Restaurants r JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
                     WHERE r.Status = 0{only}""", (args.only,) if args.only else ())
     restaurants = cur.fetchall()
+    for r in restaurants:
+        url = next((u for u in (r["MenuUrl"], r["Website"]) if u and (EXPZ_ROOT.match(u.strip()) or ".choiceqr.com" in u.lower())), None)
+        r["Url"] = url.strip() if url else None
+    # скільки наших ресторанів дивляться на те саме QR-меню (за --only рахуємо по всіх)
+    if args.only:
+        cur.execute("""SELECT (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl, ri.Website
+                       FROM Restaurants r JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id WHERE r.Status = 0""")
+        everyone = cur.fetchall()
+    else:
+        everyone = restaurants
+    uses = Counter(link_key(u.strip()) for x in everyone for u in [next((v for v in (x["MenuUrl"], x["Website"])
+                   if v and (EXPZ_ROOT.match(v.strip()) or ".choiceqr.com" in v.lower())), None)] if u)
 
     stats, write = Counter(), db.cursor()
     for r in restaurants:
-        url = next((u for u in (r["MenuUrl"], r["Website"]) if u and (EXPZ_ROOT.match(u.strip()) or ".choiceqr.com" in u.lower())), None)
+        url = r["Url"]
         if not url:
             continue
-        url = url.strip()
         stats["з QR-меню"] += 1
         try:
             found = platform_contacts(url)
@@ -226,7 +279,15 @@ def main():
         if not found:
             stats["QR-меню не прочиталось"] += 1
             continue
-        changes = changes_for(r, found)
+        suspicious = foreign(found)
+        if suspicious:
+            stats["QR-меню, ймовірно, іншого закладу"] += 1
+            print(f"\n?  {r['Name']} ({r['Id']}) <- {url}\n   не чіпаємо: у QR-меню {suspicious} - перевірте посилання на меню")
+            continue
+        shared = uses[link_key(url)] > 1
+        if shared:
+            stats["мережа: телефон і години не чіпаємо"] += 1
+        changes = changes_for(r, found, shared)
         if not changes:
             stats["без змін"] += 1
             continue
