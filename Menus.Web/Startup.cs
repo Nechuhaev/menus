@@ -121,6 +121,7 @@ namespace Menus.Web
             services.AddScoped<PopularRestaurantService>();
             services.AddScoped<SeoReportService>();
             services.AddScoped<UserVisitService>();
+            services.AddScoped<IframeDesignService>();
             services.AddScoped<RestaurantRegistrationService>();
 
             services.Configure<FormOptions>(x =>

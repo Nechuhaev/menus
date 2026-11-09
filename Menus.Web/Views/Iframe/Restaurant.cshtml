@@ -17,7 +17,10 @@
     var culture = Context.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>().RequestCulture.Culture.TwoLetterISOLanguageName;
     var seo = ViewData["seo"] as IRestaurantSeo;
     var iframeSettings = ViewData["iframeSettings"] as IframeSettingsModel;
-    var locales = (iframeSettings?.Languages ?? Enumerable.Empty<Menus.Abstract.Models.ILocale>()).Where(x => x.Id == "uk" || x.Id == "ru" || x.Id == culture).ToList();
+    // налаштування вигляду з кабінету ресторану (блок «Меню для вашого сайту»)
+    var design = ViewData["design"] as Menus.Web.Services.IframeDesign ?? new Menus.Web.Services.IframeDesign();
+    var locales = design.HideLanguages ? new List<Menus.Abstract.Models.ILocale>()
+        : (iframeSettings?.Languages ?? Enumerable.Empty<Menus.Abstract.Models.ILocale>()).Where(x => x.Id == "uk" || x.Id == "ru" || x.Id == culture).ToList();
     var city = await Core.Restaurants.GetCityById(Model.Restaurant.City);
     var citySlug = city?.Name.Get("en")?.ToLower() ?? "kyiv";
     var cityName = city?.Name.Get(culture) ?? "";
@@ -26,7 +29,9 @@
     var fullAddress = string.IsNullOrWhiteSpace(address) ? cityName : $"{cityName}, {address}";
     var cuisines = (info.Cuisine?.Get(culture) ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).Take(3).ToList();
     var currency = string.IsNullOrWhiteSpace(info.Currency) ? "₴" : info.Currency;
-    var cover = Model.Photos?.FirstOrDefault();
+    var cover = design.Cover == "brand" ? null
+        : !string.IsNullOrEmpty(design.Cover) && Model.Photos != null && Model.Photos.Contains(design.Cover) ? design.Cover
+        : Model.Photos?.FirstOrDefault();
     var coverStyle = cover != null ? $"background-image: url('{Img.Url(cover, Quality.High)}')" : null;
     var initials = string.Concat((Model.Restaurant.Name ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpper(w[0])));
     // порядок розділів - як в адмінці (Index); у меню з групами (Clean) порядок уже задано групами
@@ -55,18 +60,24 @@
         html { scroll-behavior: smooth; }
         body { margin: 0; font-family: TMM, system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.45; -webkit-text-size-adjust: 100%; }
         a { color: inherit; }
+        :root { --accent: @design.Accent; --accent-text: @design.AccentText; }
+        @if (design.Dark)
+        {
+            <text>:root { --bg: #121214; --card: #1d1d21; --text: #f2f2f3; --muted: #a3a7ae; --line: #2c2c31; --dark: #0b0b0c; }
+            .tab.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }</text>
+        }
         .cover { height: 150px; position: relative; background: radial-gradient(circle at 20% 30%, rgba(255,184,14,.35), transparent 45%), radial-gradient(circle at 85% 70%, rgba(255,184,14,.25), transparent 40%), var(--dark); background-size: cover; background-position: center; }
         .cover.photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,.35), rgba(0,0,0,.1)); }
         .lang { position: absolute; z-index: 1; top: 12px; right: 12px; display: flex; background: rgba(0,0,0,.35); border-radius: 20px; padding: 3px; }
         .lang a { color: #fff; text-decoration: none; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 16px; text-transform: uppercase; }
-        .lang a.on { background: var(--accent); color: var(--dark); }
+        .lang a.on { background: var(--accent); color: var(--accent-text); }
         .wrap { max-width: 760px; margin: 0 auto; padding: 0 14px; }
         .head { background: var(--card); border-radius: 18px; margin-top: -56px; position: relative; padding: 18px; box-shadow: 0 6px 24px rgba(0,0,0,.08); display: flex; gap: 14px; align-items: center; }
-        .logo { width: 64px; height: 64px; border-radius: 50%; flex: none; background: var(--dark) center/cover no-repeat; color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 22px; }
+        .logo { width: 64px; height: 64px; border-radius: 50%; flex: none; background: #231f20 center/cover no-repeat; color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 22px; }
         .head h1 { margin: 0; font-size: 22px; line-height: 1.2; }
         .head .addr { color: var(--muted); font-size: 14px; margin-top: 4px; }
         .chips { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-        .chip { font-size: 12px; background: #fff6dd; color: #7a5200; border-radius: 12px; padding: 2px 9px; font-weight: 700; }
+        .chip { font-size: 12px; background: color-mix(in srgb, var(--accent) 18%, var(--card)); color: var(--text); border-radius: 12px; padding: 2px 9px; font-weight: 700; }
         .tabs { position: sticky; top: 0; z-index: 5; background: var(--bg); display: flex; gap: 8px; overflow-x: auto; padding: 14px 0 10px; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
         .tab { white-space: nowrap; text-decoration: none; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 7px 14px; font-size: 14px; font-weight: 700; }
@@ -89,10 +100,20 @@
         .row b { min-width: 96px; color: var(--muted); font-weight: 400; }
         .hours { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; }
         .hours .now { font-weight: 700; }
-        .btn { display: inline-block; margin-top: 10px; background: var(--accent); color: var(--dark); text-decoration: none; font-weight: 700; border-radius: 10px; padding: 10px 16px; }
+        .btn { display: inline-block; margin-top: 10px; background: var(--accent); color: var(--accent-text); text-decoration: none; font-weight: 700; border-radius: 10px; padding: 10px 16px; }
         .foot { text-align: center; color: var(--muted); font-size: 13px; padding: 18px 0 28px; }
         .foot a { text-decoration: none; }
         .foot img { height: 16px; vertical-align: -3px; margin-left: 4px; }
+        .dish { cursor: pointer; }
+        .sheet-bg { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.5); display: none; align-items: flex-end; justify-content: center; }
+        .sheet-bg.open { display: flex; }
+        .sheet { background: var(--card); color: var(--text); width: 100%; max-width: 560px; max-height: 88vh; overflow: auto; border-radius: 20px 20px 0 0; padding-bottom: 20px; }
+        .sheet .sp { width: 100%; aspect-ratio: 4 / 3; background: var(--line) center/cover no-repeat; border-radius: 20px 20px 0 0; }
+        .sheet .sb { padding: 16px 18px 0; }
+        .sheet h3 { margin: 0 0 8px; font-size: 20px; line-height: 1.25; }
+        .sheet p { margin: 0 0 10px; color: var(--muted); font-size: 15px; white-space: pre-line; }
+        .sheet .close { position: sticky; top: 10px; float: right; margin: 10px 10px -46px 0; width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 20px; line-height: 36px; cursor: pointer; z-index: 1; }
+        @@media (min-width: 720px) { .sheet-bg { align-items: center; } .sheet { border-radius: 20px; } }
         .empty { background: var(--card); border-radius: 16px; padding: 24px; text-align: center; color: var(--muted); margin-top: 14px; }
         @@media (min-width: 720px) { .cover { height: 200px; } .dish .ph { width: 120px; height: 120px; } .head h1 { font-size: 26px; } }
     </style>
@@ -150,9 +171,15 @@
                     @foreach (var dish in c.Dishes)
                     {
                         dishIndex++;
-                        var photo = dish.Photos?.FirstOrDefault();
-                        var description = dish.ShortDescription?.Get(culture);
-                        <article class="dish">
+                        var photo = design.HidePhotos ? null : dish.Photos?.FirstOrDefault();
+                        var description = design.HideDescriptions ? null : dish.ShortDescription?.Get(culture);
+                        var fullDescription = design.HideDescriptions ? null : new[] { dish.Description?.Get(culture), dish.ShortDescription?.Get(culture) }.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+                        var ingredients = design.HideDescriptions ? null : dish.Ingredients?.Get(culture);
+                        var weight = !design.HideWeight && !string.IsNullOrWhiteSpace(dish.Weight) && dish.Weight != "0" ? $"{dish.Weight} {dish.WeightType}" : null;
+                        var priceText = dish.Price != 0 ? $"{(dish.IsPriceMultiple ? Localizer["From"].Value + " " : "")}{dish.Price.ToString("0.##")} {currency}" : null;
+                        <article class="dish" tabindex="0" role="button"
+                                 data-title="@(Menus.Web.Helpers.DishName.Title(dish.Name, culture))" data-desc="@fullDescription" data-ingr="@ingredients"
+                                 data-photo="@(string.IsNullOrEmpty(photo) ? "" : Img.Url(photo, Quality.High))" data-price="@priceText" data-weight="@weight">
                             <div class="dt">
                                 <h3>@(Menus.Web.Helpers.DishName.Title(dish.Name, culture))</h3>
                                 @if (!string.IsNullOrWhiteSpace(description))
@@ -160,13 +187,13 @@
                                     <p>@description</p>
                                 }
                                 <div class="meta">
-                                    @if (dish.Price != 0)
+                                    @if (priceText != null)
                                     {
-                                        <span class="price">@(dish.IsPriceMultiple ? Localizer["From"].Value + " " : "")@dish.Price.ToString("0.##") @currency</span>
+                                        <span class="price">@priceText</span>
                                     }
-                                    @if (!string.IsNullOrWhiteSpace(dish.Weight) && dish.Weight != "0")
+                                    @if (weight != null)
                                     {
-                                        <span class="w">@dish.Weight @dish.WeightType</span>
+                                        <span class="w">@weight</span>
                                     }
                                 </div>
                             </div>
@@ -219,7 +246,40 @@
         </footer>
     </div>
 
+    <div class="sheet-bg" id="sheet" aria-hidden="true">
+        <div class="sheet" role="dialog" aria-modal="true">
+            <button class="close" type="button" aria-label="×">×</button>
+            <div class="sp" id="sheetPhoto"></div>
+            <div class="sb">
+                <h3 id="sheetTitle"></h3>
+                <p id="sheetDesc"></p>
+                <p id="sheetIngr"></p>
+                <div class="meta"><span class="price" id="sheetPrice"></span><span class="w" id="sheetWeight"></span></div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        (function () {
+            // картка страви поверх меню - відвідувач лишається на сайті закладу
+            var sheet = document.getElementById('sheet');
+            function set(id, text) { var el = document.getElementById(id); el.textContent = text || ''; el.style.display = text ? '' : 'none'; }
+            function openDish(d) {
+                var photo = document.getElementById('sheetPhoto');
+                photo.style.display = d.dataset.photo ? '' : 'none';
+                photo.style.backgroundImage = d.dataset.photo ? "url('" + d.dataset.photo + "')" : '';
+                set('sheetTitle', d.dataset.title); set('sheetDesc', d.dataset.desc); set('sheetIngr', d.dataset.ingr);
+                set('sheetPrice', d.dataset.price); set('sheetWeight', d.dataset.weight);
+                sheet.classList.add('open'); sheet.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
+            }
+            function closeDish() { sheet.classList.remove('open'); sheet.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
+            document.querySelectorAll('.dish').forEach(function (d) {
+                d.addEventListener('click', function () { openDish(d); });
+                d.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDish(d); } });
+            });
+            sheet.addEventListener('click', function (e) { if (e.target === sheet || e.target.classList.contains('close')) closeDish(); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDish(); });
+        })();
         (function () {
             // фото далеких страв - коли до них доходить прокрутка
             var lazy = document.querySelectorAll('[data-lazy]');
