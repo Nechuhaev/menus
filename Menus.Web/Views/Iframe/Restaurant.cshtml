@@ -11,6 +11,23 @@
 @model Menus.Web.Models.ViewModels.RestaurantViewModel
 @inject IViewLocalizer Localizer
 @inject Menus.Domain.Core Core
+@functions {
+    // усе, що потрібно для картки страви (у списку, у «Топ страви» і в картці поверх меню)
+    class DishCard
+    {
+        public string Title, Desc, FullDesc, Ingr, Photo, PhotoHigh, PriceText, Weight, Variants, RatingText;
+        public float Rating;
+        public int RatingCount;
+    }
+    static TimeZoneInfo KyivZone()
+    {
+        foreach (var id in new[] { "Europe/Kyiv", "Europe/Kiev", "FLE Standard Time" })
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch (Exception) { }
+        }
+        return TimeZoneInfo.Utc;
+    }
+}
 @{
     Layout = null;
     var crq = Context.Request;
@@ -42,8 +59,76 @@
     JArray days = null;
     if (Model.SchedulePerDay) { try { days = JsonConvert.DeserializeObject<JArray>(Model.OpenHours); } catch (Exception) { days = null; } }
     var dayNames = new[] { "Mon", "Tue", "Wed", "Thr", "Fri", "Sat", "Sun" };
-    var today = (int)DateTime.Now.DayOfWeek; today = today == 0 ? 6 : today - 1;
+    // час закладу - київський (сервер живе в UTC)
+    var kyivNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, KyivZone());
+    var today = (int)kyivNow.DayOfWeek; today = today == 0 ? 6 : today - 1;
     var dishIndex = 0;
+
+    // «Відчинено / Зачинено» - лише коли години задані по днях
+    bool? openNow = null;
+    string openUntil = null;
+    if (days != null && days.Count >= 7)
+    {
+        bool TryTimes(JToken day, out TimeSpan from, out TimeSpan to)
+        {
+            from = to = TimeSpan.Zero;
+            return day["active"].Value<bool>() && TimeSpan.TryParse(day["from"].Value<string>(), out from) && TimeSpan.TryParse(day["to"].Value<string>(), out to);
+        }
+        var now = kyivNow.TimeOfDay;
+        openNow = false;
+        if (TryTimes(days[today], out var f, out var t))
+        {
+            if (t > f ? now >= f && now < t : now >= f) { openNow = true; openUntil = days[today]["to"].Value<string>(); }
+        }
+        // хвіст учорашньої зміни після півночі (напр. 18:00 - 02:00)
+        if (openNow == false && TryTimes(days[(today + 6) % 7], out var yf, out var yt) && yt <= yf && now < yt)
+        {
+            openNow = true; openUntil = days[(today + 6) % 7]["to"].Value<string>();
+        }
+    }
+    string Capital(string v) => string.IsNullOrEmpty(v) ? v : char.ToUpper(v[0]) + v.Substring(1);
+    var openText = Localizer["OpenNow"].IsResourceNotFound ? "Відчинено" : Localizer["OpenNow"].Value;
+
+    // варіанти страв і Instagram закладу
+    var extras = ViewData["extras"] as Menus.Web.Services.IframeExtras ?? new Menus.Web.Services.IframeExtras();
+    string Money(decimal v) => $"{v.ToString("0.##")} {currency}";
+    var cards = new Dictionary<string, DishCard>();
+    foreach (var d in allCategories.Where(c => c.Dishes != null).SelectMany(c => c.Dishes))
+    {
+        if (cards.ContainsKey(d.Id)) continue;
+        extras.Variants.TryGetValue(d.Id ?? "", out var variants);
+        var multi = variants != null && variants.Count > 1;
+        var ph = design.HidePhotos ? null : d.Photos?.FirstOrDefault();
+        var minPrice = multi ? variants.Min(v => v.Price) : d.Price;
+        var maxPrice = multi ? variants.Max(v => v.Price) : d.Price;
+        cards[d.Id] = new DishCard
+        {
+            Title = Menus.Web.Helpers.DishName.Title(d.Name, culture),
+            Desc = design.HideDescriptions ? null : d.ShortDescription?.Get(culture),
+            FullDesc = design.HideDescriptions ? null : new[] { d.Description?.Get(culture), d.ShortDescription?.Get(culture) }.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)),
+            Ingr = design.HideDescriptions ? null : d.Ingredients?.Get(culture),
+            Photo = string.IsNullOrEmpty(ph) ? null : Img.Url(ph, Quality.Low),
+            PhotoHigh = string.IsNullOrEmpty(ph) ? null : Img.Url(ph, Quality.High),
+            // кілька варіантів - діапазон цін «245 – 315 ₴», інакше «від» як і раніше
+            PriceText = maxPrice == 0 ? null
+                : multi && minPrice != maxPrice ? $"{minPrice.ToString("0.##")} – {Money(maxPrice)}"
+                : $"{(d.IsPriceMultiple && !multi ? Localizer["From"].Value + " " : "")}{Money(minPrice)}",
+            Weight = design.HideWeight || multi || string.IsNullOrWhiteSpace(d.Weight) || d.Weight == "0" ? null : $"{d.Weight} {d.WeightType}",
+            Variants = multi ? string.Join("\n", variants.Select(v => (design.HideWeight || v.Weight == 0 ? "" : $"{v.Weight} {v.Type} — ") + Money(v.Price))) : null,
+            Rating = d.RatingFloat,
+            RatingCount = d.RatingCount,
+            RatingText = d.RatingCount > 0 ? $"★ {d.RatingFloat.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} · {d.RatingCount} {Localizer["Ratings"].Value}" : null
+        };
+    }
+    // «Топ страви»: найвище оцінені відвідувачами TipMyMenu (від 3 таких страв)
+    var popular = cards.Where(x => x.Value.RatingCount > 0).OrderByDescending(x => x.Value.Rating).ThenByDescending(x => x.Value.RatingCount).Take(8).ToList();
+    if (popular.Count < 3) { popular.Clear(); }
+
+    // сайт закладу (не QR-меню й не соцмережа) та Instagram
+    var website = info.Website;
+    if (!string.IsNullOrWhiteSpace(website) && Regex.IsMatch(website, "choiceqr|expz\\.menu|expirenza|instagram\\.com|facebook\\.com", RegexOptions.IgnoreCase)) { website = null; }
+    if (!string.IsNullOrWhiteSpace(website) && !Regex.IsMatch(website, "^https?://", RegexOptions.IgnoreCase)) { website = "https://" + website.Trim(); }
+    var instagram = extras.Instagram.FirstOrDefault();
 }
 <!DOCTYPE html>
 <html lang="@culture">
@@ -83,7 +168,6 @@
         .tab { white-space: nowrap; text-decoration: none; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 7px 14px; font-size: 14px; font-weight: 700; }
         .tab.on { background: var(--dark); color: #fff; border-color: var(--dark); }
         .group { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 26px 2px 0; }
-        section { scroll-margin-top: 64px; }
         section h2 { font-size: 20px; margin: 18px 2px 10px; }
         .dish { background: var(--card); border-radius: 16px; padding: 14px; display: flex; gap: 12px; margin-bottom: 10px; align-items: stretch; }
         .dish .dt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -117,6 +201,24 @@
         .sheet p { margin: 0 0 10px; color: var(--muted); font-size: 15px; white-space: pre-line; }
         .sheet .close { position: sticky; top: 10px; float: right; margin: 10px 10px -46px 0; width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 20px; line-height: 36px; cursor: pointer; z-index: 1; }
         @@media (min-width: 720px) { .sheet-bg { align-items: center; } .sheet { border-radius: 20px; } }
+        .open { display: inline-block; margin-top: 6px; font-size: 13px; font-weight: 700; border-radius: 10px; padding: 2px 9px; }
+        .open.on { background: #e3f6e9; color: #1b7f3b; }
+        .open.off { background: var(--line); color: var(--muted); }
+        .bar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 12px; }
+        .bar .tabs { position: static; padding-top: 10px; }
+        .search { width: 100%; min-height: 42px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--text); font: inherit; font-size: 15px; }
+        .search:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+        section { scroll-margin-top: 120px; }
+        .rate { color: #b7791f; font-size: 13px; font-weight: 700; white-space: nowrap; }
+        .popular h2 { font-size: 20px; margin: 18px 2px 10px; }
+        .pop-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+        .pop-row::-webkit-scrollbar { display: none; }
+        .dish.pop { flex: 0 0 156px; flex-direction: column; gap: 8px; margin: 0; padding: 10px; }
+        .dish.pop .ph { width: 100%; height: 110px; }
+        .dish.pop h3 { font-size: 14px; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .dish.pop .meta { padding-top: 0; }
+        .sheet .variants { color: var(--text); }
+        .sheet .rating { color: #b7791f; font-weight: 700; }
         .empty { background: var(--card); border-radius: 16px; padding: 24px; text-align: center; color: var(--muted); margin-top: 14px; }
         @@media (min-width: 720px) { .cover { height: 200px; } .dish .ph { width: 120px; height: 120px; } .head h1 { font-size: 26px; } }
     </style>
@@ -146,6 +248,14 @@
             <div>
                 <h1>@Model.Restaurant.Name</h1>
                 <div class="addr">@fullAddress</div>
+                @if (openNow == true)
+                {
+                    <div class="open on">@openText@(openUntil != null ? " · " + openUntil : "")</div>
+                }
+                else if (openNow == false)
+                {
+                    <div class="open off">@Capital(Localizer["Closed"].Value)</div>
+                }
                 @if (cuisines.Any())
                 {
                     <div class="chips">@foreach (var c in cuisines) { <span class="chip">@c</span> }</div>
@@ -155,12 +265,38 @@
 
         @if (categories.Any(c => c.Dishes != null && c.Dishes.Any()))
         {
+            <div class="bar" id="bar">
+            <input type="search" id="q" class="search" placeholder="@Capital(Localizer["MenuSearch"].Value)" autocomplete="off" />
             <nav class="tabs" id="tabs">
                 @foreach (var c in categories.Where(c => c.Dishes != null && c.Dishes.Any()))
                 {
                     <a class="tab" href="#c-@c.Id">@(((IMenuCategory)c).Name.Get(culture))</a>
                 }
             </nav>
+            </div>
+            <div class="empty" id="noResults" hidden>@Localizer["NoItems"]</div>
+
+            if (popular.Any())
+            {
+                <section class="popular" id="popular">
+                    <h2>@Capital(Localizer["TopDishes"].Value)</h2>
+                    <div class="pop-row">
+                        @foreach (var item in popular)
+                        {
+                            var pc = item.Value;
+                            <article class="dish pop" tabindex="0" role="button" data-title="@pc.Title" data-desc="@pc.FullDesc" data-ingr="@pc.Ingr"
+                                     data-photo="@pc.PhotoHigh" data-price="@pc.PriceText" data-weight="@pc.Weight" data-variants="@pc.Variants" data-rating="@pc.RatingText">
+                                @if (pc.Photo != null)
+                                {
+                                    <div class="ph" style="background-image: url('@pc.Photo')"></div>
+                                }
+                                <h3>@pc.Title</h3>
+                                <div class="meta"><span class="price">@pc.PriceText</span><span class="rate">★ @pc.Rating.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)</span></div>
+                            </article>
+                        }
+                    </div>
+                </section>
+            }
 
             foreach (var c in categories)
             {
@@ -174,35 +310,33 @@
                     @foreach (var dish in c.Dishes)
                     {
                         dishIndex++;
-                        var photo = design.HidePhotos ? null : dish.Photos?.FirstOrDefault();
-                        var description = design.HideDescriptions ? null : dish.ShortDescription?.Get(culture);
-                        var fullDescription = design.HideDescriptions ? null : new[] { dish.Description?.Get(culture), dish.ShortDescription?.Get(culture) }.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-                        var ingredients = design.HideDescriptions ? null : dish.Ingredients?.Get(culture);
-                        var weight = !design.HideWeight && !string.IsNullOrWhiteSpace(dish.Weight) && dish.Weight != "0" ? $"{dish.Weight} {dish.WeightType}" : null;
-                        var priceText = dish.Price != 0 ? $"{(dish.IsPriceMultiple ? Localizer["From"].Value + " " : "")}{dish.Price.ToString("0.##")} {currency}" : null;
-                        <article class="dish" tabindex="0" role="button"
-                                 data-title="@(Menus.Web.Helpers.DishName.Title(dish.Name, culture))" data-desc="@fullDescription" data-ingr="@ingredients"
-                                 data-photo="@(string.IsNullOrEmpty(photo) ? "" : Img.Url(photo, Quality.High))" data-price="@priceText" data-weight="@weight">
+                        var card = cards[dish.Id];
+                        <article class="dish" tabindex="0" role="button" data-title="@card.Title" data-desc="@card.FullDesc" data-ingr="@card.Ingr"
+                                 data-photo="@card.PhotoHigh" data-price="@card.PriceText" data-weight="@card.Weight" data-variants="@card.Variants" data-rating="@card.RatingText">
                             <div class="dt">
-                                <h3>@(Menus.Web.Helpers.DishName.Title(dish.Name, culture))</h3>
-                                @if (!string.IsNullOrWhiteSpace(description))
+                                <h3>@card.Title</h3>
+                                @if (!string.IsNullOrWhiteSpace(card.Desc))
                                 {
-                                    <p>@description</p>
+                                    <p>@card.Desc</p>
                                 }
                                 <div class="meta">
-                                    @if (priceText != null)
+                                    @if (card.PriceText != null)
                                     {
-                                        <span class="price">@priceText</span>
+                                        <span class="price">@card.PriceText</span>
                                     }
-                                    @if (weight != null)
+                                    @if (card.Weight != null)
                                     {
-                                        <span class="w">@weight</span>
+                                        <span class="w">@card.Weight</span>
+                                    }
+                                    @if (card.RatingCount > 0)
+                                    {
+                                        <span class="rate">★ @card.Rating.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) <span class="w">(@card.RatingCount)</span></span>
                                     }
                                 </div>
                             </div>
-                            @if (!string.IsNullOrEmpty(photo))
+                            @if (card.Photo != null)
                             {
-                                <div class="ph" role="img" aria-label="@(Menus.Web.Helpers.DishName.Title(dish.Name, culture))" style="background-image: url('@Img.Url(photo, Quality.Low)')" @(dishIndex > 8 ? "data-lazy" : "")></div>
+                                <div class="ph" role="img" aria-label="@card.Title" style="background-image: url('@card.Photo')" @(dishIndex > 8 ? "data-lazy" : "")></div>
                             }
                         </article>
                     }
@@ -237,6 +371,14 @@
             {
                 <div class="row"><b>@Localizer["Phone"]</b><a href="tel:@Model.Restaurant.Phone">@Model.Restaurant.Phone</a></div>
             }
+            @if (!string.IsNullOrWhiteSpace(website))
+            {
+                <div class="row"><b>@Localizer["Website"]</b><a href="@website" target="_blank" rel="noopener">@Regex.Replace(website, "^https?://(www\\.)?|/$", "")</a></div>
+            }
+            @if (!string.IsNullOrWhiteSpace(instagram))
+            {
+                <div class="row"><b>Instagram</b><a href="https://@instagram" target="_blank" rel="noopener">@@@Regex.Replace(instagram, "^(www\\.)?instagram\\.com/|/$", "")</a></div>
+            }
             @if (!string.IsNullOrEmpty(info.GpsLatitude) && !string.IsNullOrEmpty(info.GpsLongitude))
             {
                 <a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=@info.GpsLatitude,@info.GpsLongitude">@Localizer["Directions"]</a>
@@ -257,6 +399,8 @@
                 <h3 id="sheetTitle"></h3>
                 <p id="sheetDesc"></p>
                 <p id="sheetIngr"></p>
+                <p class="variants" id="sheetVariants"></p>
+                <p class="rating" id="sheetRating"></p>
                 <div class="meta"><span class="price" id="sheetPrice"></span><span class="w" id="sheetWeight"></span></div>
             </div>
         </div>
@@ -273,6 +417,7 @@
                 photo.style.backgroundImage = d.dataset.photo ? "url('" + d.dataset.photo + "')" : '';
                 set('sheetTitle', d.dataset.title); set('sheetDesc', d.dataset.desc); set('sheetIngr', d.dataset.ingr);
                 set('sheetPrice', d.dataset.price); set('sheetWeight', d.dataset.weight);
+                set('sheetVariants', d.dataset.variants); set('sheetRating', d.dataset.rating);
                 sheet.classList.add('open'); sheet.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
             }
             function closeDish() { sheet.classList.remove('open'); sheet.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
@@ -282,6 +427,29 @@
             });
             sheet.addEventListener('click', function (e) { if (e.target === sheet || e.target.classList.contains('close')) closeDish(); });
             document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDish(); });
+
+            // пошук по меню: назва, опис, склад; розділи без збігів ховаються
+            var q = document.getElementById('q');
+            if (!q) return;
+            var sections = document.querySelectorAll('section[id^="c-"]'), groups = document.querySelectorAll('.group');
+            var popularBlock = document.getElementById('popular'), noResults = document.getElementById('noResults');
+            q.addEventListener('input', function () {
+                var term = q.value.trim().toLowerCase(), total = 0;
+                sections.forEach(function (sec) {
+                    var shown = 0;
+                    sec.querySelectorAll('.dish').forEach(function (d) {
+                        var hay = ((d.dataset.title || '') + ' ' + (d.dataset.desc || '') + ' ' + (d.dataset.ingr || '')).toLowerCase();
+                        var ok = !term || hay.indexOf(term) >= 0;
+                        d.style.display = ok ? '' : 'none';
+                        if (ok) shown++;
+                    });
+                    sec.style.display = shown ? '' : 'none';
+                    total += shown;
+                });
+                groups.forEach(function (g) { g.style.display = term ? 'none' : ''; });
+                if (popularBlock) popularBlock.style.display = term ? 'none' : '';
+                noResults.hidden = total > 0;
+            });
         })();
         (function () {
             // фото далеких страв - коли до них доходить прокрутка
@@ -305,7 +473,7 @@
                     var t = byId[e.target.id];
                     if (t) { t.classList.add('on'); nav.scrollTo({ left: t.offsetLeft - 14, behavior: 'smooth' }); }
                 });
-            }, { rootMargin: '-70px 0px -70% 0px' });
+            }, { rootMargin: '-130px 0px -65% 0px' });
             document.querySelectorAll('section[id^="c-"]').forEach(function (s) { spy.observe(s); });
             tabs[0].classList.add('on');
         })();
