@@ -37,7 +37,7 @@
             }
 
             <p>
-                Сторінки меню в Expirenza і ChoiceQR, знайдені пошуком за назвою ресторану. Підтверджене посилання
+                Сторінки меню в Expirenza, ChoiceQR і RestoApp, знайдені пошуком за назвою ресторану. Підтверджене посилання
                 записується в поле «Посилання на меню» картки ресторану, і бот бере звідти страви, фото й ціни.
                 Інші варіанти цього ресторану при цьому відхиляються. Відхилене повторно не пропонується.
             </p>
@@ -71,7 +71,7 @@
                                     {
                                         <span class="badge recommended">рекомендовано</span>
                                     }
-                                    <span class="badge">@(item.Platform == "expz" ? "Expirenza" : "ChoiceQR")</span>
+                                    <span class="badge">@(item.Platform == "expz" ? "Expirenza" : item.Platform == "restoapp" ? "RestoApp" : "ChoiceQR")</span>
                                     <small>@item.Url</small>
                                     @if (!string.IsNullOrWhiteSpace(item.PageDescription))
                                     {

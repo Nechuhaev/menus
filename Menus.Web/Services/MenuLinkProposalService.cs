@@ -113,13 +113,13 @@ namespace Menus.Web.Services
                 new { id, StatusRejected, StatusNew });
         }
 
-        // Усі рекомендовані: по одній на ресторан, Expirenza перед ChoiceQR (там ваги й варіанти страв)
+        // Усі рекомендовані: по одній на ресторан, Expirenza перед ChoiceQR і RestoApp (там ваги й варіанти страв)
         public async Task<int> ApproveRecommended()
         {
             var chosen = (await GetPending())
                 .Where(x => x.Recommended)
                 .GroupBy(x => x.RestaurantId)
-                .Select(g => g.OrderBy(x => x.Platform == "expz" ? 0 : 1).First())
+                .Select(g => g.OrderBy(x => x.Platform == "expz" ? 0 : x.Platform == "choiceqr" ? 1 : 2).First())
                 .ToList();
             foreach (var proposal in chosen)
             {
