@@ -112,8 +112,20 @@ namespace Menus.Web.Controllers
             ViewData["valueName"] = "restaurantId";
             ViewData["value"] = data.Restaurant.Id;
 
+            // вигляд нового iframe (обкладинка, колір, тема, що показувати) - IframeDesignService
+            var design = await ((IframeDesignService)HttpContext.RequestServices.GetService(typeof(IframeDesignService))).Get(restaurant.Id);
+            if (Request.Query["preview"] == "1")
+            {
+                design = design.WithPreview(Request.Query);
+                Response.Headers["Cache-Control"] = "no-store";
+                Response.Headers["X-Robots-Tag"] = "noindex";
+            }
+            ViewData["design"] = design;
+
+            // Last-Modified - пізніша з дат: зміна ресторану чи зміна вигляду (інакше браузер і CDN тримали старий вигляд)
+            var lastModified = design.UpdatedAt > restaurant.UpdateDate ? design.UpdatedAt : restaurant.UpdateDate;
             Response.Headers.Remove("Last-Modified");
-            Response.Headers.Add("Last-Modified", restaurant.UpdateDate.ToString("R"));
+            Response.Headers.Add("Last-Modified", lastModified.ToString("R"));
 
             IframeSettingsModel iframeSettings = new IframeSettingsModel();
 
@@ -162,8 +174,6 @@ namespace Menus.Web.Controllers
             iframeSettings.Languages = languages;
 
             ViewData["iframeSettings"] = iframeSettings;
-            // вигляд нового iframe (обкладинка, колір, тема, що показувати) - IframeDesignService
-            ViewData["design"] = await ((IframeDesignService)HttpContext.RequestServices.GetService(typeof(IframeDesignService))).Get(restaurant.Id);
             ViewData["extras"] = await ((IframeDesignService)HttpContext.RequestServices.GetService(typeof(IframeDesignService))).GetExtras(restaurant.Id);
 
             return View(data);

@@ -67,6 +67,15 @@
     // «Відчинено / Зачинено» - лише коли години задані по днях
     bool? openNow = null;
     string openUntil = null;
+    var dailyHours = days == null && !string.IsNullOrWhiteSpace(Model.OpenHours)
+        ? Regex.Match(Model.OpenHours, @"^\s*(\d{1,2}[:.]\d{2})\s*[-–—]\s*(\d{1,2}[:.]\d{2})") : null;
+    if (dailyHours != null && dailyHours.Success
+        && TimeSpan.TryParse(dailyHours.Groups[1].Value.Replace('.', ':'), out var df) && TimeSpan.TryParse(dailyHours.Groups[2].Value.Replace('.', ':'), out var dt))
+    {
+        var nowT = kyivNow.TimeOfDay;
+        openNow = dt > df ? nowT >= df && nowT < dt : nowT >= df || nowT < dt;
+        openUntil = openNow == true ? dailyHours.Groups[2].Value.Replace('.', ':') : null;
+    }
     if (days != null && days.Count >= 7)
     {
         bool TryTimes(JToken day, out TimeSpan from, out TimeSpan to)
@@ -126,8 +135,10 @@
 
     // сайт закладу (не QR-меню й не соцмережа) та Instagram
     var website = info.Website;
-    if (!string.IsNullOrWhiteSpace(website) && Regex.IsMatch(website, "choiceqr|expz\\.menu|expirenza|instagram\\.com|facebook\\.com", RegexOptions.IgnoreCase)) { website = null; }
+    if (!string.IsNullOrWhiteSpace(website) && Regex.IsMatch(website, "choiceqr|expz\\.menu|expirenza|instagram\\.com|facebook\\.com|svkus\\.com|restaurantguru|tripadvisor|firstline\\.in\\.ua|2gis|google\\.[a-z.]+/maps|tomato\\.ua|linktr\\.ee|taplink", RegexOptions.IgnoreCase)) { website = null; }
     if (!string.IsNullOrWhiteSpace(website) && !Regex.IsMatch(website, "^https?://", RegexOptions.IgnoreCase)) { website = "https://" + website.Trim(); }
+    // без міток реклами (?fbclid=, utm_) - посилання чисте
+    if (!string.IsNullOrWhiteSpace(website)) { website = Regex.Replace(website, "[?&](fbclid|gclid|utm_[a-z]+)=[^&#]*", "", RegexOptions.IgnoreCase).TrimEnd('?', '&'); }
     var instagram = extras.Instagram.FirstOrDefault();
 }
 <!DOCTYPE html>
@@ -201,6 +212,7 @@
         .sheet p { margin: 0 0 10px; color: var(--muted); font-size: 15px; white-space: pre-line; }
         .sheet .close { position: sticky; top: 10px; float: right; margin: 10px 10px -46px 0; width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 20px; line-height: 36px; cursor: pointer; z-index: 1; }
         @@media (min-width: 720px) { .sheet-bg { align-items: center; } .sheet { border-radius: 20px; } }
+        [hidden] { display: none !important; }
         .open { display: inline-block; margin-top: 6px; font-size: 13px; font-weight: 700; border-radius: 10px; padding: 2px 9px; }
         .open.on { background: #e3f6e9; color: #1b7f3b; }
         .open.off { background: var(--line); color: var(--muted); }

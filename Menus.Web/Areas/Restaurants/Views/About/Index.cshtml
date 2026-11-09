@@ -425,9 +425,22 @@
                             var url = base.replace('{0}', lang.value);
                             var h = Math.max(300, parseInt(height.value, 10) || 800);
                             code.value = '<iframe src="' + url + '" width="100%" height="' + h + '" style="border:0;max-width:100%" loading="lazy" title="Меню ' + esc(name) + '"></iframe>';
-                            if (preview.getAttribute('src') !== url) preview.setAttribute('src', url);
+                            // перегляд показує вибране у формі «Вигляд меню» ще до збереження (?preview=1, без кешу)
+                            var src = url + (url.indexOf('?') < 0 ? '?' : '&') + previewQuery();
+                            if (preview.getAttribute('src') !== src) preview.setAttribute('src', src);
                             open.href = url;
                         }
+                        var designForm = document.querySelector('form.embed-design');
+                        function previewQuery() {
+                            if (!designForm) return 'preview=1';
+                            var f = designForm.elements, cover = designForm.querySelector('input[name=Cover]:checked');
+                            var q = { preview: 1, cover: cover ? cover.value : '', accent: f.Accent.value, theme: f.Theme.value,
+                                photos: f.ShowPhotos.checked ? 1 : 0, descriptions: f.ShowDescriptions.checked ? 1 : 0,
+                                weight: f.ShowWeight.checked ? 1 : 0, languages: f.ShowLanguages.checked ? 1 : 0 };
+                            return Object.keys(q).map(function (k) { return k + '=' + encodeURIComponent(q[k]); }).join('&');
+                        }
+                        var timer;
+                        if (designForm) designForm.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(update, 300); });
                         lang.addEventListener('change', update);
                         height.addEventListener('input', update);
                         document.getElementById('embedCopy').addEventListener('click', function () {
