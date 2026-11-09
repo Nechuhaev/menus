@@ -324,4 +324,7 @@
 	<data name="AboutPlace" xml:space="preserve">
 		<value>О заведении</value>
 	</data>
+	<data name="OpenNow" xml:space="preserve">
+		<value>Открыто</value>
+	</data>
 </root>

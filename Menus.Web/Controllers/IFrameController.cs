@@ -164,6 +164,7 @@ namespace Menus.Web.Controllers
             ViewData["iframeSettings"] = iframeSettings;
             // вигляд нового iframe (обкладинка, колір, тема, що показувати) - IframeDesignService
             ViewData["design"] = await ((IframeDesignService)HttpContext.RequestServices.GetService(typeof(IframeDesignService))).Get(restaurant.Id);
+            ViewData["extras"] = await ((IframeDesignService)HttpContext.RequestServices.GetService(typeof(IframeDesignService))).GetExtras(restaurant.Id);
 
             return View(data);
         }
@@ -275,6 +276,7 @@ namespace Menus.Web.Controllers
             ViewData["iframeSettings"] = iframeSettings;
             // вигляд нового iframe (обкладинка, колір, тема, що показувати) - IframeDesignService
             ViewData["design"] = await ((IframeDesignService)HttpContext.RequestServices.GetService(typeof(IframeDesignService))).Get(restaurant.Id);
+            ViewData["extras"] = await ((IframeDesignService)HttpContext.RequestServices.GetService(typeof(IframeDesignService))).GetExtras(restaurant.Id);
 
             return View("Restaurant", data); // той самий новий шаблон, що й жива сторінка iframe
         }

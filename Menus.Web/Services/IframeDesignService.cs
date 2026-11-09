@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
@@ -41,6 +42,22 @@ namespace Menus.Web.Services
                 return luminance > 0.55 ? "#231f20" : "#ffffff";
             }
         }
+    }
+
+    // варіант страви (порція / розмір): вага, одиниця, ціна - з DishVariations
+    public class IframeVariant
+    {
+        public string DishId { get; set; }
+        public decimal Price { get; set; }
+        public int Weight { get; set; }
+        public string Type { get; set; }
+    }
+
+    // дані для iframe понад меню: варіанти страв і Instagram закладу (контакти з розсилки)
+    public class IframeExtras
+    {
+        public Dictionary<string, List<IframeVariant>> Variants { get; set; } = new Dictionary<string, List<IframeVariant>>();
+        public List<string> Instagram { get; set; } = new List<string>();
     }
 
     public class IframeDesignService
@@ -87,6 +104,30 @@ namespace Menus.Web.Services
                 ?? new IframeDesign { RestaurantId = restaurantId };
             Cache[restaurantId] = (DateTime.UtcNow, design);
             return design;
+        }
+
+        public async Task<IframeExtras> GetExtras(string restaurantId)
+        {
+            var extras = new IframeExtras();
+            if (string.IsNullOrEmpty(restaurantId)) return extras;
+            try
+            {
+                extras.Variants = (await _connection.QueryAsync<IframeVariant>(@"
+                        SELECT CONCAT(dv.DishId, '') AS DishId, dv.Price, dv.Weight, dv.Type
+                        FROM DishVariations dv JOIN Dishes d ON d.Id = dv.DishId
+                        WHERE d.RestaurantId = @restaurantId AND d.Status = 0", new { restaurantId }))
+                    .GroupBy(x => x.DishId)
+                    .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Price).ToList(), StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception) { /* без варіантів - ціна як і раніше */ }
+            try
+            {
+                extras.Instagram = (await _connection.QueryAsync<string>(
+                        "SELECT Value FROM RestaurantContacts WHERE RestaurantId = @restaurantId AND Kind = 'instagram' AND Hidden = 0 ORDER BY Id LIMIT 1",
+                        new { restaurantId })).ToList();
+            }
+            catch (Exception) { /* таблиці контактів ще немає */ }
+            return extras;
         }
 
         public async Task Save(IframeDesign d)
