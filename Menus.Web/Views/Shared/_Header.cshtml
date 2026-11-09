@@ -123,13 +123,7 @@
                 @await Html.PartialAsync("_LanguagesDropdown")
             }
 
-            @* лендинг «Меню для сайту закладу»; блок справа - row-reverse, тож останній елемент стоїть першим зліва *@
-            <a class="header-iframe-link" href="/@culture/iframe-menu">@Localizer["IframeMenu"]</a>
-            <style>
-                .header-iframe-link { display: flex; align-items: center; margin-right: 22px; padding: 0 14px; height: 36px; align-self: center; border-radius: 10px; background: #ffb80e; color: #231f20 !important; font-size: 14px; font-weight: 700; line-height: 1; letter-spacing: normal; text-transform: none; text-decoration: none; white-space: nowrap; }
-                .header-iframe-link:hover { background: #f0a800; text-decoration: none; }
-                @@media (max-width: 760px) { .header-iframe-link { margin-right: 8px; padding: 0 10px; height: 30px; font-size: 12px; } }
-            </style>
+            @await Html.PartialAsync("_IframeMenuLink")
 
         </div>
 

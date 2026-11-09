@@ -177,7 +177,4 @@
 	<data name="ViewAllDishes" xml:space="preserve">
 		<value>показать все блюда</value>
 	</data>
-  <data name="IframeMenu" xml:space="preserve">
-    <value>Меню для сайта</value>
-  </data>
 </root>
