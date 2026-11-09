@@ -12,6 +12,49 @@
 @inject IViewLocalizer Localizer
 @inject Menus.Domain.Core Core
 @functions {
+    // Одиниці з різних джерел (г / g / gr, мл / ml, psc, «/», «\», порожньо) - до одного вигляду.
+    // Напої (за назвою розділу) у грамах - у мл. Без одиниці: до 20 - штуки, більше - г або мл.
+    static readonly System.Text.RegularExpressions.Regex DrinkCategory = new System.Text.RegularExpressions.Regex(
+        "чай|кав|coffee|tea|напо|напи|фреш|сік|сок|лимонад|вод|пив|вин|wine|коктейл|моктейл|cocktail|mocktail|сангр|глінтвейн|глинтвейн|алко|бар|джин|gin|віскі|виски|whisk|горілк|водк|чач|коньяк|ром|текіл|лікер|ликер|шампан|ігрист|игрист|смузі|смузи|какао|морс|компот|узвар|drink",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    // розділи з їжею, хоч і зі словом напою в назві («винна дегустація», «закуски до пива»)
+    static readonly System.Text.RegularExpressions.Regex FoodCategory = new System.Text.RegularExpressions.Regex(
+        "дегустац|закуск|страв|блюд|десерт|сет|асорті|ассорти|снек|салат|суп",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    static bool IsDrinkCategory(string name) => !string.IsNullOrEmpty(name) && DrinkCategory.IsMatch(name) && !FoodCategory.IsMatch(name);
+
+    static string Unit(string value, string unit, bool drink)
+    {
+        var v = (value ?? "").Trim();
+        if (v.Length == 0 || v == "0") return null;
+        var u = (unit ?? "").Trim().Trim('.').ToLowerInvariant();
+        string norm;
+        if (u == "г" || u == "g" || u == "gr" || u == "гр" || u == "грам" || u == "gram" || u == "grams" || u == "/" || u == "\") norm = "г";
+        else if (u == "мл" || u == "ml") norm = "мл";
+        else if (u == "кг" || u == "kg") norm = "кг";
+        else if (u == "л" || u == "l") norm = "л";
+        else if (u == "шт" || u == "psc" || u == "pcs" || u == "pc") norm = "шт";
+        else if (u.Length == 0)
+        {
+            norm = decimal.TryParse(v.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var n) && n <= 20 ? "шт" : "г";
+        }
+        else norm = unit.Trim();
+        if (drink && norm == "г") norm = "мл";
+        if (drink && norm == "кг") norm = "л";
+        return v + " " + norm;
+    }
+
+    // Назва, набрана ВЕЛИКИМИ ЛІТЕРАМИ, - як речення («ХІНКАЛІ З СИРОМ» -> «Хінкалі з сиром»)
+    static string Sentence(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return text;
+        text = text.Trim();
+        if (text.Any(char.IsLetter) && !text.Any(char.IsLower)) text = text.ToLower();
+        return char.ToUpper(text[0]) + text.Substring(1);
+    }
+
     // усе, що потрібно для картки страви (у списку, у «Топ страви» і в картці поверх меню)
     class DishCard
     {
@@ -102,9 +145,10 @@
     var extras = ViewData["extras"] as Menus.Web.Services.IframeExtras ?? new Menus.Web.Services.IframeExtras();
     string Money(decimal v) => $"{v.ToString("0.##")} {currency}";
     var cards = new Dictionary<string, DishCard>();
-    foreach (var d in allCategories.Where(c => c.Dishes != null).SelectMany(c => c.Dishes))
+    foreach (var (cat, d) in allCategories.Where(c => c.Dishes != null).SelectMany(c => c.Dishes.Select(x => (c, x))))
     {
         if (cards.ContainsKey(d.Id)) { continue; }
+        var drink = IsDrinkCategory(((IMenuCategory)cat).Name.Get("uk")) || IsDrinkCategory(((IMenuCategory)cat).Name.Get(culture));
         extras.Variants.TryGetValue(d.Id ?? "", out var variants);
         var multi = variants != null && variants.Count > 1;
         var ph = design.HidePhotos ? null : d.Photos?.FirstOrDefault();
@@ -112,7 +156,7 @@
         var maxPrice = multi ? variants.Max(v => v.Price) : d.Price;
         cards[d.Id] = new DishCard
         {
-            Title = Menus.Web.Helpers.DishName.Title(d.Name, culture),
+            Title = Sentence(Menus.Web.Helpers.DishName.Title(d.Name, culture)),
             Desc = design.HideDescriptions ? null : d.ShortDescription?.Get(culture),
             FullDesc = design.HideDescriptions ? null : new[] { d.Description?.Get(culture), d.ShortDescription?.Get(culture) }.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)),
             Ingr = design.HideDescriptions ? null : d.Ingredients?.Get(culture),
@@ -122,8 +166,8 @@
             PriceText = maxPrice == 0 ? null
                 : multi && minPrice != maxPrice ? $"{minPrice.ToString("0.##")} – {Money(maxPrice)}"
                 : $"{(d.IsPriceMultiple && !multi ? Localizer["From"].Value + " " : "")}{Money(minPrice)}",
-            Weight = design.HideWeight || multi || string.IsNullOrWhiteSpace(d.Weight) || d.Weight == "0" ? null : $"{d.Weight} {d.WeightType}",
-            Variants = multi ? string.Join("\n", variants.Select(v => (design.HideWeight || v.Weight == 0 ? "" : $"{v.Weight} {v.Type} — ") + Money(v.Price))) : null,
+            Weight = design.HideWeight || multi ? null : Unit(d.Weight, d.WeightType, drink),
+            Variants = multi ? string.Join("\n", variants.Select(v => (design.HideWeight || v.Weight == 0 ? "" : Unit(v.Weight.ToString(), v.Type, drink) + " — ") + Money(v.Price))) : null,
             Rating = d.RatingFloat,
             RatingCount = d.RatingCount,
             RatingText = d.RatingCount > 0 ? $"★ {d.RatingFloat.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} · {d.RatingCount} {Localizer["Ratings"].Value}" : null
@@ -187,6 +231,8 @@
         .meta { margin-top: auto; padding-top: 10px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
         .price { font-weight: 700; font-size: 17px; white-space: nowrap; }
         .w { color: var(--muted); font-size: 13px; }
+        /* без фото ціна - праворуч, вага й рейтинг - ліворуч */
+        .dish.nophoto .meta .price { order: 2; margin-left: auto; }
         .ph { width: 104px; height: 104px; border-radius: 12px; flex: none; background: var(--line) center/cover no-repeat; }
         .about { background: var(--card); border-radius: 16px; padding: 16px; margin: 22px 0 10px; }
         .about h2 { margin: 0 0 10px; font-size: 20px; }
@@ -282,7 +328,7 @@
             <nav class="tabs" id="tabs">
                 @foreach (var c in categories.Where(c => c.Dishes != null && c.Dishes.Any()))
                 {
-                    <a class="tab" href="#c-@c.Id">@(((IMenuCategory)c).Name.Get(culture))</a>
+                    <a class="tab" href="#c-@c.Id">@Sentence(((IMenuCategory)c).Name.Get(culture))</a>
                 }
             </nav>
             </div>
@@ -314,16 +360,16 @@
             {
                 if (c.Dishes == null || !c.Dishes.Any())
                 {
-                    <div class="group">@(((IMenuCategory)c).Name.Get(culture))</div>
+                    <div class="group">@Sentence(((IMenuCategory)c).Name.Get(culture))</div>
                     continue;
                 }
                 <section id="c-@c.Id">
-                    <h2>@(((IMenuCategory)c).Name.Get(culture))</h2>
+                    <h2>@Sentence(((IMenuCategory)c).Name.Get(culture))</h2>
                     @foreach (var dish in c.Dishes)
                     {
                         dishIndex++;
                         var card = cards[dish.Id];
-                        <article class="dish" tabindex="0" role="button" data-title="@card.Title" data-desc="@card.FullDesc" data-ingr="@card.Ingr"
+                        <article class="dish@(card.Photo == null ? " nophoto" : "")" tabindex="0" role="button" data-title="@card.Title" data-desc="@card.FullDesc" data-ingr="@card.Ingr"
                                  data-photo="@card.PhotoHigh" data-price="@card.PriceText" data-weight="@card.Weight" data-variants="@card.Variants" data-rating="@card.RatingText">
                             <div class="dt">
                                 <h3>@card.Title</h3>
