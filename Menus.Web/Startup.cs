@@ -464,6 +464,11 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                             defaults: new { controller = "Iframe", action = "Cache" });
 
                         mvcRoutes.MapRoute(
+                            name: "iframe-menu",
+                            template: custureRoutePath + "/iframe-menu",
+                            defaults: new { controller = "Articles", action = "IframeMenu" });
+
+                        mvcRoutes.MapRoute(
                             name: "content",
                             template: custureRoutePath + "/content/{id?}",
                             defaults: new { controller = "Home", action = "ContentPage" });
