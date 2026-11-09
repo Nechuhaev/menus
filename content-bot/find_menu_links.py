@@ -1,7 +1,7 @@
-"""Пошук посилань на меню в Expirenza (expz.menu) і ChoiceQR для ресторанів без «Посилання на меню».
+"""Пошук посилань на меню в Expirenza (expz.menu), ChoiceQR і RestoApp для ресторанів без «Посилання на меню».
 
-Для кожного активного ресторану без посилання - два запити через Firecrawl Search API
-(«<назва> site:expz.menu» і «<назва> site:choiceqr.com»). Знайдені сторінки, схожі за назвою,
+Для кожного активного ресторану без посилання - по запиту на сервіс через Firecrawl Search API
+(«<назва> site:expz.menu», «<назва> site:choiceqr.com», «<назва> site:restoapp.eu»). Знайдені сторінки, схожі за назвою,
 записуються пропозиціями в MenuLinkProposals: адмін підтверджує або відхиляє їх у «Звіти» ->
 «Посилання на меню». Відхилене повторно не пропонується; ресторан, по якому вже шукали,
 повторно шукається через SEARCH_AGAIN_DAYS днів.
@@ -14,6 +14,8 @@
          python3 find_menu_links.py --limit 20                # перші 20 ресторанів (пробний прогін)
          python3 find_menu_links.py                           # усі
          python3 find_menu_links.py --import menu_links.csv   # пропозиції з CSV попереднього прогону
+         python3 find_menu_links.py --platform restoapp       # лише один сервіс, зокрема для вже перевірених
+                                                              # ресторанів (новий сервіс раніше не шукали)
 """
 import argparse
 import csv
@@ -35,6 +37,8 @@ SEARCH_AGAIN_DAYS = 90
 PLATFORMS = {
     "expz": ("site:expz.menu", re.compile(r"^https?://(?:www\.)?expz\.menu/([0-9a-f-]{36})", re.I)),
     "choiceqr": ("site:choiceqr.com", re.compile(r"^https?://([a-z0-9-]+)\.choiceqr\.com", re.I)),
+    # у піддоменах RestoApp бувають «_» (fortunate_son, resto__doner); сам restoapp.eu і www - не заклад
+    "restoapp": ("site:restoapp.eu", re.compile(r"^https?://(?!www\.)([a-z0-9_-]+)\.restoapp\.eu", re.I)),
 }
 NAME_MATCH = 0.9     # «рекомендовано»: майже точний збіг («7 Пятниц» - «П'ятниця» 0.84 - ні)
 NAME_PROPOSE = 0.5   # нижче - сторінка іншого закладу, в адмінку не потрапляє
@@ -42,7 +46,7 @@ NAME_CONTAINS = 0.7  # наша назва цілком у назві сторі
 
 # Частини заголовка сторінки, що не є назвою закладу («Bigoli - Доставка, З собою», «Меню - ...»)
 SERVICE_WORDS = {"dostavka", "z", "soboiu", "broniuvannia", "meniu", "menu", "delivery", "takeaway", "expirenza",
-                 "choiceqr", "order", "zamovlennia", "zamovyty", "onlain", "online"}
+                 "choiceqr", "order", "zamovlennia", "zamovyty", "onlain", "online", "resto", "app"}
 # Тип закладу в назві («Шоу-ресторан AltBier», «Barbara Bar»)
 PLACE_TYPES = {"restoran", "restorany", "restoraniv", "restaurant", "kafe", "cafe", "bar", "pab", "pub", "shou",
                "kaviarnia", "coffee", "piv", "pyvbar"}
@@ -87,11 +91,13 @@ def search(query, key):
 
 
 def menu_root(platform, url):
-    """Корінь меню закладу: https://expz.menu/<uuid> або https://<заклад>.choiceqr.com/."""
+    """Корінь меню закладу: https://expz.menu/<uuid>, https://<заклад>.choiceqr.com/ або https://<заклад>.restoapp.eu/."""
     m = PLATFORMS[platform][1].match(url or "")
     if not m:
         return None
-    return f"https://expz.menu/{m.group(1).lower()}" if platform == "expz" else f"https://{m.group(1).lower()}.choiceqr.com/"
+    if platform == "expz":
+        return f"https://expz.menu/{m.group(1).lower()}"
+    return f"https://{m.group(1).lower()}.{'choiceqr.com' if platform == 'choiceqr' else 'restoapp.eu'}/"
 
 
 def latin(text):
@@ -106,15 +112,16 @@ def without_place_type(value):
 
 def title_names(title, url):
     """Можливі назви закладу зі сторінки: частини заголовка без службових («Доставка, З собою»)
-    і без типу закладу, плюс піддомен ChoiceQR («bigoli.choiceqr.com»)."""
+    і без типу закладу, плюс піддомен ChoiceQR / RestoApp («bigoli.choiceqr.com», «fortunate_son.restoapp.eu»)."""
     names = []
-    for part in re.split(r"\s+[-–]\s+|\|", title or ""):
+    for part in re.split(r"\s+[-–—]\s+|\|", title or ""):
         words = latin(part).split()
         if words and not all(w in SERVICE_WORDS for w in words):
             names.append(without_place_type(" ".join(words)) or " ".join(words))
-    m = PLATFORMS["choiceqr"][1].match(url or "")
-    if m:
-        names.append(m.group(1).replace("-", " ").replace("y", "i"))
+    for platform in ("choiceqr", "restoapp"):
+        m = PLATFORMS[platform][1].match(url or "")
+        if m:
+            names.append(re.sub(r"[-_]+", " ", m.group(1)).strip().replace("y", "i"))
     return names
 
 
@@ -163,12 +170,14 @@ def query_name(name):
     return " ".join(w.translate(LOOKALIKES) if re.search(r"[a-z]", w, re.I) else w for w in (name or "").split())
 
 
-def find(restaurants, key):
+def find(restaurants, key, platforms=None):
     rows = []
     cache = {}  # філії мережі з однаковою назвою - один запит на всіх
     for i, r in enumerate(restaurants, 1):
         found = 0
         for platform, (site, _) in PLATFORMS.items():
+            if platforms and platform not in platforms:
+                continue
             query = f"{query_name(r['Name'])} {site}"
             if query.lower() not in cache:
                 try:
@@ -269,6 +278,8 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="лише порахувати ресторани й запити")
     parser.add_argument("--limit", type=int, default=0, help="скільки ресторанів обробити (0 - усі)")
     parser.add_argument("--import", dest="import_csv", metavar="CSV", help="пропозиції з CSV попереднього прогону")
+    parser.add_argument("--platform", choices=sorted(PLATFORMS), action="append",
+                        help="шукати лише в цьому сервісі (можна кілька); ресторани, по яких уже шукали, теж")
     args = parser.parse_args()
 
     db = get_db()
@@ -290,13 +301,17 @@ def main():
         db.close()
         return
 
-    cur.execute(RESTAURANTS_SQL + " AND (s.SearchedAt IS NULL OR s.SearchedAt < NOW() - INTERVAL %s DAY)"
-                " ORDER BY IFNULL(k.Clicks, 0) DESC, r.Name",
-                (SEARCH_AGAIN_DAYS,))
+    # окремий сервіс (--platform) раніше не шукали - дата попереднього пошуку його не стосується
+    if args.platform:
+        cur.execute(RESTAURANTS_SQL + " ORDER BY IFNULL(k.Clicks, 0) DESC, r.Name")
+    else:
+        cur.execute(RESTAURANTS_SQL + " AND (s.SearchedAt IS NULL OR s.SearchedAt < NOW() - INTERVAL %s DAY)"
+                    " ORDER BY IFNULL(k.Clicks, 0) DESC, r.Name",
+                    (SEARCH_AGAIN_DAYS,))
     restaurants = cur.fetchall()
     if args.limit:
         restaurants = restaurants[:args.limit]
-    queries = len({query_name(r["Name"]).lower() for r in restaurants}) * len(PLATFORMS)
+    queries = len({query_name(r["Name"]).lower() for r in restaurants}) * len(args.platform or PLATFORMS)
     print(f"ресторанів для пошуку: {len(restaurants)}, запитів: {queries} (~{queries * 2} кредитів Firecrawl)")
     if args.dry_run:
         db.close()
@@ -306,7 +321,7 @@ def main():
     if not key:
         raise SystemExit("FIRECRAWL_API_KEY немає в content-bot/.env")
     started = time.time()
-    rows = classify(score(find(restaurants, key), restaurants, cities), restaurants)
+    rows = classify(score(find(restaurants, key, args.platform), restaurants, cities), restaurants)
     # з'єднання могло закритися за час пошуку
     db.close()
     db = get_db()

@@ -280,7 +280,7 @@ def read_restoapp(url):
 
 
 PLATFORM_LINK = re.compile(r'https?://(?:www\.)?expz\.menu/[0-9a-f-]{36}|https?://[a-z0-9-]+\.choiceqr\.com[^"\'\s<>]*|'
-                           r'https?://[a-z0-9-]+\.restoapp\.eu[^"\'\s<>]*', re.I)
+                           r'https?://(?!www\.)[a-z0-9_-]+\.restoapp\.eu[^"\'\s<>]*', re.I)
 
 
 def find_platform_link(raw_html):
