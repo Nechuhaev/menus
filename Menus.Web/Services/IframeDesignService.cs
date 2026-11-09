@@ -26,9 +26,30 @@ namespace Menus.Web.Services
         public bool HideDescriptions { get; set; }
         public bool HideWeight { get; set; }
         public bool HideLanguages { get; set; }
+        public DateTime UpdatedAt { get; set; }
 
         public const string DefaultAccent = "#ffb80e";
         public bool Dark => Theme == "dark";
+
+        // попередній перегляд у кабінеті до збереження: ?preview=1&cover=..&accent=..&theme=..&photos=0..
+        // збережений вигляд (і кеш сервісу) не змінюється - лише копія для цього запиту
+        public IframeDesign WithPreview(Microsoft.AspNetCore.Http.IQueryCollection q)
+        {
+            bool Off(string key) => q[key] == "0";
+            var accent = (string)q["accent"];
+            return new IframeDesign
+            {
+                RestaurantId = RestaurantId,
+                Cover = q.ContainsKey("cover") ? ((string)q["cover"] ?? "").Trim() : Cover,
+                Accent = accent != null && Regex.IsMatch(accent, "^#[0-9a-fA-F]{6}$") ? accent.ToLowerInvariant() : Accent,
+                Theme = q.ContainsKey("theme") ? (q["theme"] == "dark" ? "dark" : "light") : Theme,
+                HidePhotos = q.ContainsKey("photos") ? Off("photos") : HidePhotos,
+                HideDescriptions = q.ContainsKey("descriptions") ? Off("descriptions") : HideDescriptions,
+                HideWeight = q.ContainsKey("weight") ? Off("weight") : HideWeight,
+                HideLanguages = q.ContainsKey("languages") ? Off("languages") : HideLanguages,
+                UpdatedAt = DateTime.UtcNow
+            };
+        }
 
         // текст на кнопці кольору акценту: темний на світлому акценті, білий на темному
         public string AccentText
