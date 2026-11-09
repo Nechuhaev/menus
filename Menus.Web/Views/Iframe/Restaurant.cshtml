@@ -95,7 +95,7 @@
     var cards = new Dictionary<string, DishCard>();
     foreach (var d in allCategories.Where(c => c.Dishes != null).SelectMany(c => c.Dishes))
     {
-        if (cards.ContainsKey(d.Id)) continue;
+        if (cards.ContainsKey(d.Id)) { continue; }
         extras.Variants.TryGetValue(d.Id ?? "", out var variants);
         var multi = variants != null && variants.Count > 1;
         var ph = design.HidePhotos ? null : d.Photos?.FirstOrDefault();
