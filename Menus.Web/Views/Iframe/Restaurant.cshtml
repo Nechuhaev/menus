@@ -29,7 +29,9 @@
     var cover = Model.Photos?.FirstOrDefault();
     var coverStyle = cover != null ? $"background-image: url('{Img.Url(cover, Quality.High)}')" : null;
     var initials = string.Concat((Model.Restaurant.Name ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpper(w[0])));
-    var categories = Model.Menu.Categories.Where(c => c.IsTopLevelCategory || (c.Dishes != null && c.Dishes.Any())).ToList();
+    // порядок розділів - як в адмінці (Index); у меню з групами (Clean) порядок уже задано групами
+    var allCategories = Model.Menu.Categories.Any(c => c.IsTopLevelCategory) ? Model.Menu.Categories : Model.Menu.Categories.OrderBy(c => c.Index).ToList();
+    var categories = allCategories.Where(c => c.IsTopLevelCategory || (c.Dishes != null && c.Dishes.Any())).ToList();
     var aboutTitle = Localizer["AboutPlace"].IsResourceNotFound ? "Про заклад" : Localizer["AboutPlace"].Value;
     string Hours(JToken day) => day["active"].Value<bool>() ? $"{day["from"].Value<string>()} — {day["to"].Value<string>()}" : Localizer["Closed"].Value;
     JArray days = null;
