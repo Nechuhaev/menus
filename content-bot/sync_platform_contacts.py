@@ -1,4 +1,4 @@
-"""Години роботи, телефон, сайт та email ресторану з його QR-меню (Expirenza, ChoiceQR). Кодом, без AI.
+"""Години роботи, телефон, сайт та email ресторану з його QR-меню (Expirenza, ChoiceQR, RestoApp). Кодом, без AI.
 
 Звідки:
 - Expirenza: https://static.shaketopay.com.ua/menu/prod/cache/menu/<id>/uk/restaurant_menu_info.json
@@ -6,6 +6,8 @@
   contacts - телефони / email / сайт.
 - ChoiceQR: головна сторінка закладу, __NEXT_DATA__ -> props.app.place:
   contactInfo (phone, email, website), workTimeAll - години по днях (dayOfWeek 0 = Нд ... 6 = Сб, як у JavaScript).
+- RestoApp: https://<заклад>.restoapp.eu/b/restoapp/spots?locale=ua&with=schedule - phones, schedule
+  (dayOfWeek "1" = Пн ... "7" = Нд); email і сайту там немає.
 
 Що змінюється (лише якщо в QR-меню значення є і воно інше):
 - RestaurantInfo.OpenHours - графік по днях {"perDay":true,"data":[7 днів з понеділка]};
@@ -29,11 +31,11 @@ import re
 from collections import Counter
 from urllib.parse import urlparse
 
-from menu_platforms import EXPZ_ROOT, fetch
+from menu_platforms import EXPZ_ROOT, RESTOAPP_API, fetch, is_restoapp
 from sync_restaurants import get_db
 
 EXPZ_INFO = "https://static.shaketopay.com.ua/menu/prod/cache/menu/{id}/uk/restaurant_menu_info.json"
-NOT_SITE = re.compile(r"choiceqr\.com|expz\.menu|expirenza|shaketopay|instagram\.com|facebook\.com|fb\.com|t\.me/|tiktok\.com|"
+NOT_SITE = re.compile(r"choiceqr\.com|expz\.menu|expirenza|shaketopay|restoapp\.eu|instagram\.com|facebook\.com|fb\.com|t\.me/|tiktok\.com|"
                       r"google\.|goo\.gl|maps\.app|linktr\.ee|taplink|wa\.me|viber|business\.site", re.I)
 FOREIGN_TLD = re.compile(r"\.(cz|pl|sk|de|at|it|es|fr|uk|us|ee|lt|lv|ge|md|ro|hu|bg)(/|$)", re.I)
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$", re.I)
@@ -125,9 +127,34 @@ def read_choiceqr(url):
             "website": (contact.get("website") or "").strip() or None}
 
 
+def read_restoapp(url):
+    spot = json.loads(fetch(RESTOAPP_API.format(host=urlparse(url).hostname, path="spots?locale=ua&with=schedule"))).get("data") or {}
+    by_day, many = {}, False
+    for s in spot.get("schedule") or []:
+        try:
+            day = int(s.get("dayOfWeek")) - 1
+        except (TypeError, ValueError):
+            continue
+        if not 0 <= day <= 6:
+            continue
+        if day in by_day:
+            many = True
+        f, t = clock(s.get("startTime")), clock(s.get("endTime"))
+        by_day[day] = (f, t) if s.get("state", "active") == "active" and f and t else None
+    phones, _, _ = split_contacts(spot.get("phones") or [])
+    return {"hours": None if many else week(by_day), "phone": phones[0] if phones else None, "email": None, "website": None}
+
+
+def is_platform(url):
+    url = (url or "").strip()
+    return bool(url) and (bool(EXPZ_ROOT.match(url)) or ".choiceqr.com" in url.lower() or is_restoapp(url))
+
+
 def platform_contacts(url):
     if EXPZ_ROOT.match(url):
         return read_expz(url)
+    if is_restoapp(url):
+        return read_restoapp(url)
     if urlparse(url).netloc.lower().endswith(".choiceqr.com"):
         return read_choiceqr(url)
     return None
@@ -164,7 +191,7 @@ def foreign(found):
 
 
 def link_key(url):
-    """Одне QR-меню під різними адресами: Expirenza - id, ChoiceQR - піддомен."""
+    """Одне QR-меню під різними адресами: Expirenza - id, ChoiceQR і RestoApp - піддомен."""
     m = EXPZ_ROOT.match(url)
     return m.group(1).lower() if m else urlparse(url).netloc.lower()
 
@@ -252,7 +279,7 @@ def main():
                     WHERE r.Status = 0{only}""", (args.only,) if args.only else ())
     restaurants = cur.fetchall()
     for r in restaurants:
-        url = next((u for u in (r["MenuUrl"], r["Website"]) if u and (EXPZ_ROOT.match(u.strip()) or ".choiceqr.com" in u.lower())), None)
+        url = next((u for u in (r["MenuUrl"], r["Website"]) if is_platform(u)), None)
         r["Url"] = url.strip() if url else None
     # скільки наших ресторанів дивляться на те саме QR-меню (за --only рахуємо по всіх)
     if args.only:
@@ -261,8 +288,7 @@ def main():
         everyone = cur.fetchall()
     else:
         everyone = restaurants
-    uses = Counter(link_key(u.strip()) for x in everyone for u in [next((v for v in (x["MenuUrl"], x["Website"])
-                   if v and (EXPZ_ROOT.match(v.strip()) or ".choiceqr.com" in v.lower())), None)] if u)
+    uses = Counter(link_key(u.strip()) for x in everyone for u in [next((v for v in (x["MenuUrl"], x["Website"]) if is_platform(v)), None)] if u)
 
     stats, write = Counter(), db.cursor()
     for r in restaurants:

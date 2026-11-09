@@ -1,7 +1,7 @@
 """Чи заклад ще працює - для розсилки власникам (адмінка «Розсилка», колонка «Перевірка»). Кодом, без AI.
 
 Що перевіряється (лише ресторани з контактами для розсилки, або всі з --all):
-- QR-меню (ChoiceQR, Expirenza): з посилання на меню в картці ресторану або сайт, якщо це адреса QR-меню.
+- QR-меню (ChoiceQR, Expirenza, RestoApp): з посилання на меню в картці ресторану або сайт, якщо це адреса QR-меню.
   «Сервіс призупинено» -> qr_suspended: такий ресторан не потрапляє в розсилку; 404 -> QR-меню видалено.
 - Сайт: 404/410, домен не існує (DNS), домен на продаж / припаркований / хостинг заблоковано.
 
@@ -30,7 +30,7 @@ from sync_restaurants import get_db
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
            "Accept-Language": "uk,ru;q=0.8,en;q=0.5"}
-QR_DOMAINS = re.compile(r"choiceqr\.com|expz\.menu|expirenza", re.I)
+QR_DOMAINS = re.compile(r"choiceqr\.com|expz\.menu|expirenza|restoapp\.eu", re.I)
 SUSPENDED = re.compile(r"сервіс\s+призупинено|сервис\s+приостановлен|service\s+(?:is\s+)?suspended|"
                        r"обслуговування\s+призупинено|обслуживание\s+приостановлено", re.I)
 PARKED = re.compile(r"domain\s+(?:is\s+)?for\s+sale|buy\s+this\s+domain|this\s+domain\s+(?:name\s+)?(?:may\s+be|is)\s+for\s+sale|"

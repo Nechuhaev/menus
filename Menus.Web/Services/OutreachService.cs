@@ -45,6 +45,7 @@ namespace Menus.Web.Services
         public DateTime? MenuAppliedAt { get; set; }
         public string MenuPlatform =>
             new[] { MenuUrl, Website }.Any(u => (u ?? "").IndexOf("choiceqr", StringComparison.OrdinalIgnoreCase) >= 0) ? "ChoiceQR" :
+            new[] { MenuUrl, Website }.Any(u => (u ?? "").IndexOf("restoapp.eu", StringComparison.OrdinalIgnoreCase) >= 0) ? "RestoApp" :
             new[] { MenuUrl, Website }.Any(u => (u ?? "").IndexOf("expz.menu", StringComparison.OrdinalIgnoreCase) >= 0
                                             || (u ?? "").IndexOf("expirenza", StringComparison.OrdinalIgnoreCase) >= 0) ? "Expirenza" : null;
         // меню оновлено з ChoiceQR/Expirenza: є QR-меню сервіс і застосовані пропозиції

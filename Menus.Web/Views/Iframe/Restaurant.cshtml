@@ -135,7 +135,7 @@
 
     // сайт закладу (не QR-меню й не соцмережа) та Instagram
     var website = info.Website;
-    if (!string.IsNullOrWhiteSpace(website) && Regex.IsMatch(website, "choiceqr|expz\\.menu|expirenza|instagram\\.com|facebook\\.com|svkus\\.com|restaurantguru|tripadvisor|firstline\\.in\\.ua|2gis|google\\.[a-z.]+/maps|tomato\\.ua|linktr\\.ee|taplink", RegexOptions.IgnoreCase)) { website = null; }
+    if (!string.IsNullOrWhiteSpace(website) && Regex.IsMatch(website, "choiceqr|expz\\.menu|expirenza|restoapp\\.eu|instagram\\.com|facebook\\.com|svkus\\.com|restaurantguru|tripadvisor|firstline\\.in\\.ua|2gis|google\\.[a-z.]+/maps|tomato\\.ua|linktr\\.ee|taplink", RegexOptions.IgnoreCase)) { website = null; }
     if (!string.IsNullOrWhiteSpace(website) && !Regex.IsMatch(website, "^https?://", RegexOptions.IgnoreCase)) { website = "https://" + website.Trim(); }
     // без міток реклами (?fbclid=, utm_) - посилання чисте
     if (!string.IsNullOrWhiteSpace(website)) { website = Regex.Replace(website, "[?&](fbclid|gclid|utm_[a-z]+)=[^&#]*", "", RegexOptions.IgnoreCase).TrimEnd('?', '&'); }

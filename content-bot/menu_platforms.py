@@ -1,4 +1,4 @@
-"""Меню з QR-меню сервісів без AI: Expirenza (expz.menu) і ChoiceQR (*.choiceqr.com).
+"""Меню з QR-меню сервісів без AI: Expirenza (expz.menu), ChoiceQR (*.choiceqr.com) і RestoApp (*.restoapp.eu).
 
 Обидва віддають готовий HTML з чіткою розміткою, тож назва, ціна, опис, вага, фото й розділ
 беруться кодом. platform_menu(url) повертає страви в тому ж форматі, що й extract_menu
@@ -239,11 +239,52 @@ def read_choiceqr(url):
     return items
 
 
-PLATFORM_LINK = re.compile(r'https?://(?:www\.)?expz\.menu/[0-9a-f-]{36}|https?://[a-z0-9-]+\.choiceqr\.com[^"\'\s<>]*', re.I)
+# --- RestoApp (Binotel): https://<заклад>.restoapp.eu/#/ ---
+# Сторінку малює JavaScript, дані - публічний JSON того ж піддомену: /b/restoapp/menu-sections
+# (розділи -> категорії -> страви з name, description, price.amount у копійках, weight + units, image)
+# і /b/restoapp/spots (телефони, Instagram, графік). Мова - locale=ua.
+
+RESTOAPP_API = "https://{host}/b/restoapp/{path}"
+RESTOAPP_UNITS = {"gram": "г", "ml": "мл", "kilogram": "кг", "liter": "л", "piece": "шт"}
+
+
+def is_restoapp(url):
+    return (urlparse(url).hostname or "").lower().endswith(".restoapp.eu")
+
+
+def parse_restoapp_sections(data):
+    items = []
+    for section in data.get("data") or []:
+        if section.get("state") != "active":
+            continue
+        groups = [(c.get("name"), c.get("products") or []) for c in section.get("categories") or [] if c.get("state") == "active"]
+        groups.append((section.get("name"), section.get("products") or []))
+        for category, products in groups:
+            for p in products:
+                if p.get("state") != "active":
+                    continue
+                amount = (p.get("price") or {}).get("amount")
+                weight = f"{p['weight']:g} {RESTOAPP_UNITS.get(p.get('units'), p.get('units') or '')}".strip() if p.get("weight") else None
+                item = dish(p.get("name"), category, int(amount) / 100 if amount else None, weight,
+                            (p.get("description") or "").strip(), p.get("image"))
+                # модифікації (розмір, порція) з іншою ціною - ціна «від»
+                item["price_from"] = bool(p.get("modifications"))
+                items.append(item)
+    return items
+
+
+def read_restoapp(url):
+    host = urlparse(url).hostname
+    return parse_restoapp_sections(json.loads(fetch(RESTOAPP_API.format(
+        host=host, path="menu-sections?pagination=0&type=section&locale=ua&with=categories.products,products"))))
+
+
+PLATFORM_LINK = re.compile(r'https?://(?:www\.)?expz\.menu/[0-9a-f-]{36}|https?://[a-z0-9-]+\.choiceqr\.com[^"\'\s<>]*|'
+                           r'https?://[a-z0-9-]+\.restoapp\.eu[^"\'\s<>]*', re.I)
 
 
 def find_platform_link(raw_html):
-    """Посилання на меню в Expirenza/ChoiceQR на сайті ресторану (кнопка «Меню», QR тощо)."""
+    """Посилання на меню в Expirenza/ChoiceQR/RestoApp на сайті ресторану (кнопка «Меню», QR тощо)."""
     m = PLATFORM_LINK.search(raw_html or "")
     return m.group(0) if m else None
 
@@ -257,6 +298,8 @@ def platform_menu(url):
         reader = read_expz
     elif host.endswith(".choiceqr.com"):
         reader = read_choiceqr
+    elif host.endswith(".restoapp.eu"):
+        reader = read_restoapp
     else:
         return None
     try:
