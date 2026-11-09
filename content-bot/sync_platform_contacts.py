@@ -57,7 +57,8 @@ def clock(value):
     m = re.match(r"^\s*(\d{1,2}):(\d{2})", value or "")
     if not m or int(m.group(1)) > 24 or int(m.group(2)) > 59:
         return None
-    return f"{int(m.group(1)):02d}:{m.group(2)}"
+    # «24:00» сайт не читає як час (TimeSpan) - до півночі це «00:00», кінець після початку розуміється як нічна зміна
+    return "00:00" if (int(m.group(1)), m.group(2)) == (24, "00") else f"{int(m.group(1)):02d}:{m.group(2)}"
 
 
 def week(by_day):
