@@ -61,7 +61,7 @@ def normalize(url):
 
 
 def is_menu_link(url):
-    return bool(EXPZ_ROOT.match(url)) or (urlparse(url).hostname or "").lower().endswith(".choiceqr.com")
+    return bool(EXPZ_ROOT.match(url)) or (urlparse(url).hostname or "").lower().endswith((".choiceqr.com", ".restoapp.eu"))
 
 
 def dns_missing(host):
