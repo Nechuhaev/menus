@@ -16,6 +16,10 @@
          python3 find_menu_links.py --import menu_links.csv   # пропозиції з CSV попереднього прогону
          python3 find_menu_links.py --platform restoapp       # лише один сервіс, зокрема для вже перевірених
                                                               # ресторанів (новий сервіс раніше не шукали)
+         python3 find_menu_links.py --catalog restoapp        # навпаки: зібрати сторінки сервісу пошуком
+                                                              # («site:restoapp.eu <місто>») і звірити назви
+                                                              # з нашими ресторанами - кілька десятків запитів
+                                                              # замість запиту на кожен ресторан
 """
 import argparse
 import csv
@@ -76,10 +80,10 @@ SEARCHES_TABLE_SQL = """CREATE TABLE IF NOT EXISTS MenuLinkSearches (
 ) DEFAULT CHARSET=utf8mb4"""
 
 
-def search(query, key):
+def search(query, key, limit=RESULTS_PER_QUERY):
     for attempt in range(4):
         resp = requests.post(SEARCH_URL, timeout=60, headers={"Authorization": f"Bearer {key}"},
-                             json={"query": query, "limit": RESULTS_PER_QUERY})
+                             json={"query": query, "limit": limit})
         # ліміт запитів на хвилину - чекаємо й повторюємо
         if resp.status_code == 429 and attempt < 3:
             time.sleep(30 * (attempt + 1))
@@ -200,6 +204,44 @@ def find(restaurants, key, platforms=None):
     return rows
 
 
+# зворотний пошук (--catalog): загальні слова, якими заклади підписують сторінки
+CATALOG_WORDS = ["", "ресторан", "кафе", "бар", "паб", "піца", "суші", "кав'ярня", "доставка", "меню"]
+
+
+def catalog_pages(platform, cities, key):
+    """Усі сторінки сервісу, які знаходить пошук: site:<сервіс> + місто / загальне слово. {корінь: результат}."""
+    site = PLATFORMS[platform][0]
+    city_names = sorted({n for names in cities.values() for n in names if n})
+    queries = [f"{site} {w}".strip() for w in CATALOG_WORDS] + [f"{site} {c}" for c in city_names]
+    pages = {}
+    for i, query in enumerate(queries, 1):
+        try:
+            results = search(query, key, limit=100)
+        except requests.RequestException as e:
+            print(f"  ! {query}: {e}")
+            continue
+        new = 0
+        for res in results:
+            root = menu_root(platform, res.get("url"))
+            if root and root not in pages:
+                pages[root] = res
+                new += 1
+        print(f"[{i}/{len(queries)}] {query}: +{new} (усього {len(pages)})")
+    return pages
+
+
+def catalog_rows(platform, pages, restaurants):
+    """Пари (наш ресторан, сторінка сервісу), де назви схожі - далі score/classify, як у звичайному пошуку."""
+    rows = []
+    for root, res in pages.items():
+        title, desc = (res.get("title") or "")[:500], (res.get("description") or "")[:300]
+        for r in restaurants:
+            if name_score(r["Name"], title, root) >= NAME_PROPOSE:
+                rows.append({"RestaurantId": r["Id"], "Platform": platform, "Url": root,
+                             "PageTitle": title, "PageDescription": desc})
+    return rows
+
+
 def score(rows, restaurants, cities):
     """Схожість назви; сторінки інших закладів і з іншого міста відкидаються."""
     by_id = {r["Id"]: r for r in restaurants}
@@ -278,6 +320,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="лише порахувати ресторани й запити")
     parser.add_argument("--limit", type=int, default=0, help="скільки ресторанів обробити (0 - усі)")
     parser.add_argument("--import", dest="import_csv", metavar="CSV", help="пропозиції з CSV попереднього прогону")
+    parser.add_argument("--catalog", choices=sorted(PLATFORMS), help="зворотний пошук: сторінки сервісу -> наші ресторани")
     parser.add_argument("--platform", choices=sorted(PLATFORMS), action="append",
                         help="шукати лише в цьому сервісі (можна кілька); ресторани, по яких уже шукали, теж")
     args = parser.parse_args()
@@ -299,6 +342,27 @@ def main():
         save(db, rows, searched)
         print(f"пропозицій: {len(rows)}, рекомендовано: {sum(r['Recommended'] for r in rows)}, ресторанів: {len(searched)}")
         db.close()
+        return
+
+    if args.catalog:
+        cur.execute(RESTAURANTS_SQL)
+        restaurants = cur.fetchall()
+        queries = len(CATALOG_WORDS) + len({n for names in cities.values() for n in names if n})
+        print(f"ресторанів без посилання: {len(restaurants)}, запитів: {queries} (~{queries * 2} кредитів Firecrawl)")
+        if args.dry_run:
+            db.close()
+            return
+        key = os.environ.get("FIRECRAWL_API_KEY")
+        if not key:
+            raise SystemExit("FIRECRAWL_API_KEY немає в content-bot/.env")
+        pages = catalog_pages(args.catalog, cities, key)
+        rows = classify(score(catalog_rows(args.catalog, pages, restaurants), restaurants, cities), restaurants)
+        db.close()
+        db = get_db()
+        save(db, rows, [])
+        db.close()
+        print(f"\nсторінок {args.catalog}: {len(pages)}; пропозицій: {len(rows)}, рекомендовано: "
+              f"{sum(r['Recommended'] for r in rows)}. Перевірка: адмінка -> Звіти -> Посилання на меню")
         return
 
     # окремий сервіс (--platform) раніше не шукали - дата попереднього пошуку його не стосується
