@@ -10,8 +10,10 @@ database is a separate later pass, not covered here.
 
 Run manually for now (not yet scheduled in cron).
 """
+import argparse
 import json
 import os
+import re
 from datetime import datetime
 
 import mysql.connector
@@ -205,16 +207,34 @@ def process_priority_restaurants(db):
     return [r["Id"] for r in restaurants]
 
 
+# лише російські літери: такий «український» текст насправді російський (імпорт з QR-меню)
+RUSSIAN_ONLY = re.compile(r"[ыэъё]", re.I)
+UKRAINIAN_ONLY = re.compile(r"[іїєґ]", re.I)
+RUSSIAN_WORDS = re.compile(r"(?<![\w'])(и|из|с|со|под|или|из-под)(?![\w'])", re.I)
+
+
+def looks_russian(text):
+    """«Десерт из слоеного теста» без ы/э/ъ/ё теж російський: немає і/ї/є/ґ, зате є «и», «из», «с»."""
+    return bool(RUSSIAN_ONLY.search(text) or (not UKRAINIAN_ONLY.search(text) and RUSSIAN_WORDS.search(text)))
+
+
+def dish_source(json_str):
+    """Російський текст для перекладу в uk або None. Береться ru, а якщо в полі uk
+    лежить російський текст (ы/э/ъ/ё) - він сам (ru тоді доповнюється ним же)."""
+    uk = get_locale_value(json_str, "uk").strip()
+    ru = get_locale_value(json_str, "ru").strip()
+    if uk and not looks_russian(uk):
+        return None
+    return ru or (uk if uk else None)
+
+
 def translate_dish(db, dish_id, name, short_description, ingredients, description):
     fields = {}
-    if is_locale_missing(name, "uk") and get_locale_value(name, "ru"):
-        fields["name"] = get_locale_value(name, "ru")
-    if is_locale_missing(short_description, "uk") and get_locale_value(short_description, "ru"):
-        fields["short_description"] = get_locale_value(short_description, "ru")
-    if is_locale_missing(ingredients, "uk") and get_locale_value(ingredients, "ru"):
-        fields["ingredients"] = get_locale_value(ingredients, "ru")
-    if is_locale_missing(description, "uk") and get_locale_value(description, "ru"):
-        fields["description"] = get_locale_value(description, "ru")
+    sources = {"name": name, "short_description": short_description, "ingredients": ingredients, "description": description}
+    for key, value in sources.items():
+        text = dish_source(value)
+        if text:
+            fields[key] = text
 
     if not fields:
         return False
@@ -224,14 +244,15 @@ def translate_dish(db, dish_id, name, short_description, ingredients, descriptio
         return False
 
     updates = {}
-    if "name" in translated:
-        updates["Name"] = set_locale_value(name, "uk", translated["name"])
-    if "short_description" in translated:
-        updates["ShortDescription"] = set_locale_value(short_description, "uk", translated["short_description"])
-    if "ingredients" in translated:
-        updates["Ingredients"] = set_locale_value(ingredients, "uk", translated["ingredients"])
-    if "description" in translated:
-        updates["Description"] = set_locale_value(description, "uk", translated["description"])
+    columns = {"name": "Name", "short_description": "ShortDescription", "ingredients": "Ingredients", "description": "Description"}
+    for key, column in columns.items():
+        if key not in translated:
+            continue
+        value = sources[key]
+        # російський текст стояв у полі uk, а ru порожнє - він переходить у ru
+        if not get_locale_value(value, "ru").strip():
+            value = set_locale_value(value, "ru", fields[key])
+        updates[column] = set_locale_value(value, "uk", translated[key])
 
     if updates:
         set_clause = ", ".join(f"{col} = %s" for col in updates)
@@ -461,8 +482,24 @@ def process_full_page_batch(db):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--restaurant", action="append", metavar="ID",
+                        help="лише страви цього ресторану: Id або адреса сторінки (можна кілька), без решти проходів")
+    args = parser.parse_args()
     db = get_db()
     try:
+        if args.restaurant:
+            # Id або адреса сторінки ресторану (chachapuri з /uk/kyiv/restaurant/chachapuri)
+            ids = []
+            cur = db.cursor()
+            for value in args.restaurant:
+                cur.execute("SELECT CONCAT(ItemId, '') FROM RestaurantSeo WHERE Url = %s LIMIT 1", (value,))
+                row = cur.fetchone()
+                ids.append(row[0] if row else value)
+            cur.close()
+            process_dishes_for_restaurants(db, ids)
+            print(f"DeepL: {deepl_chars_spent} символів")
+            return
         restaurant_ids = process_priority_restaurants(db)
         process_dishes_for_restaurants(db, restaurant_ids)
         process_recent_pages(db)
