@@ -159,4 +159,7 @@
   <data name="DishesInCities" xml:space="preserve">
     <value>Страви в містах:</value>
   </data>
+  <data name="IframeMenu" xml:space="preserve">
+    <value>Меню для сайту закладу</value>
+  </data>
 </root>

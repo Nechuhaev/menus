@@ -374,6 +374,7 @@ namespace Menus.Web.Controllers
                     $"<loc>{SiteBaseUrl}/{ locale.Id}</loc>",
                     $"<loc>{SiteBaseUrl}/{ locale.Id}/articles/aboutus</loc>",
                     $"<loc>{SiteBaseUrl}/{ locale.Id}/articles/forowners</loc>",
+                    $"<loc>{SiteBaseUrl}/{ locale.Id}/iframe-menu</loc>",
                     $"<loc>{SiteBaseUrl}/{ locale.Id}/content/agreement</loc>",
                     $"<loc>{SiteBaseUrl}/{ locale.Id}/content/privacy</loc>",
 

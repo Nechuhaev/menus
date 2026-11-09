@@ -34,6 +34,12 @@ namespace Menus.Web.Controllers
             return View();
         }
 
+        // Лендинг «Меню для сайту закладу» (iframe): /{culture}/iframe-menu
+        public IActionResult IframeMenu()
+        {
+            return View();
+        }
+
         // Незавершена сторінка без перекладів (у пошуку показувала ключі на кшталт «MetaTitle»), посилань на неї немає
         public IActionResult Marketing()
         {

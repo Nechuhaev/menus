@@ -1,0 +1,354 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+    <data name="MetaTitle" xml:space="preserve">
+    <value>Меню для сайту ресторану чи кафе — безкоштовний iframe | TipMyMenu</value>
+  </data>
+  <data name="MetaDescription" xml:space="preserve">
+    <value>Онлайн-меню закладу на вашому сайті за 2 хвилини: фото, ціни, пошук, рейтинги страв. Один рядок коду, працює на телефоні. Поки безкоштовно.</value>
+  </data>
+  <data name="Breadcrumb" xml:space="preserve">
+    <value>Меню для сайту закладу</value>
+  </data>
+  <data name="Badge" xml:space="preserve">
+    <value>Поки безкоштовно</value>
+  </data>
+  <data name="HeroTitle1" xml:space="preserve">
+    <value>Меню вашого закладу на</value>
+  </data>
+  <data name="HeroTitleAccent" xml:space="preserve">
+    <value>вашому сайті</value>
+  </data>
+  <data name="HeroTitle2" xml:space="preserve">
+    <value>— за 2 хвилини</value>
+  </data>
+  <data name="HeroLead" xml:space="preserve">
+    <value>Красиве онлайн-меню з фото, цінами й пошуком. Вставте один рядок коду на сайт — і гості бачать актуальне меню на телефоні й комп'ютері.</value>
+  </data>
+  <data name="CtaConnect" xml:space="preserve">
+    <value>Підключити безкоштовно</value>
+  </data>
+  <data name="CtaHow" xml:space="preserve">
+    <value>Як це працює</value>
+  </data>
+  <data name="FactCode" xml:space="preserve">
+    <value>1 рядок</value>
+  </data>
+  <data name="FactCodeText" xml:space="preserve">
+    <value>коду на сайт</value>
+  </data>
+  <data name="FactPrice" xml:space="preserve">
+    <value>0 ₴</value>
+  </data>
+  <data name="FactPriceText" xml:space="preserve">
+    <value>підключення</value>
+  </data>
+  <data name="FactLangs" xml:space="preserve">
+    <value>UA / RU</value>
+  </data>
+  <data name="FactLangsText" xml:space="preserve">
+    <value>дві мови</value>
+  </data>
+  <data name="PhoneTitle" xml:space="preserve">
+    <value>Приклад меню: Чачапурі</value>
+  </data>
+  <data name="PhoneNote" xml:space="preserve">
+    <value>Живий приклад — меню ресторану «Чачапурі». Можна гортати й шукати.</value>
+  </data>
+  <data name="BenefitsTitle" xml:space="preserve">
+    <value>Чому заклади обирають меню TipMyMenu</value>
+  </data>
+  <data name="BenefitsSub" xml:space="preserve">
+    <value>Усе, що потрібно гостю, щоб вибрати страву ще до візиту, — і нічого зайвого для вас.</value>
+  </data>
+  <data name="B1Title" xml:space="preserve">
+    <value>Завжди актуальне</value>
+  </data>
+  <data name="B1Text" xml:space="preserve">
+    <value>Оновлюйте меню як вам зручно — вручну чи автоматично. Зміни одразу з'являються на вашому сайті.</value>
+  </data>
+  <data name="B2Title" xml:space="preserve">
+    <value>Без розробника</value>
+  </data>
+  <data name="B2Text" xml:space="preserve">
+    <value>Один рядок коду — і меню працює на будь-якому сайті: WordPress, Wix, Tilda чи власному.</value>
+  </data>
+  <data name="B3Title" xml:space="preserve">
+    <value>У стилі вашого бренду</value>
+  </data>
+  <data name="B3Text" xml:space="preserve">
+    <value>Обкладинка з фото закладу, ваш фірмовий колір, світла або темна тема.</value>
+  </data>
+  <data name="B4Title" xml:space="preserve">
+    <value>Фото, вага й варіанти</value>
+  </data>
+  <data name="B4Text" xml:space="preserve">
+    <value>Кожна страва з фото, описом, вагою та цінами порцій — гість бачить усе до замовлення.</value>
+  </data>
+  <data name="B5Title" xml:space="preserve">
+    <value>Пошук і розділи</value>
+  </data>
+  <data name="B5Text" xml:space="preserve">
+    <value>Вкладки розділів і пошук: потрібна страва знаходиться за секунди, навіть у великому меню.</value>
+  </data>
+  <data name="B6Title" xml:space="preserve">
+    <value>Рейтинги страв</value>
+  </data>
+  <data name="B6Text" xml:space="preserve">
+    <value>Оцінки гостей і «Топ страви» підказують, що спробувати, і допомагають продавати.</value>
+  </data>
+  <data name="B7Title" xml:space="preserve">
+    <value>«Відчинено · до 22:00»</value>
+  </data>
+  <data name="B7Text" xml:space="preserve">
+    <value>Гість одразу бачить, чи працює заклад зараз, а також адресу, телефон та Instagram.</value>
+  </data>
+  <data name="B8Title" xml:space="preserve">
+    <value>Ідеально на телефоні</value>
+  </data>
+  <data name="B8Text" xml:space="preserve">
+    <value>Зручне меню на будь-якому екрані — саме там, де гості його відкривають.</value>
+  </data>
+  <data name="B9Title" xml:space="preserve">
+    <value>Швидко й легко</value>
+  </data>
+  <data name="B9Text" xml:space="preserve">
+    <value>Легке меню, яке швидко відкривається й не гальмує ваш сайт.</value>
+  </data>
+  <data name="B10Title" xml:space="preserve">
+    <value>Ще й нові гості з Google</value>
+  </data>
+  <data name="B10Text" xml:space="preserve">
+    <value>Разом з меню для сайту заклад отримує сторінку на TipMyMenu: страви з'являються в пошуку Google за запитами на кшталт «хачапурі Київ» — і приводять гостей, які про вас ще не знали.</value>
+  </data>
+  <data name="HowTitle" xml:space="preserve">
+    <value>Як підключити — 3 кроки</value>
+  </data>
+  <data name="HowSub" xml:space="preserve">
+    <value>Без договорів і програміста. Усе робиться в особистому кабінеті закладу.</value>
+  </data>
+  <data name="S1Title" xml:space="preserve">
+    <value>Додайте заклад</value>
+  </data>
+  <data name="S1Text" xml:space="preserve">
+    <value>Зареєструйтеся як власник і знайдіть свій заклад на TipMyMenu або додайте новий.</value>
+  </data>
+  <data name="S2Title" xml:space="preserve">
+    <value>Налаштуйте вигляд</value>
+  </data>
+  <data name="S2Text" xml:space="preserve">
+    <value>У кабінеті «Про заклад» → «Меню для вашого сайту» виберіть обкладинку, колір, тему й що показувати. Попередній перегляд — одразу поруч.</value>
+  </data>
+  <data name="S3Title" xml:space="preserve">
+    <value>Вставте код на сайт</value>
+  </data>
+  <data name="S3Text" xml:space="preserve">
+    <value>Скопіюйте готовий код однією кнопкою й вставте на сторінку сайту. Готово — меню вже працює.</value>
+  </data>
+  <data name="CodeTitle" xml:space="preserve">
+    <value>Ось так виглядає код</value>
+  </data>
+  <data name="CodeNote" xml:space="preserve">
+    <value>Висоту й мову можна змінити в кабінеті перед копіюванням.</value>
+  </data>
+  <data name="FeaturesTitle" xml:space="preserve">
+    <value>Що бачить гість</value>
+  </data>
+  <data name="F1" xml:space="preserve">
+    <value>Обкладинка, назва, адреса й години роботи</value>
+  </data>
+  <data name="F2" xml:space="preserve">
+    <value>«Відчинено» або «Зачинено» за київським часом</value>
+  </data>
+  <data name="F3" xml:space="preserve">
+    <value>Вкладки розділів, які прокручуються разом з меню</value>
+  </data>
+  <data name="F4" xml:space="preserve">
+    <value>Пошук страви за назвою</value>
+  </data>
+  <data name="F5" xml:space="preserve">
+    <value>Картка страви: фото, опис, вага, варіанти, рейтинг</value>
+  </data>
+  <data name="F6" xml:space="preserve">
+    <value>«Топ страви» за оцінками гостей</value>
+  </data>
+  <data name="F7" xml:space="preserve">
+    <value>Ціни в гривнях, діапазон цін для порцій</value>
+  </data>
+  <data name="F8" xml:space="preserve">
+    <value>Перемикач мов: українська та російська</value>
+  </data>
+  <data name="F9" xml:space="preserve">
+    <value>Сайт і Instagram закладу</value>
+  </data>
+  <data name="F10" xml:space="preserve">
+    <value>Світла або темна тема у вашому кольорі</value>
+  </data>
+  <data name="FaqTitle" xml:space="preserve">
+    <value>Питання й відповіді</value>
+  </data>
+  <data name="Q1" xml:space="preserve">
+    <value>Скільки це коштує?</value>
+  </data>
+  <data name="A1" xml:space="preserve">
+    <value>Поки безкоштовно: підключення й користування меню для сайту нічого не коштують.</value>
+  </data>
+  <data name="Q2" xml:space="preserve">
+    <value>Чи потрібен програміст?</value>
+  </data>
+  <data name="A2" xml:space="preserve">
+    <value>Ні. Скопіюйте один рядок коду в кабінеті й вставте його на сторінку сайту — так само, як вставляють відео з YouTube.</value>
+  </data>
+  <data name="Q3" xml:space="preserve">
+    <value>Як оновлювати меню?</value>
+  </data>
+  <data name="A3" xml:space="preserve">
+    <value>Як вам зручно — вручну в кабінеті чи автоматично. Зміни одразу з'являються в меню на вашому сайті, код міняти не потрібно.</value>
+  </data>
+  <data name="Q4" xml:space="preserve">
+    <value>На яких сайтах це працює?</value>
+  </data>
+  <data name="A4" xml:space="preserve">
+    <value>На будь-якому сайті, куди можна додати HTML-код: WordPress, Wix, Tilda, Shopify, власний сайт тощо.</value>
+  </data>
+  <data name="Q5" xml:space="preserve">
+    <value>Чи можна змінити вигляд під свій бренд?</value>
+  </data>
+  <data name="A5" xml:space="preserve">
+    <value>Так. Виберіть обкладинку з фото закладу, свій фірмовий колір, світлу або темну тему, а також що показувати: фото страв, описи, вагу, перемикач мов.</value>
+  </data>
+  <data name="Q6" xml:space="preserve">
+    <value>Чи зручно меню на телефоні?</value>
+  </data>
+  <data name="A6" xml:space="preserve">
+    <value>Так. Меню створене передусім для телефона: великі кнопки, швидке завантаження, пошук і вкладки розділів.</value>
+  </data>
+  <data name="Q7" xml:space="preserve">
+    <value>Якими мовами доступне меню?</value>
+  </data>
+  <data name="A7" xml:space="preserve">
+    <value>Українською та російською. Гість перемикає мову прямо в меню.</value>
+  </data>
+  <data name="FinalTitle" xml:space="preserve">
+    <value>Додайте меню на свій сайт уже сьогодні</value>
+  </data>
+  <data name="FinalText" xml:space="preserve">
+    <value>2 хвилини на налаштування — і гості бачать ваше меню там, де шукають вас.</value>
+  </data>
+</root>

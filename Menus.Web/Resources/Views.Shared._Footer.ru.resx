@@ -159,4 +159,7 @@
   <data name="DishesInCities" xml:space="preserve">
     <value>Блюда в городах:</value>
   </data>
+  <data name="IframeMenu" xml:space="preserve">
+    <value>Меню для сайта заведения</value>
+  </data>
 </root>
