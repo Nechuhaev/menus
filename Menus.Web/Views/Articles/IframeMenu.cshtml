@@ -41,7 +41,9 @@
 @section Styles {
 <style>
     .im { --accent: #ffb80e; --accent-h: #f0a800; --dark: #231f20; --text: #1f2328; --muted: #5f6670; --bg: #f5f6f9; --line: #eceef2;
-          color: var(--text); font-size: 17px; line-height: 1.5; letter-spacing: normal; }
+          color: var(--text); background: #fff; font-size: 17px; line-height: 1.5; letter-spacing: normal; }
+    /* body сайту темний (#231f20) - світлі розділи задають фон самі; реклама Google перед футером на лендингу зайва */
+    .iframe-menu-page .google-footer-container { display: none; }
     .im * { box-sizing: border-box; }
     .im .im-wrap { max-width: 1160px; margin: 0 auto; padding: 0 20px; }
     .im h1, .im h2, .im h3, .im p { letter-spacing: normal; text-transform: none; }
@@ -64,7 +66,7 @@
     .im .im-phone iframe { width: 100%; height: 100%; border: 0; display: block; }
     .im .im-phone-note { text-align: center; color: #bdb8b2; font-size: 14px; margin: 12px 0 0; }
 
-    .im .im-section { padding: 72px 0; }
+    .im .im-section { padding: 72px 0; background: #fff; color: var(--text); }
     .im .im-section.im-alt { background: var(--bg); }
     .im .im-section h2 { font-size: 38px; line-height: 1.15; margin: 0 0 10px; font-weight: 700; color: var(--text); }
     .im .im-sub { color: var(--muted); font-size: 19px; margin: 0 0 36px; max-width: 720px; }
