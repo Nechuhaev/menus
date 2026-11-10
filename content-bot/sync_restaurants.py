@@ -1717,8 +1717,12 @@ def sync_menu(db, restaurant, menu_url):
 
     share = len(matches) / len(our_dishes) if our_dishes else 1
     stats = f"site {len(site_menu)} ({SITE_MENU_SOURCE.get(menu_url, '?')}), matched {len(matches)}/{len(our_dishes)}, updated {updated}, prices to check {len(price_changes)}"
+    # QR-меню (Expirenza, ChoiceQR, RestoApp, ps.me) - структуровані дані самого закладу: розпізнане за кількістю страв,
+    # без частки збігу - наше меню могло бути з чужого QR-меню (Alibi: 5/180 після заміни посилання). Додати/прибрати -
+    # усе одно лише пропозиції адміну. Сайти, прочитані кодом чи AI, - як і раніше, лише з достатнім збігом
+    from_qr = SITE_MENU_SOURCE.get(menu_url) == "QR"
     recognized = len(site_menu) >= MIN_SITE_DISHES and (
-        share >= MIN_MATCH_SHARE or (len(site_menu) >= LARGE_MENU_DISHES and share >= LARGE_MENU_MIN_SHARE))
+        from_qr or share >= MIN_MATCH_SHARE or (len(site_menu) >= LARGE_MENU_DISHES and share >= LARGE_MENU_MIN_SHARE))
 
     if not recognized:
         # ціни збіглих за назвою страв достовірні й без розпізнаного меню
