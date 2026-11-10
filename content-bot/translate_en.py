@@ -85,9 +85,12 @@ def needs_en(value, redo_glossary=False):
     і крім «англійської», що є копією української чи російської."""
     uk = get_locale_value(value, "uk").strip()
     source = ("UK", uk) if uk and not looks_russian(uk) else ("RU", get_locale_value(value, "ru").strip())
+    en = get_locale_value(value, "en").strip()
+    if not source[1] and CYRILLIC_RE.search(en):
+        # кирилиця лише в полі en («Коктейлі» без uk/ru) - перекладаємо її саму
+        source = ("RU", en) if looks_russian(en) else ("UK", en)
     if not source[1]:
         return None
-    en = get_locale_value(value, "en").strip()
     # англійська є, але це копія української/російської, кирилиця («Грузинская кухня») або сутності &quot; - наново
     broken = (en in (uk, get_locale_value(value, "ru").strip()) or any(e in en for e in ENTITIES)
               or CYRILLIC_RE.search(en))
