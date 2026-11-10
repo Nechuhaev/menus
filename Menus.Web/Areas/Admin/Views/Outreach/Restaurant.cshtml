@@ -25,6 +25,9 @@
     .outreach .contact { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
     .outreach .contact input[type=text] { min-width: 200px; }
     .outreach details { margin: 6px 0; }
+    .outreach .card-box { background: #f6f6f6; border: 1px solid #ddd; padding: 10px 14px; margin: 10px 0 18px; }
+    .outreach .card-box h3 { margin: 0 0 4px; }
+    .outreach .card-box td:first-child { color: #777; padding-right: 14px; white-space: nowrap; }
 </style>
 
 <div class="site-content">
@@ -78,6 +81,18 @@
             </div>
             <p class="muted">@ViewData["cityName"] · страв у меню: @Model.Dishes</p>
 
+            <div class="card-box">
+                <h3>Картка закладу <a asp-area="Admin" asp-controller="Restaurants" asp-action="Edit" asp-route-id="@Model.Id" target="_blank" class="muted">редагувати →</a></h3>
+                <p class="muted">Те, що бачать гості на сайті. Змінюється лише в картці ресторану - тут копій немає.</p>
+                <table>
+                    <tr><td>Адреса</td><td>@(string.IsNullOrWhiteSpace(Model.AddressText) ? "—" : Model.AddressText)</td></tr>
+                    <tr><td>Сайт</td><td>@if (string.IsNullOrWhiteSpace(Model.Website)) { <span>—</span> } else { <a href="@Model.Website" target="_blank" rel="noopener">@Model.Website</a> }</td></tr>
+                    <tr><td>Меню</td><td>@if (string.IsNullOrWhiteSpace(Model.MenuUrl)) { <span>—</span> } else { <a href="@Model.MenuUrl" target="_blank" rel="noopener">@Model.MenuUrl</a> }</td></tr>
+                    <tr><td>Години</td><td>@(string.IsNullOrWhiteSpace(Model.HoursText) ? "—" : Model.HoursText)</td></tr>
+                    <tr><td>Телефон</td><td>@(string.IsNullOrWhiteSpace(Model.Phone) ? "—" : Model.Phone)</td></tr>
+                </table>
+            </div>
+
             <div class="cols">
                 <div>
                     <h3>Контакти</h3>
@@ -113,7 +128,11 @@
                             {
                                 <div class="muted source">
                                     @if (c.SourceUrl == "admin") { <span>джерело: додав адмін</span> }
-                                    else if ((c.SourceUrl ?? "").StartsWith("http")) { <span>джерело:</span> <a href="@c.SourceUrl" target="_blank" rel="noopener">@c.SourceUrl</a> }
+                                    else if ((c.SourceUrl ?? "").StartsWith("http"))
+                                    {
+                                        <span>джерело:</span> <a href="@c.SourceUrl" target="_blank" rel="noopener">@c.SourceUrl</a>
+                                        if (Model.FromOtherSite(c)) { <span class="doubt-badge" title="Зібрано з сайту, якого немає в картці закладу (сайт змінили?) - перевірте контакт">⚠ не з сайту закладу</span> }
+                                    }
                                     else { <span>джерело: @c.SourceUrl</span> }
                                 </div>
                             }

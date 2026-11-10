@@ -1,4 +1,6 @@
-"""Години роботи, телефон, сайт та email ресторану з його QR-меню (Expirenza, ChoiceQR, RestoApp). Кодом, без AI.
+"""Години роботи, телефон, сайт та email ресторану з його QR-меню (Expirenza, ChoiceQR, RestoApp), а якщо QR-меню
+немає - з його сайту (розмітка schema.org, посилання tel:/mailto:, текст «Пн-Нд 10:00-22:00»). Кодом, без AI.
+Картка ресторану - єдине джерело: «Розсилка» та сайт показують саме її, тому скрипт проходить по всіх закладах.
 
 Звідки:
 - Expirenza: https://static.shaketopay.com.ua/menu/prod/cache/menu/<id>/uk/restaurant_menu_info.json
@@ -14,6 +16,8 @@
 - Restaurants.Phone - перший телефон (порівняння за останніми 9 цифрами, формат не чіпаємо, якщо номер той самий);
 - RestaurantInfo.Website - лише якщо в нас порожньо і в QR-меню вказано сайт закладу (не соцмережу й не саме QR-меню);
 - Restaurants.Email - лише якщо в нас порожньо (email може бути логіном власника).
+- RestaurantInfo.Website - мітки реклами (fbclid, utm_*, gclid) прибираються з адреси сайту.
+Сайт закладу - лише якщо QR-меню немає; QR-меню має перевагу (його веде сам заклад).
 Не чіпаємо:
 - телефон і години, коли одне QR-меню прив'язане до кількох наших ресторанів (мережа: у кожної філії свої);
 - увесь ресторан, коли в QR-меню іноземний телефон / сайт / email - посилання, ймовірно, на інший заклад;
@@ -24,6 +28,7 @@
          python3 sync_platform_contacts.py --apply    # записати
          python3 sync_platform_contacts.py --apply --only <RestaurantId>
          python3 sync_platform_contacts.py --rollback <RestaurantId>
+         python3 sync_platform_contacts.py --no-sites   # лише QR-меню, без сайтів закладів
 """
 import argparse
 import json
@@ -32,7 +37,12 @@ from collections import Counter
 from urllib.parse import urlparse
 
 from menu_platforms import EXPZ_ROOT, RESTOAPP_API, fetch, is_restoapp
-from sync_restaurants import get_db
+from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import parse_qsl, urlencode, urlunparse
+
+import requests
+
+from sync_restaurants import extract_restaurant_info, get_db, osm_to_week, page_text
 
 EXPZ_INFO = "https://static.shaketopay.com.ua/menu/prod/cache/menu/{id}/uk/restaurant_menu_info.json"
 NOT_SITE = re.compile(r"choiceqr\.com|expz\.menu|expirenza|shaketopay|restoapp\.eu|instagram\.com|facebook\.com|fb\.com|t\.me/|tiktok\.com|"
@@ -161,6 +171,47 @@ def platform_contacts(url):
     return None
 
 
+TRACKING_PARAM = re.compile(r"^(fbclid|gclid|yclid|msclkid|igshid|utm_\w+)$", re.I)
+SITE_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; TipMyMenuBot/1.0; +https://tipmymenu.com)"}
+CONTACTS_LINK = re.compile(r'<a[^>]+href=["\']([^"\'#]+)["\'][^>]*>(?:(?!</a>).){0,80}?(?:контакт|contact)', re.I | re.S)
+MAILTO = re.compile(r'mailto:([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24})', re.I)
+
+
+def clean_site(url):
+    """Адреса сайту без міток реклами: «https://svkus.com/?fbclid=...» -> «https://svkus.com/»."""
+    u = urlparse((url or "").strip())
+    if not u.query:
+        return (url or "").strip()
+    query = [(k, v) for k, v in parse_qsl(u.query, keep_blank_values=True) if not TRACKING_PARAM.match(k)]
+    return urlunparse(u._replace(query=urlencode(query)))
+
+
+def site_contacts(url):
+    """Години, телефон і email з сайту закладу (головна + сторінка «Контакти») - у форматі platform_contacts."""
+    resp = requests.get(url, timeout=15, headers=SITE_HEADERS)
+    resp.raise_for_status()
+    pages = [resp.text]
+    m = CONTACTS_LINK.search(resp.text)
+    if m:
+        link = requests.compat.urljoin(resp.url, m.group(1))
+        if site_key(link) == site_key(resp.url):
+            try:
+                more = requests.get(link, timeout=15, headers=SITE_HEADERS)
+                if more.ok:
+                    pages.append(more.text)
+            except requests.RequestException:
+                pass
+    found = {"hours": None, "phone": None, "email": None, "website": None}
+    for raw in pages:
+        info = extract_restaurant_info(raw, page_text(raw))
+        found["hours"] = found["hours"] or osm_to_week(info.get("opening_hours"))
+        found["phone"] = found["phone"] or info.get("phone")
+        if not found["email"]:
+            mail = MAILTO.search(raw)
+            found["email"] = mail.group(1) if mail else None
+    return found if any(found.values()) else None
+
+
 def digits(phone):
     return re.sub(r"\D", "", phone or "")[-9:]
 
@@ -243,6 +294,23 @@ UPDATE_SQL = {
 }
 
 
+def apply_changes(db, write, r, changes, source, apply, stats):
+    for field, old, new in changes:
+        stats[field] += 1
+        if field == "OpenHours":
+            print(f"   години:  {show_hours(old)}\n         -> {show_hours(new)}")
+        else:
+            print(f"   {field}: {old or '—'} -> {new}")
+        if apply:
+            write.execute(UPDATE_SQL[field], (new, r["Id"]))
+            write.execute("""INSERT INTO PlatformContactSync (RestaurantId, Field, OldValue, NewValue, Source, ChangedAt)
+                             VALUES (%s, %s, %s, %s, %s, NOW())""", (r["Id"], field, old, new, source[:255]))
+    if apply:
+        # сторінка й iframe віддають Last-Modified з UpdateDate - без цього браузер і CDN тримали б старе
+        write.execute("UPDATE Restaurants SET UpdateDate = NOW() WHERE Id = %s", (r["Id"],))
+        db.commit()
+
+
 def rollback(db, restaurant_id):
     cur = db.cursor(dictionary=True)
     cur.execute("""SELECT Id, Field, OldValue FROM PlatformContactSync WHERE RestaurantId = %s
@@ -263,6 +331,7 @@ def main():
     parser.add_argument("--apply", action="store_true", help="записати (без нього - лише показати)")
     parser.add_argument("--only", help="один ресторан (Id)")
     parser.add_argument("--rollback", metavar="RESTAURANT_ID", help="повернути значення до першої синхронізації")
+    parser.add_argument("--no-sites", dest="sites", action="store_false", help="лише QR-меню, без сайтів закладів")
     args = parser.parse_args()
 
     db = get_db()
@@ -282,6 +351,9 @@ def main():
     for r in restaurants:
         url = next((u for u in (r["MenuUrl"], r["Website"]) if is_platform(u)), None)
         r["Url"] = url.strip() if url else None
+        site = (r["Website"] or "").strip()
+        # сайт закладу - джерело, лише коли QR-меню немає (і це сайт, а не соцмережа чи QR-меню)
+        r["Site"] = clean_site(site) if not r["Url"] and args.sites and re.match(r"https?://", site, re.I) and not NOT_SITE.search(site) else None
     # скільки наших ресторанів дивляться на те саме QR-меню (за --only рахуємо по всіх)
     if args.only:
         cur.execute("""SELECT (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl, ri.Website
@@ -290,50 +362,56 @@ def main():
     else:
         everyone = restaurants
     uses = Counter(link_key(u.strip()) for x in everyone for u in [next((v for v in (x["MenuUrl"], x["Website"]) if is_platform(v)), None)] if u)
+    # той самий сайт у кількох наших ресторанів - мережа: телефон і години з сайту не беремо
+    site_uses = Counter(site_key(x["Website"]) for x in everyone if (x["Website"] or "").strip())
+
+    def read(r):
+        try:
+            return platform_contacts(r["Url"]) if r["Url"] else site_contacts(r["Site"]) if r["Site"] else None, None
+        except Exception as e:
+            return None, type(e).__name__
+
+    # сайти й QR-меню читаються паралельно (сотні закладів), записи - по черзі нижче
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(read, restaurants))
 
     stats, write = Counter(), db.cursor()
-    for r in restaurants:
-        url = r["Url"]
+    for r, (found, error) in zip(restaurants, results):
+        url = r["Url"] or r["Site"]
+        source = "QR-меню" if r["Url"] else "сайт"
+        changes = []
+        cleaned = clean_site(r["Website"])
+        if (r["Website"] or "").strip() and cleaned != (r["Website"] or "").strip():
+            changes.append(("Website", r["Website"], cleaned))
         if not url:
+            if changes:
+                stats["зі змінами"] += 1
+                print(f"\n{r['Name']} ({r['Id']})")
+                apply_changes(db, write, r, changes, "clean_site", args.apply, stats)
             continue
-        stats["з QR-меню"] += 1
-        try:
-            found = platform_contacts(url)
-        except Exception as e:
-            stats["QR-меню не прочиталось"] += 1
-            print(f"!  {r['Name'][:40]}: {url} - {type(e).__name__}")
-            continue
-        if not found:
-            stats["QR-меню не прочиталось"] += 1
+        stats[f"з {source}"] += 1
+        if error or not found:
+            stats[f"{source} не прочиталось"] += 1
+            if error:
+                print(f"!  {r['Name'][:40]}: {url} - {error}")
+            if changes:
+                apply_changes(db, write, r, changes, "clean_site", args.apply, stats)
             continue
         suspicious = foreign(found)
         if suspicious:
             stats["QR-меню, ймовірно, іншого закладу"] += 1
             print(f"\n?  {r['Name']} ({r['Id']}) <- {url}\n   не чіпаємо: у QR-меню {suspicious} - перевірте посилання на меню")
             continue
-        shared = uses[link_key(url)] > 1
+        shared = uses[link_key(url)] > 1 if r["Url"] else site_uses[site_key(url)] > 1
         if shared:
             stats["мережа: телефон і години не чіпаємо"] += 1
-        changes = changes_for(r, found, shared)
+        changes += [c for c in changes_for(r, found, shared) if c[0] != "Website" or not changes]
         if not changes:
             stats["без змін"] += 1
             continue
         stats["зі змінами"] += 1
-        print(f"\n{r['Name']} ({r['Id']}) <- {url}")
-        for field, old, new in changes:
-            stats[field] += 1
-            if field == "OpenHours":
-                print(f"   години:  {show_hours(old)}\n         -> {show_hours(new)}")
-            else:
-                print(f"   {field}: {old or '—'} -> {new}")
-            if args.apply:
-                write.execute(UPDATE_SQL[field], (new, r["Id"]))
-                write.execute("""INSERT INTO PlatformContactSync (RestaurantId, Field, OldValue, NewValue, Source, ChangedAt)
-                                 VALUES (%s, %s, %s, %s, %s, NOW())""", (r["Id"], field, old, new, url[:255]))
-        if args.apply:
-            # сторінка й iframe віддають Last-Modified з UpdateDate - без цього браузер і CDN тримали б старе
-            write.execute("UPDATE Restaurants SET UpdateDate = NOW() WHERE Id = %s", (r["Id"],))
-            db.commit()
+        print(f"\n{r['Name']} ({r['Id']}) <- {source} {url}")
+        apply_changes(db, write, r, changes, url, args.apply, stats)
 
     print(f"\n{dict(stats)}")
     print("записано (журнал і відкат: PlatformContactSync, --rollback <Id>)" if args.apply else "нічого не записано - для запису --apply")

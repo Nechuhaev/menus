@@ -33,6 +33,26 @@ namespace Menus.Web.Helpers
             }
         }
 
+        private static readonly string[] ShortDays = { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд" };
+
+        // Графік коротко для адмінки: «Пн-Нд 10:00-22:00» або «Пн 10:00-22:00, ..., Нд вих.»
+        public static string Describe(string raw)
+        {
+            var (hours, perDay) = Parse(raw);
+            if (!perDay) return hours;
+            try
+            {
+                var days = JArray.Parse(hours).Select(d => d.Value<bool?>("active") == true
+                    ? $"{d.Value<string>("from")}-{d.Value<string>("to")}" : "вих.").ToList();
+                if (days.Count == 7 && days.Distinct().Count() == 1) return $"Пн-Нд {days[0]}";
+                return string.Join(", ", days.Select((d, i) => $"{ShortDays[i]} {d}"));
+            }
+            catch (Exception)
+            {
+                return hours;
+            }
+        }
+
         private static readonly string[] GoogleDays = { "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday" };
 
         // Скорочення днів: OSM, українські, російські

@@ -726,6 +726,46 @@ def hours_from_text(text):
     return "; ".join(f"{d} {a}-{b}" for d, a, b in rules) or None
 
 
+def osm_to_week(text):
+    """«Mo-Fr 10:00-22:00; Sa,Su 11:00-23:00» -> JSON OpenHours {"perDay":true,"data":[7 днів з понеділка]} - як
+    пишуть адмінка й sync_platform_contacts.py (у полях часу картки текст OSM не показувався); None - формат невідомий."""
+    by_day, off = {}, set()
+    for part in (text or "").split(";"):
+        closed = re.match(r"^\s*([A-Za-z,\- ]+?)\s+(?:off|closed)\s*$", part)
+        if closed:
+            for spec in closed.group(1).replace(" ", "").split(","):
+                ends = spec.split("-")
+                if any(e not in DAYS_OSM for e in ends):
+                    return None
+                off.update(range(DAYS_OSM.index(ends[0]), DAYS_OSM.index(ends[-1]) + 1))
+            continue
+        m = re.match(r"^\s*([A-Za-z,\- ]+?)\s+(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$", part)
+        if not m:
+            return None
+        start = f"{int(m.group(2)):02d}:{m.group(3)}"
+        end = "00:00" if int(m.group(4)) == 24 else f"{int(m.group(4)):02d}:{m.group(5)}"
+        for spec in m.group(1).replace(" ", "").split(","):
+            ends = spec.split("-")
+            if any(e not in DAYS_OSM for e in ends) or len(ends) > 2:
+                return None
+            a, b = DAYS_OSM.index(ends[0]), DAYS_OSM.index(ends[-1])
+            for d in range(a, b + 1):
+                by_day[d] = (start, end)
+    # невідомі дні не позначаємо вихідними: графік лише коли розписано весь тиждень (робочі + «off»)
+    if not by_day or any(f == t for f, t in by_day.values()) or len(set(by_day) | off) < 7:
+        return None
+    return [{"from": by_day[i][0], "to": by_day[i][1], "active": True} if i in by_day
+            else {"from": "", "to": "", "active": False} for i in range(7)]
+
+
+def current_week(raw):
+    try:
+        data = json.loads(raw or "")
+        return data.get("data") if isinstance(data, dict) and data.get("perDay") else None
+    except ValueError:
+        return None
+
+
 def _jsonld_business(raw_html):
     """Перший вузол schema.org Restaurant / LocalBusiness / FoodEstablishment."""
     def walk(node):
@@ -1523,8 +1563,10 @@ def _process_restaurant(db, restaurant):
         site_info = extract_restaurant_info(fetch_website_html.last_raw, html)
 
     final_hours = site_info.get("opening_hours") or osm_data.get("opening_hours")
-    if final_hours and final_hours != restaurant["OpenHours"]:
-        info_updates["OpenHours"] = final_hours
+    week = osm_to_week(final_hours)
+    # графік по днях JSON, як в адмінці; порівнюється за днями - інакше «hours updated» щоразу
+    if week and week != current_week(restaurant["OpenHours"]):
+        info_updates["OpenHours"] = json.dumps({"perDay": True, "data": week}, ensure_ascii=False)
         notes.append("hours updated")
 
     final_phone = site_info.get("phone") or osm_data.get("phone")
