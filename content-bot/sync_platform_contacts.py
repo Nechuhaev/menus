@@ -16,6 +16,8 @@
 - Restaurants.Phone - перший телефон (порівняння за останніми 9 цифрами, формат не чіпаємо, якщо номер той самий);
 - RestaurantInfo.Website - лише якщо в нас порожньо і в QR-меню вказано сайт закладу (не соцмережу й не саме QR-меню);
 - Restaurants.Email - лише якщо в нас порожньо (email може бути логіном власника).
+- з сайту: телефон лише в порожнє поле (на сайті часто номер доставки), години - лише якщо кожен день довший
+  за 5 годин («Сніданки 08:00-11:00» - не графік), шаблонні email (sales@example.com) пропускаються;
 - RestaurantInfo.Website - мітки реклами (fbclid, utm_*, gclid) прибираються з адреси сайту.
 Сайт закладу - лише якщо QR-меню немає; QR-меню має перевагу (його веде сам заклад).
 Не чіпаємо:
@@ -186,6 +188,25 @@ def clean_site(url):
     return urlunparse(u._replace(query=urlencode(query)))
 
 
+# шаблонні адреси з макетів сайтів: sales@example.com, info@domain.com, ...
+FAKE_EMAIL = re.compile(r"@(?:example|domain|yourdomain|yoursite|site|email|test|mail)\.(?:com|net|org|ua)$|\.(?:png|jpe?g|webp|gif)$", re.I)
+MIN_DAY_HOURS = 5
+
+
+def long_days(week):
+    """Графік із сайту - лише якщо кожен робочий день довший за MIN_DAY_HOURS: «Сніданки 08:00-11:00» на сайті
+    Брамс - не години роботи закладу."""
+    def minutes(t):
+        h, m = t.split(":")
+        return int(h) * 60 + int(m)
+    for day in week:
+        if day["active"]:
+            span = (minutes(day["to"]) - minutes(day["from"])) % (24 * 60) or 24 * 60
+            if span < MIN_DAY_HOURS * 60:
+                return False
+    return True
+
+
 def site_contacts(url):
     """Години, телефон і email з сайту закладу (головна + сторінка «Контакти») - у форматі platform_contacts."""
     resp = requests.get(url, timeout=15, headers=SITE_HEADERS)
@@ -201,14 +222,15 @@ def site_contacts(url):
                     pages.append(more.text)
             except requests.RequestException:
                 pass
-    found = {"hours": None, "phone": None, "email": None, "website": None}
+    found = {"hours": None, "phone": None, "email": None, "website": None, "from_site": True}
     for raw in pages:
         info = extract_restaurant_info(raw, page_text(raw))
-        found["hours"] = found["hours"] or osm_to_week(info.get("opening_hours"))
+        hours = osm_to_week(info.get("opening_hours"))
+        found["hours"] = found["hours"] or (hours if hours and long_days(hours) else None)
         found["phone"] = found["phone"] or info.get("phone")
         if not found["email"]:
-            mail = MAILTO.search(raw)
-            found["email"] = mail.group(1) if mail else None
+            mail = next((m for m in MAILTO.findall(raw) if not FAKE_EMAIL.search(m)), None)
+            found["email"] = mail
     return found if any(found.values()) else None
 
 
@@ -268,7 +290,10 @@ def changes_for(r, found, shared=False):
     if not shared and found["hours"] and current_hours(r["OpenHours"]) != found["hours"]:
         result.append(("OpenHours", r["OpenHours"], json.dumps({"perDay": True, "data": found["hours"]}, ensure_ascii=False)))
     phone = ua_phone(found["phone"]) or (found["phone"] or "").strip() or None
-    if not shared and phone and digits(phone) != digits(r["Phone"]):
+    # телефон із сайту лише заповнює порожнє: на сайті часто номер доставки, а в картці - закладу.
+    # Замінює наявний номер лише QR-меню (його веде сам заклад)
+    replace_phone = not found.get("from_site") or not (r["Phone"] or "").strip()
+    if not shared and phone and replace_phone and digits(phone) != digits(r["Phone"]):
         result.append(("Phone", r["Phone"], phone))
     site = found["website"]
     if site and not NOT_SITE.search(site) and not (r["Website"] or "").strip():
