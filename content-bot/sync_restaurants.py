@@ -780,6 +780,41 @@ def menu_subpages(raw_html, *menu_urls):
     return found[:MAX_MENU_SUBPAGES]
 
 
+NAV_MENU_ANCHOR = re.compile(r'<a\b[^>]*>((?:(?!</a>).){1,200})</a>', re.I | re.S)
+
+
+def menu_nav_links(raw_html, base_url):
+    """Сторінки з випадного списку під пунктом «Меню» в навігації сайту: «Меню» часто лише заголовок (href="#"),
+    а розділи - окремі сторінки (Arbequina: сніданки, основне меню, напої; 44favorite: «Меню доставки» ->
+    /catalog/burgery/, /catalog/pitsa/...). Береться найбільший такий список з того самого сайту, без PDF."""
+    raw_html = raw_html or ""
+    host = urlparse(base_url or "").netloc
+    best = []
+    for m in NAV_MENU_ANCHOR.finditer(raw_html):
+        text = re.sub(r"<[^>]+>|\s+", " ", m.group(1)).strip()
+        if len(text) > 40 or not re.search(r"меню|menu", text, re.I):
+            continue
+        after = raw_html[m.end():m.end() + 400]
+        ul = re.search(r"<ul\b", after, re.I)
+        if not ul:
+            continue
+        start = m.end() + ul.start()
+        end = raw_html.find("</ul>", start)
+        if end < 0:
+            continue
+        links = []
+        for href in re.findall(r'<a[^>]+href=["\']([^"\'#]+)["\']', raw_html[start:end], re.I):
+            url = urljoin(base_url, href).rstrip("/")
+            if urlparse(url).netloc == host and not url.lower().endswith(".pdf") and url not in links:
+                links.append(url)
+        if len(links) > len(best):
+            best = links
+    # список російською (/ru/catalog/...), а на сайті є ті самі сторінки українською - беремо українські
+    all_links = {urljoin(base_url, h).rstrip("/") for h in re.findall(r'<a[^>]+href=["\']([^"\'#]+)["\']', raw_html, re.I)}
+    best = [u.replace("/ru/", "/", 1) if "/ru/" in u and u.replace("/ru/", "/", 1) in all_links else u for u in best]
+    return list(dict.fromkeys(best))[:MAX_MENU_SUBPAGES]
+
+
 SITE_MENU_CACHE = {}  # меню мережі читається один раз за запуск, а не для кожної філії
 
 
@@ -800,7 +835,12 @@ def _read_site_menu(restaurant_name, menu_url):
         return []
     pages = [(html, base)]
     links = anchor_links(fetch_website_html.last_raw, base)
-    for url in menu_subpages(fetch_website_html.last_raw, menu_url, base):
+    subpages = menu_subpages(fetch_website_html.last_raw, menu_url, base)
+    # розділи з випадного списку «Меню» (на сторінці меню може бути лише PDF, а страви - у «Меню доставки»)
+    for url in menu_nav_links(fetch_website_html.last_raw, base):
+        if url not in subpages and url.rstrip("/") not in (menu_url.rstrip("/"), (base or "").rstrip("/")):
+            subpages.append(url)
+    for url in subpages[:MAX_MENU_SUBPAGES]:
         sub_html, sub_base, _ = fetch_website_html(url, max_chars=40000)
         if sub_html:
             pages.append((sub_html, sub_base))
