@@ -242,6 +242,12 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                 {
                     ctx.Request.Path = new PathString($"/robots.{env.EnvironmentName}.txt");
                 }
+                else if (ctx.Request.Method == "GET" && ctx.Request.Path.StartsWithSegments("/ua", out var rest))
+                {
+                    // старі адреси /ua/... (такої мови немає - 404 у GA4) -> /uk/... назавжди
+                    ctx.Response.Redirect($"/uk{rest}{ctx.Request.QueryString}", true);
+                    return;
+                }
                 else if (ctx.Request.Path == "/sitemap-recrawl.xml")
                 {
                     // сторінки, що повернулися на сайт після зникнення з видачі (SeoRecrawlController)

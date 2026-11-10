@@ -1598,8 +1598,10 @@ def _process_restaurant(db, restaurant):
         db.commit()
         cur.close()
 
-    seo_title_empty = is_localizable_empty(restaurant["SeoTitle"])
-    seo_description_empty = is_localizable_empty(restaurant["SeoDescription"])
+    # title і description сторінка будує сама з даних меню, коли в RestaurantSeo порожньо (SeoText) - їх не
+    # заповнюємо, щоб не перекрити кращий автоматичний текст («Меню X, Київ: ціни 2026»); лише ключові слова
+    seo_title_empty = False
+    seo_description_empty = False
     seo_keywords_empty = not restaurant["SeoKeywords"]
     if seo_title_empty or seo_description_empty or seo_keywords_empty:
         cuisine_json = info_updates.get("Cuisine") or restaurant["Cuisine"]
@@ -1682,7 +1684,9 @@ def sync_menu(db, restaurant, menu_url):
         old_price = float(dish["Price"] or 0)
         # ціна «від» (кілька розмірів) на сервісі - не порівнюємо з ціною порції
         if new_price and new_price != old_price and not dish["IsPriceMultiple"] and not site.get("price_from"):
-            if old_price == 0 or 0.5 <= new_price / old_price <= 2:
+            # з QR-меню (Expirenza, ChoiceQR, RestoApp, ps.me) ціна - від самого закладу: пишемо одразу;
+            # з сайту - зміна більше ніж удвічі йде на підтвердження (там можна сплутати порцію чи страву)
+            if old_price == 0 or SITE_MENU_SOURCE.get(menu_url) == "QR" or 0.5 <= new_price / old_price <= 2:
                 updates["Price"] = new_price
             else:
                 price_changes.append((dish, new_price))  # більше ніж удвічі - на підтвердження адміну
