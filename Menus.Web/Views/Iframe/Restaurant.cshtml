@@ -95,7 +95,11 @@
     var coverStyle = cover != null ? $"background-image: url('{Img.Url(cover, Quality.High)}')" : null;
     var initials = string.Concat((Model.Restaurant.Name ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpper(w[0])));
     // порядок розділів - як в адмінці (Index); у меню з групами (Clean) порядок уже задано групами
-    var allCategories = Model.Menu.Categories.Any(c => c.IsTopLevelCategory) ? Model.Menu.Categories : Model.Menu.Categories.OrderBy(c => c.Index).ToList();
+    // «Сніданки» завжди першими (далі - порядок розділів як у кабінеті)
+    bool IsBreakfast(IMenuCategory c) => System.Text.RegularExpressions.Regex.IsMatch((c.Name?.Get("uk") ?? "") + " " + (c.Name?.Get("ru") ?? "") + " " + (c.Name?.Get("en") ?? ""), "сніданк|снiданк|завтрак|breakfast", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    // меню з групами (верхні розділи з підрозділами) лишається як є, щоб підрозділи не відірвались від групи
+    var allCategories = Model.Menu.Categories.Any(c => c.IsTopLevelCategory) ? Model.Menu.Categories.ToList()
+        : Model.Menu.Categories.OrderBy(c => IsBreakfast((IMenuCategory)c) ? 0 : 1).ThenBy(c => c.Index).ToList();
     var categories = allCategories.Where(c => c.IsTopLevelCategory || (c.Dishes != null && c.Dishes.Any())).ToList();
     var aboutTitle = Localizer["AboutPlace"].IsResourceNotFound ? "Про заклад" : Localizer["AboutPlace"].Value;
     string Hours(JToken day) => day["active"].Value<bool>() ? $"{day["from"].Value<string>()} — {day["to"].Value<string>()}" : Localizer["Closed"].Value;

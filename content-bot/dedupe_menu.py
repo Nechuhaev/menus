@@ -33,8 +33,14 @@ def first_value(localizable):
     return ""
 
 
+# латинські двійники кириличних літер («гарячi страви» з латинською i з QR-меню = «гарячі страви»)
+LATIN_LOOKALIKES = str.maketrans("aceiopxyk", "асеіорхук")
+
+
 def norm(value):
-    return re.sub(r"[^\w]+", " ", (value or "").lower().replace("ё", "е")).strip()
+    words = re.sub(r"[^\w]+", " ", (value or "").lower().replace("ё", "е")).split()
+    # у слові з кирилицею латинські двійники замінюються кириличними; латинські слова (бренди) лишаються
+    return " ".join(w.translate(LATIN_LOOKALIKES) if re.search(r"[а-яіїєґ]", w) else w for w in words)
 
 
 def name_key(localizable):
