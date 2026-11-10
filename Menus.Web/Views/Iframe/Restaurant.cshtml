@@ -79,8 +79,8 @@
     var iframeSettings = ViewData["iframeSettings"] as IframeSettingsModel;
     // налаштування вигляду з кабінету ресторану (блок «Меню для вашого сайту»)
     var design = ViewData["design"] as Menus.Web.Services.IframeDesign ?? new Menus.Web.Services.IframeDesign();
-    var locales = design.HideLanguages ? new List<Menus.Abstract.Models.ILocale>()
-        : (iframeSettings?.Languages ?? Enumerable.Empty<Menus.Abstract.Models.ILocale>()).Where(x => x.Id == "uk" || x.Id == "ru" || x.Id == culture).ToList();
+    // мови iframe - українська й англійська (російської в iframe немає; старі вставки /ru/ працюють як і раніше)
+    var locales = design.HideLanguages ? new List<string>() : new List<string> { "uk", "en" };
     var city = await Core.Restaurants.GetCityById(Model.Restaurant.City);
     var citySlug = city?.Name.Get("en")?.ToLower() ?? "kyiv";
     var cityName = city?.Name.Get(culture) ?? "";
@@ -288,7 +288,7 @@
             <nav class="lang">
                 @foreach (var lang in locales)
                 {
-                    <a class="@(lang.Id == culture ? "on" : "")" href="@Regex.Replace(crq.Path.Value, "^/(ru|uk|en)/", $"/{lang.Id}/")@crq.QueryString">@(lang.Id == "uk" ? "UA" : lang.Id.ToUpper())</a>
+                    <a class="@(lang == culture ? "on" : "")" href="@Regex.Replace(crq.Path.Value, "^/(ru|uk|en)/", $"/{lang}/")@crq.QueryString">@(lang == "uk" ? "UA" : lang.ToUpper())</a>
                 }
             </nav>
         }
