@@ -1639,12 +1639,25 @@ def _process_restaurant(db, restaurant):
     print(f"  -> {summary}")
 
 
+ASTRAL = re.compile(r"[\U00010000-\U0010FFFF\uFE0F\u200D]")
+
+
+def no_emoji(value):
+    """Без emoji та інших 4-байтових символів (колонки utf8, не utf8mb4) і без зайвих пробілів після них."""
+    return re.sub(r"\s{2,}", " ", ASTRAL.sub("", value)).strip()
+
+
 def sync_menu(db, restaurant, menu_url):
     """Дані страв - лише з меню на сайті ресторану. Збіглі страви: ціна оновлюється (якщо зміна
     не більше ніж удвічі), порожні вага/опис/фото заповнюються. Додати чи прибрати страви -
     лише пропозиції для адміна, і лише коли меню розпізнане впевнено."""
     name = restaurant["Name"]
     site_menu = read_site_menu(name, menu_url)
+    for d in site_menu:
+        # emoji (4-байтові символи) таблиця Dishes не приймає: «Incorrect string value '\xF0\x9F...'»
+        for key in ("name", "description", "weight", "category"):
+            if isinstance(d.get(key), str):
+                d[key] = no_emoji(d[key])
     our_dishes = fetch_active_dishes(db, restaurant["Id"])
     matches, unmatched_site = match_menu(our_dishes, site_menu, name)
     paired = pair_by_stems([d for d in our_dishes if d["Id"] not in matches], unmatched_site, name)
