@@ -2,9 +2,10 @@
 
 Коли нове меню з QR-сервісу додали поверх старого, в закладі лишаються обидва: та сама страва двічі зі старою
 й новою ціною, розділи-дублі. Скрипт читає меню з «Посилання на меню» закладу, зіставляє наші страви з ним
-(та сама логіка, що в синхронізації меню) і ховає ті, що не знайшлися (Status = 2, «заблоковано»).
+і ховає старі копії (Status = 2, «заблоковано»): страву з тією самою назвою, що й інша страва закладу,
+у якої ціна як у QR-меню. Страви, яких немає в QR-меню, лише показуються (не ховаються).
 Страви з оцінками гостей не ховаються - лише показуються для ручної перевірки.
-Якщо QR-меню прочиталося погано (менше 10 страв) або не знайшлася більшість наших страв - заклад пропускається.
+Якщо QR-меню прочиталося погано (менше 10 страв) - заклад пропускається.
 Кожна схована страва пишеться в StaleDishHidden - відкат: --rollback <адреса закладу>.
 
 Запуск:  python3 stale_dishes.py --restaurant chachapuri          # показати, нічого не змінювати
@@ -14,7 +15,9 @@
 import argparse
 
 from menu_platforms import platform_menu
-from sync_restaurants import get_db, get_localizable_value, match_menu, pair_by_stems
+from collections import defaultdict
+
+from sync_restaurants import get_db, get_localizable_value, menu_key, normalize_name
 
 LOG_SQL = """CREATE TABLE IF NOT EXISTS StaleDishHidden (
     DishId VARCHAR(255) NOT NULL PRIMARY KEY,
@@ -23,7 +26,6 @@ LOG_SQL = """CREATE TABLE IF NOT EXISTS StaleDishHidden (
     KEY (RestaurantId)
 ) DEFAULT CHARSET=utf8mb4"""
 MIN_PLATFORM_DISHES = 10
-MAX_STALE_SHARE = 0.6
 
 
 def restaurant(db, slug):
@@ -72,25 +74,40 @@ def main():
         cur.execute("""SELECT CONCAT(Id, '') AS Id, Name, Price, IFNULL(RatingsCount, 0) AS RatingsCount
                        FROM Dishes WHERE RestaurantId = %s AND Status = 0""", (r["Id"],))
         ours = cur.fetchall()
-        # спершу страви з ціною як у QR-меню: зі старої й нової копії однієї страви лишається нова
-        site_prices = {round(float(d["price"] or 0), 2) for d in site}
-        ours.sort(key=lambda d: round(float(d["Price"] or 0), 2) not in site_prices)
-        matches, rest_site = match_menu(ours, site, r["Name"])
-        unmatched = [d for d in ours if d["Id"] not in matches]
-        matches.update(pair_by_stems(unmatched, rest_site, r["Name"]))
-        stale = [d for d in ours if d["Id"] not in matches]
-        rated = [d for d in stale if d["RatingsCount"]]
-        hide = [d for d in stale if not d["RatingsCount"]]
-        print(f"\n{r['Name']} <- {r['MenuUrl']}\n  у QR-меню {len(site)}, у нас {len(ours)}, знайдено {len(matches)}, "
-              f"сховати {len(hide)}, з оцінками (лишаються) {len(rated)}")
-        if len(stale) > MAX_STALE_SHARE * len(ours):
-            print(f"  не знайшлося {len(stale)} з {len(ours)} - схоже, QR-меню не того закладу або прочиталося не все; пропущено")
-            continue
+        # Точне правило: страва ховається, лише коли в закладі є двійник з тією самою назвою, у якого ціна
+        # як у QR-меню (стара й нова копія однієї страви). Страви, яких просто немає в QR-меню, не ховаються -
+        # схоже зіставлення плутає їх з порціями («патара»), тож вони лише показуються.
+        noise = set(normalize_name(r["Name"]).split())
+        site_prices = defaultdict(set)
+        for d in site:
+            site_prices[menu_key(d["name"], noise)].add(round(float(d["price"] or 0), 2))
+        groups = defaultdict(list)
+        for d in ours:
+            key = menu_key(get_localizable_value(d["Name"], "uk") or get_localizable_value(d["Name"], "ru"), noise)
+            if key:
+                groups[key].append(d)
+        stale, rated, missing = [], [], []
+        for key, dishes in groups.items():
+            prices = site_prices.get(key)
+            if not prices:
+                missing += dishes
+                continue
+            current = [d for d in dishes if round(float(d["Price"] or 0), 2) in prices]
+            if not current:
+                continue
+            for d in dishes:
+                if d not in current:
+                    (rated if d["RatingsCount"] else stale).append(d)
+        hide = stale
+        print(f"\n{r['Name']} <- {r['MenuUrl']}\n  у QR-меню {len(site)}, у нас {len(ours)}; "
+              f"старих копій сховати {len(hide)}, з оцінками (лишаються) {len(rated)}, немає в QR-меню (не чіпаємо) {len(missing)}")
         for d in hide:
             print(f"   - {get_localizable_value(d['Name'], 'uk') or get_localizable_value(d['Name'], 'ru')} · {float(d['Price'] or 0):g} ₴")
         for d in rated:
             print(f"   ? {get_localizable_value(d['Name'], 'uk') or get_localizable_value(d['Name'], 'ru')} · {float(d['Price'] or 0):g} ₴ "
                   f"· оцінок {d['RatingsCount']} (перевірити вручну)")
+        for d in missing:
+            print(f"   ~ немає в QR-меню: {get_localizable_value(d['Name'], 'uk') or get_localizable_value(d['Name'], 'ru')} · {float(d['Price'] or 0):g} ₴")
         if args.apply and hide:
             for d in hide:
                 cur.execute("UPDATE Dishes SET Status = 2 WHERE Id = %s", (d["Id"],))
