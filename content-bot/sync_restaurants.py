@@ -14,6 +14,11 @@ menu page (a "menu" link on the homepage, or the homepage itself) - nothing is
 generated. Description is stored in the language of the site; translation is done
 separately via DeepL (translate_missing.py).
 
+AI only where code cannot do it: the menu is read by code (schema.org markup, then "name ... price" blocks of the
+page text) and AI is a fallback when code finds fewer than MIN_SITE_DISHES dishes (the log says "(AI)");
+hours/phone come from schema.org, tel: links and the page text; SEO meta is a template; web search via AI is
+used only to check a restaurant with no website at all.
+
 Run daily via cron. Processes a batch of restaurants per run.
 One restaurant out of turn: python3 sync_restaurants.py --restaurant <page address or Id>
 """
@@ -670,53 +675,177 @@ def fetch_website_html(url, max_chars=12000):
         return None, None, None
 
 
-RESTAURANT_INFO_PROMPT = """Ось HTML-фрагмент сайту ресторану "{restaurant_name}":
-
-{html}
-
-Витягни (тільки те, що ЯВНО є на сторінці, не вигадуй):
-- години роботи
-- контактний телефон
-- тип кухні / короткий опис — окремо українською (cuisine_uk) і російською (cuisine_ru)
-
-Поверни ЛИШЕ валідний JSON:
-{{"opening_hours": "у форматі OSM, напр. Mo-Fr 10:00-22:00; Sa,Su 11:00-23:00" or null, "phone": "..." or null, "cuisine_uk": "..." or null, "cuisine_ru": "..." or null}}
-"""
-
-
-def extract_restaurant_info(restaurant_name, html):
-    try:
-        return call_llm_json(RESTAURANT_INFO_PROMPT.format(restaurant_name=restaurant_name, html=html), max_tokens=500,
-                             model=CHEAP_MODEL)
-    except Exception as e:
-        print(f"    Restaurant info extraction failed: {e}")
-        return {}
+DAYS_OSM = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+DAY_WORDS = {"пн": 0, "пон": 0, "вт": 1, "ср": 2, "чт": 3, "пт": 4, "сб": 5, "суб": 5, "нд": 6, "нед": 6, "вс": 6, "воскр": 6,
+             "mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6, "mo": 0, "tu": 1, "we": 2, "th": 3,
+             "fr": 4, "sa": 5, "su": 6}
+DAY_RE = r"(пн|пон|вт|ср|чт|пт|сб|суб|нд|нед|вс|воскр|mon|tue|wed|thu|fri|sat|sun|mo|tu|we|th|fr|sa|su)[a-zа-яіїє]*\.?"
+TIME_RE = r"(\d{1,2})[:.](\d{2})\s*[-–—]\s*(\d{1,2})[:.](\d{2})"
+HOURS_RANGE = re.compile(r"(?<![a-zа-яіїє])" + DAY_RE + r"\s*[-–—]\s*" + DAY_RE + r"\s*[:,]?\s*(?:з\s*|с\s*|from\s*)?" + TIME_RE, re.I)
+HOURS_DAY = re.compile(r"(?<![a-zа-яіїє])" + DAY_RE + r"\s*[:,]?\s*(?:з\s*|с\s*)?" + TIME_RE, re.I)
+HOURS_DAILY = re.compile(r"(?:щодня|щоденно|ежедневно|daily|без вихідних|без выходных|графік роботи|години роботи|"
+                         r"час роботи|время работы|режим роботи|режим работы|працюємо|работаем|open)[^\n\d]{0,40}" + TIME_RE, re.I)
+# «10:00 - 22:00 без перерви та вихідних» - щоденний графік, слово після часу
+HOURS_DAILY_AFTER = re.compile(TIME_RE + r"[^\d]{0,30}(?:щодня|щоденно|ежедневно|daily|без вихідних|без выходных|"
+                               r"без перерви та вихідних|без перерыва и выходных|7/7|24/7)", re.I)
+PHONE_LINK = re.compile(r'href=["\']tel:([+\d][\d\s()+-]{8,20})["\']', re.I)
 
 
-SEO_PROMPT = """Згенеруй SEO-метадані для сторінки ресторану на сайті tipmymenu.com.
-
-Назва: {name}
-Місто: {city}
-Адреса: {address}
-Кухня/опис: {cuisine}
-
-Поверни ЛИШЕ валідний JSON, з полями окремо українською (uk) та російською (ru):
-{{
-  "title": {{"uk": "SEO title до 60 символів", "ru": "..."}},
-  "description": {{"uk": "SEO description до 160 символів", "ru": "..."}},
-  "keywords": {{"uk": "5-8 фраз через кому", "ru": "..."}}
-}}
-"""
+def _hm(h, m):
+    h = int(h)
+    return f"{'24' if h == 24 else f'{h:02d}'}:{m}" if 0 <= h <= 24 else None
 
 
-def generate_seo(name, city, address, cuisine_uk, cuisine_ru):
-    try:
-        cuisine_text = f"{cuisine_uk or ''} / {cuisine_ru or ''}".strip(" /") or "ресторан"
-        prompt = SEO_PROMPT.format(name=name, city=city, address=address, cuisine=cuisine_text)
-        return call_llm_json(prompt, max_tokens=600, model=CHEAP_MODEL)
-    except Exception as e:
-        print(f"    SEO generation failed: {e}")
-        return {}
+def _osm_days(a, b):
+    return DAYS_OSM[a] if a == b else f"{DAYS_OSM[a]}-{DAYS_OSM[b]}"
+
+
+def hours_from_text(text):
+    """Години роботи у форматі OSM з тексту сторінки: «Пн-Пт 10:00-22:00, Сб-Нд 11:00-23:00», «Щодня 10:00-22:00».
+    Не впевнені - None (тоді лишаються години з OSM чи бази)."""
+    rules = []
+    for m in HOURS_RANGE.finditer(text):
+        a, b = DAY_WORDS[m.group(1).lower()], DAY_WORDS[m.group(2).lower()]
+        start, end = _hm(m.group(3), m.group(4)), _hm(m.group(5), m.group(6))
+        if start and end and a <= b and (_osm_days(a, b), start, end) not in rules:
+            rules.append((_osm_days(a, b), start, end))
+    if not rules:
+        for m in HOURS_DAY.finditer(text):
+            d = DAY_WORDS[m.group(1).lower()]
+            start, end = _hm(m.group(2), m.group(3)), _hm(m.group(4), m.group(5))
+            if start and end and all(r[0] != DAYS_OSM[d] for r in rules):
+                rules.append((DAYS_OSM[d], start, end))
+        if len(rules) < 5:  # окремі дні - лише якщо розписано майже весь тиждень
+            rules = []
+    if not rules:
+        m = HOURS_DAILY.search(text) or HOURS_DAILY_AFTER.search(text)
+        if m:
+            start, end = _hm(m.group(1), m.group(2)), _hm(m.group(3), m.group(4))
+            if start and end:
+                rules = [("Mo-Su", start, end)]
+    return "; ".join(f"{d} {a}-{b}" for d, a, b in rules) or None
+
+
+def _jsonld_business(raw_html):
+    """Перший вузол schema.org Restaurant / LocalBusiness / FoodEstablishment."""
+    def walk(node):
+        if isinstance(node, list):
+            for x in node:
+                r = walk(x)
+                if r:
+                    return r
+        elif isinstance(node, dict):
+            types = node.get("@type")
+            types = types if isinstance(types, list) else [types]
+            if any(t in ("Restaurant", "LocalBusiness", "FoodEstablishment", "CafeOrCoffeeShop", "BarOrPub")
+                   for t in types):
+                return node
+            for v in node.values():
+                if isinstance(v, (dict, list)):
+                    r = walk(v)
+                    if r:
+                        return r
+        return None
+
+    for block in re.findall(r'<script[^>]+application/ld\+json[^>]*>([\s\S]*?)</script>', raw_html or "", re.I):
+        try:
+            found = walk(json.loads(block))
+        except ValueError:
+            continue
+        if found:
+            return found
+    return {}
+
+
+def extract_restaurant_info(raw_html, text):
+    """Години, телефон і кухня з сайту кодом, без AI: розмітка schema.org, посилання tel:, текст сторінки."""
+    info = {}
+    biz = _jsonld_business(raw_html)
+    hours = biz.get("openingHours")
+    if isinstance(hours, list):
+        hours = "; ".join(h for h in hours if isinstance(h, str))
+    if isinstance(hours, str) and re.search(r"\d{1,2}:\d{2}", hours):
+        info["opening_hours"] = hours.strip()
+    elif isinstance(biz.get("openingHoursSpecification"), list):
+        rules = []
+        for spec in biz["openingHoursSpecification"]:
+            days = spec.get("dayOfWeek") if isinstance(spec, dict) else None
+            days = days if isinstance(days, list) else [days]
+            for day in days:
+                name = str(day or "").rsplit("/", 1)[-1][:2].title()
+                if name in DAYS_OSM and spec.get("opens") and spec.get("closes"):
+                    rules.append(f"{name} {str(spec['opens'])[:5]}-{str(spec['closes'])[:5]}")
+        if rules:
+            info["opening_hours"] = "; ".join(rules)
+    if not info.get("opening_hours"):
+        found = hours_from_text(text or "")
+        if found:
+            info["opening_hours"] = found
+    phone = biz.get("telephone")
+    if not phone:
+        m = PHONE_LINK.search(raw_html or "")
+        phone = m.group(1) if m else None
+    if phone and len(re.sub(r"\D", "", str(phone))) >= 9:
+        info["phone"] = str(phone).strip()
+    cuisine = biz.get("servesCuisine")
+    if isinstance(cuisine, list):
+        cuisine = ", ".join(c for c in cuisine if isinstance(c, str))
+    if isinstance(cuisine, str) and cuisine.strip():
+        lang = sure_lang(cuisine)
+        if lang == "ru":
+            info["cuisine_ru"] = cuisine.strip()
+        elif lang == "uk":
+            info["cuisine_uk"] = cuisine.strip()
+    return info
+
+
+def _cut(text, limit):
+    text = re.sub(r"\s+", " ", text).strip()
+    return text if len(text) <= limit else text[:limit - 1].rsplit(" ", 1)[0].rstrip(",.;:- ") + "…"
+
+
+def generate_seo(name, city_uk, city_ru, address, cuisine_uk, cuisine_ru):
+    """SEO-заголовок, опис і ключові слова сторінки ресторану за шаблоном, без AI."""
+    address = (address or "").strip()
+    city_uk, city_ru = city_uk or "", city_ru or city_uk or ""
+    cuisine_uk = (cuisine_uk or "").strip().rstrip(".")
+    cuisine_ru = (cuisine_ru or "").strip().rstrip(".")
+
+    def title(suffix, city):
+        full = f"{name} — {suffix}, {city}" if city else f"{name} — {suffix}"
+        return full if len(full) <= 60 else _cut(f"{name} — {suffix}", 60)
+
+    where_uk = ", ".join(x for x in (city_uk, address) if x)
+    where_ru = ", ".join(x for x in (city_ru, address) if x)
+    return {
+        "title": {"uk": title("меню з цінами", city_uk), "ru": title("меню с ценами", city_ru)},
+        "description": {
+            "uk": _cut(f"Меню {name}" + (f" ({cuisine_uk.lower()})" if cuisine_uk else "")
+                       + ": страви з цінами, фото та оцінками гостей." + (f" {where_uk}." if where_uk else ""), 160),
+            "ru": _cut(f"Меню {name}" + (f" ({cuisine_ru.lower()})" if cuisine_ru else "")
+                       + ": блюда с ценами, фото и оценками гостей." + (f" {where_ru}." if where_ru else ""), 160),
+        },
+        "keywords": {
+            "uk": ", ".join(x for x in (f"{name} меню", f"{name} ціни", f"{name} {city_uk}".strip(),
+                                        f"ресторан {name}", f"{name} відгуки") if x),
+            "ru": ", ".join(x for x in (f"{name} меню", f"{name} цены", f"{name} {city_ru}".strip(),
+                                        f"ресторан {name}", f"{name} отзывы") if x),
+        },
+    }
+
+
+CITY_NAMES = {}
+
+
+def city_names(db, city_id):
+    """(українська, російська) назва міста за Id - для SEO-шаблону."""
+    if not CITY_NAMES:
+        cur = db.cursor(dictionary=True)
+        cur.execute("SELECT CONCAT(Id, '') AS Id, Name FROM Cities")
+        for row in cur.fetchall():
+            CITY_NAMES[row["Id"]] = (get_localizable_value(row["Name"], "uk"), get_localizable_value(row["Name"], "ru"))
+        cur.close()
+    return CITY_NAMES.get(str(city_id), ("", ""))
 
 
 MENU_PROMPT = """Ось текст сторінки меню ресторану "{restaurant_name}" (базовий URL: {base_url}):
@@ -833,6 +962,135 @@ def split_bilingual(name):
     return name, None
 
 
+# --- меню зі сторінки сайту кодом, без AI -------------------------------------------------------------
+# ціна з валютою: «₴750», «355.00 грн.», «2100 / 1050 ₴», «120 UAH»
+PRICE_LINE = re.compile(r"^(?:₴|грн\.?|uah)?\s*(\d{1,3}(?:[  ]\d{3})+|\d{1,6})(?:[.,]\d{1,2})?\s*(?:₴|грн\.?|uah)?"
+                        r"(?:\s*/\s*\d+(?:[.,]\d{1,2})?\s*(?:₴|грн\.?|uah)?)?$", re.I)
+CURRENCY = re.compile(r"₴|грн|uah", re.I)
+WEIGHT_LINE = re.compile(r"^\d+(?:[.,]\d+)?(?:\s*/\s*\d+(?:[.,]\d+)?)*\s*(?:г|гр|g|gr|кг|kg|мл|ml|л|l|шт|pcs)\.?$", re.I)
+MARKER_LINE = re.compile(r"^\[(img|link) ([^\]\s]+)[^\]]*\]\s*(.*)$")
+NOT_NAME = re.compile(r"^(?:в кошик|у кошик|до кошика|купити|замовити|додати|знижка\b.*|new!?|хіт|hit|детальніше|"
+                      r"в корзину|заказать|подробнее|order|add to cart)$", re.I)
+
+
+PRICE_WEIGHT_TAIL = re.compile(r"^(.*?\d.*?)\s+(\d+(?:[.,]\d+)?\s*(?:г|гр|g|gr|мл|ml)\.?(?:\s*/\s*\d+(?:[.,]\d+)?\s*(?:г|гр|g|gr|мл|ml)?\.?)*)$", re.I)
+
+
+def _line_price(line):
+    """(ціна, вага) з рядка ціни або (None, None). Вага буває в тому самому рядку: «₴2100 / 1050 1300г/650г»."""
+    line = line.strip()
+    weight = None
+    tail = PRICE_WEIGHT_TAIL.match(line)
+    if tail and CURRENCY.search(tail.group(1)):
+        line, weight = tail.group(1).strip(), tail.group(2)
+    m = PRICE_LINE.match(line) if len(line) <= 30 and CURRENCY.search(line) else None
+    if not m:
+        return None, None
+    value = float(re.sub(r"[ \u00a0]", "", m.group(1)))
+    return (value, weight) if value > 0 else (None, None)
+
+
+def menu_from_text(text, base_url):
+    """Страви з тексту сторінки (page_text): від кожного рядка з ціною - вгору до попередньої ціни:
+    найближчий короткий рядок - назва, довгий - опис, «400 гр.» - вага, [img]/[link] - фото й сторінка страви.
+    Розділ - короткий рядок без ціни перед першою стравою розділу («Тапас / Tapas»)."""
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    dishes, prev_price, category, base_name = [], -1, None, None
+    for i, line in enumerate(lines):
+        price, weight = _line_price(line)
+        if price is None:
+            continue
+        block = lines[max(prev_price + 1, i - 8):i]
+        whole_block = i - 8 <= prev_price + 1  # блок від попередньої ціни, не обрізаний
+        prev_price = i
+        name = image = url = None
+        desc = []
+        name_idx = None
+        for j in range(len(block) - 1, -1, -1):
+            b = block[j]
+            marker = MARKER_LINE.match(b)
+            if marker:
+                kind, target, rest = marker.groups()
+                rest = rest.strip()
+                # [link] / [img] тієї самої картки: без тексту або з назвою страви («NEW! GREEN БУРГЕР»)
+                if name is not None and rest and name.lower() not in rest.lower():
+                    break
+                if kind == "img" and not image:
+                    image = target
+                if kind == "link" and not url:
+                    url = target
+                if not rest or name is not None:
+                    continue
+                b = rest
+            if WEIGHT_LINE.match(b):
+                weight = weight or b
+            elif NOT_NAME.match(b) or not re.search(r"[^\W\d_]", b):
+                continue
+            elif name is None and len(b) <= 90:
+                name, name_idx = b, j
+            elif name is None:
+                desc.insert(0, b)
+            else:
+                break
+        if not name:
+            continue
+        # розділ: перший короткий рядок без цифр перед назвою («Тапас / Tapas», «Десерти»)
+        # обрізаний блок (перша страва після шапки сторінки) - лише рядок безпосередньо над назвою
+        for head in (block[:name_idx or 0] if whole_block else block[max((name_idx or 0) - 1, 0):name_idx or 0]):
+            if MARKER_LINE.match(head) or NOT_NAME.match(head):
+                continue
+            if len(head) <= 40 and not re.search(r"\d", head) and name.lower() not in head.lower():
+                category = split_bilingual(head)[0]
+            break
+        name = re.sub(r"^[-–—•]\s*", "", name)
+        # варіант попередньої страви: «Домашній салат» -> «- з бринзою» = «Домашній салат з бринзою»
+        if name[:1].islower() and base_name:
+            name = f"{split_bilingual(base_name)[0]} {split_bilingual(name)[0]}"
+        else:
+            base_name = name
+        dishes.append({"name": name, "lang": None, "category": category, "price": price,
+                       "weight": weight, "description": " ".join(desc) or None,
+                       "image_url": image, "url": url})
+    return dishes
+
+
+def menu_from_jsonld(raw_html):
+    """Страви з розмітки schema.org (Product / MenuItem з ціною) - її ставлять магазини й частина сайтів меню."""
+    found = []
+
+    def walk(node):
+        if isinstance(node, list):
+            for x in node:
+                walk(x)
+        elif isinstance(node, dict):
+            types = node.get("@type")
+            types = types if isinstance(types, list) else [types]
+            if any(t in ("Product", "MenuItem") for t in types) and node.get("name"):
+                offers = node.get("offers") or {}
+                offers = offers[0] if isinstance(offers, list) and offers else offers
+                price = parse_price((offers or {}).get("price") if isinstance(offers, dict) else None)
+                if price:
+                    image = node.get("image")
+                    image = image[0] if isinstance(image, list) and image else image
+                    found.append({"name": html.unescape(str(node["name"])).strip(), "lang": None, "category": None,
+                                  "price": price, "weight": None,
+                                  "description": html.unescape(str(node.get("description") or "")).strip() or None,
+                                  "image_url": image if isinstance(image, str) else None, "url": node.get("url")})
+            for v in node.values():
+                if isinstance(v, (dict, list)):
+                    walk(v)
+
+    for block in re.findall(r'<script[^>]+application/ld\+json[^>]*>([\s\S]*?)</script>', raw_html or "", re.I):
+        try:
+            walk(json.loads(block))
+        except ValueError:
+            continue
+    return found
+
+
+SITE_MENU_SOURCE = {}  # menu_url -> "code" | "AI": чим прочитано меню (для журналу)
+
+
 SITE_MENU_CACHE = {}  # меню мережі читається один раз за запуск, а не для кожної філії
 
 
@@ -847,11 +1105,12 @@ def read_site_menu(restaurant_name, menu_url):
 def _read_site_menu(restaurant_name, menu_url):
     qr_menu = platform_menu(menu_url)
     if qr_menu is not None:
+        SITE_MENU_SOURCE[menu_url] = "QR"
         return qr_menu
-    html, base, _ = fetch_website_html(menu_url, max_chars=40000)
-    if not html:
+    html_text, base, _ = fetch_website_html(menu_url, max_chars=400000)
+    if not html_text:
         return []
-    pages = [(html, base)]
+    pages = [(html_text, base, fetch_website_html.last_raw)]
     links = anchor_links(fetch_website_html.last_raw, base)
     subpages = menu_subpages(fetch_website_html.last_raw, menu_url, base)
     # розділи з випадного списку «Меню» (на сторінці меню може бути лише PDF, а страви - у «Меню доставки»)
@@ -859,24 +1118,42 @@ def _read_site_menu(restaurant_name, menu_url):
         if url not in subpages and url.rstrip("/") not in (menu_url.rstrip("/"), (base or "").rstrip("/")):
             subpages.append(url)
     for url in subpages[:MAX_MENU_SUBPAGES]:
-        sub_html, sub_base, _ = fetch_website_html(url, max_chars=40000)
+        # повний текст сторінки для коду; AI (якщо знадобиться) отримає перші 40 000 символів
+        sub_html, sub_base, _ = fetch_website_html(url, max_chars=400000)
         if sub_html:
-            pages.append((sub_html, sub_base))
+            pages.append((sub_html, sub_base, fetch_website_html.last_raw))
             links.update(anchor_links(fetch_website_html.last_raw, sub_base))
 
+    # спершу кодом: розмітка schema.org, потім «назва ... ціна» в тексті; AI - лише якщо код майже нічого не знайшов
+    by_code = []
+    for page_html, page_base, raw in pages:
+        page_items = menu_from_jsonld(raw) or menu_from_text(page_html, page_base)
+        # сторінка = розділ меню (44favorite: /catalog/burgery/) - розділ із заголовка сторінки
+        h1 = re.search(r"<h1\b[^>]*>([\s\S]*?)</h1>", raw or "", re.I)
+        heading = html.unescape(re.sub(r"<[^>]+>|\s+", " ", h1.group(1))).strip() if h1 else ""
+        for d in page_items:
+            d["category"] = d["category"] or (heading if 0 < len(heading) <= 60 else None)
+        by_code += [(d, page_base) for d in page_items]
+    if len({normalize_name(d["name"]) for d, _ in by_code}) >= MIN_SITE_DISHES:
+        SITE_MENU_SOURCE[menu_url] = "code"
+        extracted = by_code
+    else:
+        SITE_MENU_SOURCE[menu_url] = "AI"
+        extracted = [(d, page_base) for page_html, page_base, _ in pages
+                     for d in extract_menu(restaurant_name, page_base, page_html[:40000])]
+
     menu, seen = [], set()
-    for page_html, page_base in pages:
-        for d in extract_menu(restaurant_name, page_base, page_html):
-            d["name"], name_en = split_bilingual(d["name"])
-            if name_en:
-                d["name_en"] = name_en
-            key = normalize_name(d["name"])
-            if key and key not in seen:
-                seen.add(key)
-                d["image_url"] = resolve_url(page_base, d["image_url"]) if d.get("image_url") else None
-                # посилання на сторінку страви: від моделі, а якщо його немає - за текстом посилання в HTML
-                d["url"] = resolve_url(page_base, d["url"]) if d.get("url") else links.get(key)
-                menu.append(d)
+    for d, page_base in extracted:
+        d["name"], name_en = split_bilingual(d["name"])
+        if name_en:
+            d["name_en"] = name_en
+        key = normalize_name(d["name"])
+        if key and key not in seen:
+            seen.add(key)
+            d["image_url"] = resolve_url(page_base, d["image_url"]) if d.get("image_url") else None
+            # посилання на сторінку страви: від моделі, а якщо його немає - за текстом посилання в HTML
+            d["url"] = resolve_url(page_base, d["url"]) if d.get("url") else links.get(key)
+            menu.append(d)
     return menu
 
 
@@ -1243,7 +1520,7 @@ def _process_restaurant(db, restaurant):
 
     site_info = {}
     if html:
-        site_info = extract_restaurant_info(name, html)
+        site_info = extract_restaurant_info(fetch_website_html.last_raw, html)
 
     final_hours = site_info.get("opening_hours") or osm_data.get("opening_hours")
     if final_hours and final_hours != restaurant["OpenHours"]:
@@ -1283,8 +1560,11 @@ def _process_restaurant(db, restaurant):
     seo_description_empty = is_localizable_empty(restaurant["SeoDescription"])
     seo_keywords_empty = not restaurant["SeoKeywords"]
     if seo_title_empty or seo_description_empty or seo_keywords_empty:
-        cuisine_uk_for_seo = site_info.get("cuisine_uk") or get_localizable_value(info_updates.get("Cuisine") or restaurant["Cuisine"], "uk")
-        seo_data = generate_seo(name, restaurant["City"], restaurant["Address"], cuisine_uk_for_seo, None)
+        cuisine_json = info_updates.get("Cuisine") or restaurant["Cuisine"]
+        city_uk, city_ru = city_names(db, restaurant["City"])
+        seo_data = generate_seo(name, city_uk, city_ru, restaurant["Address"],
+                                site_info.get("cuisine_uk") or get_localizable_value(cuisine_json, "uk"),
+                                site_info.get("cuisine_ru") or get_localizable_value(cuisine_json, "ru"))
         seo_updates = {}
         if seo_data.get("title") and seo_title_empty:
             seo_updates["Title"] = localizable_json(seo_data["title"]["uk"], seo_data["title"]["ru"])
@@ -1381,7 +1661,7 @@ def sync_menu(db, restaurant, menu_url):
             updated += 1
 
     share = len(matches) / len(our_dishes) if our_dishes else 1
-    stats = f"site {len(site_menu)}, matched {len(matches)}/{len(our_dishes)}, updated {updated}, prices to check {len(price_changes)}"
+    stats = f"site {len(site_menu)} ({SITE_MENU_SOURCE.get(menu_url, '?')}), matched {len(matches)}/{len(our_dishes)}, updated {updated}, prices to check {len(price_changes)}"
     recognized = len(site_menu) >= MIN_SITE_DISHES and (
         share >= MIN_MATCH_SHARE or (len(site_menu) >= LARGE_MENU_DISHES and share >= LARGE_MENU_MIN_SHARE))
 
