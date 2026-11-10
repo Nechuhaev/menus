@@ -815,6 +815,23 @@ def menu_nav_links(raw_html, base_url):
     return list(dict.fromkeys(best))[:MAX_MENU_SUBPAGES]
 
 
+CYRILLIC = re.compile(r"[а-яёіїєґ]", re.I)
+
+
+def split_bilingual(name):
+    """«Оливки / Olives» -> («Оливки», «Olives»): сайти пишуть назву двома мовами через « / », а в базі вона
+    одна - цілим рядком страва не зіставлялась (Arbequina: matched 0/53). Ділимо лише на дві частини, де одна
+    кирилицею, а друга без неї; «Соус BRAVA / чімічурі / айолі» (варіанти) лишається як є."""
+    parts = [p.strip() for p in re.split(r"\s+/\s+", name or "")]
+    if len(parts) == 2 and all(parts):
+        cyr = [bool(CYRILLIC.search(p)) for p in parts]
+        if cyr == [True, False]:
+            return parts[0], parts[1]
+        if cyr == [False, True]:
+            return parts[1], parts[0]
+    return name, None
+
+
 SITE_MENU_CACHE = {}  # меню мережі читається один раз за запуск, а не для кожної філії
 
 
@@ -849,6 +866,9 @@ def _read_site_menu(restaurant_name, menu_url):
     menu, seen = [], set()
     for page_html, page_base in pages:
         for d in extract_menu(restaurant_name, page_base, page_html):
+            d["name"], name_en = split_bilingual(d["name"])
+            if name_en:
+                d["name_en"] = name_en
             key = normalize_name(d["name"])
             if key and key not in seen:
                 seen.add(key)
