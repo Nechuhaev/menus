@@ -59,27 +59,33 @@ def is_locale_missing(json_str, locale):
         return True
 
 
-def get_locale_value(json_str, locale):
+def parse_localizable(json_str):
+    """{"Values": [...]} з поля LocalizableString. Простий текст (не JSON) сайт вважає російським
+    (LocalizableString.FromJson, defaultLocale «ru») - так само й тут, щоб не загубити його при записі."""
     if not json_str:
-        return ""
+        return {"Values": []}
     try:
         parsed = json.loads(json_str)
-        for v in parsed.get("Values", []):
-            if v.get("Locale") == locale:
-                return v.get("Value") or ""
-    except (json.JSONDecodeError, TypeError, AttributeError):
-        pass
+    except (json.JSONDecodeError, TypeError):
+        parsed = None
+    if not isinstance(parsed, dict):
+        return {"Values": [{"Locale": "ru", "Value": str(json_str)}]}
+    if not isinstance(parsed.get("Values"), list):
+        parsed["Values"] = []
+    return parsed
+
+
+def get_locale_value(json_str, locale):
+    for v in parse_localizable(json_str)["Values"]:
+        if isinstance(v, dict) and v.get("Locale") == locale:
+            return v.get("Value") or ""
     return ""
 
 
 def set_locale_value(json_str, locale, new_value):
     """Update one locale's value within an existing localizable JSON string,
     preserving whatever the other locale(s) already have."""
-    try:
-        parsed = json.loads(json_str) if json_str else {"Values": []}
-    except (json.JSONDecodeError, TypeError):
-        parsed = {"Values": []}
-    values = parsed.get("Values", [])
+    values = parse_localizable(json_str)["Values"]
     found = False
     for v in values:
         if v.get("Locale") == locale:
