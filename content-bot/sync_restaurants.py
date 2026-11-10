@@ -15,6 +15,7 @@ generated. Description is stored in the language of the site; translation is don
 separately via DeepL (translate_missing.py).
 
 Run daily via cron. Processes a batch of restaurants per run.
+One restaurant out of turn: python3 sync_restaurants.py --restaurant <page address or Id>
 """
 import html
 import json
@@ -1400,13 +1401,37 @@ def sync_menu(db, restaurant, menu_url):
     return f"menu ok ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)} price {len(price_changes)} rename {len(renames)}"
 
 
+def fetch_restaurants_by_slug(db, slugs):
+    """Заклади за адресою сторінки (RestaurantSeo.Url) або Id - перевірка поза чергою."""
+    cur = db.cursor(dictionary=True)
+    rows = []
+    for slug in slugs:
+        cur.execute(RESTAURANT_COLUMNS + " WHERE rs.Url = %s OR r.Id = %s LIMIT 1", (slug, slug))
+        row = cur.fetchone()
+        if row:
+            rows.append(row)
+        else:
+            print(f"{slug}: заклад не знайдено")
+    cur.close()
+    return rows
+
+
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--restaurant", action="append", default=[], metavar="URL",
+                        help="адреса сторінки закладу або Id - перевірити поза чергою (можна кілька)")
+    args = parser.parse_args()
     db = get_db()
     try:
         cur = db.cursor()
         cur.execute(MENU_LINKS_TABLE_SQL)
         cur.close()
-        restaurants = fetch_restaurants_due_for_check(db, RESTAURANTS_PER_RUN)
+        if args.restaurant:
+            ensure_log_table(db)
+            restaurants = fetch_restaurants_by_slug(db, args.restaurant)
+        else:
+            restaurants = fetch_restaurants_due_for_check(db, RESTAURANTS_PER_RUN)
         if not restaurants:
             print("No restaurants due for check.")
             return
