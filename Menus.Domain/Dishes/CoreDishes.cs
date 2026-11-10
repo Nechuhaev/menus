@@ -214,14 +214,22 @@ namespace Menus.Domain.Dishes
             return await Task.Run(() => _db.Dishes.Where(x => x.RestaurantId == restaurantId));
         }
 
-        public async Task<IEnumerable<IDishWithSeoAndRatings>> GetDishesForRestaurantWithSeoAndRatings(string restaurantId, string userId)
+        /// <param name="activeOnly">лише активні страви (публічне меню, iframe, sitemap). Кабінет закладу передає false:
+        /// там видно й страви «на перевірці» (Pending), сховані синхронізацією меню, щоб їх можна було повернути.</param>
+        public async Task<IEnumerable<IDishWithSeoAndRatings>> GetDishesForRestaurantWithSeoAndRatings(string restaurantId, string userId, bool activeOnly = true)
         {
             var parameters = new Dictionary<string, object> {
                 { "@restaurantId", restaurantId },
                 { "@userId", userId }
             };
 
-            return await Task.Run(() => _db.DishesWithSeoAndRatings.Get(parameters));
+            var dishes = await Task.Run(() => _db.DishesWithSeoAndRatings.Get(parameters));
+            if (!activeOnly) return dishes;
+            // процедура GetDishesForRestaurantWithSeoAndRatings не віддає Status - неактивні відбираємо окремим запитом
+            var hidden = new HashSet<string>(_db.Dishes
+                .Where(x => x.RestaurantId == restaurantId && x.Status != DishStatus.Active)
+                .Select(x => x.Id).ToList());
+            return hidden.Count == 0 ? dishes : dishes.Where(x => !hidden.Contains(x.Id)).ToList();
         }
 
         public async Task<IEnumerable<IDish>> GetDishesForRestaurantWithUrl(string restaurantId)
