@@ -44,6 +44,7 @@ GLOSSARY_RE = re.compile(r"(?<!\w)(" + "|".join(
     re.escape(k[:-1]) + r"\w*" if k.endswith("*") else re.escape(k) + r"(?!\w)"
     for k in sorted(GLOSSARY, key=len, reverse=True)) + ")", re.IGNORECASE)
 STEMS = sorted(GLOSSARY, key=len, reverse=True)
+CYRILLIC_RE = re.compile(r"[а-яёіїєґ]", re.IGNORECASE)
 KEEP_RE = re.compile(r'<span translate="no">(.*?)</span>')
 
 
@@ -87,8 +88,9 @@ def needs_en(value, redo_glossary=False):
     if not source[1]:
         return None
     en = get_locale_value(value, "en").strip()
-    # англійська є, але це копія української/російської або зі сутностями &quot; - перекладаємо наново
-    broken = en in (uk, get_locale_value(value, "ru").strip()) or any(e in en for e in ENTITIES)
+    # англійська є, але це копія української/російської, кирилиця («Грузинская кухня») або сутності &quot; - наново
+    broken = (en in (uk, get_locale_value(value, "ru").strip()) or any(e in en for e in ENTITIES)
+              or CYRILLIC_RE.search(en))
     if en and not broken and not (redo_glossary and GLOSSARY_RE.search(source[1])):
         return None
     return source
