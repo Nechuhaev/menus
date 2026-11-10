@@ -96,7 +96,7 @@ namespace Menus.Web.Areas.Restaurants.Controllers
             if (!string.IsNullOrEmpty(seo?.Url) && city != null)
             {
                 var citySlug = city.Name.Get("en").ToLower();
-                await EdgeCachePurge.Purge(_configuration, new[] { "uk", "ru" }.Select(l => $"https://tipmymenu.com/{l}/{citySlug}/iframe/{seo.Url}"));
+                await EdgeCachePurge.Purge(_configuration, new[] { "uk", "en", "ru" }.Select(l => $"https://tipmymenu.com/{l}/{citySlug}/iframe/{seo.Url}"));
             }
             HttpContext.RequestServices.GetRequiredService<ITaskRunner>().RunUpdateRestaurantIframeCache(selectedRestaurant.Id);
 
