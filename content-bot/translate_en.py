@@ -36,8 +36,10 @@ GLOSSARY = {
     "ткемалі": "tkemali", "чурчхел*": "churchkhela", "мацоні": "matsoni", "тархун*": "tarragon", "боржомі": "Borjomi",
     "боржоми": "Borjomi", "патара": "patara", "мчаді": "mchadi", "ачма": "achma", "чашушулі": "chashushuli",
     "чанахі": "chanakhi", "бозбаші": "bozbashi", "махан": "makhan", "капучино": "cappuccino", "еспресо": "espresso",
-    "американо": "americano",
+    "американо": "americano", "тоне меню": "tone menu", "пінн*": "penovani",
 }
+# DeepL з tag_handling=html повертає лапки й & як сутності, а сайт екранує їх ще раз («&quot;MILK STRAND&quot;»)
+ENTITIES = {"&quot;": '"', "&#39;": "'", "&#x27;": "'", "&amp;": "&"}
 GLOSSARY_RE = re.compile(r"(?<!\w)(" + "|".join(
     re.escape(k[:-1]) + r"\w*" if k.endswith("*") else re.escape(k) + r"(?!\w)"
     for k in sorted(GLOSSARY, key=len, reverse=True)) + ")", re.IGNORECASE)
@@ -63,7 +65,10 @@ def protect(text):
 
 
 def unprotect(text):
-    return KEEP_RE.sub(lambda m: m.group(1), text)
+    text = KEEP_RE.sub(lambda m: m.group(1), text)
+    for entity, char in ENTITIES.items():
+        text = text.replace(entity, char)
+    return text
 
 # (таблиця, ключ, колонки, умова за рестораном)
 TARGETS = [
@@ -75,12 +80,16 @@ TARGETS = [
 
 def needs_en(value, redo_glossary=False):
     """(мова джерела, текст) для перекладу або None. Джерело - українська, а якщо її немає чи вона насправді
-    російська - російська. Англійська вже є - None, крім --redo-glossary для текстів з термінами глосарію."""
+    російська - російська. Англійська вже є - None, крім --redo-glossary для текстів з термінами глосарію
+    і крім «англійської», що є копією української чи російської."""
     uk = get_locale_value(value, "uk").strip()
     source = ("UK", uk) if uk and not looks_russian(uk) else ("RU", get_locale_value(value, "ru").strip())
     if not source[1]:
         return None
-    if get_locale_value(value, "en").strip() and not (redo_glossary and GLOSSARY_RE.search(source[1])):
+    en = get_locale_value(value, "en").strip()
+    # англійська є, але це копія української/російської або зі сутностями &quot; - перекладаємо наново
+    broken = en in (uk, get_locale_value(value, "ru").strip()) or any(e in en for e in ENTITIES)
+    if en and not broken and not (redo_glossary and GLOSSARY_RE.search(source[1])):
         return None
     return source
 
