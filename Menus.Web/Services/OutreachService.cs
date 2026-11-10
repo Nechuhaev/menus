@@ -41,6 +41,24 @@ namespace Menus.Web.Services
         // посилання на меню (картка ресторану) чи сайт - щоб визначити QR-меню сервіс
         public string MenuUrl { get; set; }
         public string Website { get; set; }
+        // картка закладу (те, що бачать гості) - у «Розсилці» лише показується, редагується в адмінці ресторану
+        public string Phone { get; set; }
+        public string DisplayAddress { get; set; }
+        public string OpenHours { get; set; }
+        public string AddressText => string.IsNullOrWhiteSpace(DisplayAddress) ? "" : Menus.Web.Models.LocalizableString.FromJson(DisplayAddress).Get("uk", true);
+        public string HoursText => Menus.Web.Helpers.OpenHoursHelper.Describe(OpenHours);
+        // контакт зібрано не з сайту чи QR-меню, що зараз у картці (сайт змінили) - перевірити
+        public bool FromOtherSite(OutreachContact c)
+        {
+            var source = HostOf(c.SourceUrl);
+            if (source == null) return false;
+            return source != HostOf(Website) && source != HostOf(MenuUrl);
+        }
+        private static string HostOf(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url) || !url.Trim().StartsWith("http", StringComparison.OrdinalIgnoreCase)) return null;
+            return Uri.TryCreate(url.Trim(), UriKind.Absolute, out var u) ? u.Host.ToLowerInvariant().Replace("www.", "") : null;
+        }
         // коли адмін востаннє застосував пропозиції синхронізації меню («Звіти» -> страви ресторану)
         public DateTime? MenuAppliedAt { get; set; }
         public string MenuPlatform =>
@@ -242,6 +260,9 @@ https://tipmymenu.com
                        (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS Dishes,
                        (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl,
                        (SELECT ri.Website FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS Website,
+                       r.Phone,
+                       (SELECT ri.DisplayAddress FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS DisplayAddress,
+                       (SELECT ri.OpenHours FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS OpenHours,
                        (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt,
                        a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
