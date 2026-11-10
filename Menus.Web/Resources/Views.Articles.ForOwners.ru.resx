@@ -117,342 +117,188 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="Home" xml:space="preserve">
-    <value>Главная</value>
-  </data>
-  <data name="MetaTitle" xml:space="preserve">
-    <value>Владельцам ресторанов - привлекайте больше посетителей ⭐ TipMyMenu</value>
+        <data name="MetaTitle" xml:space="preserve">
+    <value>Для владельцев ресторанов и кафе — бесплатная страница заведения | TipMyMenu</value>
   </data>
   <data name="MetaDescription" xml:space="preserve">
-    <value>Электронное меню - уникальное предложение для владельцев ресторанов в Киеве 🍽️ TipMyMenu (ТипМайМеню) ✅ Управляйте репутацией заведения, привлекайте новых посетителей, узнайте, что клиенты думают о вашем меню</value>
+    <value>Бесплатная страница заведения на TipMyMenu: меню с ценами и оценками блюд, посетители из Google, личный кабинет и меню для вашего сайта.</value>
   </data>
-  <data name="MetaH1" xml:space="preserve">
-    <value>Регистрируйся и управляй своей репутацией!</value>
+  <data name="Badge" xml:space="preserve">
+    <value>Бесплатно</value>
   </data>
-  <data name="ForOwners" xml:space="preserve">
-    <value>Владельцы объектов</value>
+  <data name="HeroTitle1" xml:space="preserve">
+    <value>Ваше заведение на</value>
   </data>
-  <data name="FirstBlockTitle" xml:space="preserve">
-    <value>&lt;strong&gt;Управляй своим меню&lt;br&gt;на всех платформах&lt;br&gt;в одном месте&lt;/strong&gt;</value>
+  <data name="HeroTitle2" xml:space="preserve">
+    <value>— и каждый день появляются новые гости</value>
   </data>
-  <data name="FirstBlockText" xml:space="preserve">
-    <value>Клиенты смотрят меню онлайн, прежде чем выбрать&lt;br&gt;ресторан. Привлекайте больше клиентов и экономьте время&lt;br&gt;работая с Tip&lt;span&gt;mymenu&lt;/span&gt;. Заполнив информацию о вас в одном&lt;br&gt;месте, вы опубликуете ее там, где клиенты ищут вас:&lt;br&gt;Facebook, Tripadvisor, Instagram  Ваш сайт и многое другое.</value>
+  <data name="HeroLead" xml:space="preserve">
+    <value>Страница заведения с меню, ценами и оценками блюд. Гости находят вас в Google по названию блюда, а вы управляете меню в личном кабинете.</value>
   </data>
-  <data name="WantToJoin" xml:space="preserve">
-    <value>хочу присоединиться</value>
+  <data name="CtaConnect" xml:space="preserve">
+    <value>Подключить заведение</value>
   </data>
-  <data name="SecondBlockTitle" xml:space="preserve">
-    <value>помогает меню ресторана быть</value>
+  <data name="CtaIframe" xml:space="preserve">
+    <value>Меню для вашего сайта</value>
   </data>
-  <data name="SecondBlockText" xml:space="preserve">
-    <value>Наша цель - разместить ваше меню и деловую информацию везде, где это необходимо,&lt;br&gt;чтобы &lt;strong&gt;привлечь новых клиентов&lt;/strong&gt;.</value>
+  <data name="FactPrice" xml:space="preserve">
+    <value>0 ₴</value>
   </data>
-  <data name="SecondBlockFirstPointTitle" xml:space="preserve">
-    <value>&lt;strong&gt;Анализ меню и каждого блюда&lt;/strong&gt;</value>
+  <data name="FactPriceText" xml:space="preserve">
+    <value>размещение</value>
   </data>
-  <data name="SecondBlockFirstPointText" xml:space="preserve">
-    <value>Производительность - ключевой показатель вашего бизнеса, измеряйте ее с Tip&lt;span&gt;mymenu&lt;/span&gt;. Разве вы не хотите знать где просматривается ваше меню и как часто? Мы оценим работу вашего меню, эффективность размещения на разных платформах и как люди его находят.</value>
+  <data name="FactLangs" xml:space="preserve">
+    <value>UA / RU</value>
   </data>
-  <data name="SecondBlockSecondPointTitle" xml:space="preserve">
-    <value>&lt;strong&gt;Управление меню с одной платформы&lt;/strong&gt;</value>
+  <data name="FactLangsText" xml:space="preserve">
+    <value>два языка</value>
   </data>
-  <data name="SecondBlockSecondPointText" xml:space="preserve">
-    <value>Быстрое редактирование собственного меню, включая все данные о ресторане. Исправить, убрать лишнее и добавить нужное – можно тут.</value>
+  <data name="FactCode" xml:space="preserve">
+    <value>1 строка</value>
   </data>
-  <data name="SecondBlockThirdPointTitle" xml:space="preserve">
-    <value>&lt;strong&gt;Меню видимое Google поиске&lt;/strong&gt;</value>
+  <data name="FactCodeText" xml:space="preserve">
+    <value>код — меню на вашем сайте</value>
   </data>
-  <data name="SecondBlockThirdPointText" xml:space="preserve">
-    <value>93 % гостей изучают меню online, вам нужно убедиться, что меню ресторана видно для поиска. PDF не может быть найден.&lt;br&gt;
-Tip&lt;span&gt;mymenu&lt;/span&gt; решает эту проблему,  мы сделаем ваше меню доступным для поиска, люди найдут его на таких сайтах как Google.</value>
+  <data name="DemoName" xml:space="preserve">
+    <value>Ваше заведение</value>
   </data>
-  <data name="ServicesAndRates" xml:space="preserve">
-    <value>услуги и тарифы</value>
+  <data name="DemoAddress" xml:space="preserve">
+    <value>Киев, ул. Крещатик, 1</value>
   </data>
-  <data name="Basic" xml:space="preserve">
-    <value>Базовый</value>
+  <data name="DemoOpen" xml:space="preserve">
+    <value>Открыто · до 22:00</value>
   </data>
-  <data name="Free" xml:space="preserve">
-    <value>бесплатный</value>
+  <data name="DemoCuisine" xml:space="preserve">
+    <value>Грузинская кухня</value>
   </data>
-  <data name="GetAccess" xml:space="preserve">
-    <value>Получи доступ к своей странице на TipMyMenu</value>
+  <data name="DemoDish1" xml:space="preserve">
+    <value>Хачапури по-аджарски</value>
   </data>
-  <data name="CreateElectronicMenu" xml:space="preserve">
-    <value>Создай электронное меню ресторана,</value>
+  <data name="DemoDish2" xml:space="preserve">
+    <value>Хинкали с телятиной</value>
   </data>
-  <data name="YourClientWillFind" xml:space="preserve">
-    <value>которое быстро найдет твой клиент в поисковике</value>
+  <data name="DemoDish3" xml:space="preserve">
+    <value>Лимонад с тархуном</value>
   </data>
-  <data name="ManageInformation" xml:space="preserve">
-    <value>Управляй информацией и меню в одном месте</value>
+  <data name="DemoNote" xml:space="preserve">
+    <value>Пример того, как гости видят ваше заведение</value>
   </data>
-  <data name="ChooseHowYouWant" xml:space="preserve">
-    <value>Выбери, как ты хочешь управлять своей страницей - самостоятельно или наш менеджер сделает это за тебя</value>
+  <data name="BenefitsTitle" xml:space="preserve">
+    <value>Что получает заведение</value>
   </data>
-  <data name="PlaceTheElectronic" xml:space="preserve">
-    <value>Размещай электронное (кастомизированное) меню на укр, рус и англ языках на топовых сайтах: TripAdvisor, Facebook*, Instagram и др.</value>
+  <data name="BenefitsSub" xml:space="preserve">
+    <value>Все, чтобы гость выбрал вас еще до визита, — без затрат и без программиста.</value>
   </data>
-  <data name="SeoPromotion" xml:space="preserve">
-    <value>Приоритетное SEO-продвижение в поисковиках</value>
+  <data name="B1Title" xml:space="preserve">
+    <value>Страница заведения</value>
   </data>
-  <data name="TechSupport" xml:space="preserve">
-    <value>Тех. поддержка 24/7</value>
+  <data name="B1Text" xml:space="preserve">
+    <value>Меню с ценами, фотографиями и описаниями, часы работы, адрес, телефон и социальные сети — всё в одном месте.</value>
   </data>
-  <data name="Activate" xml:space="preserve">
-    <value>Подключить</value>
+  <data name="B2Title" xml:space="preserve">
+    <value>Гости из Google</value>
   </data>
-  <data name="Recommended" xml:space="preserve">
-    <value>Рекомендуем</value>
+  <data name="B2Text" xml:space="preserve">
+    <value>Каждое блюдо — отдельная страница в поиске: запрос типа «хачапури Киев» приводит гостей именно к вам.</value>
   </data>
-  <data name="Premium" xml:space="preserve">
-    <value>Премиум</value>
+  <data name="B3Title" xml:space="preserve">
+    <value>Оценки блюд</value>
   </data>
-  <data name="Price" xml:space="preserve">
-    <value>500 грн/мес</value>
+  <data name="B3Text" xml:space="preserve">
+    <value>Гости оценивают блюда, а лучшие из них попадают в подборки лучших блюд города.</value>
   </data>
-  <data name="Buy" xml:space="preserve">
-    <value>Купить</value>
+  <data name="B4Title" xml:space="preserve">
+    <value>Меню всегда актуально</value>
   </data>
-  <data name="SendRequest" xml:space="preserve">
-    <value>Если вы не нашли свой ресторан на нашей платформе, отправьте нам запрос на</value>
+  <data name="B4Text" xml:space="preserve">
+    <value>Обновляйте цены и блюда так, как вам удобно — вручную в личном кабинете или автоматически.</value>
   </data>
-  <data name="AdditionalServices" xml:space="preserve">
-    <value>Дополнительные услуги</value>
+  <data name="B5Title" xml:space="preserve">
+    <value>Меню для вашего сайта</value>
   </data>
-  <data name="AdditionalServices1" xml:space="preserve">
-    <value>При использовании "базового" и "премиум" пакета, ресторан может отдельно</value>
+  <data name="B5Text" xml:space="preserve">
+    <value>То же самое меню на вашем сайте — всего одной строкой кода.</value>
   </data>
-  <data name="AdditionalServices2" xml:space="preserve">
-    <value>заказать любые из следующих услуг:</value>
+  <data name="B5Link" xml:space="preserve">
+    <value>Подробнее →</value>
   </data>
-  <data name="AddingPage" xml:space="preserve">
-    <value>Введение страницы на </value>
+  <data name="B6Title" xml:space="preserve">
+    <value>Помощь менеджера</value>
   </data>
-  <data name="FillingMenu" xml:space="preserve">
-    <value>Заполнение меню</value>
+  <data name="B6Text" xml:space="preserve">
+    <value>Зарегистрируем заведение, поможем с наполнением меню и настройкой.</value>
   </data>
-  <data name="PhotoGallery" xml:space="preserve">
-    <value>Ведение фото галереи</value>
+  <data name="HowTitle" xml:space="preserve">
+    <value>Как подключиться — 3 шага</value>
   </data>
-  <data name="TextPreparation" xml:space="preserve">
-    <value>Подготовка текстовой информации</value>
+  <data name="HowSub" xml:space="preserve">
+    <value>Без договоров и оплаты.</value>
   </data>
-  <data name="EditsAndChanges" xml:space="preserve">
-    <value>Своевременные правки и изменения</value>
+  <data name="S1Title" xml:space="preserve">
+    <value>Оставьте заявку</value>
   </data>
-  <data name="UserInteractions" xml:space="preserve">
-    <value>Взаимодействия с пользователями</value>
+  <data name="S1Text" xml:space="preserve">
+    <value>Укажите имя и номер телефона в форме ниже или позвоните нам.</value>
   </data>
-  <data name="ReadMore" xml:space="preserve">
-    <value>Подробнее</value>
+  <data name="S2Title" xml:space="preserve">
+    <value>Получите доступ</value>
   </data>
-  <data name="PersonalManager" xml:space="preserve">
-    <value>Доступ к Персональному менеджеру</value>
+  <data name="S2Text" xml:space="preserve">
+    <value>Менеджер зарегистрирует заведение и предоставит доступ к личному кабинету.</value>
   </data>
-  <data name="PersonalDesign" xml:space="preserve">
-    <value>Персональный дизайн своей страницы</value>
+  <data name="S3Title" xml:space="preserve">
+    <value>Заполните меню</value>
   </data>
-  <data name="PersonalDesignText" xml:space="preserve">
-    <value>Страница вашего ресторана может выгодно отличаться от других.  Вы сможете оповещать пользователей о новинках и акциях в вашем заведении</value>
+  <data name="S3Text" xml:space="preserve">
+    <value>Добавьте блюда, цены и фото самостоятельно или вместе с менеджером — и заведение уже на TipMyMenu.</value>
   </data>
-  <data name="WatchAnExample" xml:space="preserve">
-    <value>Смотреть пример</value>
+  <data name="FaqTitle" xml:space="preserve">
+    <value>Вопросы и ответы</value>
   </data>
-  <data name="Placement" xml:space="preserve">
-    <value>Размещение в Топ, в каждом отдельном Блоке</value>
+  <data name="Q1" xml:space="preserve">
+    <value>Сколько стоит размещение ресторана на TipMyMenu?</value>
   </data>
-  <data name="PlacementText" xml:space="preserve">
-    <value>Ваш ресторан будет размещён первым в разделе "наши рекомендации", тем самым вы получите максимальный охват посетителей.</value>
+  <data name="A1" xml:space="preserve">
+    <value>Бесплатное размещение: страница заведения с меню, фотографиями и отзывами посетителей.</value>
   </data>
-  <data name="SMMPromotionPage" xml:space="preserve">
-    <value>SMM продвижение персональной страницы</value>
+  <data name="Q2" xml:space="preserve">
+    <value>Как добавить свое заведение?</value>
   </data>
-  <data name="StylisticDesign" xml:space="preserve">
-    <value>Стилистическое оформление страниц в соцсетях</value>
+  <data name="A2" xml:space="preserve">
+    <value>Оставьте свои контактные данные в форме ниже или позвоните нам. Менеджер зарегистрирует заведение и предоставит доступ к личному кабинету.</value>
   </data>
-  <data name="RegularAddition" xml:space="preserve">
-    <value>Регулярное добавление тематических постов</value>
+  <data name="Q3" xml:space="preserve">
+    <value>Кто составляет меню?</value>
   </data>
-  <data name="WorkingWithTheAudience" xml:space="preserve">
-    <value>Работа с аудиторией и настройка обратной связи</value>
+  <data name="A3" xml:space="preserve">
+    <value>Вы самостоятельно в личном кабинете. При необходимости с заполнением поможет наш менеджер.</value>
   </data>
-  <data name="MonthlyReport" xml:space="preserve">
-    <value>Ежемесячный отчет</value>
+  <data name="Q4" xml:space="preserve">
+    <value>На каких языках будет составлено меню?</value>
   </data>
-  <data name="SEOPromotionOfPageOrDish" xml:space="preserve">
-    <value>SEO продвижения страницы или конкретного блюда</value>
+  <data name="A4" xml:space="preserve">
+    <value>На украинском и русском языках.</value>
   </data>
-  <data name="ContentUpdates" xml:space="preserve">
-    <value>Регулярное обновление контента</value>
+  <data name="Q5" xml:space="preserve">
+    <value>Можно ли менять меню и цены?</value>
   </data>
-  <data name="SEOOptimization" xml:space="preserve">
-    <value>SEO оптимизация всех основных страниц ресторана</value>
+  <data name="A5" xml:space="preserve">
+    <value>Да, в любой момент — вручную в личном кабинете или автоматически.</value>
   </data>
-  <data name="GoogleAds" xml:space="preserve">
-    <value>Продвижение в google ads</value>
+  <data name="Q6" xml:space="preserve">
+    <value>Можно ли разместить меню на собственном сайте?</value>
   </data>
-  <data name="IncreaseConversion" xml:space="preserve">
-    <value>Повышение конверсии со страниц ресторана</value>
+  <data name="A6" xml:space="preserve">
+    <value>Да. В кабинете есть готовый код меню для вашего сайта — достаточно вставить одну строку.</value>
   </data>
-  <data name="PlacingOnAdvertisingPlatforms" xml:space="preserve">
-    <value>Размещение на рекламных площадках сайта</value>
+  <data name="FormTitle" xml:space="preserve">
+    <value>Присоединяйтесь к TipMyMenu</value>
   </data>
-  <data name="ContactOurManagers" xml:space="preserve">
-    <value>По вопросам размещения на нашем сайте свяжитесь с нашими менеджерами, мы приготовим предложения для вашего бизнеса.</value>
+  <data name="FormCall" xml:space="preserve">
+    <value>Позвоните</value>
   </data>
-  <data name="Services" xml:space="preserve">
-    <value>Меня интересуют услуги</value>
-  </data>
-  <data name="JoinTheService" xml:space="preserve">
-    <value>Присоединяйтесь к сервису</value>
-  </data>
-  <data name="Call" xml:space="preserve">
-    <value>звоните по телефону</value>
-  </data>
-  <data name="LeaveYourContacts" xml:space="preserve">
-    <value>или оставьте свои контактные данные</value>
-  </data>
-  <data name="RestarauntName" xml:space="preserve">
-    <value>Название ресторана</value>
-  </data>
-  <data name="Phone" xml:space="preserve">
-    <value>Телефон</value>
-  </data>
-  <data name="Package" xml:space="preserve">
-    <value>Пакет</value>
-  </data>
-  <data name="ChoosePackage" xml:space="preserve">
-    <value>Выберите пакет</value>
-  </data>
-  <data name="Send" xml:space="preserve">
-    <value>Отправить</value>
-  </data>
-  <data name="Thanks" xml:space="preserve">
-    <value>Cпасибо,</value>
-  </data>
-  <data name="WeWillContact" xml:space="preserve">
-    <value>мы свяжемся с вами</value>
-  </data>
-  <data name="Soon" xml:space="preserve">
-    <value>в ближайшее время</value>
-  </data>
-  <data name="LeaveYourContacts2" xml:space="preserve">
-    <value>Оставьте свои контактные данные и мы свяжемся с Вами</value>
-  </data>
-  <data name="SendRequest2" xml:space="preserve">
-    <value>Отправить запрос</value>
-  </data>
-  <data name="WhyUsTitle" xml:space="preserve">
-    <value>Почему вам стоит сотрудничать с нами?
-</value>
-  </data>
-  <data name="WhyUsText" xml:space="preserve">
-    <value>Вы получаете уникальный набор инструментов, который поможет вашему ресторану привлечь новых клиентов.</value>
-  </data>
-  <data name="WhyUsPar1" xml:space="preserve">
-    <value>Управление меню с &lt;strong&gt;одной платформы&lt;/strong&gt;</value>
-  </data>
-  <data name="WhyUsPar2" xml:space="preserve">
-    <value>Удобное размещение акций и уникальных предложений .
-Продвижение блюда. </value>
-  </data>
-  <data name="WhyUsPar3" xml:space="preserve">
-    <value>Размещение меню на &lt;strong&gt;TripAdvisor, Facebook, Instagram и ваш персональный сайт&lt;/strong&gt;</value>
-  </data>
-  <data name="WhyUsPar4" xml:space="preserve">
-    <value>&lt;strong&gt;Мультиязычность&lt;/strong&gt;  -  ваше меню будет доступно на нескольких языках, это поможет выделить вас &lt;strong&gt;иностранному туристу.&lt;/strong&gt;</value>
-  </data>
-  <data name="WhyUsPar5" xml:space="preserve">
-    <value>Мы работаем по принципу &lt;strong&gt;Do it for me&lt;/strong&gt; (заполняем ваше меню за вас, размещаем меню на других платформах)</value>
-  </data>
-  <data name="WhyUsPar6" xml:space="preserve">
-    <value>&lt;strong&gt;QR code меню&lt;/strong&gt; (Гость будет готов к заказу до подхода официанта, Повышайте скорость оборачиваемости столов) </value>
-  </data>
-  <data name="WantToTry" xml:space="preserve">
-    <value>Хочу попробовать</value>
-  </data>
-  <data name="Rotator" xml:space="preserve">
-    <value>&lt;div class="content"&gt;
-                        &lt;div class="content__container"&gt;
-                            &lt;ul class="content__container__list"&gt;
-                                &lt;li class="content__container__list__item"&gt;актуальным!&lt;/li&gt;
-                                &lt;li class="content__container__list__item"&gt;читабельным!&lt;/li&gt;
-                                &lt;li class="content__container__list__item"&gt;удобным!&lt;/li&gt;
-                                &lt;li class="content__container__list__item"&gt;интуитивным!&lt;/li&gt;
-                            &lt;/ul&gt;
-                        &lt;/div&gt;
-                    &lt;/div&gt;</value>
-  </data>
-  <data name="WhatMatters" xml:space="preserve">
-    <value>Размещение рекламі &lt;br /&gt; или обновление меню.</value>
-  </data>
-  <data name="WePlaceYourMenu" xml:space="preserve">
-    <value>Заполните форму, если вы хотите разместить рекламу или требуется обновить меню вашего заведения.</value>
-  </data>
-  <data name="OurClients" xml:space="preserve">
-    <value>наши клиенты</value>
-  </data>
-  <data name="Section1Container1" xml:space="preserve">
-    <value>93% гостей начинают свой поход в ресторан с поиска меню в Интернете</value>
-  </data>
-  <data name="Section1Container2" xml:space="preserve">
-    <value>Ваше меню должно быть «видно» для поиска. Меню в формате PDF не может быть найдено поисковиком, а также неудобно пользователю. TipMyMenu решает эту проблему. Кроме того, мы разместим ваше online меню на Интернет-ресурсах, где его ищут ваши потенциальные гости.</value>
-  </data>
-  <data name="PersonalSite" xml:space="preserve">
-    <value>Персональный сайт</value>
-  </data>
-  <data name="Section2Container1" xml:space="preserve">
-    <value>Вы получаете уникальный набор инструментов, который может привлечь вам больше гостей</value>
-  </data>
-  <data name="ManagingMenu" xml:space="preserve">
-    <value>&lt;span class="bold"&gt;Одновременное управление меню на всех ресурсах, где оно присутствует&lt;/span&gt;</value>
-  </data>
-  <data name="MultilingualMenu" xml:space="preserve">
-    <value>&lt;span class="bold"&gt;Мультиязычность. &lt;/span&gt;Ваше меню будет доступно на украинском, русском и английском языках. Это поможет иностранному туристу ознакомиться с ним.</value>
-  </data>
-  <data name="DoItForMe" xml:space="preserve">
-    <value>заполняем ваше меню вместо вас, размещаем меню на других ресурсах: &lt;span class="bold"&gt;TripAdvisor, Facebook, Instagram и ваш персональный сайт&lt;/span&gt;</value>
-  </data>
-  <data name="CustomizeYourMenu" xml:space="preserve">
-    <value>&lt;span class="bold"&gt; Кастомизация (персонализация) вашего меню (шрифт, фото, разделы) и маркетинг &lt;/span&gt;</value>
-  </data>
-  <data name="Section4Header1" xml:space="preserve">
-    <value>Откуда новые посетители?</value>
-  </data>
-  <data name="Section4Text1" xml:space="preserve">
-    <value>Вероятность того что пользователь выберет ваше заведение на 73% выше если ваше меню хорошо презентовано, не только у вас на сайте, но и на внешних интернет ресурсах</value>
-  </data>
-  <data name="Section4Text2" xml:space="preserve">
-    <value>Мы гарантируем, что ваше меню будет хорошо и понятно выглядеть на всех заявленных интернет-ресурсах</value>
-  </data>
-  <data name="Section4Header2" xml:space="preserve">
-    <value>Как мы работаем?</value>
-  </data>
-  <data name="HowDoWeWork1" xml:space="preserve">
-    <value>Вы высылаете нам меню, фотографии блюд и информацию о ресторане</value>
-  </data>
-  <data name="HowDoWeWork2" xml:space="preserve">
-    <value>Наша команда заполняет меню и высылает вам на утверждение
-</value>
-  </data>
-  <data name="HowDoWeWork3" xml:space="preserve">
-    <value>Имплементация оцифрованного меню на все платформы, указанные вами</value>
-  </data>
-  <data name="Section4Header3" xml:space="preserve">
-    <value>Как я пойму, что ваш ресурс приносит мне посетителей?</value>
-  </data>
-  <data name="AccessToAnalytics" xml:space="preserve">
-    <value>Мы предоставляем доступ к аналитике вашего заведения на нашем сайте, где вы сможете отлеживать просмотры и целевые действия</value>
-  </data>
-  <data name="Section3Header" xml:space="preserve">
-    <value>Сообщайте о своих акциях и предложениях</value>
-  </data>
-  <data name="Section3Text" xml:space="preserve">
-    <value>Размещайте акции/предложения/скидки и любую маркетинговую информацию. Их увидят на всех ресурсах, где установлено наше online меню.</value>
-  </data>
-  <data name="Section5Header" xml:space="preserve">
-    <value>ПРИСОЕДИНЯЙТЕСЬ &lt;br /&gt; К СЕРВИСУ TIP&lt;span class="red"&gt;MYMENU&lt;/span&gt;</value>
+  <data name="FormOr" xml:space="preserve">
+    <value>или оставьте свои контакты — мы свяжемся с вами.</value>
   </data>
   <data name="PlaceholderName" xml:space="preserve">
     <value>Имя</value>
@@ -460,46 +306,16 @@ Tip&lt;span&gt;mymenu&lt;/span&gt; решает эту проблему,  мы �
   <data name="PlaceholderPhone" xml:space="preserve">
     <value>Телефон</value>
   </data>
-  <data name="ThankYouForm" xml:space="preserve">
-    <value>Мы свяжемся с вами в ближайшее время.</value>
+  <data name="Send" xml:space="preserve">
+    <value>Отправить заявку</value>
   </data>
-  <data name="AllRightsReserved" xml:space="preserve">
-    <value>Все права защищены</value>
+  <data name="ThankYou" xml:space="preserve">
+    <value>Спасибо! Мы свяжемся с вами в ближайшее время.</value>
   </data>
-  <data name="PrivacyPolicy" xml:space="preserve">
-    <value>Политика конфиденциальности</value>
+  <data name="FormError" xml:space="preserve">
+    <value>Не удалось отправить. Пожалуйста, позвоните нам.</value>
   </data>
-  <data name="FaqHeader" xml:space="preserve">
-    <value>Частые вопросы</value>
-  </data>
-  <data name="FaqQ1" xml:space="preserve">
-    <value>Сколько стоит размещение ресторана на TipMyMenu?</value>
-  </data>
-  <data name="FaqA1" xml:space="preserve">
-    <value>Размещение бесплатное: страница ресторана с меню, фото и отзывами посетителей.</value>
-  </data>
-  <data name="FaqQ2" xml:space="preserve">
-    <value>Как добавить свой ресторан?</value>
-  </data>
-  <data name="FaqA2" xml:space="preserve">
-    <value>Оставьте контакты в форме ниже или позвоните нам. Менеджер зарегистрирует ресторан и предоставит доступ к личному кабинету.</value>
-  </data>
-  <data name="FaqQ3" xml:space="preserve">
-    <value>Кто заполняет меню?</value>
-  </data>
-  <data name="FaqA3" xml:space="preserve">
-    <value>Вы самостоятельно в личном кабинете. При необходимости с наполнением поможет наш менеджер.</value>
-  </data>
-  <data name="FaqQ4" xml:space="preserve">
-    <value>На каких языках будет меню?</value>
-  </data>
-  <data name="FaqA4" xml:space="preserve">
-    <value>На украинском, английском и русском.</value>
-  </data>
-  <data name="FaqQ5" xml:space="preserve">
-    <value>Можно ли менять меню и цены?</value>
-  </data>
-  <data name="FaqA5" xml:space="preserve">
-    <value>Да, в любой момент в личном кабинете.</value>
+  <data name="Free" xml:space="preserve">
+    <value>Бесплатно</value>
   </data>
 </root>

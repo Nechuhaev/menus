@@ -1,590 +1,245 @@
 @using Microsoft.AspNetCore.Mvc.Localization
 @inject IViewLocalizer Localizer
-
-@inject Menus.Web.Services.UserService  UserService;
-
 @{
-    ViewData["Title"] = Localizer["MetaTitle"];
-    ViewData["Description"] = Localizer["MetaDescription"];
+    // «Для власників ресторанів»: що отримує заклад + заявка (форма -> Home/SendFormdata, як і раніше)
     Layout = "~/Views/Shared/_Layout.cshtml";
-
-    var isInternalView = Context.Request.Query["viewMode"] == "internal";
-    var additionalClass = isInternalView ? "is-internal" : "";
     var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
-    var postUrl = @Url.Action("SendFormdata", "Home");
-
-    if (!isInternalView)
-    {
-        postUrl = "https://tipmymenu.com/ru/home/sendformdata";
-    }
+    ViewData["Title"] = Localizer["MetaTitle"].Value;
+    ViewData["Description"] = Localizer["MetaDescription"].Value;
+    ViewData["BodyClass"] = "iframe-menu-page";
+    var postUrl = Url.Action("SendFormdata", "Home", new { culture });
+    var iframeUrl = "/" + culture + "/iframe-menu";
+    var faq = Enumerable.Range(1, 6).Select(i => (Q: Localizer["Q" + i].Value, A: Localizer["A" + i].Value)).ToList();
+    var benefits = new[] { ("🏠", "B1"), ("📈", "B2"), ("⭐", "B3"), ("🔄", "B4"), ("🌐", "B5"), ("🧑‍💼", "B6") };
 }
-
-@if (isInternalView)
-{
-    @await Html.PartialAsync("_Header")
-}
-
-<header class="for-business-header @additionalClass">
-    <div class="container">
-        <div id="logo">
-            <a href="https://tipmymenu.com/">
-                <img src="~/images/forOwners/logo.png" alt="" />
-            </a>
-        </div>
-        <div class="container-column">
-            <div class="left_column">
-                <h1>
-                    @Localizer["WhatMatters"]
-                </h1>
-                <p>
-                    @Localizer["WePlaceYourMenu"]
-                </p>
-                <a href="#section5" class="button_link">@Localizer["WantToTry"]</a>
-            </div>
-            <div class="right_column">
-                <img src="~/images/forOwners/tablet.png" alt="" class="tablet desktop" />
-                <img src="~/images/forOwners/tablet-mob.png" alt="" class="mobile" />
-                <div class="soc_icon">
-                    <div class="trip_advisor">
-                        <img src="~/images/forOwners/tripadvisor.png" alt="" />
-                    </div>
-                    <div class="facebook">
-                        <img src="~/images/forOwners/facebook.png" alt="" />
-                    </div>
-                    <div class="instagramm">
-                        <img src="~/images/forOwners/instagram.png" alt="" />
-                    </div>
-                    <div class="personal-site">
-                        <img src="~/images/forOwners/mysite.png" alt="" />
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</header>
-@*<div class="section1">
-    <div class="container">
-        <div class="our-clients">
-            <h4>@Localizer["OurClients"]</h4>
-            <div class="our-clients_container">
-                <a href="http://www.praha-restaurant.com/menu/main_menu" target="_blank">
-                    <img src="~/images/forOwners/logo_praga.png" alt="" />
-                </a>
-                <a href="https://lancelot.com.ua/ru/menu-ru/" target="_blank">
-                    <img src="~/images/forOwners/logo_lancelot.png" alt="" />
-                </a>
-                <a class="whale" href="https://greenwhale.com.ua/menu/" target="_blank">
-                    <img src="~/images/forOwners/logo_zeleniy_kit.png" alt="" />
-                </a>
-                <a href="https://smartass.com.ua/kitchen" target="_blank">
-                    <img src="~/images/forOwners/logo_smartass.png" alt="" />
-                </a>
-            </div>
-        </div>
-        <h3 class="underline">
-            @Localizer["Section1Container1"]
-        </h3>
-        <p>
-            @Localizer["Section1Container2"]
-        </p>
-        <div class="soc-icon">
-            <div class="soc-icon_container">
-                <div class="trip_advisor">
-                    <img src="~/images/forOwners/tripadvisor.png" alt="" />
-                </div>
-                <span>TripAdvisor</span>
-            </div>
-            <div class="soc-icon_container">
-                <div class="facebook">
-                    <img src="~/images/forOwners/facebook.png" alt="" />
-                </div>
-                <span>Facebook</span>
-            </div>
-            <div class="soc-icon_container">
-                <div class="instagramm">
-                    <img src="~/images/forOwners/instagram.png" alt="" />
-                </div>
-                <span>Instagram</span>
-            </div>
-            <div class="soc-icon_container">
-                <div class="personal-site">
-                    <img src="~/images/forOwners/mysite.png" alt="" />
-                </div>
-                <span>@Localizer["PersonalSite"]</span>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="section2">
-    <div class="container">
-        <div class="phone-one">
-            <img src="~/images/forOwners/phone11.png" alt="" />
-        </div>
-        <div class="right-column-info">
-            <h3 class="underline">All-in-One</h3>
-            <p>
-                @Localizer["Section2Container1"]
-            </p>
-            <ul class="right-column_text">
-                <li>
-                    @Localizer["ManagingMenu"]
-                </li>
-                <li>
-                    @Localizer["MultilingualMenu"]
-                </li>
-                <li>
-                    <span class="bold">Do it for me</span> (@Localizer["DoItForMe"])
-                </li>
-                <li>
-                    @Localizer["CustomizeYourMenu"]
-                </li>
-            </ul>
-            <a href="#section5" class="button_link">@Localizer["WantToTry"]</a>
-        </div>
-    </div>
-</div>
-<div class="section3">
-    <div class="container">
-        <div class="left_column">
-            <h3 class="underline">@Localizer["Section3Header"]</h3>
-            <p>
-                @Localizer["Section3Text"]
-            </p>
-
-            <a href="#section5" class="button_link">@Localizer["WantToTry"]</a>
-        </div>
-        <div class="right_column">
-            <span>x</span>
-        </div>
-    </div>
-</div>
-<div class="section4">
-    <div class="container">
-        <h3>FAQ</h3>
-        <div class="container-faq">
-            <div class="column-left">
-                <div class="list">
-                    <h4>@Localizer["Section4Header1"]</h4>
-                    <ul>
-                        <li>
-                            @Localizer["Section4Text1"]
-                        </li>
-                        <li>
-                            @Localizer["Section4Text2"]
-                            <div class="phone-container">
-
-                                <figure class="cd-image-container is-visible">
-                                    <img src="~/images/forOwners/bg_grey2.png" alt="Original Image">
-                                    <span class="cd-image-label" data-type="original"></span>
-                                    <div class="cd-resize-img">
-                                        <span class="cd-image-label" data-type="modified"></span>
-                                    </div>
-                                    <span class="cd-handle"></span>
-                                </figure>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
-                <div class="list">
-                    <h4>@Localizer["Section4Header2"]</h4>
-                    <ul>
-                        <li>
-                            @Localizer["HowDoWeWork1"]
-                        </li>
-                        <li>
-                            @Localizer["HowDoWeWork2"]
-                        </li>
-                        <li>
-                            @Localizer["HowDoWeWork3"]
-                        </li>
-                    </ul>
-                </div>
-            </div>
-            <div class="column-right">
-                <div class="list">
-                    <h4>@Localizer["Section4Header3"]</h4>
-                    <ul>
-                        <li>
-                            @Localizer["AccessToAnalytics"]
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>*@
-@{
-    var faq = Enumerable.Range(1, 5).Select(i => (Q: Localizer[$"FaqQ{i}"].Value, A: Localizer[$"FaqA{i}"].Value)).ToArray();
-}
-<div class="section-faq">
-    <div class="container">
-        <h2>@Localizer["FaqHeader"]</h2>
-        @foreach (var item in faq)
-        {
-            <details>
-                <summary>@item.Q</summary>
-                <p>@item.A</p>
-            </details>
-        }
-    </div>
-</div>
-<div id="section5" class="section5">
-    <div class="container">
-        <div class="form-container">
-            <h3>@Localizer["Section5Header"]</h3>
-            <p>
-                @Localizer["Call"]
-                <a href="tel:380505562653" class="red"><img src="~/images/forOwners/tel.png" class="tel-mob mobile" alt="">+380505562653</a> @Localizer["LeaveYourContacts"]
-            </p>
-            <form action="" method="POST" id="requestForm">
-                <input type="hidden" name="Package" value="@Localizer["Free"]" />
-                <input type="hidden" name="Restaurant" value="NewPage" />
-                <input type="text" required placeholder="@Localizer["PlaceholderName"]" name="Email" />
-                <input type="tel" required placeholder="@Localizer["PlaceholderPhone"]" name="Phone" />
-                <button type="submit"><i class="fa fa-2x fa-paper-plane"></i> @Localizer["Send"]</button>
-            </form>
-
-            <div class="form-loading hidden">
-                <img src="~/images/loading.svg" alt="loading" />
-            </div>
-            <div class="form-thank-you hidden">
-                @Localizer["ThankYouForm"]
-            </div>
-        </div>
-    </div>
-</div>
-<footer class="@additionalClass">
-    <div class="container">
-        <span>© @DateTime.Now.Year.ToString() Tipmymenu. @Localizer["AllRightsReserved"]</span>
-        <a href="/@culture/content/privacy">@Localizer["PrivacyPolicy"]</a>
-    </div>
-</footer>
-<a href="#section5" id="scrollToTop" class="button_link_mobile mobile">@Localizer["WantToTry"]</a>
-
-@if (isInternalView)
-{
-    @await Html.PartialAsync("_Footer")
-}
-
 
 @section JsonLd {
-    @(Menus.Web.Helpers.JsonLd.Script(Menus.Web.Helpers.JsonLd.FaqPage(
-        Enumerable.Range(1, 5).Select(i => (Localizer[$"FaqQ{i}"].Value, Localizer[$"FaqA{i}"].Value)).ToArray())))
+    @(Menus.Web.Helpers.JsonLd.Script(Menus.Web.Helpers.JsonLd.FaqPage(faq.Select(x => (x.Q, x.A)).ToArray())))
 }
 
 @section Styles {
-    <style>
-        .section-faq { padding: 40px 0; }
-        .section-faq h2 { text-align: center; margin-bottom: 24px; }
-        .section-faq details { max-width: 800px; margin: 0 auto 12px; border-bottom: 1px solid #e5e5e5; padding-bottom: 12px; }
-        .section-faq summary { cursor: pointer; font-weight: 600; font-size: 18px; }
-        .section-faq details p { margin: 10px 0 0; }
-    </style>
-    @if (UserService.IsMobileUser(Context.Request))
-    {
-        <link href="~/css/for-owners-mobile.css" rel="stylesheet" asp-append-version="true" />
+<style>
+    .im { --accent: #ffb80e; --accent-h: #f0a800; --dark: #231f20; --text: #1f2328; --muted: #5f6670; --bg: #f5f6f9; --line: #eceef2;
+          color: var(--text); background: #fff; font-size: 17px; line-height: 1.5; letter-spacing: normal; }
+    /* body сайту темний (#231f20) - світлі розділи задають фон самі; реклама Google перед футером на лендингу зайва */
+    .iframe-menu-page .google-footer-container { display: none; }
+    .im * { box-sizing: border-box; }
+    .im .im-wrap { max-width: 1160px; margin: 0 auto; padding: 0 20px; }
+    .im h1, .im h2, .im h3, .im p { letter-spacing: normal; text-transform: none; }
+
+    .im .im-hero { background: radial-gradient(circle at 15% 20%, rgba(255,184,14,.28), transparent 45%), radial-gradient(circle at 90% 90%, rgba(255,184,14,.18), transparent 40%), var(--dark); color: #fff; padding: 56px 0 64px; overflow: hidden; }
+    .im .im-hero .im-wrap { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+    .im .im-badge { display: inline-block; padding: 6px 12px; border-radius: 999px; background: rgba(255,184,14,.16); color: var(--accent); font-weight: 700; font-size: 14px; }
+    .im .im-hero h1 { font-size: 52px; line-height: 1.08; margin: 18px 0 16px; font-weight: 700; color: #fff; }
+    .im .im-hero h1 em { font-style: normal; color: var(--accent); }
+    .im .im-lead { font-size: 20px; color: #d9d6d2; margin: 0 0 28px; max-width: 560px; }
+    .im .im-cta { display: flex; flex-wrap: wrap; gap: 12px; }
+    .im .im-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 26px; border-radius: 14px; font-weight: 700; font-size: 17px; text-decoration: none; }
+    .im .im-btn-main { background: var(--accent); color: var(--dark); }
+    .im .im-btn-main:hover { background: var(--accent-h); color: var(--dark); }
+    .im .im-btn-ghost { border: 1px solid rgba(255,255,255,.28); color: #fff; }
+    .im .im-btn-ghost:hover { background: rgba(255,255,255,.08); color: #fff; }
+    .im .im-facts { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 30px; color: #bdb8b2; font-size: 15px; }
+    .im .im-facts b { display: block; color: #fff; font-size: 22px; }
+    .im .im-phone { margin: 0 auto; width: 340px; max-width: 100%; height: 660px; border: 10px solid #0e0c0d; border-radius: 38px; background: #fff; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+    .im .im-phone iframe { width: 100%; height: 100%; border: 0; display: block; }
+    .im .im-phone-note { text-align: center; color: #bdb8b2; font-size: 14px; margin: 12px 0 0; }
+
+    .im .im-section { padding: 72px 0; background: #fff; color: var(--text); }
+    .im .im-section.im-alt { background: var(--bg); }
+    .im .im-section h2 { font-size: 38px; line-height: 1.15; margin: 0 0 10px; font-weight: 700; color: var(--text); }
+    .im .im-sub { color: var(--muted); font-size: 19px; margin: 0 0 36px; max-width: 720px; }
+    .im .im-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .im .im-card { background: var(--bg); border-radius: 18px; padding: 22px; }
+    .im .im-alt .im-card { background: #fff; }
+    .im .im-ico { width: 44px; height: 44px; border-radius: 12px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 14px; }
+    .im .im-card h3 { margin: 0 0 6px; font-size: 19px; font-weight: 700; color: var(--text); }
+    .im .im-card p { margin: 0; color: var(--muted); font-size: 16px; }
+    .im .im-card.im-wide { grid-column: span 3; display: flex; gap: 18px; align-items: center; background: var(--dark); }
+    .im .im-card.im-wide h3 { color: #fff; }
+    .im .im-card.im-wide p { color: #d9d6d2; }
+    .im .im-card.im-wide .im-ico { flex: none; margin: 0; }
+
+    .im .im-steps { counter-reset: step; }
+    .im .im-step { position: relative; padding-top: 64px; }
+    .im .im-step::before { counter-increment: step; content: counter(step); position: absolute; top: 22px; left: 22px; width: 32px; height: 32px; border-radius: 50%; background: var(--dark); color: var(--accent); font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .im .im-code { margin-top: 28px; background: var(--dark); color: #f3efe9; border-radius: 18px; padding: 20px 22px; }
+    .im .im-code h3 { margin: 0 0 10px; font-size: 17px; color: #fff; }
+    .im .im-code pre { margin: 0; white-space: pre-wrap; word-break: break-all; font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--accent); }
+    .im .im-code p { margin: 10px 0 0; color: #bdb8b2; font-size: 14px; }
+
+    .im .im-features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 28px; list-style: none; padding: 0; margin: 0; }
+    .im .im-features li { position: relative; padding-left: 32px; font-size: 17px; }
+    .im .im-features li::before { content: "✓"; position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--dark); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+
+    .im .im-faq { max-width: 820px; }
+    .im .im-faq details { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 0 20px; margin-bottom: 10px; }
+    .im .im-faq summary { cursor: pointer; list-style: none; padding: 18px 28px 18px 0; font-weight: 700; font-size: 18px; position: relative; }
+    .im .im-faq summary::-webkit-details-marker { display: none; }
+    .im .im-faq summary::after { content: "+"; position: absolute; right: 0; top: 14px; font-size: 24px; color: var(--muted); }
+    .im .im-faq details[open] summary::after { content: "–"; }
+    .im .im-faq details p { margin: 0 0 18px; color: var(--muted); font-size: 16px; }
+
+    .im .im-final { background: var(--dark); color: #fff; text-align: center; padding: 64px 0; }
+    .im .im-final h2 { color: #fff; margin: 0 0 10px; font-size: 36px; }
+    .im .im-final p { color: #d9d6d2; margin: 0 0 26px; font-size: 19px; }
+
+    @@media (max-width: 900px) {
+        .im .im-hero { padding: 36px 0 44px; }
+        .im .im-hero .im-wrap { grid-template-columns: 1fr; gap: 32px; }
+        .im .im-hero h1 { font-size: 36px; }
+        .im .im-lead { font-size: 18px; }
+        .im .im-phone { width: 300px; height: 560px; }
+        .im .im-grid { grid-template-columns: 1fr 1fr; }
+        .im .im-card.im-wide { grid-column: span 2; }
+        .im .im-section { padding: 48px 0; }
+        .im .im-section h2, .im .im-final h2 { font-size: 28px; }
     }
-    else
-    {
-        <link href="~/css/for-owners.css" rel="stylesheet" asp-append-version="true" />
+    @@media (max-width: 560px) {
+        .im .im-wrap { padding: 0 16px; }
+        .im .im-grid, .im .im-features { grid-template-columns: 1fr; }
+        .im .im-card.im-wide { grid-column: span 1; flex-direction: column; align-items: flex-start; }
+        .im .im-btn { width: 100%; }
     }
-    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/jquery-ui.css">
+    .im .im-place { background: #fff; color: var(--text); border-radius: 22px; padding: 18px; box-shadow: 0 30px 80px rgba(0,0,0,.45); max-width: 420px; margin: 0 auto; }
+    .im .im-place-top { display: flex; gap: 14px; align-items: center; }
+    .im .im-logo { width: 56px; height: 56px; border-radius: 50%; background: var(--dark); color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 22px; flex: none; }
+    .im .im-place h3 { margin: 0; font-size: 20px; color: var(--text); }
+    .im .im-addr { color: var(--muted); font-size: 14px; }
+    .im .im-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .im .im-chip { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 10px; background: #fff3d1; color: var(--text); }
+    .im .im-chip.ok { background: #e3f5e9; color: #1b7f3b; }
+    .im .im-dish { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+    .im .im-dish:first-of-type { margin-top: 12px; }
+    .im .im-dish b { font-size: 15px; }
+    .im .im-dish span { color: var(--muted); font-size: 13px; display: block; }
+    .im .im-dish .im-p { font-weight: 700; white-space: nowrap; text-align: right; }
+    .im .im-dish .im-r { color: #b7791f; font-size: 13px; font-weight: 700; text-align: right; }
+    .im .im-card a { color: var(--text); font-weight: 700; }
+    .im .im-form { max-width: 720px; margin: 0 auto; text-align: center; }
+    .im .im-form h2 { color: #fff; }
+    .im .im-form p { color: #d9d6d2; font-size: 18px; margin: 0 0 22px; }
+    .im .im-form p a { color: var(--accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
+    .im .im-form form { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    .im .im-form input { flex: 1 1 200px; min-height: 52px; padding: 0 16px; border-radius: 14px; border: 0; font: inherit; font-size: 17px; color: var(--text); background: #fff; }
+    .im .im-form button { min-height: 52px; padding: 0 26px; border: 0; border-radius: 14px; background: var(--accent); color: var(--dark); font: inherit; font-weight: 700; font-size: 17px; cursor: pointer; }
+    .im .im-form button:hover { background: var(--accent-h); }
+    .im .im-form .im-msg { margin-top: 16px; font-size: 18px; color: #fff; }
+    .im .im-form [hidden] { display: none !important; }
+    @@media (max-width: 560px) { .im .im-form button { width: 100%; } }
+</style>
 }
 
-@section Scripts
-    {
+@await Html.PartialAsync("_Header")
 
+<div class="im">
+    <section class="im-hero">
+        <div class="im-wrap">
+            <div>
+                <span class="im-badge">@Localizer["Badge"]</span>
+                <h1>@Localizer["HeroTitle1"] <em>TipMyMenu</em> @Localizer["HeroTitle2"]</h1>
+                <p class="im-lead">@Localizer["HeroLead"]</p>
+                <div class="im-cta">
+                    <a class="im-btn im-btn-main" href="#join">@Localizer["CtaConnect"]</a>
+                    <a class="im-btn im-btn-ghost" href="@iframeUrl">@Localizer["CtaIframe"]</a>
+                </div>
+                <div class="im-facts">
+                    <div><b>@Localizer["FactPrice"]</b>@Localizer["FactPriceText"]</div>
+                    <div><b>@Localizer["FactLangs"]</b>@Localizer["FactLangsText"]</div>
+                    <div><b>@Localizer["FactCode"]</b>@Localizer["FactCodeText"]</div>
+                </div>
+            </div>
+            <div>
+                <div class="im-place" aria-label="@Localizer["DemoNote"]">
+                    <div class="im-place-top">
+                        <div class="im-logo">T</div>
+                        <div>
+                            <h3>@Localizer["DemoName"]</h3>
+                            <div class="im-addr">@Localizer["DemoAddress"]</div>
+                            <div class="im-chips"><span class="im-chip ok">@Localizer["DemoOpen"]</span><span class="im-chip">@Localizer["DemoCuisine"]</span></div>
+                        </div>
+                    </div>
+                    <div class="im-dish"><div><b>@Localizer["DemoDish1"]</b><span>420 г</span></div><div><div class="im-p">245 ₴</div><div class="im-r">★ 4.9</div></div></div>
+                    <div class="im-dish"><div><b>@Localizer["DemoDish2"]</b><span>5 шт</span></div><div><div class="im-p">180 ₴</div><div class="im-r">★ 4.8</div></div></div>
+                    <div class="im-dish"><div><b>@Localizer["DemoDish3"]</b><span>400 мл</span></div><div><div class="im-p">95 ₴</div><div class="im-r">★ 4.7</div></div></div>
+                </div>
+                <p class="im-phone-note">@Localizer["DemoNote"]</p>
+            </div>
+        </div>
+    </section>
 
-
-    <script type="text/javascript" src="https://code.jquery.com/jquery-latest.js"></script>
-    <script src="https://codyhouse.co/demo/image-comparison-slider/js/jquery.mobile.custom.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
-    <script src="https://use.fontawesome.com/f4b399e4cc.js"></script>
-
-    <script>
-$(function () {
-
-        });
-        //slider before after
-        var dragging = false;
-        var scrolling = false;
-        var resizing = false;
-        var imageComparisonContainers = $(".cd-image-container");
-
-        jQuery(document).ready(function ($) {
-            _adjustSections();
-            _initEvents();
-            _initAccordeon();
-
-            checkPosition(imageComparisonContainers);
-            imageComparisonContainers.each(function () {
-                var actual = $(this);
-                drags(
-                    actual.find(".cd-handle"),
-                    actual.find(".cd-resize-img"),
-                    actual,
-                    actual.find('.cd-image-label[data-type="original"]'),
-                    actual.find('.cd-image-label[data-type="modified"]')
-                );
-            });
-        });
-
-        function _initAccordeon() {
-            $(".container-faq").accordion({
-                active: false,
-                collapsible: true,
-                header: "h4",
-                heightStyle: "content"
-            });
-        }
-
-        function _adjustSections() {
-            if ($(window).width() > 992) {
-                $(function () {
-                    let hieghtThreshold = $(".section3").offset().top - 200;
-                    let hieghtThreshold_end =
-                        $(".section3").offset().top + $(".section3").height() - 200;
-                    $(window).scroll(function () {
-                        let scroll = $(window).scrollTop();
-
-                        if (scroll >= hieghtThreshold && scroll <= hieghtThreshold_end) {
-                            setTimeout(function () {
-                                $(".right_column").addClass("scroll");
-                            }, 2000);
-                        } else {
-                            $(".right_column").removeClass("scroll");
-                        }
-                    });
-                });
-            } else {
-                let hieghtThreshold = $(".section3").offset().top;
-                let hieghtThreshold_end =
-                    $(".section3").offset().top + $(".section3").height();
-                let img = $(".right_column");
-                $(window).scroll(function () {
-                    let scroll = $(window).scrollTop();
-                    if (scroll >= hieghtThreshold && scroll <= hieghtThreshold_end) {
-                        setTimeout(function () {
-                            img.addClass("scroll");
-                        }, 3000);
-                    }
-                });
-            }
-        }
-
-        function checkPosition(container) {
-            container.each(function () {
-                var actualContainer = $(this);
-                if (
-                    $(window).scrollTop() + $(window).height() * 0.5 >
-                    actualContainer.offset().top
-                ) {
-                    actualContainer.addClass("is-visible");
+    <section class="im-section">
+        <div class="im-wrap">
+            <h2>@Localizer["BenefitsTitle"]</h2>
+            <p class="im-sub">@Localizer["BenefitsSub"]</p>
+            <div class="im-grid">
+                @foreach (var b in benefits)
+                {
+                    <div class="im-card"><div class="im-ico">@b.Item1</div><h3>@Localizer[b.Item2 + "Title"]</h3><p>@Localizer[b.Item2 + "Text"]@if (b.Item2 == "B5") { <text> <a href="@iframeUrl">@Localizer["B5Link"]</a></text> }</p></div>
                 }
-            });
-            scrolling = false;
-        }
+            </div>
+        </div>
+    </section>
 
-        function checkLabel(container) {
-            container.each(function () {
-                var actual = $(this);
-                updateLabel(
-                    actual.find('.cd-image-label[data-type="modified"]'),
-                    actual.find(".cd-resize-img"),
-                    "left"
-                );
-                updateLabel(
-                    actual.find('.cd-image-label[data-type="original"]'),
-                    actual.find(".cd-resize-img"),
-                    "right"
-                );
-            });
-            resizing = false;
-        }
+    <section class="im-section im-alt">
+        <div class="im-wrap">
+            <h2>@Localizer["HowTitle"]</h2>
+            <p class="im-sub">@Localizer["HowSub"]</p>
+            <div class="im-grid im-steps">
+                @for (var i = 1; i <= 3; i++)
+                {
+                    <div class="im-card im-step"><h3>@Localizer["S" + i + "Title"]</h3><p>@Localizer["S" + i + "Text"]</p></div>
+                }
+            </div>
+        </div>
+    </section>
 
-        function drags(
-            dragElement,
-            resizeElement,
-            container,
-            labelContainer,
-            labelResizeElement
-        ) {
-            dragElement
-                .on("mousedown vmousedown", function (e) {
-                    dragElement.addClass("draggable");
-                    resizeElement.addClass("resizable");
-                    var dragWidth = dragElement.outerWidth(),
-                        xPosition = dragElement.offset().left + dragWidth - e.pageX,
-                        containerOffset = container.offset().left,
-                        containerWidth = container.outerWidth();
-                    if ($(window).width() > 991) {
-                        var minLeft = containerOffset + 15,
-                            maxLeft = containerOffset + containerWidth - dragWidth + 50;
-                    } else {
-                        var minLeft = containerOffset + 0,
-                            maxLeft = containerOffset + containerWidth - dragWidth + 38;
-                    }
-                    dragElement
-                        .parents()
-                        .on("mousemove vmousemove", function (e) {
-                            if (!dragging) {
-                                dragging = true;
-                                !window.requestAnimationFrame
-                                    ? setTimeout(function () {
-                                        animateDraggedHandle(
-                                            e,
-                                            xPosition,
-                                            dragWidth,
-                                            minLeft,
-                                            maxLeft,
-                                            containerOffset,
-                                            containerWidth,
-                                            resizeElement,
-                                            labelContainer,
-                                            labelResizeElement
-                                        );
-                                    }, 100)
-                                    : requestAnimationFrame(function () {
-                                        animateDraggedHandle(
-                                            e,
-                                            xPosition,
-                                            dragWidth,
-                                            minLeft,
-                                            maxLeft,
-                                            containerOffset,
-                                            containerWidth,
-                                            resizeElement,
-                                            labelContainer,
-                                            labelResizeElement
-                                        );
-                                    });
-                            }
-                        })
-                        .on("mouseup vmouseup", function (e) {
-                            dragElement.removeClass("draggable");
-                            resizeElement.removeClass("resizable");
-                        });
-                    e.preventDefault();
+    <section class="im-section">
+        <div class="im-wrap">
+            <h2>@Localizer["FaqTitle"]</h2>
+            <div class="im-faq">
+                @foreach (var item in faq)
+                {
+                    <details><summary>@item.Q</summary><p>@item.A</p></details>
+                }
+            </div>
+        </div>
+    </section>
+
+    <section class="im-final" id="join">
+        <div class="im-wrap im-form">
+            <h2>@Localizer["FormTitle"]</h2>
+            <p>@Localizer["FormCall"] <a href="tel:+380505562653">+38 050 556 26 53</a> @Localizer["FormOr"]</p>
+            <form id="requestForm" method="post">
+                <input type="hidden" name="Package" value="@Localizer["Free"]" />
+                <input type="hidden" name="Restaurant" value="NewPage" />
+                <input type="text" required name="Email" placeholder="@Localizer["PlaceholderName"]" autocomplete="name" />
+                <input type="tel" required name="Phone" placeholder="@Localizer["PlaceholderPhone"]" autocomplete="tel" />
+                <button type="submit">@Localizer["Send"]</button>
+            </form>
+            <div class="im-msg" id="formThanks" hidden>@Localizer["ThankYou"]</div>
+            <div class="im-msg" id="formError" hidden>@Localizer["FormError"]</div>
+        </div>
+    </section>
+</div>
+
+<script>
+    (function () {
+        var form = document.getElementById('requestForm');
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var btn = form.querySelector('button');
+            btn.disabled = true;
+            fetch(@Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(postUrl)), { method: 'POST', body: new FormData(form) })
+                .then(function (r) {
+                    if (!r.ok) { throw new Error(r.status); }
+                    form.hidden = true;
+                    document.getElementById('formThanks').hidden = false;
                 })
-                .on("mouseup vmouseup", function (e) {
-                    dragElement.removeClass("draggable");
-                    resizeElement.removeClass("resizable");
-                });
-        }
+                .catch(function () { btn.disabled = false; document.getElementById('formError').hidden = false; });
+        });
+    })();
+</script>
 
-        function animateDraggedHandle(
-            e,
-            xPosition,
-            dragWidth,
-            minLeft,
-            maxLeft,
-            containerOffset,
-            containerWidth,
-            resizeElement,
-            labelContainer,
-            labelResizeElement
-        ) {
-            var leftValue = e.pageX + xPosition - dragWidth;
-            if (leftValue < minLeft) {
-                leftValue = minLeft;
-            } else if (leftValue > maxLeft) {
-                leftValue = maxLeft;
-            }
-            var widthValue =
-                ((leftValue + dragWidth / 2 - containerOffset) * 100) / containerWidth -
-                10 +
-                "%";
-            $(".draggable")
-                .css("left", widthValue)
-                .on("mouseup vmouseup", function () {
-                    $(this).removeClass("draggable");
-                    resizeElement.removeClass("resizable");
-                });
-            $(".resizable").css("width", widthValue);
-            updateLabel(labelResizeElement, resizeElement, "left");
-            updateLabel(labelContainer, resizeElement, "right");
-            dragging = false;
-        }
-
-        function updateLabel(label, resizeElement, position) {
-            if (position == "left") {
-                label.offset().left + label.outerWidth() <
-                    resizeElement.offset().left + resizeElement.outerWidth()
-                    ? label.removeClass("is-hidden")
-                    : label.addClass("is-hidden");
-            } else {
-                label.offset().left >
-                    resizeElement.offset().left + resizeElement.outerWidth()
-                    ? label.removeClass("is-hidden")
-                    : label.addClass("is-hidden");
-            }
-        }
-
-        function _initEvents() {
-            $(".right_column span").click(function () {
-                $(".right_column").addClass("closebanner");
-                $(".right_column").removeClass("scroll");
-            });
-
-            $(window).on("resize", function () {
-                if (!resizing) {
-                    resizing = true;
-                    !window.requestAnimationFrame
-                        ? setTimeout(function () {
-                            checkLabel(imageComparisonContainers);
-                        }, 100)
-                        : requestAnimationFrame(function () {
-                            checkLabel(imageComparisonContainers);
-                        });
-                }
-            });
-
-            $(window).on("scroll", function () {
-                if (!scrolling) {
-                    scrolling = true;
-                    !window.requestAnimationFrame
-                        ? setTimeout(function () {
-                            checkPosition(imageComparisonContainers);
-                        }, 100)
-                        : requestAnimationFrame(function () {
-                            checkPosition(imageComparisonContainers);
-                        });
-                }
-            });
-
-            $("#scrollToTop").click(function () {
-                $([document.documentElement, document.body]).animate(
-                    {
-                        scrollTop: $("#section5").offset().top
-                    },
-                    1000
-                );
-            });
-
-            $(document).on("submit", ".section5 form", function (e) {
-                e.preventDefault();
-                var $loading = $('.form-container .form-loading');
-                var $thankYou = $('.form-container .form-thank-you');
-                var $form = $('.form-container form');
-
-                $.ajax({
-                    url: "@postUrl",
-                    type: "POST",
-                    data: $(this).serialize(),
-                    beforeSend: function () {
-                        console.log('[beforeSend]');
-                        $form.toggleClass('hidden', true);
-                        $loading.toggleClass('hidden', false);
-                    },
-                    complete: function () {
-                        console.log('[complete]');
-                        $loading.toggleClass('hidden', true);
-                        $thankYou.toggleClass('hidden', false);
-                    },
-                });
-
-            });
-        }</script>
-
-}
+@await Html.PartialAsync("_Footer")

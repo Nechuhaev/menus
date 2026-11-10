@@ -947,9 +947,11 @@
 @section Styles {
     <style>
         /* блок «Популярні страви»: 2 колонки на телефоні, далі скільки вміститься */
+        /* розміри в px: стилі сайту на телефоні задають шрифт і висоту рядка у vw - назви ставали крихітними й налазили */
         .popular-dish-pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 0 0 30px; padding: 0; list-style: none; }
-        .popular-dish-pages a { display: block; height: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 6px; }
-        .popular-dish-pages strong { display: block; }
-        .popular-dish-pages span { color: #777; font-size: 14px; }
+        .popular-dish-pages li { margin: 0; padding: 0; list-style: none; }
+        .popular-dish-pages a { display: flex; flex-direction: column; gap: 4px; height: 100%; padding: 12px 14px; border: 1px solid #e5e5e5; border-radius: 12px; background: #fff; text-decoration: none !important; box-sizing: border-box; }
+        .popular-dish-pages a strong { display: block; color: #231f20 !important; font-size: 15px !important; line-height: 1.3 !important; font-weight: 700; letter-spacing: normal !important; text-transform: none !important; overflow-wrap: anywhere; }
+        .popular-dish-pages a span { color: #6b7079 !important; font-size: 14px !important; line-height: 1.3 !important; letter-spacing: normal !important; }
     </style>
 }
