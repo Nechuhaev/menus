@@ -1454,7 +1454,7 @@ namespace Menus.Web.Areas.Restaurants.Controllers
 
             var categories = (await _core.Restaurants.GetMenuCategoriesForRestaurant(selectedRestaurant.Id)).ToList();
             var dishes =
-                (await _core.Dishes.GetDishesForRestaurantWithSeoAndRatings(selectedRestaurant.Id, "")).ToList();
+                (await _core.Dishes.GetDishesForRestaurantWithSeoAndRatings(selectedRestaurant.Id, "", activeOnly: false)).ToList();
             var dishCategories =
                 (await _core.Restaurants.GetDishCategoriesForMenuCategories(categories.Select(x => x.Id)))
                 .OrderBy(x => x.Index).ToList();
