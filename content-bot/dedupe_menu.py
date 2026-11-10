@@ -54,6 +54,16 @@ def name_key(localizable):
     return tuple(sorted((v.get("Locale") or "", norm(v.get("Value"))) for v in parsed.get("Values") or [] if norm(v.get("Value"))))
 
 
+def uk_value(localizable):
+    try:
+        parsed = json.loads(localizable or "")
+    except ValueError:
+        return ""
+    if not isinstance(parsed, dict):
+        return ""
+    return next(((v.get("Value") or "").strip() for v in parsed.get("Values") or [] if v.get("Locale") == "uk" and (v.get("Value") or "").strip()), "")
+
+
 def has_text(localizable):
     return bool(first_value(localizable))
 
@@ -92,7 +102,8 @@ def main():
     keep_category = {}
     groups = defaultdict(list)
     for c in categories:
-        name = norm(first_value(c["Name"]))
+        # українська назва, якщо є: у старих розділах першою стоїть російська («Горячие блюда»), у нових з QR-меню - українська
+        name = norm(uk_value(c["Name"]) or first_value(c["Name"]))
         if name:
             groups[(c["RestaurantId"], c["ParentId"], name)].append(c)
     merged_categories = []
