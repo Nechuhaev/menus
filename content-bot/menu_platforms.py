@@ -221,6 +221,11 @@ def parse_choiceqr_page(page_html):
     return items
 
 
+def is_choiceqr_domain(url):
+    """ChoiceQR на власному домені закладу: адреси розділів «/section:menyu» є лише в ChoiceQR (coast.dp.ua)."""
+    return bool(re.search(r"/section:[a-z0-9-]+", urlparse(url or "").path, re.I))
+
+
 def read_choiceqr(url):
     parsed = urlparse(url)
     root = f"{parsed.scheme or 'https'}://{parsed.netloc}/"
@@ -279,12 +284,43 @@ def read_restoapp(url):
         host=host, path="menu-sections?pagination=0&type=section&locale=ua&with=categories.products,products"))))
 
 
+# --- ps.me: https://<заклад>.ps.me/category/<розділ> ---
+# Сторінка Next.js: __NEXT_DATA__ -> props.pageProps.products - УСІ страви меню (name, price, description з вагою
+# «<p>350 г</p>», photo, categoryName), а settings.contacts - телефон, email, графік («12:00 – 21:00»).
+
+def is_psme(url):
+    host = (urlparse(url or "").hostname or "").lower()
+    return host.endswith(".ps.me") and not host.startswith("www.")
+
+
+def psme_page_props(url):
+    parsed = urlparse(url)
+    page = fetch(f"{parsed.scheme or 'https'}://{parsed.netloc}{parsed.path or '/'}")
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)</script>', page)
+    props = json.loads(m.group(1))["props"]["pageProps"] if m else {}
+    if not props.get("products") and parsed.path not in ("", "/"):
+        return psme_page_props(f"{parsed.scheme or 'https'}://{parsed.netloc}/")
+    return props
+
+
+def read_psme(url):
+    items = []
+    for p in psme_page_props(url).get("products") or []:
+        description = plain_text(p.get("description"))
+        weight = description if is_weight_only(description) else None
+        price = p.get("price")
+        items.append(dish(p.get("name"), p.get("categoryName"), float(price) if price else None, weight,
+                          description, p.get("photo")))
+    return [d for d in items if d["name"]]
+
+
 PLATFORM_LINK = re.compile(r'https?://(?:www\.)?expz\.menu/[0-9a-f-]{36}|https?://[a-z0-9-]+\.choiceqr\.com[^"\'\s<>]*|'
-                           r'https?://(?!www\.)[a-z0-9_-]+\.restoapp\.eu[^"\'\s<>]*', re.I)
+                           r'https?://(?!www\.)[a-z0-9_-]+\.restoapp\.eu[^"\'\s<>]*|'
+                           r'https?://(?!www\.)[a-z0-9_-]+\.ps\.me[^"\'\s<>]*', re.I)
 
 
 def find_platform_link(raw_html):
-    """Посилання на меню в Expirenza/ChoiceQR/RestoApp на сайті ресторану (кнопка «Меню», QR тощо)."""
+    """Посилання на меню в Expirenza/ChoiceQR/RestoApp/ps.me на сайті ресторану (кнопка «Меню», QR тощо)."""
     m = PLATFORM_LINK.search(raw_html or "")
     return m.group(0) if m else None
 
@@ -296,10 +332,12 @@ def platform_menu(url):
     host = urlparse(url).netloc.lower()
     if EXPZ_ROOT.match(url):
         reader = read_expz
-    elif host.endswith(".choiceqr.com"):
+    elif host.endswith(".choiceqr.com") or is_choiceqr_domain(url):
         reader = read_choiceqr
     elif host.endswith(".restoapp.eu"):
         reader = read_restoapp
+    elif is_psme(url):
+        reader = read_psme
     else:
         return None
     try:

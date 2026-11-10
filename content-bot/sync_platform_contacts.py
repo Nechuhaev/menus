@@ -1,5 +1,5 @@
 """Години роботи, телефон, сайт та email ресторану з його QR-меню (Expirenza, ChoiceQR, RestoApp), а якщо QR-меню
-немає - з його сайту (розмітка schema.org, посилання tel:/mailto:, текст «Пн-Нд 10:00-22:00»). Кодом, без AI.
+немає - з його сайту (ps.me - теж QR-меню: settings.contacts у __NEXT_DATA__) (розмітка schema.org, посилання tel:/mailto:, текст «Пн-Нд 10:00-22:00»). Кодом, без AI.
 Картка ресторану - єдине джерело: «Розсилка» та сайт показують саме її, тому скрипт проходить по всіх закладах.
 
 Звідки:
@@ -38,7 +38,7 @@ import re
 from collections import Counter
 from urllib.parse import urlparse
 
-from menu_platforms import EXPZ_ROOT, RESTOAPP_API, fetch, is_restoapp
+from menu_platforms import EXPZ_ROOT, RESTOAPP_API, fetch, is_choiceqr_domain, is_psme, is_restoapp, psme_page_props
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import parse_qsl, urlencode, urlunparse
 
@@ -160,7 +160,26 @@ def read_restoapp(url):
 
 def is_platform(url):
     url = (url or "").strip()
-    return bool(url) and (bool(EXPZ_ROOT.match(url)) or ".choiceqr.com" in url.lower() or is_restoapp(url))
+    return bool(url) and (bool(EXPZ_ROOT.match(url)) or ".choiceqr.com" in url.lower() or is_choiceqr_domain(url)
+                          or is_restoapp(url) or is_psme(url))
+
+
+def read_psme_contacts(url):
+    """ps.me: settings.contacts - телефон, email, workingTime {"hours": "12:00 – 21:00", "allDay": false} (щодня)."""
+    contacts = (psme_page_props(url).get("settings") or {}).get("contacts") or {}
+    hours = None
+    working = contacts.get("workingTime") or {}
+    m = re.match(r"^\s*(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})\s*$", working.get("hours") or "")
+    if working.get("allDay"):
+        hours = week({i: ("00:00", "23:59") for i in range(7)})
+    elif m:
+        hours = week({i: (clock_text(m.group(1)), clock_text(m.group(2))) for i in range(7)})
+    return {"hours": hours, "phone": contacts.get("phone") or None, "email": contacts.get("email") or None, "website": None}
+
+
+def clock_text(value):
+    h, m = value.split(":")
+    return "00:00" if (int(h), m) == (24, "00") else f"{int(h):02d}:{m}"
 
 
 def platform_contacts(url):
@@ -168,7 +187,9 @@ def platform_contacts(url):
         return read_expz(url)
     if is_restoapp(url):
         return read_restoapp(url)
-    if urlparse(url).netloc.lower().endswith(".choiceqr.com"):
+    if is_psme(url):
+        return read_psme_contacts(url)
+    if urlparse(url).netloc.lower().endswith(".choiceqr.com") or is_choiceqr_domain(url):
         return read_choiceqr(url)
     return None
 
