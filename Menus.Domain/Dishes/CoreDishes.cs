@@ -229,7 +229,9 @@ namespace Menus.Domain.Dishes
             var hidden = new HashSet<string>(_db.Dishes
                 .Where(x => x.RestaurantId == restaurantId && x.Status != DishStatus.Active)
                 .Select(x => x.Id).ToList());
-            return hidden.Count == 0 ? dishes : dishes.Where(x => !hidden.Contains(x.Id)).ToList();
+            if (hidden.Count == 0) return dishes;
+            // процедуру EF не вміє доповнити WHERE - спершу читаємо результат, потім фільтруємо в пам'яті
+            return dishes.AsEnumerable().Where(x => !hidden.Contains(x.Id)).ToList();
         }
 
         public async Task<IEnumerable<IDish>> GetDishesForRestaurantWithUrl(string restaurantId)
