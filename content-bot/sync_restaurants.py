@@ -1137,6 +1137,7 @@ def menu_from_jsonld(raw_html):
     return found
 
 
+SITE_MENU_PARTIAL = {}  # menu_url -> True: прочитано не все меню (ліміт часу / сторінок) - не пропонуємо прибирати
 SITE_MENU_SOURCE = {}  # menu_url -> "code" | "AI": чим прочитано меню (для журналу)
 
 
@@ -1150,7 +1151,9 @@ def read_site_menu(restaurant_name, menu_url, force_ai=False):
     if key not in SITE_MENU_CACHE:
         SITE_MENU_CACHE[key] = _read_site_menu(restaurant_name, menu_url, force_ai)
         SITE_MENU_SOURCE[key] = SITE_MENU_SOURCE.get(menu_url)
+        SITE_MENU_PARTIAL[key] = SITE_MENU_PARTIAL.pop(menu_url, False)
     SITE_MENU_SOURCE[menu_url] = SITE_MENU_SOURCE[key]
+    SITE_MENU_PARTIAL[menu_url] = SITE_MENU_PARTIAL[key]
     # копія: sync_menu доповнює страви описом і фото
     return copy.deepcopy(SITE_MENU_CACHE[key])
 
@@ -1171,8 +1174,10 @@ def _read_site_menu(restaurant_name, menu_url, force_ai=False):
         if url not in subpages and url.rstrip("/") not in (menu_url.rstrip("/"), (base or "").rstrip("/")):
             subpages.append(url)
     started = time.time()
+    SITE_MENU_PARTIAL[menu_url] = len(subpages) > MAX_MENU_SUBPAGES
     for url in subpages[:MAX_MENU_SUBPAGES]:
         if time.time() - started > PAGES_TIME_LIMIT:
+            SITE_MENU_PARTIAL[menu_url] = True
             print(f"    menu pages: time limit {PAGES_TIME_LIMIT}s, read {len(pages)} of {len(subpages) + 1}")
             break
         # повний текст сторінки для коду; AI (якщо знадобиться) отримає перші 40 000 символів
@@ -1197,6 +1202,8 @@ def _read_site_menu(restaurant_name, menu_url, force_ai=False):
     else:
         SITE_MENU_SOURCE[menu_url] = "AI"
         # AI - не більше MAX_AI_PAGES сторінок: на великих сайтах (Pesto - десятки розділів) інакше десятки хвилин
+        if len(pages) > MAX_AI_PAGES:
+            SITE_MENU_PARTIAL[menu_url] = True
         extracted = [(d, page_base) for page_html, page_base, _ in pages[:MAX_AI_PAGES]
                      for d in extract_menu(restaurant_name, page_base, page_html[:40000])]
 
@@ -1775,15 +1782,18 @@ def sync_menu(db, restaurant, menu_url, force_ai=False):
         save_proposals(db, restaurant["Id"], [], [], price_changes)
         return f"menu not recognized ({stats}) at {menu_url}"
 
-    unmatched_ours = [d for d in our_dishes if d["Id"] not in matches]
+    partial = SITE_MENU_PARTIAL.get(menu_url, False)
+    # меню прочитане не все (Pesto: AI - 6 сторінок із десятків) - страв, яких не побачили, не пропонуємо прибрати
+    unmatched_ours = [] if partial else [d for d in our_dishes if d["Id"] not in matches]
     renames, unmatched_site, unmatched_ours = pair_renames(unmatched_site, unmatched_ours, name)
     save_proposals(db, restaurant["Id"], unmatched_site, unmatched_ours, price_changes, renames)
-    cur = db.cursor()
-    cur.execute("""INSERT INTO RestaurantSyncLog (RestaurantId, LastCheckedAt, MenuVerifiedAt) VALUES (%s, NOW(), NOW())
-                   ON DUPLICATE KEY UPDATE MenuVerifiedAt = NOW()""", (restaurant["Id"],))
-    db.commit()
-    cur.close()
-    return f"menu ok ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)} price {len(price_changes)} rename {len(renames)}"
+    if not partial:
+        cur = db.cursor()
+        cur.execute("""INSERT INTO RestaurantSyncLog (RestaurantId, LastCheckedAt, MenuVerifiedAt) VALUES (%s, NOW(), NOW())
+                       ON DUPLICATE KEY UPDATE MenuVerifiedAt = NOW()""", (restaurant["Id"],))
+        db.commit()
+        cur.close()
+    return f"menu {'partial' if partial else 'ok'} ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)} price {len(price_changes)} rename {len(renames)}"
 
 
 def fetch_restaurants_by_slug(db, slugs):
