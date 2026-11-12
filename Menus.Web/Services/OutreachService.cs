@@ -61,12 +61,73 @@ namespace Menus.Web.Services
         }
         // коли адмін востаннє застосував пропозиції синхронізації меню («Звіти» -> страви ресторану)
         public DateTime? MenuAppliedAt { get; set; }
-        public string MenuPlatform =>
+        // остання перевірка меню ботом (RestaurantSyncLog): «menu ok (site 283 (QR), ...) from https://...»
+        public string SyncNotes { get; set; }
+        public DateTime? SyncCheckedAt { get; set; }
+        // чим прочитано меню: QR-сервіс, код зі сторінки сайту чи AI
+        public string MenuReadBy
+        {
+            get
+            {
+                var m = Regex.Match(SyncNotes ?? "", @"site \d+ \((QR|code|AI)\)");
+                return !m.Success ? null : m.Groups[1].Value == "QR" ? "QR-меню" : m.Groups[1].Value == "code" ? "сайт, кодом" : "сайт, AI";
+            }
+        }
+        // підсумок перевірки: ok | partial | not recognized | інше (немає сайту, timeout, ...) | null - не перевірявся
+        public string MenuSyncStatus
+        {
+            get
+            {
+                var notes = SyncNotes ?? "";
+                if (notes.Length == 0) return null;
+                if (notes.Contains("menu ok")) return "розпізнано";
+                if (notes.Contains("menu partial")) return "прочитано частково";
+                if (notes.Contains("not recognized")) return "не розпізнано";
+                if (notes.Contains("timeout")) return "сайт задовгий (timeout)";
+                if (notes.Contains("unreachable")) return "сайт не відповідає";
+                if (notes.Contains("no website")) return "немає сайту";
+                if (notes.Contains("social network")) return "замість сайту соцмережа";
+                if (notes.Contains("LLM")) return "AI недоступний";
+                return null;
+            }
+        }
+        public bool MenuSyncOk => MenuSyncStatus == "розпізнано";
+        // звідки бот брав меню: адреса з журналу («from»/«at» ...), інакше посилання на меню чи сайт з картки
+        public string MenuSourceUrl
+        {
+            get
+            {
+                var m = Regex.Match(SyncNotes ?? "", @"\b(?:from|at) (https?://\S+)");
+                return m.Success ? m.Groups[1].Value : !string.IsNullOrWhiteSpace(MenuUrl) ? MenuUrl : Website;
+            }
+        }
+        public string MenuSourceName
+        {
+            get
+            {
+                var url = MenuSourceUrl;
+                if (string.IsNullOrWhiteSpace(url)) return null;
+                var platform = PlatformOf(url);
+                if (platform != null) return platform;
+                return Uri.TryCreate(url.Trim(), UriKind.Absolute, out var u) ? u.Host.Replace("www.", "") : url;
+            }
+        }
+        private static string PlatformOf(string u)
+        {
+            u = u ?? "";
+            if (u.IndexOf("choiceqr", StringComparison.OrdinalIgnoreCase) >= 0 || u.IndexOf("/section:", StringComparison.OrdinalIgnoreCase) >= 0) return "ChoiceQR";
+            if (u.IndexOf("restoapp.eu", StringComparison.OrdinalIgnoreCase) >= 0) return "RestoApp";
+            if (u.IndexOf(".ps.me", StringComparison.OrdinalIgnoreCase) >= 0) return "ps.me";
+            if (u.IndexOf("expz.menu", StringComparison.OrdinalIgnoreCase) >= 0 || u.IndexOf("expirenza", StringComparison.OrdinalIgnoreCase) >= 0) return "Expirenza";
+            return null;
+        }
+        public string MenuPlatformFromSync => MenuReadBy == "QR-меню" ? PlatformOf(MenuSourceUrl) : null;
+        public string MenuPlatform => MenuPlatformFromSync ?? (
             new[] { MenuUrl, Website }.Any(u => (u ?? "").IndexOf("choiceqr", StringComparison.OrdinalIgnoreCase) >= 0) ? "ChoiceQR" :
             new[] { MenuUrl, Website }.Any(u => (u ?? "").IndexOf("restoapp.eu", StringComparison.OrdinalIgnoreCase) >= 0) ? "RestoApp" :
             new[] { MenuUrl, Website }.Any(u => (u ?? "").IndexOf(".ps.me", StringComparison.OrdinalIgnoreCase) >= 0) ? "ps.me" :
             new[] { MenuUrl, Website }.Any(u => (u ?? "").IndexOf("expz.menu", StringComparison.OrdinalIgnoreCase) >= 0
-                                            || (u ?? "").IndexOf("expirenza", StringComparison.OrdinalIgnoreCase) >= 0) ? "Expirenza" : null;
+                                            || (u ?? "").IndexOf("expirenza", StringComparison.OrdinalIgnoreCase) >= 0) ? "Expirenza" : null);
         // меню оновлено з ChoiceQR/Expirenza: є QR-меню сервіс і застосовані пропозиції
         public bool MenuUpdatedFromQr => MenuPlatform != null && MenuAppliedAt != null && !QrSuspended;
         // перевірка «чи заклад працює» (RestaurantAliveCheck): ok | doubt | closed | qr_suspended
@@ -245,9 +306,11 @@ https://tipmymenu.com
                        (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl,
                        (SELECT ri.Website FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS Website,
                        (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt,
+                       sl.Notes AS SyncNotes, sl.LastCheckedAt AS SyncCheckedAt,
                        a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                 LEFT JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id
+                LEFT JOIN RestaurantSyncLog sl ON sl.RestaurantId = r.Id
                 WHERE r.Status = 0")).ToDictionary(x => x.Id);
             await Fill(restaurants, null);
             return restaurants.Values.OrderBy(x => x.Name).ToList();
@@ -265,9 +328,11 @@ https://tipmymenu.com
                        (SELECT ri.DisplayAddress FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS DisplayAddress,
                        (SELECT ri.OpenHours FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS OpenHours,
                        (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt,
+                       sl.Notes AS SyncNotes, sl.LastCheckedAt AS SyncCheckedAt,
                        a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                 LEFT JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id
+                LEFT JOIN RestaurantSyncLog sl ON sl.RestaurantId = r.Id
                 WHERE r.Id = @id", new { id });
             if (r == null) return null;
             await Fill(new Dictionary<string, OutreachRecipient> { [r.Id] = r }, id);
