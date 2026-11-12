@@ -77,6 +77,9 @@ RESTAURANT_STATUS_ACTIVE = 0
 RESTAURANT_STATUS_PENDING = 1
 # Зіставлення страв - найбільше викликів, тож дешевша модель
 CHEAP_MODEL = "claude-haiku-5-5"
+# OpenRouter: назви моделей можна змінити в .env, не чіпаючи код
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "anthropic/claude-sonnet-4.5")
+OPENROUTER_CHEAP_MODEL = os.environ.get("OPENROUTER_CHEAP_MODEL", "anthropic/claude-haiku-5.5")
 
 anthropic_client = Anthropic(api_key=CLAUDE_API_KEY)
 
@@ -119,6 +122,7 @@ PRICES_PER_MTOK = {
     "claude-haiku-5-5": (0.10, 0.50),
     "claude-sonnet-4-5": (3.00, 15.00),
     "anthropic/claude-sonnet-4.5": (3.00, 15.00),
+    "anthropic/claude-haiku-5.5": (0.10, 0.50),
 }
 WEB_SEARCH_USD = 0.01  # за один пошук web_search
 USAGE = {"input": 0, "output": 0, "cost": 0.0}
@@ -175,23 +179,29 @@ def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5", allow_empty_lis
         return "".join(b.text for b in message.content if b.type == "text")
 
     def try_openrouter():
-        resp = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": "anthropic/claude-sonnet-4.5",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": max_tokens,
-            },
-            timeout=90,
-        )
-        if resp.status_code >= 400:
-            print(f"    [LLM] OpenRouter HTTP {resp.status_code}: {resp.text[:300]}")
-        resp.raise_for_status()
-        data = resp.json()
-        usage = data.get("usage") or {}
-        record_usage("anthropic/claude-sonnet-4.5", usage.get("prompt_tokens"), usage.get("completion_tokens"))
-        return data["choices"][0]["message"]["content"]
+        # дешева модель (читання меню, години) - і через OpenRouter дешева, а не Sonnet; якщо OpenRouter не знає
+        # такої назви моделі (400/404) - один повтор із Sonnet
+        models = [OPENROUTER_CHEAP_MODEL, OPENROUTER_MODEL] if model == CHEAP_MODEL else [OPENROUTER_MODEL]
+        for i, or_model in enumerate(models):
+            resp = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": or_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                },
+                timeout=90,
+            )
+            if resp.status_code >= 400:
+                print(f"    [LLM] OpenRouter {or_model} HTTP {resp.status_code}: {resp.text[:300]}")
+                if resp.status_code in (400, 404) and i + 1 < len(models):
+                    continue
+            resp.raise_for_status()
+            data = resp.json()
+            usage = data.get("usage") or {}
+            record_usage(or_model, usage.get("prompt_tokens"), usage.get("completion_tokens"))
+            return data["choices"][0]["message"]["content"]
 
     def try_groq():
         resp = requests.post(
