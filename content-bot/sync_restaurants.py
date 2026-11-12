@@ -21,6 +21,7 @@ used only to check a restaurant with no website at all.
 
 Run daily via cron. Processes a batch of restaurants per run.
 One restaurant out of turn: python3 sync_restaurants.py --restaurant <page address or Id>
+All restaurants whose menu was not recognized, now: python3 sync_restaurants.py --unrecognized --limit 100
 """
 import html
 import json
@@ -68,6 +69,7 @@ DB_NAME = os.environ.get("DB_NAME", "menus")
 
 RESTAURANTS_PER_RUN = 20
 RECHECK_AFTER_DAYS = 30
+RECHECK_UNRECOGNIZED_DAYS = 7  # меню не розпізнане чи сайт не відповів - повтор через тиждень
 NOMINATIM_USER_AGENT = "TipMyMenuBot/1.0 (+https://tipmymenu.com)"
 
 RESTAURANT_STATUS_ACTIVE = 0
@@ -358,11 +360,14 @@ def fetch_restaurants_due_for_check(db, limit):
         RESTAURANT_COLUMNS + RESTAURANT_CLICKS_JOIN + """
         LEFT JOIN RestaurantSyncLog l ON l.RestaurantId = r.Id
         WHERE r.Status = %s
-          AND (l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY))
+          AND (l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY)
+               -- меню не розпізнане / сайт не відповів - повтор раніше: бот читає сайти краще з кожним оновленням
+               OR ((l.Notes LIKE '%%not recognized%%' OR l.Notes LIKE '%%unreachable%%')
+                   AND l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY)))
         ORDER BY IFNULL(k.Clicks, 0) DESC, l.LastCheckedAt IS NOT NULL, l.LastCheckedAt ASC
         LIMIT %s
         """,
-        (RESTAURANT_STATUS_ACTIVE, RECHECK_AFTER_DAYS, limit),
+        (RESTAURANT_STATUS_ACTIVE, RECHECK_AFTER_DAYS, RECHECK_UNRECOGNIZED_DAYS, limit),
     )
     rows = cur.fetchall()
     cur.close()
@@ -1134,15 +1139,19 @@ SITE_MENU_SOURCE = {}  # menu_url -> "code" | "AI": чим прочитано м
 SITE_MENU_CACHE = {}  # меню мережі читається один раз за запуск, а не для кожної філії
 
 
-def read_site_menu(restaurant_name, menu_url):
-    """Усі страви зі сторінки меню та її підсторінок, без повторів за назвою."""
-    if menu_url not in SITE_MENU_CACHE:
-        SITE_MENU_CACHE[menu_url] = _read_site_menu(restaurant_name, menu_url)
+def read_site_menu(restaurant_name, menu_url, force_ai=False):
+    """Усі страви зі сторінки меню та її підсторінок, без повторів за назвою.
+    force_ai - прочитати сторінки AI, навіть якщо код щось знайшов (меню з коду не збіглося з нашим)."""
+    key = (menu_url, force_ai)
+    if key not in SITE_MENU_CACHE:
+        SITE_MENU_CACHE[key] = _read_site_menu(restaurant_name, menu_url, force_ai)
+        SITE_MENU_SOURCE[key] = SITE_MENU_SOURCE.get(menu_url)
+    SITE_MENU_SOURCE[menu_url] = SITE_MENU_SOURCE[key]
     # копія: sync_menu доповнює страви описом і фото
-    return copy.deepcopy(SITE_MENU_CACHE[menu_url])
+    return copy.deepcopy(SITE_MENU_CACHE[key])
 
 
-def _read_site_menu(restaurant_name, menu_url):
+def _read_site_menu(restaurant_name, menu_url, force_ai=False):
     qr_menu = platform_menu(menu_url)
     if qr_menu is not None:
         SITE_MENU_SOURCE[menu_url] = "QR"
@@ -1174,7 +1183,7 @@ def _read_site_menu(restaurant_name, menu_url):
         for d in page_items:
             d["category"] = d["category"] or (heading if 0 < len(heading) <= 60 else None)
         by_code += [(d, page_base) for d in page_items]
-    if len({normalize_name(d["name"]) for d, _ in by_code}) >= MIN_SITE_DISHES:
+    if not force_ai and len({normalize_name(d["name"]) for d, _ in by_code}) >= MIN_SITE_DISHES:
         SITE_MENU_SOURCE[menu_url] = "code"
         extracted = by_code
     else:
@@ -1649,12 +1658,12 @@ def no_emoji(value):
     return re.sub(r"\s{2,}", " ", ASTRAL.sub("", value)).strip()
 
 
-def sync_menu(db, restaurant, menu_url):
+def sync_menu(db, restaurant, menu_url, force_ai=False):
     """Дані страв - лише з меню на сайті ресторану. Збіглі страви: ціна оновлюється (якщо зміна
     не більше ніж удвічі), порожні вага/опис/фото заповнюються. Додати чи прибрати страви -
     лише пропозиції для адміна, і лише коли меню розпізнане впевнено."""
     name = restaurant["Name"]
-    site_menu = read_site_menu(name, menu_url)
+    site_menu = read_site_menu(name, menu_url, force_ai)
     for d in site_menu:
         # emoji (4-байтові символи) таблиця Dishes не приймає: «Incorrect string value '\xF0\x9F...'»
         for key in ("name", "description", "weight", "category"):
@@ -1728,6 +1737,11 @@ def sync_menu(db, restaurant, menu_url):
     recognized = len(site_menu) >= MIN_SITE_DISHES and (
         from_qr or share >= MIN_MATCH_SHARE or (len(site_menu) >= LARGE_MENU_DISHES and share >= LARGE_MENU_MIN_SHARE))
 
+    if not recognized and not force_ai and SITE_MENU_SOURCE.get(menu_url) == "code" and not LLM_DOWN:
+        # код знайшов «страви», але меню не збіглося з нашим (кнопки, акції замість страв) - один раз читаємо AI
+        print(f"    menu by code not recognized ({stats}) - retry with AI")
+        return sync_menu(db, restaurant, menu_url, force_ai=True)
+
     if not recognized:
         # ціни збіглих за назвою страв достовірні й без розпізнаного меню
         save_proposals(db, restaurant["Id"], [], [], price_changes)
@@ -1764,6 +1778,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--restaurant", action="append", default=[], metavar="URL",
                         help="адреса сторінки закладу або Id - перевірити поза чергою (можна кілька)")
+    parser.add_argument("--unrecognized", action="store_true",
+                        help="одразу всі заклади, де меню не розпізнане (до --limit)")
+    parser.add_argument("--limit", type=int, default=RESTAURANTS_PER_RUN, help="скільки закладів за запуск")
     args = parser.parse_args()
     db = get_db()
     try:
@@ -1773,8 +1790,16 @@ def main():
         if args.restaurant:
             ensure_log_table(db)
             restaurants = fetch_restaurants_by_slug(db, args.restaurant)
+        elif args.unrecognized:
+            ensure_log_table(db)
+            cur = db.cursor(dictionary=True)
+            cur.execute(RESTAURANT_COLUMNS + """ JOIN RestaurantSyncLog l ON l.RestaurantId = r.Id
+                        WHERE r.Status = %s AND l.Notes LIKE '%%not recognized%%'
+                        ORDER BY l.LastCheckedAt LIMIT %s""", (RESTAURANT_STATUS_ACTIVE, args.limit))
+            restaurants = cur.fetchall()
+            cur.close()
         else:
-            restaurants = fetch_restaurants_due_for_check(db, RESTAURANTS_PER_RUN)
+            restaurants = fetch_restaurants_due_for_check(db, args.limit)
         if not restaurants:
             print("No restaurants due for check.")
             return
