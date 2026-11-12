@@ -27,6 +27,7 @@ import html
 import json
 import os
 import re
+import signal
 import socket
 import copy
 import difflib
@@ -362,7 +363,7 @@ def fetch_restaurants_due_for_check(db, limit):
         WHERE r.Status = %s
           AND (l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY)
                -- меню не розпізнане / сайт не відповів - повтор раніше: бот читає сайти краще з кожним оновленням
-               OR ((l.Notes LIKE '%%not recognized%%' OR l.Notes LIKE '%%unreachable%%')
+               OR ((l.Notes LIKE '%%not recognized%%' OR l.Notes LIKE '%%unreachable%%' OR l.Notes LIKE '%%timeout%%')
                    AND l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY)))
         ORDER BY IFNULL(k.Clicks, 0) DESC, l.LastCheckedAt IS NOT NULL, l.LastCheckedAt ASC
         LIMIT %s
@@ -921,6 +922,9 @@ MIN_MATCH_SHARE = 0.5
 LARGE_MENU_DISHES = 30
 LARGE_MENU_MIN_SHARE = 0.10
 MAX_MENU_SUBPAGES = 25
+MAX_AI_PAGES = 6            # AI читає не більше стількох сторінок меню
+PAGES_TIME_LIMIT = 120      # секунд на завантаження сторінок меню одного закладу
+RESTAURANT_TIME_LIMIT = 300  # секунд на весь заклад, далі - «timeout», повтор через RECHECK_UNRECOGNIZED_DAYS
 
 
 def extract_menu(restaurant_name, base_url, html):
@@ -1166,7 +1170,11 @@ def _read_site_menu(restaurant_name, menu_url, force_ai=False):
     for url in menu_nav_links(fetch_website_html.last_raw, base):
         if url not in subpages and url.rstrip("/") not in (menu_url.rstrip("/"), (base or "").rstrip("/")):
             subpages.append(url)
+    started = time.time()
     for url in subpages[:MAX_MENU_SUBPAGES]:
+        if time.time() - started > PAGES_TIME_LIMIT:
+            print(f"    menu pages: time limit {PAGES_TIME_LIMIT}s, read {len(pages)} of {len(subpages) + 1}")
+            break
         # повний текст сторінки для коду; AI (якщо знадобиться) отримає перші 40 000 символів
         sub_html, sub_base, _ = fetch_website_html(url, max_chars=400000)
         if sub_html:
@@ -1188,7 +1196,8 @@ def _read_site_menu(restaurant_name, menu_url, force_ai=False):
         extracted = by_code
     else:
         SITE_MENU_SOURCE[menu_url] = "AI"
-        extracted = [(d, page_base) for page_html, page_base, _ in pages
+        # AI - не більше MAX_AI_PAGES сторінок: на великих сайтах (Pesto - десятки розділів) інакше десятки хвилин
+        extracted = [(d, page_base) for page_html, page_base, _ in pages[:MAX_AI_PAGES]
                      for d in extract_menu(restaurant_name, page_base, page_html[:40000])]
 
     menu, seen = [], set()
@@ -1492,12 +1501,31 @@ def set_pending(db, restaurant_id, note):
     print(f"  -> {note}")
 
 
+class RestaurantTimeout(Exception):
+    pass
+
+
+def _on_timeout(signum, frame):
+    raise RestaurantTimeout()
+
+
 def process_restaurant(db, restaurant):
     """Обгортка: витрати AI на ресторан записуються в AiUsageLog за будь-якого результату."""
     USAGE.update(input=0, output=0, cost=0.0)
+    # ліміт часу на заклад: великий сайт (десятки сторінок, AI) не блокує весь запуск
+    signal.signal(signal.SIGALRM, _on_timeout)
+    signal.alarm(RESTAURANT_TIME_LIMIT)
     try:
         _process_restaurant(db, restaurant)
+    except RestaurantTimeout:
+        print(f"  -> timeout {RESTAURANT_TIME_LIMIT}s - skipped, retry in {RECHECK_UNRECOGNIZED_DAYS} days")
+        try:
+            db.rollback()
+            log_check(db, restaurant["Id"], f"timeout {RESTAURANT_TIME_LIMIT}s (site too big/slow)", closed_detected=False)
+        except Exception as e:
+            print(f"  timeout not logged: {e}")
     finally:
+        signal.alarm(0)
         try:
             save_usage(db, restaurant["Id"])
             print(f"  AI: {USAGE['input']} in / {USAGE['output']} out tokens, ${USAGE['cost']:.4f}")
