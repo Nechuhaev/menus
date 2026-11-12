@@ -1137,6 +1137,95 @@ def menu_from_jsonld(raw_html):
     return found
 
 
+# --- меню з JSON у сторінці (сайти на Next.js/Nuxt/React: страви приходять даними, а не HTML) -------------
+JSON_SCRIPT = re.compile(r'<script[^>]*type=["\']application/(?:json|ld\+json)["\'][^>]*>([\s\S]*?)</script>', re.I)
+JS_STATE = re.compile(r'window\.(?:__[A-Z_]+__|initialState|INITIAL_STATE|__data)\s*=\s*(\{[\s\S]*?\})\s*;?\s*</script>', re.I)
+NAME_KEYS = ("name", "title", "productName", "dishName", "label")
+PRICE_KEYS = ("price", "cost", "priceValue", "price_value", "amount", "basePrice")
+DESC_KEYS = ("description", "desc", "composition", "ingredients", "shortDescription")
+WEIGHT_KEYS = ("weight", "portion", "volume", "output", "size")
+IMAGE_KEYS = ("image", "img", "photo", "picture", "imageUrl", "image_url", "photoUrl")
+
+
+def _json_value(item, keys):
+    for k in keys:
+        v = item.get(k)
+        if isinstance(v, dict):  # {"uk": "...", "ru": "..."} чи {"amount": 120}
+            v = v.get("uk") or v.get("ua") or v.get("amount") or v.get("value") or next(iter(v.values()), None)
+        if isinstance(v, list) and v and isinstance(v[0], (str, dict)):
+            v = v[0] if isinstance(v[0], str) else (v[0].get("url") or v[0].get("src"))
+        if v not in (None, "", []):
+            return v
+    return None
+
+
+def _json_dish(item, category):
+    name = _json_value(item, NAME_KEYS)
+    price = parse_price(_json_value(item, PRICE_KEYS))
+    if not isinstance(name, str) or not name.strip() or not price or len(name) > 120:
+        return None
+    desc = _json_value(item, DESC_KEYS)
+    weight = _json_value(item, WEIGHT_KEYS)
+    if isinstance(desc, str):
+        desc = html.unescape(re.sub(r"<[^>]+>", " ", desc)).strip()
+        if WEIGHT_LINE.match(desc):  # «<p>350 г</p>» в описі - це вага
+            weight, desc = weight or desc, None
+    image = _json_value(item, IMAGE_KEYS)
+    return {"name": html.unescape(re.sub(r"<[^>]+>", " ", name)).strip(), "lang": None, "category": category,
+            "price": price, "weight": str(weight) if isinstance(weight, (int, float, str)) and weight else None,
+            "description": desc if isinstance(desc, str) and desc else None,
+            "image_url": image if isinstance(image, str) and re.match(r"(https?:)?//|/", image) else None, "url": None}
+
+
+def menu_from_embedded_json(raw_html):
+    """Страви з JSON, вбудованого в сторінку: списки об'єктів з назвою й ціною, де б вони не лежали.
+    Розділ - назва батьківського об'єкта зі списком страв («{name: 'Супи', products: [...]}»).
+    Ціни в копійках (усі > 5000 і кратні 100) діляться на 100."""
+    blobs = []
+    for text in JSON_SCRIPT.findall(raw_html or "") + JS_STATE.findall(raw_html or ""):
+        try:
+            blobs.append(json.loads(text.strip()))
+        except ValueError:
+            continue
+    best = []
+
+    def walk(node, category=None, depth=0):
+        nonlocal best
+        if depth > 12:
+            return
+        if isinstance(node, dict):
+            title = _json_value(node, NAME_KEYS)
+            for v in node.values():
+                if isinstance(v, list):
+                    dishes = [d for d in (_json_dish(x, title if isinstance(title, str) else category)
+                                          for x in v if isinstance(x, dict)) if d]
+                    if len(dishes) >= 3 and len(dishes) >= len(v) * 0.6:
+                        best.extend(dishes)
+                        continue
+                if isinstance(v, (dict, list)):
+                    walk(v, title if isinstance(title, str) else category, depth + 1)
+        elif isinstance(node, list):
+            dishes = [d for d in (_json_dish(x, category) for x in node if isinstance(x, dict)) if d]
+            if len(dishes) >= 3 and len(dishes) >= len(node) * 0.6:
+                best.extend(dishes)
+                return
+            for x in node:
+                walk(x, category, depth + 1)
+
+    for blob in blobs:
+        walk(blob)
+    seen, dishes = set(), []
+    for d in best:
+        key = (normalize_name(d["name"]), d["price"])
+        if key not in seen:
+            seen.add(key)
+            dishes.append(d)
+    if dishes and all(d["price"] > 5000 and d["price"] % 100 == 0 for d in dishes):
+        for d in dishes:
+            d["price"] = d["price"] / 100
+    return dishes
+
+
 SITE_MENU_PARTIAL = {}  # menu_url -> True: прочитано не все меню (ліміт часу / сторінок) - не пропонуємо прибирати
 SITE_MENU_SOURCE = {}  # menu_url -> "code" | "AI": чим прочитано меню (для журналу)
 
@@ -1189,7 +1278,8 @@ def _read_site_menu(restaurant_name, menu_url, force_ai=False):
     # спершу кодом: розмітка schema.org, потім «назва ... ціна» в тексті; AI - лише якщо код майже нічого не знайшов
     by_code = []
     for page_html, page_base, raw in pages:
-        page_items = menu_from_jsonld(raw) or menu_from_text(page_html, page_base)
+        # кодом: розмітка schema.org, JSON у сторінці (Next.js/Nuxt), потім «назва ... ціна» в тексті
+        page_items = menu_from_jsonld(raw) or menu_from_embedded_json(raw) or menu_from_text(page_html, page_base)
         # сторінка = розділ меню (44favorite: /catalog/burgery/) - розділ із заголовка сторінки
         h1 = re.search(r"<h1\b[^>]*>([\s\S]*?)</h1>", raw or "", re.I)
         heading = html.unescape(re.sub(r"<[^>]+>|\s+", " ", h1.group(1))).strip() if h1 else ""
@@ -1793,7 +1883,9 @@ def sync_menu(db, restaurant, menu_url, force_ai=False):
                        ON DUPLICATE KEY UPDATE MenuVerifiedAt = NOW()""", (restaurant["Id"],))
         db.commit()
         cur.close()
-    return f"menu {'partial' if partial else 'ok'} ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)} price {len(price_changes)} rename {len(renames)}"
+    # «from <адреса>» - звідки прочитано меню (адмінка «Розсилка» показує джерело)
+    return (f"menu {'partial' if partial else 'ok'} ({stats}); proposals: +{len(unmatched_site)} -{len(unmatched_ours)} "
+            f"price {len(price_changes)} rename {len(renames)} from {menu_url}")
 
 
 def fetch_restaurants_by_slug(db, slugs):

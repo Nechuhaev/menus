@@ -22,6 +22,7 @@
     .outreach table td { vertical-align: top; overflow-wrap: anywhere; }
     .outreach .muted { color: #777; font-size: 12px; }
     .outreach .pager { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+    .ok-text { color: #1b7f3b; }
 </style>
 
 <div class="site-content">
@@ -83,7 +84,7 @@
                 <div class="table-wrap">
                 <table class="mainTable">
                     <thead>
-                        <tr><th>Ресторан</th><th title="Чи заклад працює: content-bot/check_alive.py (сайт і QR-меню) або позначка адміна">Перевірка</th><th>Місто</th><th>Страв</th><th title="Меню оновлено з QR-меню сервісу: дата останньої застосованої пропозиції синхронізації">Меню з QR</th><th>Email</th><th>Telegram / Instagram</th><th>Остання відправка</th></tr>
+                        <tr><th>Ресторан</th><th title="Чи заклад працює: content-bot/check_alive.py (сайт і QR-меню) або позначка адміна">Перевірка</th><th>Місто</th><th>Страв</th><th title="Звідки бот бере меню (QR-сервіс чи сайт закладу, кодом чи AI), підсумок останньої перевірки й дата застосування пропозицій у «Звітах». Наведіть на підсумок - повний запис журналу">Меню</th><th>Email</th><th>Telegram / Instagram</th><th>Остання відправка</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var r in Model)
@@ -116,18 +117,26 @@
                                 <td>@(cityNames.TryGetValue(r.City ?? "", out var cityName) ? cityName : "")</td>
                                 <td>@r.Dishes</td>
                                 <td>
-                                    @if (r.MenuUpdatedFromQr)
+                                    @* звідки бот бере меню (QR-сервіс / сайт кодом / сайт AI), підсумок останньої перевірки і застосування *@
+                                    @if (r.MenuSourceName != null && (r.MenuReadBy != null || r.MenuPlatform != null))
                                     {
-                                        <span title="застосовано пропозиції синхронізації меню">✓ @r.MenuPlatform</span>
-                                        <div class="muted">@r.MenuAppliedAt.Value.ToString("dd.MM.yyyy")</div>
+                                        <div><strong>@(r.MenuPlatform ?? r.MenuSourceName)</strong> <span class="muted">@(r.MenuReadBy ?? (r.MenuPlatform != null ? "QR-меню" : ""))</span></div>
                                     }
-                                    else if (r.MenuPlatform != null)
+                                    else if (r.MenuSourceName != null)
                                     {
-                                        <span class="muted">@r.MenuPlatform, не застосовано</span>
+                                        <div>@r.MenuSourceName <span class="muted">сайт</span></div>
                                     }
-                                    else
+                                    @if (r.MenuSyncStatus != null)
                                     {
-                                        <span class="muted">—</span>
+                                        <div class="@(r.MenuSyncOk ? "ok-text" : "muted")" title="@r.SyncNotes">@(r.MenuSyncOk ? "✓ " : "")@r.MenuSyncStatus@(r.SyncCheckedAt != null ? " · " + r.SyncCheckedAt.Value.ToString("dd.MM") : "")</div>
+                                    }
+                                    else if (r.SyncCheckedAt == null)
+                                    {
+                                        <div class="muted">бот ще не перевіряв</div>
+                                    }
+                                    @if (r.MenuAppliedAt != null)
+                                    {
+                                        <div class="muted">застосовано @r.MenuAppliedAt.Value.ToString("dd.MM.yyyy")</div>
                                     }
                                 </td>
                                 <td>
