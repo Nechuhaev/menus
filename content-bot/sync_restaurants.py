@@ -1807,6 +1807,24 @@ def no_emoji(value):
     return re.sub(r"\s{2,}", " ", ASTRAL.sub("", value)).strip()
 
 
+def mark_qr_suspended(db, restaurant_id, menu_url):
+    try:
+        cur = db.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS RestaurantAliveCheck (
+                           RestaurantId VARCHAR(255) NOT NULL PRIMARY KEY, Status VARCHAR(16) NOT NULL, Reason TEXT NULL,
+                           Manual TINYINT(1) NOT NULL DEFAULT 0, CheckedAt DATETIME NOT NULL) DEFAULT CHARSET=utf8mb4""")
+        cur.execute("""INSERT INTO RestaurantAliveCheck (RestaurantId, Status, Reason, Manual, CheckedAt)
+                       VALUES (%s, 'qr_suspended', %s, 0, NOW())
+                       ON DUPLICATE KEY UPDATE Status = IF(Manual = 1, Status, VALUES(Status)),
+                                               Reason = IF(Manual = 1, Reason, VALUES(Reason)),
+                                               CheckedAt = IF(Manual = 1, CheckedAt, NOW())""",
+                    (restaurant_id, f"підписку ChoiceQR не продовжено ({menu_url})"[:500]))
+        db.commit()
+        cur.close()
+    except Exception as e:
+        print(f"    QR suspended mark not saved: {e}")
+
+
 def sync_menu(db, restaurant, menu_url, force_ai=False):
     """Дані страв - лише з меню на сайті ресторану. Збіглі страви: ціна оновлюється (якщо зміна
     не більше ніж удвічі), порожні вага/опис/фото заповнюються. Додати чи прибрати страви -
@@ -1817,7 +1835,9 @@ def sync_menu(db, restaurant, menu_url, force_ai=False):
         return f"menu is PDF - not read: {menu_url}"
     site_menu = read_site_menu(name, menu_url, force_ai)
     if not site_menu and any((menu_url or "").startswith(root) for root in QR_SUSPENDED):
-        # ChoiceQR: підписку не продовжено, меню приховане й від гостей - страви не чіпаємо
+        # ChoiceQR: підписку не продовжено, меню приховане й від гостей - страви не чіпаємо;
+        # позначка «QR-меню призупинено» в «Розсилці» (RestaurantAliveCheck, як check_alive.py; ручні не чіпаємо)
+        mark_qr_suspended(db, restaurant["Id"], menu_url)
         return f"QR menu suspended (subscription expired): {menu_url}"
     for d in site_menu:
         # emoji (4-байтові символи) таблиця Dishes не приймає: «Incorrect string value '\xF0\x9F...'»
