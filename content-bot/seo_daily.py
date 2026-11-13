@@ -10,6 +10,7 @@ Search Console дораховує останні 2-3 дні, тож щоразу
          python3 seo_daily.py --days 90    # перший запуск: історія за 90 днів
 Змінні в .env: GSC_KEY_FILE, GSC_SITE (як для gsc.py), GA4_PROPERTY (за замовчуванням 359387752).
 """
+import time
 import argparse
 import os
 from datetime import date, timedelta
@@ -57,12 +58,22 @@ def ga_days(days):
     url = f"https://analyticsdata.googleapis.com/v1beta/properties/{GA4_PROPERTY}:runReport"
     rows, offset, limit = [], 0, 100000
     while True:
-        resp = session.post(url, json={
+        body = {
             "dateRanges": [{"startDate": str(end - timedelta(days=days - 1)), "endDate": str(end)}],
             "dimensions": [{"name": "date"}, {"name": "pagePath"}],
             "metrics": [{"name": "screenPageViews"}, {"name": "sessions"}],
-            "limit": limit, "offset": offset}, timeout=120)
-        resp.raise_for_status()
+            "limit": limit, "offset": offset}
+        for attempt in range(4):  # 5xx у Google буває тимчасовим - повторюємо з паузою
+            resp = session.post(url, json=body, timeout=120)
+            if resp.status_code < 500:
+                break
+            time.sleep(10 * (attempt + 1))
+        if resp.status_code != 200:
+            try:
+                message = resp.json()["error"]["message"]
+            except Exception:
+                message = resp.text[:200]
+            raise RuntimeError(f"GA4 {resp.status_code}: {message}")
         data = resp.json()
         for r in data.get("rows", []):
             d, path = (v["value"] for v in r["dimensionValues"])
@@ -110,8 +121,10 @@ def main():
         n = save(db, "GaPageDays", ("Day", "Path", "Views", "Sessions"), ga_days(args.days), ga_first)
         print(f"GA4: {n} рядків (день x сторінка) з {ga_first}")
     except Exception as e:
-        print(f"GA4 пропущено: {str(e)[:300]}\n  додайте сервісний акаунт із GSC_KEY_FILE у GA4 "
-              f"(Адміністратор -> Керування доступом до ресурсу -> «Глядач») для ресурсу {GA4_PROPERTY}")
+        print(f"GA4 пропущено: {str(e)[:500]}")
+        if " 403" in str(e):
+            print(f"  перевірте: сервісний акаунт із GSC_KEY_FILE доданий у ресурс GA4 {GA4_PROPERTY} "
+                  f"і в його проєкті Google Cloud увімкнено Google Analytics Data API")
     db.close()
 
 
