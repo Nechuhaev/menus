@@ -257,11 +257,20 @@ def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5", allow_empty_lis
     if GEMINI_KEY:
         providers.append(("Gemini", try_gemini))
 
-    last_error = None
+    last_error, answered = None, False
     for i, (name, fn) in enumerate(providers):
         try:
-            return _extract_json(fn(), allow_empty_list)
+            raw = fn()
         except Exception as e:
+            raw, error = None, e
+        else:
+            try:
+                return _extract_json(raw, allow_empty_list)
+            except Exception as e:
+                # сервіс відповів, але не JSON (PDF, сторінка-заглушка) - він працює, проблема у вхідних даних
+                answered, error = True, e
+        if error is not None:
+            e = error
             last_error = e
             next_name = providers[i + 1][0] if i + 1 < len(providers) else None
             if next_name:
@@ -269,8 +278,11 @@ def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5", allow_empty_lis
             else:
                 print(f"    [LLM] {name} failed too: {e}")
 
-    global LLM_DOWN
-    LLM_DOWN = True
+    if not answered:
+        # жоден сервіс не відповів (кредити, ліміти) - зупиняємо запуск. Якщо хтось відповів, але без JSON,
+        # це проблема сторінки, а не AI: лише цей заклад/сторінка без результату
+        global LLM_DOWN
+        LLM_DOWN = True
     raise last_error
 
 
@@ -1274,6 +1286,7 @@ def _read_site_menu(restaurant_name, menu_url, force_ai=False):
             subpages.append(url)
     started = time.time()
     SITE_MENU_PARTIAL[menu_url] = len(subpages) > MAX_MENU_SUBPAGES
+    subpages = [u for u in subpages if not re.search(r"\.pdf$", urlparse(u).path, re.I)]
     for url in subpages[:MAX_MENU_SUBPAGES]:
         if time.time() - started > PAGES_TIME_LIMIT:
             SITE_MENU_PARTIAL[menu_url] = True
@@ -1798,6 +1811,9 @@ def sync_menu(db, restaurant, menu_url, force_ai=False):
     не більше ніж удвічі), порожні вага/опис/фото заповнюються. Додати чи прибрати страви -
     лише пропозиції для адміна, і лише коли меню розпізнане впевнено."""
     name = restaurant["Name"]
+    if re.search(r"\.pdf$", urlparse(menu_url or "").path, re.I):
+        # меню в PDF не читаємо (ні кодом, ні AI) - лише позначка в журналі для адміна
+        return f"menu is PDF - not read: {menu_url}"
     site_menu = read_site_menu(name, menu_url, force_ai)
     for d in site_menu:
         # emoji (4-байтові символи) таблиця Dishes не приймає: «Incorrect string value '\xF0\x9F...'»
