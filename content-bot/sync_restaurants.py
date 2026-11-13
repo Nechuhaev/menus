@@ -257,11 +257,20 @@ def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5", allow_empty_lis
     if GEMINI_KEY:
         providers.append(("Gemini", try_gemini))
 
-    last_error = None
+    last_error, answered = None, False
     for i, (name, fn) in enumerate(providers):
         try:
-            return _extract_json(fn(), allow_empty_list)
+            raw = fn()
         except Exception as e:
+            raw, error = None, e
+        else:
+            try:
+                return _extract_json(raw, allow_empty_list)
+            except Exception as e:
+                # сервіс відповів, але не JSON (PDF, сторінка-заглушка) - він працює, проблема у вхідних даних
+                answered, error = True, e
+        if error is not None:
+            e = error
             last_error = e
             next_name = providers[i + 1][0] if i + 1 < len(providers) else None
             if next_name:
@@ -269,8 +278,11 @@ def call_llm_json(prompt, max_tokens, model="claude-sonnet-4-5", allow_empty_lis
             else:
                 print(f"    [LLM] {name} failed too: {e}")
 
-    global LLM_DOWN
-    LLM_DOWN = True
+    if not answered:
+        # жоден сервіс не відповів (кредити, ліміти) - зупиняємо запуск. Якщо хтось відповів, але без JSON,
+        # це проблема сторінки, а не AI: лише цей заклад/сторінка без результату
+        global LLM_DOWN
+        LLM_DOWN = True
     raise last_error
 
 
