@@ -264,11 +264,25 @@ def choiceqr_api(root, query):
     return resp.json()
 
 
+QR_SUSPENDED = set()  # адреси QR-меню, де сервіс призупинено (ChoiceQR: place.expired - підписку не продовжено)
+
+
+def choiceqr_expired(root):
+    """True - підписка ChoiceQR закладу закінчилась (place.expired): меню приховане й від гостей."""
+    try:
+        return bool((choiceqr_api(root, "screen=desktop&lang=uk").get("place") or {}).get("expired"))
+    except Exception:
+        return False
+
+
 def read_choiceqr_api(root):
     """Меню ChoiceQR-лендингу з API: перша відповідь - страви першого розділу меню й список розділів;
     решта розділів - запитом ?section=<id> (не більше MAX_PAGES)."""
     base = "screen=desktop&lang=uk"
     app = choiceqr_api(root, base)
+    if (app.get("place") or {}).get("expired"):
+        QR_SUSPENDED.add(root)
+        return []
     items = parse_choiceqr_app(app) or []
     seen = {d.get("section") for d in app.get("menu") or []}
     for section in (app.get("sections") or [])[:MAX_PAGES]:
