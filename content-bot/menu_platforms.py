@@ -169,8 +169,16 @@ def parse_choiceqr_next_data(page_html):
         return None
     try:
         app = json.loads(m.group(1))["props"]["app"]
-        menu = app["menu"]
     except (ValueError, KeyError, TypeError):
+        return None
+    return parse_choiceqr_app(app)
+
+
+def parse_choiceqr_app(app):
+    """Страви з даних застосунку ChoiceQR ({menu, categories, sections}) - з __NEXT_DATA__ сторінки розділу
+    або з API /api/public/menu (лендинги). None, якщо поля menu немає."""
+    menu = (app or {}).get("menu")
+    if menu is None:
         return None
     categories = {c.get("_id"): (c.get("name") or "").strip() for c in app.get("categories") or []}
     skip = {s.get("_id") for s in app.get("sections") or [] if CHOICEQR_SKIP_SECTION.search(s.get("name") or "")}
@@ -241,6 +249,36 @@ def read_choiceqr(url):
     items = []
     for page_url in list(menus.values())[:MAX_PAGES]:
         items += parse_choiceqr_page(fetch(page_url))
+    if not menus:
+        # шаблон «Лендинг» (з листопада 2026): головна - візитка, без розділів і страв у HTML; меню браузер бере
+        # з API того ж домену, і лише з Referer/Origin сторінки (без них - «domain.cannotParse»)
+        items = read_choiceqr_api(root)
+    return items
+
+
+def choiceqr_api(root, query):
+    resp = requests.get(f"{root}api/public/menu?{query}", timeout=20,
+                        headers={**HEADERS, "Accept": "application/json",
+                                 "Referer": f"{root}online-menu", "Origin": root.rstrip("/")})
+    resp.raise_for_status()
+    return resp.json()
+
+
+def read_choiceqr_api(root):
+    """Меню ChoiceQR-лендингу з API: перша відповідь - страви першого розділу меню й список розділів;
+    решта розділів - запитом ?section=<id> (не більше MAX_PAGES)."""
+    base = "screen=desktop&lang=uk"
+    app = choiceqr_api(root, base)
+    items = parse_choiceqr_app(app) or []
+    seen = {d.get("section") for d in app.get("menu") or []}
+    for section in (app.get("sections") or [])[:MAX_PAGES]:
+        sid = section.get("_id")
+        if not sid or sid in seen or CHOICEQR_SKIP_SECTION.search(section.get("name") or ""):
+            continue
+        time.sleep(1)
+        part = choiceqr_api(root, f"{base}&section={sid}")
+        items += parse_choiceqr_app(part) or []
+        seen.add(sid)
     return items
 
 
