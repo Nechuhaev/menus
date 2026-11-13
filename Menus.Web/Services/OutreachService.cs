@@ -83,6 +83,8 @@ namespace Menus.Web.Services
                 if (notes.Contains("menu ok")) return "розпізнано";
                 if (notes.Contains("menu partial")) return "прочитано частково";
                 if (notes.Contains("not recognized")) return "не розпізнано";
+                if (notes.Contains("QR menu suspended")) return "QR-меню призупинено (підписку не продовжено)";
+                if (notes.Contains("menu is PDF")) return "меню в PDF (не читаємо)";
                 if (notes.Contains("timeout")) return "сайт задовгий (timeout)";
                 if (notes.Contains("unreachable")) return "сайт не відповідає";
                 if (notes.Contains("no website")) return "немає сайту";

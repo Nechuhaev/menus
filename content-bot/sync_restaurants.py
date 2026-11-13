@@ -42,7 +42,7 @@ import requests
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-from menu_platforms import clean_description, drop_generic_images, find_platform_link, platform_menu, sure_lang
+from menu_platforms import QR_SUSPENDED, clean_description, drop_generic_images, find_platform_link, platform_menu, sure_lang
 
 load_dotenv()
 
@@ -385,7 +385,8 @@ def fetch_restaurants_due_for_check(db, limit):
         WHERE r.Status = %s
           AND (l.LastCheckedAt IS NULL OR l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY)
                -- меню не розпізнане / сайт не відповів - повтор раніше: бот читає сайти краще з кожним оновленням
-               OR ((l.Notes LIKE '%%not recognized%%' OR l.Notes LIKE '%%unreachable%%' OR l.Notes LIKE '%%timeout%%')
+               OR ((l.Notes LIKE '%%not recognized%%' OR l.Notes LIKE '%%unreachable%%' OR l.Notes LIKE '%%timeout%%'
+                    OR l.Notes LIKE '%%QR menu suspended%%')
                    AND l.LastCheckedAt < DATE_SUB(NOW(), INTERVAL %s DAY)))
         ORDER BY IFNULL(k.Clicks, 0) DESC, l.LastCheckedAt IS NOT NULL, l.LastCheckedAt ASC
         LIMIT %s
@@ -1815,6 +1816,9 @@ def sync_menu(db, restaurant, menu_url, force_ai=False):
         # меню в PDF не читаємо (ні кодом, ні AI) - лише позначка в журналі для адміна
         return f"menu is PDF - not read: {menu_url}"
     site_menu = read_site_menu(name, menu_url, force_ai)
+    if not site_menu and any((menu_url or "").startswith(root) for root in QR_SUSPENDED):
+        # ChoiceQR: підписку не продовжено, меню приховане й від гостей - страви не чіпаємо
+        return f"QR menu suspended (subscription expired): {menu_url}"
     for d in site_menu:
         # emoji (4-байтові символи) таблиця Dishes не приймає: «Incorrect string value '\xF0\x9F...'»
         for key in ("name", "description", "weight", "category"):

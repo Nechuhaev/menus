@@ -26,6 +26,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from menu_platforms import choiceqr_expired
+
 from sync_restaurants import get_db
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
@@ -76,6 +78,9 @@ def fetch(url):
         return False, f"{r.status_code}"
     if SUSPENDED.search(text):
         return "suspended", "сервіс призупинено"
+    # ChoiceQR-лендинг: сторінка відкривається, але підписку не продовжено - меню приховане (place.expired)
+    if ".choiceqr.com" in (urlparse(r.url).hostname or "") and choiceqr_expired(f"https://{urlparse(r.url).hostname}/"):
+        return "suspended", "підписку ChoiceQR не продовжено"
     if PARKED.search(text):
         return False, "домен на продаж / хостинг заблоковано"
     if r.status_code >= 500:
