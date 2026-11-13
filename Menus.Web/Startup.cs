@@ -120,6 +120,7 @@ namespace Menus.Web
             services.AddScoped<TelegramOwnersService>();
             services.AddScoped<PopularRestaurantService>();
             services.AddScoped<SeoReportService>();
+            services.AddScoped<SeoDailyService>();
             services.AddScoped<UserVisitService>();
             services.AddScoped<IframeDesignService>();
             services.AddScoped<RestaurantRegistrationService>();

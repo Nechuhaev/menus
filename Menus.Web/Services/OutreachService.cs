@@ -137,6 +137,21 @@ namespace Menus.Web.Services
         public string AliveReason { get; set; }
         public bool AliveManual { get; set; }
         public DateTime? AliveCheckedAt { get; set; }
+        // власники сторінки (RestaurantRoles) і їхній останній вхід (UserVisits, UTC)
+        public int Owners { get; set; }
+        public DateTime? OwnerLastSeen { get; set; }
+        public string OwnerLastSeenText => Owners == 0 ? "немає власника"
+            : OwnerLastSeen == null ? "не входив"
+            : TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(OwnerLastSeen.Value, DateTimeKind.Utc), KyivZone).ToString("dd.MM.yyyy HH:mm");
+        private static readonly TimeZoneInfo KyivZone = FindKyivZone();
+        private static TimeZoneInfo FindKyivZone()
+        {
+            foreach (var id in new[] { "Europe/Kyiv", "Europe/Kiev", "FLE Standard Time" })
+            {
+                try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch (Exception) { }
+            }
+            return TimeZoneInfo.Utc;
+        }
         public bool Closed => AliveStatus == "closed";
         public bool QrSuspended => AliveStatus == "qr_suspended";
         public List<OutreachContact> Contacts { get; set; } = new List<OutreachContact>();
@@ -213,6 +228,14 @@ namespace Menus.Web.Services
                 Reason TEXT NULL,
                 Manual TINYINT(1) NOT NULL DEFAULT 0,
                 CheckedAt DATETIME NOT NULL
+            ) DEFAULT CHARSET=utf8mb4;
+            -- входи користувачів (пише UserVisitService) - тут лише щоб запит «Вхід власника» не падав на новій базі
+            CREATE TABLE IF NOT EXISTS UserVisits (
+                UserId VARCHAR(255) NOT NULL PRIMARY KEY,
+                FirstSeenAt DATETIME NOT NULL,
+                FirstIp VARCHAR(64) NULL,
+                LastSeenAt DATETIME NOT NULL,
+                LastIp VARCHAR(64) NULL
             ) DEFAULT CHARSET=utf8mb4;";
 
         // Перший шаблон, якщо в базі ще немає жодного
@@ -309,6 +332,8 @@ https://tipmymenu.com
                        (SELECT ri.Website FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS Website,
                        (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt,
                        sl.Notes AS SyncNotes, sl.LastCheckedAt AS SyncCheckedAt,
+                       (SELECT COUNT(*) FROM RestaurantRoles rr WHERE rr.RestaurantId = r.Id) AS Owners,
+                       (SELECT MAX(v.LastSeenAt) FROM RestaurantRoles rr JOIN UserVisits v ON v.UserId = rr.UserId WHERE rr.RestaurantId = r.Id) AS OwnerLastSeen,
                        a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                 LEFT JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id
@@ -331,6 +356,8 @@ https://tipmymenu.com
                        (SELECT ri.OpenHours FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS OpenHours,
                        (SELECT MAX(p.CreatedAt) FROM MenuSyncProposals p WHERE p.RestaurantId = r.Id AND p.Status = 'applied') AS MenuAppliedAt,
                        sl.Notes AS SyncNotes, sl.LastCheckedAt AS SyncCheckedAt,
+                       (SELECT COUNT(*) FROM RestaurantRoles rr WHERE rr.RestaurantId = r.Id) AS Owners,
+                       (SELECT MAX(v.LastSeenAt) FROM RestaurantRoles rr JOIN UserVisits v ON v.UserId = rr.UserId WHERE rr.RestaurantId = r.Id) AS OwnerLastSeen,
                        a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                 LEFT JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Menus.Domain;
@@ -15,20 +15,34 @@ namespace Menus.Web.Areas.Admin.Controllers
     {
         private readonly Core _core;
         private readonly DishCityPageService _pages;
+        private readonly SeoDailyService _daily;
 
-        public DishCityPagesController(Core core, DishCityPageService pages)
+        public DishCityPagesController(Core core, DishCityPageService pages, SeoDailyService daily)
         {
             _core = core;
             _pages = pages;
+            _daily = daily;
         }
 
-        public async Task<IActionResult> Index(string cityId)
+        // period: 7, 28, 90 або custom (from/to) - переходи на сторінки за період: Google (Search Console) і GA4
+        public async Task<IActionResult> Index(string cityId, string period = "28", System.DateTime? from = null, System.DateTime? to = null)
         {
             var cities = (await _core.Restaurants.GetCities()).ToList();
             cityId = cityId ?? cities.FirstOrDefault(x => x.Name.Get("en").ToLower() == "kyiv")?.Id ?? cities.First().Id;
+            var citySlug = cities.First(x => x.Id == cityId).Name.Get("en").ToLower();
             ViewData["cities"] = cities;
             ViewData["cityId"] = cityId;
-            ViewData["citySlug"] = cities.First(x => x.Id == cityId).Name.Get("en").ToLower();
+            ViewData["citySlug"] = citySlug;
+            ViewData["period"] = period;
+            var last = await _daily.GetLastDay();
+            ViewData["last"] = last;
+            if (last != null)
+            {
+                var range = SeoDailyService.Range(last.Value, period, from, to);
+                ViewData["from"] = range.From;
+                ViewData["to"] = range.To;
+                ViewData["stats"] = await _daily.GetDishCityStats(citySlug, range.From, range.To);
+            }
             return View(await _pages.GetAllForCity(cityId));
         }
 

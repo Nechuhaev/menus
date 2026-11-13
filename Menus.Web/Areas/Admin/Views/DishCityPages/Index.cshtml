@@ -1,4 +1,4 @@
-@model List<Menus.Web.Services.DishCityPage>
+﻿@model List<Menus.Web.Services.DishCityPage>
 @using Menus.Abstract.Models
 @{
     ViewData["Title"] = "Страва + місто";
@@ -7,6 +7,13 @@
     var cityId = ViewData["cityId"] as string;
     var citySlug = ViewData["citySlug"] as string;
     var minVenues = Menus.Web.Services.DishCityPageService.MinVenues;
+    var period = ViewData["period"] as string ?? "28";
+    var last = ViewData["last"] as DateTime?;
+    var from = ViewData["from"] as DateTime?;
+    var to = ViewData["to"] as DateTime?;
+    var stats = ViewData["stats"] as Dictionary<string, Menus.Web.Services.SeoSlugStats> ?? new Dictionary<string, Menus.Web.Services.SeoSlugStats>();
+    var hasGa = stats.Values.Any(x => x.Views > 0);
+    Menus.Web.Services.SeoSlugStats StatOf(string slug) => stats.TryGetValue((slug ?? "").ToLowerInvariant(), out var s) ? s : new Menus.Web.Services.SeoSlugStats();
 }
 
 <div class="site-content">
@@ -38,6 +45,26 @@
                         <option value="@city.Id" selected="@(city.Id == cityId)">@city.Name.Get("uk")</option>
                     }
                 </select>
+                @if (last != null)
+                {
+                    <span style="margin-left: 12px;">Переходи за:</span>
+                    <select name="period" id="dc-period">
+                        @foreach (var (key, title) in new[] { ("7", "7 днів"), ("28", "28 днів"), ("90", "90 днів"), ("custom", "свої дати") })
+                        {
+                            <option value="@key" selected="@(key == period)">@title</option>
+                        }
+                    </select>
+                    <span id="dc-dates" style="display: @(period == "custom" ? "inline" : "none");">
+                        <input type="date" name="from" value="@from?.ToString("yyyy-MM-dd")" max="@last?.ToString("yyyy-MM-dd")" /> —
+                        <input type="date" name="to" value="@to?.ToString("yyyy-MM-dd")" max="@last?.ToString("yyyy-MM-dd")" />
+                    </span>
+                    <button type="submit">Показати</button>
+                    <span style="color:#777; font-size:12px;">@from?.ToString("dd.MM.yyyy") – @to?.ToString("dd.MM.yyyy"); Google - кліки й покази (Search Console), GA4 - перегляди й сеанси</span>
+                }
+                else
+                {
+                    <span style="color:#777; font-size:12px; margin-left: 12px;">Переходів ще немає: запустіть content-bot/seo_daily.py --days 90</span>
+                }
                 <input type="text" id="dish-city-filter" placeholder="Фільтр за назвою" style="margin-left: 12px;" />
             </form>
 
@@ -64,6 +91,9 @@
                                 <th>Ресторанів</th>
                                 <th>Ціна: мін / медіана / макс</th>
                                 <th>Сторінка</th>
+                                <th data-sort="clicks" style="cursor:pointer" title="Сортувати">Кліки Google ↓</th>
+                                <th>Покази Google</th>
+                                @if (hasGa) { <th>Перегляди / сеанси GA4</th> }
                                 <th>SEO-текст</th>
                             </tr>
                         </thead>
@@ -90,6 +120,10 @@
                                             <span>/@dishPage.Slug</span>
                                         }
                                     </td>
+                                    @{ var st = StatOf(dishPage.Slug); }
+                                    <td data-clicks="@st.Clicks">@(st.Clicks > 0 ? st.Clicks.ToString("N0") : "–")</td>
+                                    <td>@(st.Impressions > 0 ? st.Impressions.ToString("N0") : "–")</td>
+                                    @if (hasGa) { <td>@(st.Views > 0 ? $"{st.Views:N0} / {st.Sessions:N0}" : "–")</td> }
                                     <td><a asp-action="Edit" asp-route-id="@dishPage.Id">@(string.IsNullOrWhiteSpace(dishPage.CustomText) ? "авто" : "власний")</a></td>
                                 </tr>
                             }
@@ -103,6 +137,18 @@
 </div>
 
 <script>
+    (function () {
+        var period = document.getElementById('dc-period'), dates = document.getElementById('dc-dates');
+        if (period && dates) period.addEventListener('change', function () { dates.style.display = period.value === 'custom' ? 'inline' : 'none'; });
+        // сортування за кліками Google (найбільше вгорі)
+        var th = document.querySelector('th[data-sort="clicks"]');
+        if (th) th.addEventListener('click', function () {
+            var body = th.closest('table').tBodies[0];
+            Array.from(body.rows).sort(function (a, b) {
+                return (+(b.querySelector('[data-clicks]') || {}).dataset.clicks || 0) - (+(a.querySelector('[data-clicks]') || {}).dataset.clicks || 0);
+            }).forEach(function (row) { body.appendChild(row); });
+        });
+    })();
     document.getElementById('dish-city-filter').addEventListener('input', function () {
         var q = this.value.trim().toLowerCase();
         document.querySelectorAll('tr[data-key]').forEach(function (row) {
