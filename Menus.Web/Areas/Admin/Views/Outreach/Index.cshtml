@@ -84,7 +84,7 @@
                 <div class="table-wrap">
                 <table class="mainTable">
                     <thead>
-                        <tr><th>Ресторан</th><th title="Чи заклад працює: content-bot/check_alive.py (сайт і QR-меню) або позначка адміна">Перевірка</th><th>Місто</th><th>Страв</th><th title="Звідки бот бере меню (QR-сервіс чи сайт закладу, кодом чи AI), підсумок останньої перевірки й дата застосування пропозицій у «Звітах». Наведіть на підсумок - повний запис журналу">Меню</th><th>Email</th><th>Telegram / Instagram</th><th>Остання відправка</th></tr>
+                        <tr><th>Ресторан</th><th title="Чи заклад працює: content-bot/check_alive.py (сайт і QR-меню) або позначка адміна">Перевірка</th><th>Місто</th><th>Страв</th><th title="Звідки бот бере меню (QR-сервіс чи сайт закладу, кодом чи AI), підсумок останньої перевірки й дата застосування пропозицій у «Звітах». Наведіть на підсумок - повний запис журналу">Меню</th><th>Email</th><th>Telegram / Instagram</th><th title="Останній вхід на сайт користувача-власника сторінки (час - Київ)">Вхід власника</th><th>Остання відправка</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var r in Model)
@@ -161,6 +161,7 @@
                                         <div><a href="https://@value" target="_blank" rel="noopener">@value</a></div>
                                     }
                                 </td>
+                                <td class="muted">@r.OwnerLastSeenText</td>
                                 <td class="muted">@(r.LastSent?.ToString("dd.MM.yyyy HH:mm"))</td>
                             </tr>
                         }

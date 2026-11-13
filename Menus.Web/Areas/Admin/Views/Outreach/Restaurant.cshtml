@@ -47,6 +47,7 @@
             }
 
             <h2>@Model.Name @if (Model.Closed) { <span class="closed-badge">ЗАКРИТО</span> }</h2>
+            <p class="muted">Вхід власника: @Model.OwnerLastSeenText</p>
             <div class="alive-box">
                 @if (Model.Closed)
                 {

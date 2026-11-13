@@ -1,0 +1,51 @@
+@model List<Menus.Web.Services.SeoDayPoint>
+@* Графіки по днях (inline SVG, без бібліотек): покази й кліки з Search Console, перегляди з GA4.
+   Наведіть на точку - дата й значення. Останні 2-3 дні Search Console ще дораховує. *@
+@{
+    var points = Model ?? new List<Menus.Web.Services.SeoDayPoint>();
+    var series = new List<(string Title, string Color, Func<Menus.Web.Services.SeoDayPoint, int> Value)>
+    {
+        ("Покази (Google)", "#1a73e8", p => p.Impressions),
+        ("Кліки (Google)", "#1a7f37", p => p.Clicks),
+    };
+    if (points.Any(p => p.Views > 0))
+    {
+        series.Add(("Перегляди (GA4)", "#e37400", p => p.Views));
+    }
+    const int W = 720, H = 120, Pad = 4;
+}
+<style>
+    .daily-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 12px 0 18px; }
+    .daily-chart { border: 1px solid #e3e3e3; border-radius: 8px; padding: 8px 10px; background: #fff; }
+    .daily-chart .head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+    .daily-chart .head b { font-size: 15px; }
+    .daily-chart svg { width: 100%; height: 120px; display: block; }
+    .daily-chart .axis { display: flex; justify-content: space-between; font-size: 11px; color: #777; }
+</style>
+@if (points.Count > 0)
+{
+    <div class="daily-charts">
+        @foreach (var (title, color, value) in series)
+        {
+            var values = points.Select(value).ToList();
+            var max = Math.Max(1, values.Max());
+            var step = points.Count > 1 ? (double)(W - 2 * Pad) / (points.Count - 1) : 0;
+            string X(int i) => (Pad + i * step).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+            string Y(int v) => (H - Pad - (double)v / max * (H - 2 * Pad)).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+            var line = string.Join(" ", values.Select((v, i) => $"{X(i)},{Y(v)}"));
+            <div class="daily-chart">
+                <div class="head"><span>@title</span><span><b>@values.Sum().ToString("N0")</b> <span style="color:#777">макс. @values.Max().ToString("N0")/день</span></span></div>
+                <svg viewBox="0 0 @W @H" preserveAspectRatio="none" role="img" aria-label="@title по днях">
+                    <line x1="0" y1="@Y(max)" x2="@W" y2="@Y(max)" stroke="#eee" />
+                    <line x1="0" y1="@Y(0)" x2="@W" y2="@Y(0)" stroke="#ddd" />
+                    <polyline points="@line" fill="none" stroke="@color" stroke-width="2" vector-effect="non-scaling-stroke" />
+                    @for (var i = 0; i < points.Count; i++)
+                    {
+                        <circle cx="@X(i)" cy="@Y(values[i])" r="@(points.Count > 60 ? 2 : 3)" fill="@color"><title>@points[i].Day.ToString("dd.MM.yyyy"): @values[i].ToString("N0")</title></circle>
+                    }
+                </svg>
+                <div class="axis"><span>@points.First().Day.ToString("dd.MM")</span><span>@points.Last().Day.ToString("dd.MM")</span></div>
+            </div>
+        }
+    </div>
+}
