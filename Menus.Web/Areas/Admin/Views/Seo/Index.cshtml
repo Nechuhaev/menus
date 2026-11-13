@@ -13,7 +13,7 @@
     var period = ViewData["period"] as string ?? "7";
     var kind = ViewData["kind"] as string;
     var list = ViewData["list"] as string;
-    var page = ViewData["page"] as string;
+    var pageUrl = ViewData["page"] as string;
     var periods = new[] { ("1", "останній день"), ("7", "7 днів"), ("28", "28 днів"), ("90", "90 днів"), ("custom", "свої дати") };
     var lists = new[] { ("gain", "Найбільший ріст"), ("loss", "Найбільше падіння"), ("new", "Нові в Google"), ("top", "Найбільше показів") };
     var hasGa = totals.Any(t => t.Views > 0 || t.PrevViews > 0);
@@ -76,9 +76,9 @@
                             <option value="@key" selected="@(key == list)">@title</option>
                         }
                     </select>
-                    @if (!string.IsNullOrEmpty(page))
+                    @if (!string.IsNullOrEmpty(pageUrl))
                     {
-                        <input type="hidden" name="url" value="@page" />
+                        <input type="hidden" name="url" value="@pageUrl" />
                     }
                     <button type="submit">Показати</button>
                     <span class="muted">@D(from) – @D(to) проти @D(prevFrom) – @D(prevTo). Дані Search Console - по @D(last) (останні 2-3 дні Google ще дораховує).</span>
@@ -86,9 +86,9 @@
 
                 <h3>
                     По днях:
-                    @if (!string.IsNullOrEmpty(page))
+                    @if (!string.IsNullOrEmpty(pageUrl))
                     {
-                        <span>сторінка <a href="@page" target="_blank" rel="noopener">@ShortPath(page)</a></span>
+                        <span>сторінка <a href="@pageUrl" target="_blank" rel="noopener">@ShortPath(pageUrl)</a></span>
                         <a class="muted" href="@Url.Action("Index", new { period, from = from?.ToString("yyyy-MM-dd"), to = to?.ToString("yyyy-MM-dd"), kind, list })">× усі сторінки</a>
                     }
                     else
@@ -140,7 +140,7 @@
                         <tbody>
                             @foreach (var p in Model)
                             {
-                                <tr class="@(p.Page == page ? "selected" : "")">
+                                <tr class="@(p.Page == pageUrl ? "selected" : "")">
                                     <td>
                                         <a href="@Url.Action("Index", new { period, from = from?.ToString("yyyy-MM-dd"), to = to?.ToString("yyyy-MM-dd"), kind, list, url = p.Page })">@ShortPath(p.Page)</a>
                                         <a class="muted" href="@p.Page" target="_blank" rel="noopener">↗</a>
