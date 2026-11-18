@@ -3,6 +3,7 @@
 
 @inject Menus.Web.Services.UserService UserService
 @inject Menus.Web.Services.CatalogService CatalogSvc
+@inject Menus.Web.Services.NewVenueService NewVenueSvc
 @{
     var catalogVenues = await CatalogSvc.GetVenueMap();
     var CurrentUser = await UserService.GetUserById(User.Identity.Name);
@@ -25,6 +26,8 @@
                 <div class="title-section--left">
                     <h2>Рестораны</h2>
                     <a asp-area="Restaurants" asp-controller="Manage" asp-action="Register" class="create_plus"><span>+</span></a>
+                    @{ var newVenueCounts = await NewVenueSvc.Counts(); }
+                    <a asp-controller="NewVenues" asp-action="Index" style="margin-left:16px;white-space:nowrap;">Нові заклади (@(newVenueCounts.TryGetValue("new", out var nvc) ? nvc : 0))</a>
                 </div>
                 <div class="title-section--right">
                     <form method="get" id="createdByForm">

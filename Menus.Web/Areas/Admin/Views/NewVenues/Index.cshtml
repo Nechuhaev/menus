@@ -1,0 +1,153 @@
+@model List<Menus.Web.Services.NewVenueCandidate>
+@using Menus.Abstract.Models
+@using Menus.Web.Services
+@{
+    ViewData["Title"] = "Нові заклади";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var status = ViewData["status"] as string;
+    var cityId = ViewData["cityId"] as string;
+    var cities = ViewData["cities"] as List<ICity> ?? new List<ICity>();
+    var counts = ViewData["counts"] as Dictionary<string, int> ?? new Dictionary<string, int>();
+    string CityName(string id) => cities.FirstOrDefault(c => c.Id == id)?.Name.Get("uk") ?? "";
+    string CitySlug(string id) => cities.FirstOrDefault(c => c.Id == id)?.Name.Get("en").ToLower() ?? "";
+}
+
+<style>
+    .nv .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin: 12px 0; }
+    .nv .tabs a { flex: 0 0 auto; padding: 8px 14px; border: 1px solid #ddd; border-radius: 18px; white-space: nowrap; text-decoration: none; color: #333; }
+    .nv .tabs a.on { background: #ffb80e; border-color: #ffb80e; font-weight: 600; }
+    .nv .muted { color: #777; font-size: 12px; }
+    /* картки замість таблиці: на телефоні в одну колонку, без горизонтальної прокрутки */
+    .nv .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+    @@media (max-width: 400px) { .nv .list { grid-template-columns: 1fr; } }
+    .nv .card { border: 1px solid #e5e5e5; border-radius: 10px; padding: 12px; background: #fff; display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
+    .nv .card h3 { margin: 0; font-size: 17px; }
+    .nv .vol { font-weight: 600; color: #1a7f37; }
+    .nv .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .nv .actions form { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+    .nv .actions button { min-height: 36px; }
+    .nv .actions input[type=text] { min-width: 0; flex: 1 1 140px; }
+</style>
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center nv">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-controller="Restaurants" asp-action="Index">Рестораны</a></li>
+                    <li>Нові заклади</li>
+                </ul>
+            </div>
+            <h2>Нові заклади</h2>
+            <p class="muted">
+                Заклади, чиє меню шукають у Google, а в нас їх немає: запити конкурентів (Serpstat) + адреса, сайт, телефон з OpenStreetMap
+                (content-bot/new_venues.py). «Додати» - бот створить заклад уночі, наступної ночі підтягне меню з сайту чи QR-меню,
+                визначить тип, кухні й район; до появи меню сторінка закрита від індексації.
+            </p>
+
+            @if (TempData["message"] != null)
+            {
+                <p><strong>@TempData["message"]</strong></p>
+            }
+
+            <div class="tabs">
+                @foreach (var s in NewVenueService.Statuses)
+                {
+                    <a href="@Url.Action("Index", new { status = s.Key, cityId })" class="@(s.Key == status ? "on" : "")">@s.Value (@(counts.TryGetValue(s.Key, out var n) ? n : 0))</a>
+                }
+            </div>
+            <form method="get" style="margin-bottom:12px;">
+                <input type="hidden" name="status" value="@status" />
+                <select name="cityId" onchange="this.form.submit()">
+                    <option value="">Усі міста</option>
+                    @foreach (var c in cities)
+                    {
+                        <option value="@c.Id" selected="@(c.Id == cityId)">@c.Name.Get("uk")</option>
+                    }
+                </select>
+            </form>
+
+            @if (!Model.Any())
+            {
+                <p class="muted">Порожньо. Кандидатів збирає бот: <code>cd /root/menus/content-bot && venv/bin/python new_venues.py</code></p>
+            }
+            <div class="list">
+                @foreach (var v in Model)
+                {
+                    <div class="card">
+                        <h3>@v.Name <span class="muted">@CityName(v.CityId)</span></h3>
+                        <div><span class="vol">@v.Volume.ToString("N0")</span> <span class="muted">запитів/міс · «@v.Keyword»</span></div>
+                        <div>@(string.IsNullOrWhiteSpace(v.Address) ? "адреса невідома" : v.Address)
+                            @if (!string.IsNullOrEmpty(v.Lat))
+                            {
+                                <a class="muted" href="https://www.openstreetmap.org/@v.OsmKey" target="_blank" rel="noopener">OSM ↗</a>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(v.Website))
+                        {
+                            <div><a href="@v.Website" target="_blank" rel="noopener nofollow">@v.Website ↗</a></div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(v.Phone) || !string.IsNullOrWhiteSpace(v.OpenHours) || !string.IsNullOrWhiteSpace(v.Cuisine))
+                        {
+                            <div class="muted">@string.Join(" · ", new[] { v.Phone, v.OpenHours, v.Cuisine }.Where(x => !string.IsNullOrWhiteSpace(x)))</div>
+                        }
+                        @if (Uri.TryCreate(v.SourceUrl ?? "", UriKind.Absolute, out var sourceUri))
+                        {
+                            <div class="muted">у конкурента: <a href="@v.SourceUrl" target="_blank" rel="noopener nofollow">@sourceUri.Host ↗</a></div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(v.Note))
+                        {
+                            <div class="muted">Примітка: @v.Note</div>
+                        }
+                        @if (v.Status == "added" && v.RestaurantSlug != null)
+                        {
+                            <div>
+                                <a href="/uk/@CitySlug(v.CityId)/restaurant/@v.RestaurantSlug" target="_blank" rel="noopener">сторінка закладу ↗</a> ·
+                                <a asp-controller="Outreach" asp-action="Restaurant" asp-route-id="@v.RestaurantId">картка в «Розсилці»</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="actions">
+                                @if (v.Status != "approved")
+                                {
+                                    <form method="post" asp-action="SetStatus">
+                                        <input type="hidden" name="id" value="@v.Id" /><input type="hidden" name="status" value="approved" />
+                                        <input type="hidden" name="returnStatus" value="@status" /><input type="hidden" name="cityId" value="@cityId" />
+                                        <button type="submit">Додати</button>
+                                    </form>
+                                }
+                                @if (v.Status != "rejected")
+                                {
+                                    <form method="post" asp-action="SetStatus">
+                                        <input type="hidden" name="id" value="@v.Id" /><input type="hidden" name="status" value="rejected" />
+                                        <input type="hidden" name="returnStatus" value="@status" /><input type="hidden" name="cityId" value="@cityId" />
+                                        <button type="submit">Не додавати</button>
+                                    </form>
+                                }
+                                @if (v.Status != "duplicate")
+                                {
+                                    <form method="post" asp-action="SetStatus">
+                                        <input type="hidden" name="id" value="@v.Id" /><input type="hidden" name="status" value="duplicate" />
+                                        <input type="hidden" name="returnStatus" value="@status" /><input type="hidden" name="cityId" value="@cityId" />
+                                        <input type="text" name="note" placeholder="дубль якого закладу" />
+                                        <button type="submit">Дубль</button>
+                                    </form>
+                                }
+                                @if (v.Status != "new")
+                                {
+                                    <form method="post" asp-action="SetStatus">
+                                        <input type="hidden" name="id" value="@v.Id" /><input type="hidden" name="status" value="new" />
+                                        <input type="hidden" name="returnStatus" value="@status" /><input type="hidden" name="cityId" value="@cityId" />
+                                        <button type="submit">↩ У нові</button>
+                                    </form>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </main>
+</div>
