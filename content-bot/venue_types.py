@@ -54,6 +54,47 @@ CUISINE_RULES = [
     ("bary", r"(?<![\w-])бар(?!\w)|\bbar\b|коктейл"),
     ("kafe", r"(?<!\w)кафе|пекарн|кондитер|бургер|фаст.?фуд|fast.?food|bakery"),
 ]
+# Кухні: slug -> назва uk (сторінки /restaurants/kukhnia/{slug}); правила - за полем «Кухня» (усі мови)
+CUISINES = {
+    "hruzynska": "Грузинська", "italiiska": "Італійська", "yaponska": "Японська", "ukrainska": "Українська",
+    "yevropeiska": "Європейська", "aziiska": "Азійська", "kytaiska": "Китайська", "koreiska": "Корейська",
+    "vietnamska": "В'єтнамська", "taiska": "Тайська", "uzbetska": "Узбецька", "krymskotatarska": "Кримськотатарська",
+    "virmenska": "Вірменська", "yevreiska": "Єврейська", "amerykanska": "Американська", "meksykanska": "Мексиканська",
+    "frantsuzka": "Французька", "seredzemnomorska": "Середземноморська", "ryba-moreprodukty": "Риба й морепродукти",
+    "miasna": "М'ясна, стейки", "vegetarianska": "Вегетаріанська",
+}
+CUISINE_TEXT_RULES = {
+    "hruzynska": r"грузин|georgian|хинкал|хінкал|хачапур",
+    "italiiska": r"італ|итал|ital|піц|пицц|pizz|трато?р|trattor|остері|остери|osteria",
+    "yaponska": r"япон|japan|суш|sushi|рамен|ramen|izakaya",
+    "ukrainska": r"україн|украин|укаїн|ukrain",
+    "yevropeiska": r"європ|европ|europ",
+    "aziiska": r"(?<!кавк)азі[йя]|азиат|asian|паназ|pan.?asian|\bвок\b|\bwok\b",
+    "kytaiska": r"китай|chinese",
+    "koreiska": r"корей|korean",
+    "vietnamska": r"в.?єтнам|вьетнам|vietnam",
+    "taiska": r"(?<!ки)тайськ|(?<!ки)тайск|\bthai\b",
+    "uzbetska": r"узбе[кц]|uzbek",
+    "krymskotatarska": r"кримськотатар|крымскотатар|crimean",
+    "virmenska": r"вірмен|армян|armenian",
+    "yevreiska": r"єврей|еврей|jewish|кошер|kosher|ізраїл|израил|israel",
+    "amerykanska": r"америк|american|бургер|burger|\bbbq\b|барбекю|tex.?mex",
+    "meksykanska": r"мексик|mexic",
+    "frantsuzka": r"франц|french",
+    "seredzemnomorska": r"середземн|средиземн|mediterr|грец|грец|греческ|greek",
+    "ryba-moreprodukty": r"риб|рыб|fish|seafood|морепрод|устриц|oyster",
+    "miasna": r"м.?ясн|мясн|meat|стейк|steak",
+    "vegetarianska": r"вегет|веган|vegan|vegetar",
+}
+# якщо поле «Кухня» порожнє - за стравами меню (ключові страви кухні, частка від страв)
+CUISINE_MENU_RULES = {
+    "hruzynska": (re.compile(r"хінкал|хинкал|хачапур|чахохбіл|чахохбил|оджахур|чашушул|пхалі|пхали|аджапсандал|сацив|шкмерул|лобіо|лобио", re.I), 0.06),
+    "italiiska": (re.compile(r"піц|пицц|pizz|паст[аи]\b|спагет|карбонар|різот|ризот|лазань|тірамісу|тирамису|брускет|равіол|равиол", re.I), 0.2),
+    "yaponska": (re.compile(r"суш[іи]|sushi|ролл|\bрол\b|маки|урамак|нігір|нигир|сашим|рамен|гункан", re.I), 0.2),
+    "ukrainska": (re.compile(r"борщ|варени|деруни|голубц|голубці|сирник|галушк|холодец|холодець|сало\b|банош|пампуш", re.I), 0.06),
+    "uzbetska": (re.compile(r"плов|лагман|самс|манти|шурп", re.I), 0.06),
+}
+
 PIZZA = re.compile(r"піц|пицц|pizz", re.I)
 SUSHI = re.compile(r"суш[іи]|sushi|ролл|\bрол\b|маки|урамак|нігір|нигир|гункан|каліфорні|калифорни|філадельф|филадельф", re.I)
 COFFEE = re.compile(r"капуч|латте|еспрес|эспрес|американо|раф\b|флет|кава|кофе|coffee|какао|матча", re.I)
@@ -84,6 +125,9 @@ def menu_stats(db):
                 st["coffee"] += 1
             continue
         st["food"] += 1
+        for cuisine, (rx, _) in CUISINE_MENU_RULES.items():
+            if rx.search(name):
+                st["c:" + cuisine] += 1
         if PIZZA.search(name):
             st["pizza"] += 1
         if SUSHI.search(name):
@@ -114,6 +158,19 @@ def venue_type(name, cuisine, st):
     return "restorany", "за замовчуванням" if st["all"] else "меню немає, за замовчуванням"
 
 
+def venue_cuisines(cuisine_text, st):
+    """([slug кухонь], причина): поле «Кухня», а якщо воно нічого не дало - склад меню."""
+    found = [c for c, rx in CUISINE_TEXT_RULES.items() if re.search(rx, cuisine_text or "", re.I)]
+    if found:
+        return found, "кухня: " + (cuisine_text or "").strip()[:200]
+    food = st["food"]
+    if food >= 15:
+        found = [c for c, (_, share) in CUISINE_MENU_RULES.items() if st["c:" + c] >= 3 and st["c:" + c] >= share * food]
+        if found:
+            return found, "меню: " + ", ".join(f"{CUISINES[c]} {st['c:' + c]} з {food}" for c in found)
+    return [], "не визначено"
+
+
 def ensure_table(db):
     cur = db.cursor()
     cur.execute("""CREATE TABLE IF NOT EXISTS RestaurantVenue (
@@ -130,6 +187,10 @@ def ensure_table(db):
         Lon VARCHAR(32) NULL,
         UpdatedAt DATETIME NOT NULL
     ) DEFAULT CHARSET=utf8mb4""")
+    # кухні (slug через кому), чому так, ручна зміна з адмінки
+    cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS Cuisines VARCHAR(500) NULL")
+    cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS CuisinesReason VARCHAR(255) NULL")
+    cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS CuisinesManual TINYINT(1) NOT NULL DEFAULT 0")
     db.commit()
     cur.close()
 
@@ -177,7 +238,7 @@ def main():
         where += " AND (r.Id = %s OR rs.Url = %s)"
         params += [args.restaurant, args.restaurant]
     cur.execute(f"""SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, ri.Cuisine, ri.GpsLatitude, ri.GpsLongitude,
-                           v.VenueType, v.TypeManual, v.DistrictManual, v.DistrictSlug, v.Lat, v.Lon
+                           v.VenueType, v.TypeManual, v.DistrictManual, v.DistrictSlug, v.Lat, v.Lon, v.Cuisines, v.CuisinesManual
                     FROM Restaurants r
                     LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                     LEFT JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
@@ -188,6 +249,8 @@ def main():
 
     write = db.cursor()
     by_type = Counter()
+    by_cuisine = Counter()
+    no_cuisine = 0
     changed = 0
     for r in restaurants:
         cuisine = " ".join(get_localizable_value(r["Cuisine"], lang) for lang in ("uk", "ru", "en"))
@@ -197,6 +260,16 @@ def main():
         by_type[vtype] += 1
         if args.restaurant or (args.dry_run and r["VenueType"] != vtype):
             print(f"  {r['Name']}: {VENUE_TYPES[vtype]} ({reason})" + (f", було {r['VenueType']}" if r["VenueType"] and r["VenueType"] != vtype else ""))
+        cuisines, creason = venue_cuisines(cuisine, stats.get(r["Id"], Counter()))
+        if r["CuisinesManual"]:
+            cuisines, creason = [c for c in (r["Cuisines"] or "").split(",") if c], "вручну (адмін)"
+        for c in cuisines:
+            by_cuisine[c] += 1
+        if not cuisines:
+            no_cuisine += 1
+        cuisines_str = ",".join(cuisines) or None
+        if args.restaurant or (args.dry_run and (r["Cuisines"] or None) != cuisines_str):
+            print(f"  {r['Name']}: кухні {', '.join(CUISINES[c] for c in cuisines) or '-'} ({creason[:120]})")
         if r["VenueType"] != vtype:
             changed += 1
         if not args.dry_run and not r["TypeManual"]:
@@ -205,9 +278,15 @@ def main():
                              ON DUPLICATE KEY UPDATE VenueType = VALUES(VenueType), TypeReason = VALUES(TypeReason),
                                                      UpdatedAt = IF(VenueType <> VALUES(VenueType), UTC_TIMESTAMP(), UpdatedAt)""",
                           (r["Id"], vtype, reason[:255]))
+        if not args.dry_run and not r["CuisinesManual"]:
+            write.execute("""INSERT INTO RestaurantVenue (RestaurantId, VenueType, Cuisines, CuisinesReason, UpdatedAt)
+                             VALUES (%s, %s, %s, %s, UTC_TIMESTAMP())
+                             ON DUPLICATE KEY UPDATE Cuisines = VALUES(Cuisines), CuisinesReason = VALUES(CuisinesReason)""",
+                          (r["Id"], vtype, cuisines_str, creason[:255]))
     if not args.dry_run:
         db.commit()
     print("Типи: " + ", ".join(f"{VENUE_TYPES[t]} {n}" for t, n in by_type.most_common()) + f"; змінилось {changed}")
+    print("Кухні: " + ", ".join(f"{CUISINES[c]} {n}" for c, n in by_cuisine.most_common()) + f"; без кухні {no_cuisine}")
 
     if args.dry_run or args.no_districts:
         db.close()
