@@ -1,0 +1,41 @@
+@model Menus.Web.Services.CatalogPageSettings
+@using Menus.Web.Services
+@{
+    ViewData["Title"] = "Каталог: сторінка";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var texts = ViewData["texts"] as Dictionary<string, string> ?? new Dictionary<string, string>();
+    string Text(string lang) => texts.TryGetValue(lang, out var t) ? t : "";
+    var name = string.IsNullOrEmpty(Model.VenueType) ? "Усі заклади" : CatalogService.TypeName(Model.VenueType, "uk");
+    var path = $"/uk/{ViewData["citySlug"]}/restaurants" + (string.IsNullOrEmpty(Model.VenueType) ? "" : "/" + Model.VenueType);
+}
+
+<style>
+    .catalog-page label { display: block; margin: 12px 0 4px; font-weight: bold; }
+    .catalog-page textarea { width: 100%; max-width: 760px; min-height: 90px; box-sizing: border-box; }
+</style>
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center catalog-page">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-action="Index" asp-route-cityId="@Model.CityId">Каталог</a></li>
+                    <li>@ViewData["cityName"]: @name</li>
+                </ul>
+            </div>
+            <p><a href="@path" target="_blank" rel="noopener">@path ↗</a></p>
+            <form method="post" asp-action="Page">
+                <input type="hidden" name="cityId" value="@Model.CityId" />
+                <input type="hidden" name="type" value="@Model.VenueType" />
+                <label><input type="checkbox" name="enabled" value="true" checked="@Model.Enabled" /> Показувати на сайті (якщо закладів ≥ @CatalogService.MinVenues)</label>
+                <input type="hidden" name="enabled" value="false" />
+                <p style="color:#777;font-size:12px;">Вступний текст: порожньо - зібраний з даних автоматично (кількість, ціни, кухні, райони).</p>
+                <label>Текст uk</label><textarea name="textUk">@Text("uk")</textarea>
+                <label>Текст ru</label><textarea name="textRu">@Text("ru")</textarea>
+                <label>Текст en</label><textarea name="textEn">@Text("en")</textarea>
+                <p><button type="submit">Зберегти</button> <a asp-action="Index" asp-route-cityId="@Model.CityId">Скасувати</a></p>
+            </form>
+        </div>
+    </main>
+</div>

@@ -244,6 +244,50 @@ namespace Menus.Web.Services
             return result;
         }
 
+        // Каталог міста: кліки й покази (Search Console), перегляди й сеанси (GA4) за період; ключ - тип ("" - усі заклади)
+        public async Task<Dictionary<string, SeoSlugStats>> GetCatalogStats(string citySlug, DateTime from, DateTime to)
+        {
+            var result = new Dictionary<string, SeoSlugStats>();
+            SeoSlugStats Get(string type) => result.TryGetValue(type, out var s) ? s : result[type] = new SeoSlugStats { Slug = type };
+            string TypeOf(string pageOrPath)
+            {
+                var parts = PathOf(pageOrPath).Split('/');
+                return parts.Last() == "restaurants" ? "" : parts.Last();
+            }
+            var pattern = $"/(uk|ru|en)/{System.Text.RegularExpressions.Regex.Escape(citySlug ?? "")}/restaurants(/[^/]+)?/?$";
+            try
+            {
+                foreach (var r in await _connection.QueryAsync<(string Page, long Clicks, long Impressions)>(
+                             "SELECT Page, CAST(SUM(Clicks) AS SIGNED), CAST(SUM(Impressions) AS SIGNED) FROM SeoPageDays WHERE Day BETWEEN @from AND @to AND Page REGEXP @re GROUP BY Page",
+                             new { from, to, re = "^https?://[^/]+" + pattern }, commandTimeout: 120))
+                {
+                    var s = Get(TypeOf(r.Page));
+                    s.Clicks += (int)r.Clicks;
+                    s.Impressions += (int)r.Impressions;
+                }
+            }
+            catch (Exception)
+            {
+                return result;
+            }
+            try
+            {
+                foreach (var r in await _connection.QueryAsync<(string Path, long Views, long Sessions)>(
+                             "SELECT Path, CAST(SUM(Views) AS SIGNED), CAST(SUM(Sessions) AS SIGNED) FROM GaPageDays WHERE Day BETWEEN @from AND @to AND Path REGEXP @re GROUP BY Path",
+                             new { from, to, re = "^" + pattern }, commandTimeout: 120))
+                {
+                    var s = Get(TypeOf(r.Path));
+                    s.Views += (int)r.Views;
+                    s.Sessions += (int)r.Sessions;
+                }
+            }
+            catch (Exception)
+            {
+                // GA4 ще не підключено
+            }
+            return result;
+        }
+
         // Дати періоду: last - останній день із даними; period: 1, 7, 28, 90 або custom (from/to)
         public static (DateTime From, DateTime To, DateTime PrevFrom, DateTime PrevTo) Range(DateTime last, string period, DateTime? from, DateTime? to)
         {

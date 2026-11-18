@@ -1,4 +1,5 @@
 ﻿@model Menus.Web.Services.OutreachRecipient
+@inject Menus.Web.Services.CatalogService CatalogSvc
 
 @{
     ViewData["Title"] = "Розсилка: " + Model.Name;
@@ -48,6 +49,23 @@
 
             <h2>@Model.Name @if (Model.Closed) { <span class="closed-badge">ЗАКРИТО</span> }</h2>
             <p class="muted">Вхід власника: @Model.OwnerLastSeenText</p>
+            @{
+                var catalogAll = await CatalogSvc.GetAll();
+                var catalogVenue = catalogAll.FirstOrDefault(x => x.Id == Model.Id);
+                var catalogDistricts = catalogVenue == null ? new List<Menus.Web.Services.CatalogVenue>()
+                    : catalogAll.Where(x => x.City == catalogVenue.City && !string.IsNullOrEmpty(x.DistrictSlug)).GroupBy(x => x.DistrictSlug).Select(g => g.First()).OrderBy(x => x.DistrictUk).ToList();
+            }
+            <div class="muted" style="margin-bottom:10px;">
+                Каталог міста:
+                @if (catalogVenue == null)
+                {
+                    <span>не показується (заклад закрито або не активний)</span>
+                }
+                else
+                {
+                    <partial name="_VenueForm" model="(catalogVenue, catalogDistricts, Context.Request.Path + Context.Request.QueryString)" />
+                }
+            </div>
             <div class="alive-box">
                 @if (Model.Closed)
                 {

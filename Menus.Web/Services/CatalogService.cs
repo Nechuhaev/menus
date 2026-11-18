@@ -137,7 +137,7 @@ namespace Menus.Web.Services
                     JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                     LEFT JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
                     LEFT JOIN RestaurantVenue v ON v.RestaurantId = r.Id
-                    WHERE r.Status = 0", commandTimeout: 120)).ToDictionary(x => x.Id);
+                    WHERE r.Status = 0", commandTimeout: 120)).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First());
 
                 // ціни страв (без «за 100 г»), кількість страв і оцінок
                 var prices = new Dictionary<string, List<decimal>>();
