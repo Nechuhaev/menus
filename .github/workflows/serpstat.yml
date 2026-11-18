@@ -1,0 +1,33 @@
+# Аналіз конкурентів через Serpstat (content-bot/serpstat_competitors.py). Ключ - із секретів репозиторію.
+# Запуск: вручну (Actions -> Serpstat competitors -> Run workflow) або пуш зміни скрипта в гілку claude/**.
+name: Serpstat competitors
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+    paths:
+      - "content-bot/serpstat_competitors.py"
+      - ".github/workflows/serpstat.yml"
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: Run
+        working-directory: content-bot
+        env:
+          SERPSTAT_TOKEN: ${{ secrets.SERPSTAT_TOKEN }}
+          SERPSTAT_API_KEY: ${{ secrets.SERPSTAT_API_KEY }}
+        run: python3 serpstat_competitors.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: serpstat-report
+          path: content-bot/serpstat_report.json
+          if-no-files-found: ignore
