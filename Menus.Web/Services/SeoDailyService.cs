@@ -32,6 +32,12 @@ namespace Menus.Web.Services
         public int PrevViews { get; set; }
         public double Ctr => Impressions == 0 ? 0 : 100.0 * Clicks / Impressions;
         public bool IsNew => PrevImpressions == 0 && Impressions > 0;
+        // типовий CTR органіки на позиції (орієнтир для «майже в топі»: скільки кліків сторінка недобирає)
+        public static double ExpectedCtr(decimal position) =>
+            position < 1.5m ? 25 : position < 2.5m ? 14 : position < 3.5m ? 9 : position < 4.5m ? 6 : position < 5.5m ? 4.5
+            : position < 6.5m ? 3.5 : position < 7.5m ? 2.8 : position < 8.5m ? 2.2 : position < 10.5m ? 1.8 : 1;
+        public double ExpectedClicks => Impressions * ExpectedCtr(Position) / 100;
+        public int LostClicks => (int)Math.Round(ExpectedClicks - Clicks);
     }
 
     public class SeoKindPeriod
