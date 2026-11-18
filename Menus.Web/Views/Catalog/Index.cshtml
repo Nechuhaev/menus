@@ -39,9 +39,11 @@
     }
 
     var filtered = !string.IsNullOrEmpty(Model.District) || Model.Cheap || Model.Sort != "popular";
+    // заголовок уже з двокрапкою («Сніданки в Києві: де поснідати») - далі через тире
+    var titleSep = heading.Contains(":") ? " — " : ": ";
     ViewData["Title"] = SeoText.Fit(SeoText.TitleMax,
-        $"{heading}: {T("меню й ціни", "меню и цены", "menus & prices")} {year} | TipMyMenu" + (Model.PageIndex > 1 ? $" ({Model.PageIndex})" : ""),
-        $"{heading}: {T("меню й ціни", "меню и цены", "menus & prices")} {year}",
+        $"{heading}{titleSep}{T("меню й ціни", "меню и цены", "menus & prices")} {year} | TipMyMenu" + (Model.PageIndex > 1 ? $" ({Model.PageIndex})" : ""),
+        $"{heading}{titleSep}{T("меню й ціни", "меню и цены", "menus & prices")} {year}",
         $"{heading} | TipMyMenu");
     // canonical: сторінка без фільтрів (з номером сторінки, якщо фільтрів немає)
     ViewData["Canonical"] = siteUrl + (filtered ? pagePath : (Model.PageIndex > 1 ? $"{pagePath}?page={Model.PageIndex}" : pagePath));
@@ -55,8 +57,9 @@
         .Select(c => c.Trim().TrimEnd('.')).Where(c => c.Length > 2 && c.Length < 40)
         .GroupBy(c => c.ToLowerInvariant()).OrderByDescending(g => g.Count()).Take(4).Select(g => g.First()).ToList();
     var topDistricts = Model.Districts.Take(3).Select(x => x.Name).ToList();
-    var popular = all.OrderByDescending(x => x.Photo != null && x.Dishes > 0).ThenByDescending(x => x.Popularity).Take(5).Select(x => x.Name).ToList();
-    var cheapest = all.Where(x => x.MedianPrice >= 40 && x.Dishes >= 20).OrderBy(x => x.MedianPrice).Take(3).ToList();
+    var popular = all.OrderByDescending(x => x.Photo != null && x.Dishes > 0).ThenByDescending(x => x.Popularity).Select(x => x.Name.Trim()).Distinct().Take(5).ToList();
+    var cheapest = all.Where(x => x.MedianPrice >= 40 && x.Dishes >= 20).OrderBy(x => x.MedianPrice)
+        .GroupBy(x => x.Name.Trim()).Select(g => g.First()).Take(3).ToList();
 
     var intro = new List<string>
     {
