@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -53,6 +53,10 @@ namespace Menus.Web.Areas.Admin.Controllers
                     break;
                 case "new":
                     filtered = filtered.Where(x => x.IsNew).OrderByDescending(x => x.Impressions).ToList();
+                    break;
+                case "near": // «майже в топі»: позиція 4-15, а кліків менше, ніж зазвичай на такій позиції
+                    filtered = filtered.Where(x => x.Impressions >= 30 && x.Position >= 4 && x.Position <= 15 && x.LostClicks >= 1)
+                        .OrderByDescending(x => x.LostClicks).ToList();
                     break;
                 case "top":
                     filtered = filtered.OrderByDescending(x => x.Impressions).ToList();
