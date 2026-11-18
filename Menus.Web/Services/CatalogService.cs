@@ -247,6 +247,16 @@ namespace Menus.Web.Services
             }
         }
 
+        // тип, район і кухні всіх закладів напряму з RestaurantVenue (без 30-хвилинного кешу) - для таблиць адмінки
+        public async Task<Dictionary<string, CatalogVenue>> GetVenueMap()
+        {
+            await Ensure();
+            return (await _connection.QueryAsync<CatalogVenue>(@"
+                SELECT CONCAT(RestaurantId, '') AS Id, VenueType, DistrictUk, DistrictRu, DistrictEn, DistrictSlug,
+                       Cuisines, IFNULL(CuisinesManual, 0) AS CuisinesManual
+                FROM RestaurantVenue")).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First());
+        }
+
         public async Task<List<CatalogVenue>> GetCity(string cityId) =>
             (await GetAll()).Where(x => x.City == cityId).ToList();
 

@@ -4,7 +4,7 @@
 @inject Menus.Web.Services.UserService UserService
 @inject Menus.Web.Services.CatalogService CatalogSvc
 @{
-    var catalogVenues = (await CatalogSvc.GetAll()).ToDictionary(x => x.Id);
+    var catalogVenues = await CatalogSvc.GetVenueMap();
     var CurrentUser = await UserService.GetUserById(User.Identity.Name);
     var page = (int)ViewData["page"];
 }
@@ -197,7 +197,11 @@
                                     }
                                     else
                                     {
-                                        <span style="color:#777;font-size:12px">поза каталогом</span>
+                                        <span style="color:#777;font-size:12px">ще не визначено</span>
+                                    }
+                                    @if (item.Status != Menus.Abstract.Models.RestaurantStatus.Active)
+                                    {
+                                        <br /><span style="color:#777;font-size:12px">поза каталогом (не Active)</span>
                                     }
                                 </td>
                                 <td>
