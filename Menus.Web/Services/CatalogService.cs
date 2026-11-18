@@ -26,6 +26,9 @@ namespace Menus.Web.Services
         public string DistrictRu { get; set; }
         public string DistrictEn { get; set; }
         public string DistrictSlug { get; set; }
+        public string Cuisines { get; set; } // slug кухонь через кому (venue_types.py або адмін)
+        public bool CuisinesManual { get; set; }
+        public List<string> CuisineList => (Cuisines ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList();
         public decimal MedianPrice { get; set; }
         public int Dishes { get; set; }
         public int Ratings { get; set; }
@@ -75,6 +78,54 @@ namespace Menus.Web.Services
             ["restorany"] = ("Ресторани", "Рестораны", "Restaurants"),
         };
 
+        // кухні: slug -> (uk, ru, en) - «Грузинська кухня» / «Грузинская кухня» / «Georgian»; сторінки /restaurants/kukhnia/{slug}
+        public static readonly Dictionary<string, (string Uk, string Ru, string En)> Cuisines = new Dictionary<string, (string, string, string)>
+        {
+            ["hruzynska"] = ("Грузинська кухня", "Грузинская кухня", "Georgian"),
+            ["italiiska"] = ("Італійська кухня", "Итальянская кухня", "Italian"),
+            ["yaponska"] = ("Японська кухня", "Японская кухня", "Japanese"),
+            ["ukrainska"] = ("Українська кухня", "Украинская кухня", "Ukrainian"),
+            ["yevropeiska"] = ("Європейська кухня", "Европейская кухня", "European"),
+            ["aziiska"] = ("Азійська кухня", "Азиатская кухня", "Asian"),
+            ["kytaiska"] = ("Китайська кухня", "Китайская кухня", "Chinese"),
+            ["koreiska"] = ("Корейська кухня", "Корейская кухня", "Korean"),
+            ["vietnamska"] = ("В'єтнамська кухня", "Вьетнамская кухня", "Vietnamese"),
+            ["taiska"] = ("Тайська кухня", "Тайская кухня", "Thai"),
+            ["uzbetska"] = ("Узбецька кухня", "Узбекская кухня", "Uzbek"),
+            ["krymskotatarska"] = ("Кримськотатарська кухня", "Крымскотатарская кухня", "Crimean Tatar"),
+            ["virmenska"] = ("Вірменська кухня", "Армянская кухня", "Armenian"),
+            ["yevreiska"] = ("Єврейська кухня", "Еврейская кухня", "Jewish"),
+            ["amerykanska"] = ("Американська кухня", "Американская кухня", "American"),
+            ["meksykanska"] = ("Мексиканська кухня", "Мексиканская кухня", "Mexican"),
+            ["frantsuzka"] = ("Французька кухня", "Французская кухня", "French"),
+            ["seredzemnomorska"] = ("Середземноморська кухня", "Средиземноморская кухня", "Mediterranean"),
+            ["ryba-moreprodukty"] = ("Риба й морепродукти", "Рыба и морепродукты", "Fish & seafood"),
+            ["miasna"] = ("М'ясо та стейки", "Мясо и стейки", "Steak & meat"),
+            ["vegetarianska"] = ("Вегетаріанська кухня", "Вегетарианская кухня", "Vegetarian"),
+        };
+
+        public static string CuisineName(string cuisine, string culture)
+        {
+            if (string.IsNullOrEmpty(cuisine) || !Cuisines.TryGetValue(cuisine, out var c)) return cuisine ?? "";
+            return culture == "en" ? c.En : culture == "ru" ? c.Ru : c.Uk;
+        }
+
+        // ключ налаштувань сторінки кухні в CatalogPages.VenueType
+        public static string CuisineKey(string cuisine) => "c:" + cuisine;
+
+        public static bool IsCuisinePublished(string cuisine, int venues, CatalogPageSettings settings) =>
+            Cuisines.ContainsKey(cuisine ?? "") && venues >= MinVenues && (settings?.Enabled ?? true);
+
+        // кухні міста, що мають сторінку: (кухня, закладів)
+        public async Task<List<(string Cuisine, int Venues)>> PublishedCuisines(string cityId)
+        {
+            var settings = await GetSettings();
+            return (await GetCity(cityId)).SelectMany(v => v.CuisineList).GroupBy(c => c)
+                .Select(g => (Cuisine: g.Key, Venues: g.Count()))
+                .Where(x => IsCuisinePublished(x.Cuisine, x.Venues, settings.FirstOrDefault(s => s.CityId == cityId && s.VenueType == CuisineKey(x.Cuisine))))
+                .OrderByDescending(x => x.Venues).ToList();
+        }
+
         public static string TypeName(string type, string culture)
         {
             if (string.IsNullOrEmpty(type) || !Types.TryGetValue(type, out var t)) t = Types["restorany"];
@@ -116,7 +167,10 @@ namespace Menus.Web.Services
                     Enabled TINYINT(1) NOT NULL DEFAULT 1,
                     CustomText TEXT NULL,
                     PRIMARY KEY (CityId, VenueType)
-                ) DEFAULT CHARSET=utf8mb4;");
+                ) DEFAULT CHARSET=utf8mb4;
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS Cuisines VARCHAR(500) NULL;
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS CuisinesReason VARCHAR(255) NULL;
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS CuisinesManual TINYINT(1) NOT NULL DEFAULT 0;");
             _tablesReady = true;
         }
 
@@ -132,7 +186,8 @@ namespace Menus.Web.Services
                 var venues = (await _connection.QueryAsync<CatalogVenue>(@"
                     SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, r.CreateDate,
                            ri.Cuisine, ri.DisplayAddress, ri.Photos, ri.OpenHours, ri.Currency,
-                           v.VenueType, v.DistrictUk, v.DistrictRu, v.DistrictEn, v.DistrictSlug
+                           v.VenueType, v.DistrictUk, v.DistrictRu, v.DistrictEn, v.DistrictSlug,
+                           v.Cuisines, IFNULL(v.CuisinesManual, 0) AS CuisinesManual
                     FROM Restaurants r
                     JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                     LEFT JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
@@ -229,9 +284,19 @@ namespace Menus.Web.Services
         }
 
         // ручна зміна типу / району з адмінки: бот її більше не перезаписує
-        public async Task SetVenue(string restaurantId, string type, string districtUk, string districtRu, string districtEn, string districtSlug)
+        public async Task SetVenue(string restaurantId, string type, string districtUk, string districtRu, string districtEn, string districtSlug,
+            IEnumerable<string> cuisines = null)
         {
             await Ensure();
+            if (cuisines != null)
+            {
+                var list = string.Join(",", cuisines.Where(c => Cuisines.ContainsKey(c)).Distinct());
+                await _connection.ExecuteAsync(@"
+                    INSERT INTO RestaurantVenue (RestaurantId, VenueType, Cuisines, CuisinesReason, CuisinesManual, UpdatedAt)
+                    VALUES (@restaurantId, 'restorany', @list, 'вручну (адмін)', 1, UTC_TIMESTAMP())
+                    ON DUPLICATE KEY UPDATE Cuisines = @list, CuisinesReason = 'вручну (адмін)', CuisinesManual = 1, UpdatedAt = UTC_TIMESTAMP()",
+                    new { restaurantId, list = list == "" ? null : list });
+            }
             if (!string.IsNullOrEmpty(type) && Types.ContainsKey(type))
                 await _connection.ExecuteAsync(@"
                     INSERT INTO RestaurantVenue (RestaurantId, VenueType, TypeReason, TypeManual, UpdatedAt) VALUES (@restaurantId, @type, 'вручну (адмін)', 1, UTC_TIMESTAMP())

@@ -18,6 +18,9 @@
     var rows = new List<(string Type, int Venues)> { ("", Model.Count) };
     rows.AddRange(CatalogService.Types.Keys.Where(t => t != "restorany").Select(t => (t, Model.Count(v => v.Type == t))));
     var restorany = Model.Count(v => v.Type == "restorany");
+    var noCuisine = Model.Count(v => !v.CuisineList.Any());
+    var cuisineRows = CatalogService.Cuisines.Keys.Select(c => (Cuisine: c, Venues: Model.Count(v => v.CuisineList.Contains(c))))
+        .OrderByDescending(x => x.Venues).ToList();
     var noDistrict = Model.Count(v => string.IsNullOrEmpty(v.DistrictSlug));
 }
 
@@ -128,7 +131,64 @@
                     </tbody>
                 </table>
             </div>
+            <h3 style="margin-top:24px;">Кухні</h3>
+            <div class="table-wrap">
+                <table class="mainTable">
+                    <thead>
+                        <tr>
+                            <th>Сторінка</th><th>Закладів</th><th>На сайті</th><th>Кліки Google</th><th>Покази Google</th>
+                            @if (hasGa) { <th>Перегляди / сеанси GA4</th> }
+                            <th>Текст</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var (cuisine, venues) in cuisineRows)
+                        {
+                            var key = CatalogService.CuisineKey(cuisine);
+                            var s = settings.FirstOrDefault(x => x.CityId == cityId && x.VenueType == key);
+                            var published = CatalogService.IsCuisinePublished(cuisine, venues, s);
+                            var st = stats.TryGetValue(key, out var x3) ? x3 : new SeoSlugStats();
+                            var path = $"/uk/{citySlug}/restaurants/kukhnia/{cuisine}";
+                            <tr>
+                                <td>
+                                    <strong>@CatalogService.CuisineName(cuisine, "uk")</strong><br />
+                                    @if (published)
+                                    {
+                                        <a class="muted" href="@path" target="_blank" rel="noopener">@path ↗</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">@path</span>
+                                    }
+                                </td>
+                                <td><a asp-action="Venues" asp-route-cityId="@cityId" asp-route-cuisine="@cuisine">@venues</a></td>
+                                <td>
+                                    @if (published)
+                                    {
+                                        <span class="on">так</span>
+                                    }
+                                    else if (s != null && !s.Enabled)
+                                    {
+                                        <span class="off">вимкнено</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">ні (менше @CatalogService.MinVenues)</span>
+                                    }
+                                </td>
+                                <td>@(st.Clicks > 0 ? st.Clicks.ToString("N0") : "–")</td>
+                                <td>@(st.Impressions > 0 ? st.Impressions.ToString("N0") : "–")</td>
+                                @if (hasGa) { <td>@(st.Views > 0 ? $"{st.Views:N0} / {st.Sessions:N0}" : "–")</td> }
+                                <td>@(string.IsNullOrWhiteSpace(s?.CustomText) ? "авто" : "власний")</td>
+                                <td><a asp-action="Page" asp-route-cityId="@cityId" asp-route-type="@key">Налаштувати</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
             <p class="muted">
+                Без кухні: @noCuisine <a asp-action="Venues" asp-route-cityId="@cityId" asp-route-cuisine="-">показати →</a>.
                 «Ресторани» (тип за замовчуванням): @restorany - окремої сторінки немає, вони на сторінці всіх закладів.
                 Без району: @noDistrict <a asp-action="Venues" asp-route-cityId="@cityId">усі заклади міста →</a>.
                 Графік по днях - <a asp-controller="Seo" asp-action="Index" asp-route-kind="catalog">SEO, вид «Каталог міста»</a>.

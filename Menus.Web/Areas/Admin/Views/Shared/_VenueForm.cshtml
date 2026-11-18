@@ -1,6 +1,6 @@
 @using Menus.Web.Services
 @model (CatalogVenue Venue, List<CatalogVenue> Districts, string ReturnUrl)
-@* Тип і район закладу для каталогу міста - та сама форма в «Каталозі» і в «Розсилці» *@
+@* Тип, район і кухні закладу для каталогу міста - та сама форма в «Каталозі» і в «Розсилці» *@
 <form method="post" asp-area="Admin" asp-controller="Catalog" asp-action="SetVenue" class="venue-form" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
     <input type="hidden" name="restaurantId" value="@Model.Venue.Id" />
     <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
@@ -17,5 +17,15 @@
             <option value="@d.DistrictSlug" selected="@(d.DistrictSlug == Model.Venue.DistrictSlug)">@d.DistrictUk</option>
         }
     </select>
+    <details class="venue-cuisines" style="position:relative;">
+        <summary style="cursor:pointer;">Кухні: @(Model.Venue.CuisineList.Any() ? string.Join(", ", Model.Venue.CuisineList.Select(c => CatalogService.CuisineName(c, "uk").Replace(" кухня", ""))) : "—")</summary>
+        <input type="hidden" name="cuisinesPosted" value="true" />
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 10px;padding:6px 0;max-width:520px;">
+            @foreach (var c in CatalogService.Cuisines)
+            {
+                <label style="font-weight:normal;white-space:nowrap;"><input type="checkbox" name="cuisines" value="@c.Key" checked="@Model.Venue.CuisineList.Contains(c.Key)" /> @c.Value.Uk.Replace(" кухня", "")</label>
+            }
+        </div>
+    </details>
     <button type="submit">Зберегти</button>
 </form>

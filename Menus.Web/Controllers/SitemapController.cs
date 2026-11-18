@@ -410,6 +410,11 @@ namespace Menus.Web.Controllers
                         if (CatalogService.IsPublished(g.Key, g.Count(), catalogSettings.FirstOrDefault(s => s.CityId == city.Id && s.VenueType == g.Key)))
                             mainPages.Add($"<loc>{SiteBaseUrl}/{ locale.Id}/{citySlug}/restaurants/{g.Key}</loc>");
                     }
+                    foreach (var g in cityVenues.SelectMany(x => x.CuisineList).GroupBy(x => x))
+                    {
+                        if (CatalogService.IsCuisinePublished(g.Key, g.Count(), catalogSettings.FirstOrDefault(s => s.CityId == city.Id && s.VenueType == CatalogService.CuisineKey(g.Key))))
+                            mainPages.Add($"<loc>{SiteBaseUrl}/{ locale.Id}/{citySlug}/restaurants/kukhnia/{g.Key}</loc>");
+                    }
                 }
 
                 foreach (string page in mainPages)
