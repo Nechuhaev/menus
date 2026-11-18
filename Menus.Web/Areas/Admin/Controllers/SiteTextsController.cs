@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Menus.Web.Areas.Admin.Controllers
 {
-    // «Тексти сторінок»: правка текстів лендингів (/uk/iframe-menu тощо) без зміни коду
+    // «Страницы» → «Лендинги»: правка текстів лендингів (/uk/iframe-menu тощо) без зміни коду
     [Area("Admin")]
     [Authorize(Roles = "admin")]
     public class SiteTextsController : Controller
@@ -19,7 +19,8 @@ namespace Menus.Web.Areas.Admin.Controllers
             _texts = texts;
         }
 
-        public IActionResult Index() => View(SiteTextService.Pages);
+        // окремого розділу немає - лендинги в «Страницах»
+        public IActionResult Index() => RedirectToAction("Content", "Pages");
 
         public async Task<IActionResult> Edit(string id)
         {

@@ -43,6 +43,19 @@
             </div>
 
 
+            <h3>Лендинги (тексти uk / ru)</h3>
+            <table class="mainTable" style="margin-bottom:24px;">
+                <tbody>
+                    @foreach (var landing in Menus.Web.Services.SiteTextService.Pages)
+                    {
+                        <tr>
+                            <td>@landing.Title <a style="color:#777" href="/uk/@landing.Url" target="_blank" rel="noopener">/uk/@landing.Url ↗</a></td>
+                            <td style="text-align:right"><a asp-controller="SiteTexts" asp-action="Edit" asp-route-id="@landing.Key">Редагувати тексти</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
             <table class="mainTable">
                 <thead>
                     <tr>
