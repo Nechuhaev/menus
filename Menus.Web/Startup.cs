@@ -123,6 +123,7 @@ namespace Menus.Web
             services.AddScoped<SeoDailyService>();
             services.AddScoped<CustomerRequestService>();
             services.AddScoped<PageRedirectService>();
+            services.AddScoped<CatalogService>();
             services.AddScoped<UserVisitService>();
             services.AddScoped<IframeDesignService>();
             services.AddScoped<RestaurantRegistrationService>();
@@ -488,6 +489,12 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                             defaults: new { controller = "Home", action = "NewsPage" });
 
                         // місто перевіряє DishCityController (невідоме - 404); областей /dishes немає
+                        // каталог міста: /uk/kyiv/restaurants і /uk/kyiv/restaurants/bary (CatalogController; невідоме - 404)
+                        mvcRoutes.MapRoute(
+                            name: "catalog",
+                            template: custureRoutePath + "/{city}/restaurants/{type?}",
+                            defaults: new { controller = "Catalog", action = "Index" });
+
                         mvcRoutes.MapRoute(
                             name: "dishCity",
                             template: custureRoutePath + "/{city}/dishes/{slug?}",

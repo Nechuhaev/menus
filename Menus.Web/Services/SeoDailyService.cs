@@ -71,6 +71,7 @@ namespace Menus.Web.Services
             ("dish", "/(uk|ru|en)/[^/]+/restaurant/[^/]+/[^/]+/?$"),
             ("restaurant", "/(uk|ru|en)/[^/]+/restaurant/[^/]+/?$"),
             ("dishcity", "/(uk|ru|en)/[^/]+/dishes/[^/]+/?$"),
+            ("catalog", "/(uk|ru|en)/[^/]+/restaurants(/[^/]+)?/?$"),
             ("article", "/(uk|ru|en)/(news|blog)/"),
         };
 

@@ -1,0 +1,292 @@
+@using Menus.Web.Services
+@using Menus.Web.Helpers
+@model Menus.Web.Controllers.CatalogViewModel
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var culture = Context.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>().RequestCulture.Culture.TwoLetterISOLanguageName;
+    string T(string uk, string ru, string en) => CatalogText.T(culture, uk, ru, en);
+    var siteUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+    var basePath = $"/{culture}/{Model.CitySlug}/restaurants";
+    var pagePath = Model.Type == null ? basePath : $"{basePath}/{Model.Type}";
+    var allTitle = CatalogText.Heading(CatalogService.TypeName("restorany", culture), Model.CitySlug, Model.CityName, culture);
+    var heading = CatalogText.Heading(CatalogService.TypeName(Model.Type ?? "restorany", culture), Model.CitySlug, Model.CityName, culture);
+    var year = DateTime.Now.Year;
+    var currency = Model.AllOfType.Select(x => x.Currency).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "₴";
+    string Money(decimal v) => $"{v:0} {currency}";
+    string Venue(CatalogVenue v) => $"/{culture}/{Model.CitySlug}/restaurant/{v.Slug}";
+
+    // посилання зі збереженням фільтрів (n - номер сторінки)
+    string Link(int n = 1, string district = "-", string price = "-", string sort = "-", string type = "-")
+    {
+        var path = type == "-" ? pagePath : (string.IsNullOrEmpty(type) ? basePath : $"{basePath}/{type}");
+        var q = new List<string>();
+        var d = district == "-" ? Model.District : district;
+        var p = price == "-" ? (Model.Cheap ? "low" : null) : price;
+        var s = sort == "-" ? Model.Sort : sort;
+        if (!string.IsNullOrEmpty(d)) q.Add("district=" + Uri.EscapeDataString(d));
+        if (!string.IsNullOrEmpty(p)) q.Add("price=" + p);
+        if (!string.IsNullOrEmpty(s) && s != "popular") q.Add("sort=" + s);
+        if (n > 1) q.Add("page=" + n);
+        return path + (q.Count > 0 ? "?" + string.Join("&", q) : "");
+    }
+
+    var filtered = !string.IsNullOrEmpty(Model.District) || Model.Cheap || Model.Sort != "popular";
+    ViewData["Title"] = SeoText.Fit(SeoText.TitleMax,
+        $"{heading}: {T("меню й ціни", "меню и цены", "menus & prices")} {year} | TipMyMenu" + (Model.PageIndex > 1 ? $" ({Model.PageIndex})" : ""),
+        $"{heading}: {T("меню й ціни", "меню и цены", "menus & prices")} {year}",
+        $"{heading} | TipMyMenu");
+    // canonical: сторінка без фільтрів (з номером сторінки, якщо фільтрів немає)
+    ViewData["Canonical"] = siteUrl + (filtered ? pagePath : (Model.PageIndex > 1 ? $"{pagePath}?page={Model.PageIndex}" : pagePath));
+
+    // вступ і FAQ - з даних каталогу
+    var all = Model.AllOfType;
+    var prices = all.Where(x => x.MedianPrice > 0).Select(x => x.MedianPrice).OrderBy(x => x).ToList();
+    var median = prices.Count > 0 ? prices[prices.Count / 2] : 0;
+    var cuisines = all.Select(x => x.Localized(x.Cuisine, culture))
+        .SelectMany(c => (c ?? "").Split(new[] { ',', ';', '/' }, StringSplitOptions.RemoveEmptyEntries))
+        .Select(c => c.Trim().TrimEnd('.')).Where(c => c.Length > 2 && c.Length < 40)
+        .GroupBy(c => c.ToLowerInvariant()).OrderByDescending(g => g.Count()).Take(4).Select(g => g.First()).ToList();
+    var topDistricts = Model.Districts.Take(3).Select(x => x.Name).ToList();
+    var popular = all.OrderByDescending(x => x.Photo != null && x.Dishes > 0).ThenByDescending(x => x.Popularity).Take(5).Select(x => x.Name).ToList();
+    var cheapest = all.Where(x => x.MedianPrice > 0 && x.Dishes >= 10).OrderBy(x => x.MedianPrice).Take(3).ToList();
+
+    var intro = new List<string>
+    {
+        T($"У каталозі TipMyMenu {CatalogText.Venues(all.Count, "uk")}: меню з цінами, адреси, години роботи й фото.",
+          $"В каталоге TipMyMenu {CatalogText.Venues(all.Count, "ru")}: меню с ценами, адреса, часы работы и фото.",
+          $"TipMyMenu lists {CatalogText.Venues(all.Count, "en")} with menus and prices, addresses, opening hours and photos.")
+    };
+    if (median > 0) intro.Add(T($"Типова ціна страви - {Money(median)}.", $"Типичная цена блюда - {Money(median)}.", $"A typical dish costs {Money(median)}."));
+    if (cuisines.Any()) intro.Add(T($"Кухні: {string.Join(", ", cuisines)}.", $"Кухни: {string.Join(", ", cuisines)}.", $"Cuisines: {string.Join(", ", cuisines)}."));
+    if (topDistricts.Any()) intro.Add(T($"Найбільше закладів у районах: {string.Join(", ", topDistricts)}.", $"Больше всего заведений в районах: {string.Join(", ", topDistricts)}.", $"Most places are in {string.Join(", ", topDistricts)}."));
+
+    var faq = new List<(string Question, string Answer)>
+    {
+        (T($"Скільки закладів у розділі «{heading}»?", $"Сколько заведений в разделе «{heading}»?", $"How many places are listed in {heading}?"),
+         T($"{CatalogText.Venues(all.Count, "uk")} з меню й цінами, список оновлюється щодня.", $"{CatalogText.Venues(all.Count, "ru")} с меню и ценами, список обновляется ежедневно.", $"{CatalogText.Venues(all.Count, "en")} with menus and prices, updated daily."))
+    };
+    if (popular.Any())
+    {
+        faq.Add((T($"Які заклади найпопулярніші?", $"Какие заведения самые популярные?", "Which places are the most popular?"),
+            string.Join(", ", popular) + "."));
+    }
+    if (cheapest.Any())
+    {
+        faq.Add((T("Де поїсти недорого?", "Где поесть недорого?", "Where to eat cheaply?"),
+            string.Join("; ", cheapest.Select(x => $"{x.Name} - {T("типова ціна страви", "типичная цена блюда", "typical dish")} {Money(x.MedianPrice)}")) + "."));
+    }
+    ViewData["Description"] = SeoText.Truncate($"{heading}: " + string.Join(" ", intro), SeoText.DescriptionMax);
+    if (Model.Items.FirstOrDefault(x => x.Photo != null) is CatalogVenue first) { ViewData["MainImage"] = Img.Url(first.Photo, Quality.High); }
+}
+
+@section JsonLd {
+    @(JsonLd.Script(
+        JsonLd.ItemList(heading, Model.Items.Select(x => (x.Name, siteUrl + Venue(x)))),
+        Model.PageIndex == 1 && !filtered ? JsonLd.FaqPage(faq.ToArray()) : null,
+        Model.Type == null
+            ? JsonLd.Breadcrumbs(("TipMyMenu", $"{siteUrl}/{culture}"), (allTitle, siteUrl + basePath))
+            : JsonLd.Breadcrumbs(("TipMyMenu", $"{siteUrl}/{culture}"), (allTitle, siteUrl + basePath), (heading, siteUrl + pagePath))))
+}
+
+@section Styles {
+    @if (Model.PageIndex > 1)
+    {
+        <link rel="prev" href="@(siteUrl + Link(Model.PageIndex - 1))" />
+    }
+    @if (Model.PageIndex < Model.PageCount)
+    {
+        <link rel="next" href="@(siteUrl + Link(Model.PageIndex + 1))" />
+    }
+    <style>
+        .catalog { padding: 0 16px; box-sizing: border-box; max-width: 1200px; margin: 0 auto; }
+        .catalog h1 { margin: 8px 0 4px; font-size: 26px; line-height: 1.25; }
+        .catalog .catalog-count { color: #666; margin: 0 0 12px; }
+        .catalog .catalog-intro { line-height: 1.5; margin: 0 0 16px; }
+        /* фільтри: на телефоні - один рядок, що гортається вбік */
+        .catalog .chips { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 2px 0 10px; margin: 0 0 6px; scrollbar-width: none; }
+        .catalog .chips::-webkit-scrollbar { display: none; }
+        .catalog .chips a, .catalog .chips span { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px;
+            border: 1px solid #ddd; border-radius: 20px; white-space: nowrap; color: #333; text-decoration: none; background: #fff; font-size: 14px; }
+        .catalog .chips .on { background: #ffb80e; border-color: #ffb80e; font-weight: 600; }
+        .catalog .chips small { color: #777; margin-left: 6px; }
+        .catalog .chips-label { font-size: 13px; color: #777; margin: 4px 0; }
+        .catalog .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 0; margin: 8px 0 20px; list-style: none; }
+        @@media (min-width: 640px) { .catalog .grid { grid-template-columns: repeat(2, 1fr); } }
+        @@media (min-width: 1000px) { .catalog .grid { grid-template-columns: repeat(3, 1fr); } .catalog h1 { font-size: 30px; } }
+        .catalog .card { border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+        .catalog .card .photo { display: block; aspect-ratio: 4 / 3; background: #f3f3f3; }
+        .catalog .card .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .catalog .card .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
+        .catalog .card h2 { font-size: 18px; margin: 0; line-height: 1.3; }
+        .catalog .card h2 a { color: #222; text-decoration: none; }
+        .catalog .card .meta { color: #666; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+        .catalog .card .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; }
+        .catalog .card .price { font-weight: 600; }
+        .catalog .card .menu-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 8px; background: #ffb80e; color: #222; text-decoration: none; font-weight: 600; font-size: 14px; }
+        .catalog .pager { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; padding: 0; list-style: none; }
+        .catalog .pager a, .catalog .pager span { display: block; min-width: 44px; min-height: 44px; line-height: 44px; padding: 0 10px; box-sizing: border-box; text-align: center; border: 1px solid #e5e5e5; border-radius: 6px; }
+        .catalog .pager span { background: #ffb80e; border-color: #ffb80e; font-weight: 600; }
+        .catalog .faq details { border-bottom: 1px solid #e5e5e5; padding: 12px 0; }
+        .catalog .faq summary { cursor: pointer; font-weight: 600; }
+        .catalog .faq details p { margin: 8px 0 0; line-height: 1.5; }
+        .catalog .links { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0; list-style: none; }
+        .catalog .links a { display: inline-block; padding: 6px 0; }
+        .catalog .empty { padding: 24px 0; color: #666; }
+    </style>
+}
+
+@await Html.PartialAsync("_Header")
+<div class="site-content">
+    <main class="catalog">
+        <div class="breadcrumbs breadcrumbs-content">
+            <ul>
+                <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">TipMyMenu</breadcrumb></li>
+                @if (Model.Type == null)
+                {
+                    <li><breadcrumb href="#">@allTitle</breadcrumb></li>
+                }
+                else
+                {
+                    <li><breadcrumb href="@basePath">@allTitle</breadcrumb></li>
+                    <li><breadcrumb href="#">@heading</breadcrumb></li>
+                }
+            </ul>
+        </div>
+
+        <h1>@heading</h1>
+        <p class="catalog-count">@CatalogText.Venues(Model.Total, culture)@(filtered ? "" : " " + T("з меню й цінами", "с меню и ценами", "with menus and prices"))</p>
+
+        @if (Model.PageIndex == 1 && !filtered)
+        {
+            <p class="catalog-intro">@(Model.CustomText ?? string.Join(" ", intro))</p>
+        }
+
+        <nav aria-label="@T("Тип закладу", "Тип заведения", "Type")">
+            <div class="chips">
+                <a href="@Link(type: "", district: null)" class="@(Model.Type == null ? "on" : "")">@T("Усі", "Все", "All")<small>@Model.CityTotal</small></a>
+                @foreach (var (t, n) in Model.Types)
+                {
+                    <a href="@Link(type: t, district: null)" class="@(Model.Type == t ? "on" : "")">@CatalogService.TypeName(t, culture)<small>@n</small></a>
+                }
+            </div>
+        </nav>
+        @if (Model.Districts.Any())
+        {
+            <div class="chips-label">@T("Район", "Район", "District")</div>
+            <div class="chips">
+                <a href="@Link(district: null)" rel="nofollow" class="@(string.IsNullOrEmpty(Model.District) ? "on" : "")">@T("Усі райони", "Все районы", "All districts")</a>
+                @foreach (var (slug, name, n) in Model.Districts)
+                {
+                    <a href="@Link(district: slug)" rel="nofollow" class="@(Model.District == slug ? "on" : "")">@name<small>@n</small></a>
+                }
+            </div>
+        }
+        <div class="chips">
+            @if (Model.CheapLimit > 0)
+            {
+                <a href="@Link(price: Model.Cheap ? null : "low")" rel="nofollow" class="@(Model.Cheap ? "on" : "")">@T("Недорого", "Недорого", "Budget")<small>≤ @Money(Model.CheapLimit)</small></a>
+            }
+            <a href="@Link(sort: "popular")" rel="nofollow" class="@(Model.Sort == "popular" ? "on" : "")">@T("Популярні", "Популярные", "Popular")</a>
+            <a href="@Link(sort: "cheap")" rel="nofollow" class="@(Model.Sort == "cheap" ? "on" : "")">@T("Дешевші", "Дешевле", "Cheapest")</a>
+            <a href="@Link(sort: "new")" rel="nofollow" class="@(Model.Sort == "new" ? "on" : "")">@T("Нові", "Новые", "New")</a>
+        </div>
+
+        @if (!Model.Items.Any())
+        {
+            <p class="empty">@T("За цими фільтрами закладів немає.", "По этим фильтрам заведений нет.", "No places match these filters.") <a href="@pagePath">@T("Скинути фільтри", "Сбросить фильтры", "Reset filters")</a></p>
+        }
+        <ul class="grid">
+            @foreach (var v in Model.Items)
+            {
+                var cuisine = v.Localized(v.Cuisine, culture);
+                var address = v.Localized(v.DisplayAddress, culture);
+                var district = v.District(culture);
+                var hours = OpenHoursHelper.Describe(v.OpenHours);
+                <li class="card">
+                    <a class="photo" href="@Venue(v)" tabindex="-1" aria-hidden="true">
+                        @if (v.Photo != null)
+                        {
+                            <img src="@Img.Url(v.Photo, Quality.Medium)" alt="@v.Name" loading="lazy" decoding="async" width="400" height="300" />
+                        }
+                    </a>
+                    <div class="body">
+                        <h2><a href="@Venue(v)">@v.Name</a></h2>
+                        <div class="meta">@CatalogService.TypeName(v.Type, culture)@(string.IsNullOrWhiteSpace(cuisine) ? "" : " · " + cuisine)</div>
+                        @if (!string.IsNullOrWhiteSpace(address) || !string.IsNullOrWhiteSpace(district))
+                        {
+                            <div class="meta">@(string.IsNullOrWhiteSpace(district) ? "" : district + (string.IsNullOrWhiteSpace(address) ? "" : " · "))@address</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(hours))
+                        {
+                            <div class="meta">@hours</div>
+                        }
+                        <div class="row">
+                            <span class="price">@(v.MedianPrice > 0 ? T("страва ≈ ", "блюдо ≈ ", "dish ≈ ") + Money(v.MedianPrice) : "")</span>
+                            <a class="menu-link" href="@Venue(v)">@(v.Dishes > 0 ? T("Меню", "Меню", "Menu") + " · " + CatalogText.Dishes(v.Dishes, culture) : T("Сторінка закладу", "Страница заведения", "Details"))</a>
+                        </div>
+                    </div>
+                </li>
+            }
+        </ul>
+
+        @if (Model.PageCount > 1)
+        {
+            <ul class="pager">
+                @if (Model.PageIndex > 1)
+                {
+                    <li><a href="@Link(Model.PageIndex - 1)" rel="prev" aria-label="@T("Попередня", "Предыдущая", "Previous")">←</a></li>
+                }
+                @for (var n = 1; n <= Model.PageCount; n++)
+                {
+                    if (n == Model.PageIndex)
+                    {
+                        <li><span>@n</span></li>
+                    }
+                    else if (n == 1 || n == Model.PageCount || Math.Abs(n - Model.PageIndex) <= 2)
+                    {
+                        <li><a href="@Link(n)">@n</a></li>
+                    }
+                    else if (Math.Abs(n - Model.PageIndex) == 3)
+                    {
+                        <li><span style="background:none;border:none;font-weight:normal">…</span></li>
+                    }
+                }
+                @if (Model.PageIndex < Model.PageCount)
+                {
+                    <li><a href="@Link(Model.PageIndex + 1)" rel="next" aria-label="@T("Наступна", "Следующая", "Next")">→</a></li>
+                }
+            </ul>
+        }
+
+        @if (Model.PageIndex == 1 && !filtered)
+        {
+            <div class="faq">
+                <h2>@T("Часті запитання", "Частые вопросы", "FAQ")</h2>
+                @foreach (var item in faq)
+                {
+                    <details>
+                        <summary>@item.Question</summary>
+                        <p>@item.Answer</p>
+                    </details>
+                }
+            </div>
+        }
+
+        @if (Model.HasDishPages)
+        {
+            <p><a href="/@culture/@Model.CitySlug/dishes">@T($"Страви й ціни: де скуштувати в місті {Model.CityName}", $"Блюда и цены: где попробовать в городе {Model.CityName}", $"Dishes and prices in {Model.CityName}")</a></p>
+        }
+        @if (Model.OtherCities.Any())
+        {
+            <h2>@T("Інші міста", "Другие города", "Other cities")</h2>
+            <ul class="links">
+                @foreach (var (slug, name) in Model.OtherCities)
+                {
+                    <li><a href="/@culture/@slug/restaurants@(Model.Type == null ? "" : "/" + Model.Type)">@CatalogText.Heading(CatalogService.TypeName(Model.Type ?? "restorany", culture), slug, name, culture)</a></li>
+                }
+            </ul>
+        }
+    </main>
+</div>
+@await Html.PartialAsync("_Footer")
