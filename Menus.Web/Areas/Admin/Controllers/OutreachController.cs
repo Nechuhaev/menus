@@ -31,6 +31,8 @@ namespace Menus.Web.Areas.Admin.Controllers
         public async Task<IActionResult> Index(string q, string cityId, string filter = "contacts", int page = 1)
         {
             var cities = (await _core.Restaurants.GetCities()).ToList();
+            foreach (var closedId in await _outreach.GetClosedButActive())
+                await SetSiteStatus(closedId, true);
             IEnumerable<OutreachRecipient> list = await _outreach.GetRestaurants();
             if (!string.IsNullOrWhiteSpace(q)) list = list.Where(x => (x.Name ?? "").IndexOf(q.Trim(), StringComparison.OrdinalIgnoreCase) >= 0);
             if (!string.IsNullOrEmpty(cityId)) list = list.Where(x => x.City == cityId);
@@ -199,11 +201,26 @@ namespace Menus.Web.Areas.Admin.Controllers
             return RedirectToAction("Index", new { q, cityId, filter, page });
         }
 
+        // «ЗАКРИТО» на сайті: сторінка лишається з плашкою «Заклад зачинено», а із сторінок страв, міст і пошуку заклад зникає
+        private async Task SetSiteStatus(string id, bool closed)
+        {
+            var restaurant = await _core.Restaurants.GetRestaurantById(id);
+            if (restaurant == null) return;
+            if (closed && restaurant.Status == Menus.Abstract.Models.RestaurantStatus.Active)
+                restaurant.Status = Menus.Abstract.Models.RestaurantStatus.Closed;
+            else if (!closed && restaurant.Status == Menus.Abstract.Models.RestaurantStatus.Closed)
+                restaurant.Status = Menus.Abstract.Models.RestaurantStatus.Active;
+            else
+                return;
+            await _core.Restaurants.Update(restaurant);
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetClosed(string id, bool closed, int? templateId)
         {
             await _outreach.SetClosed(id, closed);
+            await SetSiteStatus(id, closed);
             TempData["message"] = closed ? "Позначено: заклад ЗАКРИТО (з розсилки виключено)" : "Позначку «ЗАКРИТО» знято";
             return RedirectToAction("Restaurant", new { id, templateId });
         }

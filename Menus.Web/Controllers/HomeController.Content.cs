@@ -2,6 +2,7 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 using System;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -122,9 +123,10 @@ namespace Menus.Web.Controllers
                 form.ContainsKey("Phone")
             )
             {
+                var customerRequestId = Guid.NewGuid().ToString();
                 await _db.CustomerRequests.Add(new CustomerRequest
                 {
-                    Id = Guid.NewGuid().ToString(),
+                    Id = customerRequestId,
                     UpdateDate = DateTime.Now,
                     CreateDate = DateTime.Now,
                     Status = CustomerRequestStatus.New,
@@ -133,6 +135,7 @@ namespace Menus.Web.Controllers
                     Package = form["Package"],
                     Phone = form["Phone"]
                 });
+                await HttpContext.RequestServices.GetService<Menus.Web.Services.CustomerRequestService>().SaveIp(customerRequestId, Request);
             }
 
             Response.Headers.Add("Access-Control-Allow-Origin", "*");

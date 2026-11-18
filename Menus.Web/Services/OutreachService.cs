@@ -338,7 +338,7 @@ https://tipmymenu.com
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                 LEFT JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id
                 LEFT JOIN RestaurantSyncLog sl ON sl.RestaurantId = r.Id
-                WHERE r.Status = 0")).ToDictionary(x => x.Id);
+                WHERE r.Status IN (0, 3)")).ToDictionary(x => x.Id);
             await Fill(restaurants, null);
             return restaurants.Values.OrderBy(x => x.Name).ToList();
         }
@@ -393,6 +393,15 @@ https://tipmymenu.com
         }
 
         // кнопка «Заклад закрито» / «Працює» в картці: ручна позначка (Manual = 1), бот її не перезаписує
+        // заклади, які адмін позначив «ЗАКРИТО», але на сайті вони ще активні (позначки до появи синхронізації зі статусом)
+        public async Task<List<string>> GetClosedButActive()
+        {
+            await Ensure();
+            return (await _connection.QueryAsync<string>(@"
+                SELECT CONCAT(r.Id, '') FROM Restaurants r JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id
+                WHERE a.Status = 'closed' AND a.Manual = 1 AND r.Status = 0")).ToList();
+        }
+
         public async Task SetClosed(string restaurantId, bool closed)
         {
             await Ensure();

@@ -1,0 +1,63 @@
+@model Menus.Web.Services.CustomerRequestRow
+
+@{
+    ViewData["Title"] = "Запит";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var statuses = new[] { (0, "Новий"), (1, "Оброблено"), (2, "Новий запит доступу") };
+}
+
+<style>
+    .request-edit label { display: block; margin: 10px 0 4px; font-weight: bold; }
+    .request-edit input, .request-edit select, .request-edit textarea { width: 100%; max-width: 560px; box-sizing: border-box; }
+    .request-edit .muted { color: #777; font-size: 12px; }
+    .request-edit .buttons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+</style>
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center request-edit">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-action="Index">Запити</a></li>
+                    <li>Зміна</li>
+                </ul>
+            </div>
+
+            <h2>Запит від @Model.CreateDate.ToString("dd.MM.yyyy HH:mm")</h2>
+            <p class="muted">IP: @(Model.Ip ?? "не збережено") · оновлено @Model.UpdateDate.ToString("dd.MM.yyyy HH:mm")</p>
+
+            <form method="post" asp-action="Edit">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <label>Ресторан @(Model.IsAccessRequest ? "(Id ресторану)" : "")</label>
+                <input name="restaurantName" value="@Model.RestaurantName" />
+                @if (Model.IsAccessRequest && Model.RestaurantTitle != null)
+                {
+                    <div class="muted">@Model.RestaurantTitle</div>
+                }
+                <label>Пакет</label>
+                <input name="package" value="@Model.Package" />
+                <label>Email</label>
+                <input name="email" value="@Model.Email" />
+                <label>Телефон</label>
+                <input name="phone" value="@Model.Phone" />
+                <label>Статус</label>
+                <select name="status">
+                    @foreach (var (value, title) in statuses)
+                    {
+                        <option value="@value" selected="@(Model.Status == value)">@title</option>
+                    }
+                </select>
+                <div class="buttons">
+                    <button type="submit">Зберегти</button>
+                    <a asp-action="Index">Скасувати</a>
+                </div>
+            </form>
+
+            <form method="post" asp-action="Delete" style="margin-top: 24px;" onsubmit="return confirm('Видалити запит?');">
+                <input type="hidden" name="ids" value="@Model.Id" />
+                <button type="submit">Видалити запит</button>
+            </form>
+        </div>
+    </main>
+</div>
