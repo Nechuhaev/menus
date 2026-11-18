@@ -51,7 +51,7 @@
             <div class="alive-box">
                 @if (Model.Closed)
                 {
-                    <span>Розсилка цьому закладу вимкнена (@(Model.AliveReason + (Model.AliveCheckedAt != null ? ", " + Model.AliveCheckedAt.Value.ToString("dd.MM.yyyy") : ""))).</span>
+                    <span>Розсилка цьому закладу вимкнена (@((Model.AliveStatus == "closed" ? Model.AliveReason : "закрито в адмінці «Ресторани»") + (Model.AliveStatus == "closed" && Model.AliveCheckedAt != null ? ", " + Model.AliveCheckedAt.Value.ToString("dd.MM.yyyy") : ""))).</span>
                 }
                 else if (Model.QrSuspended)
                 {

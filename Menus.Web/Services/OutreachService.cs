@@ -152,7 +152,9 @@ namespace Menus.Web.Services
             }
             return TimeZoneInfo.Utc;
         }
-        public bool Closed => AliveStatus == "closed";
+        // статус на сайті (Restaurants.Status): 3 - закрито в адмінці «Ресторани»
+        public int SiteStatus { get; set; }
+        public bool Closed => AliveStatus == "closed" || SiteStatus == 3;
         public bool QrSuspended => AliveStatus == "qr_suspended";
         public List<OutreachContact> Contacts { get; set; } = new List<OutreachContact>();
         public List<OutreachLogRow> Log { get; set; } = new List<OutreachLogRow>();
@@ -326,7 +328,7 @@ https://tipmymenu.com
         {
             await Ensure();
             var restaurants = (await _connection.QueryAsync<OutreachRecipient>(@"
-                SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, r.Email,
+                SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, r.Email, r.Status AS SiteStatus,
                        (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS Dishes,
                        (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl,
                        (SELECT ri.Website FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS Website,
@@ -347,7 +349,7 @@ https://tipmymenu.com
         {
             await Ensure();
             var r = await _connection.QueryFirstOrDefaultAsync<OutreachRecipient>(@"
-                SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, r.Email,
+                SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, r.Email, r.Status AS SiteStatus,
                        (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0) AS Dishes,
                        (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl,
                        (SELECT ri.Website FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS Website,
@@ -400,6 +402,19 @@ https://tipmymenu.com
             return (await _connection.QueryAsync<string>(@"
                 SELECT CONCAT(r.Id, '') FROM Restaurants r JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id
                 WHERE a.Status = 'closed' AND a.Manual = 1 AND r.Status = 0")).ToList();
+        }
+
+        // статус змінили в адмінці «Ресторани» - та сама позначка в «Розсилці» (ручна, бот її не перепише)
+        public async Task SyncFromSiteStatus(string restaurantId, bool closed)
+        {
+            await Ensure();
+            if (closed)
+                await _connection.ExecuteAsync(@"INSERT INTO RestaurantAliveCheck (RestaurantId, Status, Reason, Manual, CheckedAt)
+                    VALUES (@restaurantId, 'closed', 'закрито в адмінці «Ресторани»', 1, NOW())
+                    ON DUPLICATE KEY UPDATE Status = 'closed', Reason = 'закрито в адмінці «Ресторани»', Manual = 1, CheckedAt = NOW()", new { restaurantId });
+            else // відкрили: знімаємо лише позначку «закрито», інші (сумнів, QR призупинено) лишаються
+                await _connection.ExecuteAsync(@"UPDATE RestaurantAliveCheck SET Status = 'ok', Reason = 'адмін: працює', Manual = 1, CheckedAt = NOW()
+                    WHERE RestaurantId = @restaurantId AND Status = 'closed'", new { restaurantId });
         }
 
         public async Task SetClosed(string restaurantId, bool closed)
