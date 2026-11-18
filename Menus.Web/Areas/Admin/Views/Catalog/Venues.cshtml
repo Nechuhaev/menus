@@ -7,6 +7,7 @@
     var citySlug = ViewData["citySlug"] as string;
     var type = ViewData["type"] as string;
     var cuisine = ViewData["cuisine"] as string;
+    var feature = ViewData["feature"] as string;
     var q = ViewData["q"] as string;
     var districts = ViewData["districts"] as List<CatalogVenue> ?? new List<CatalogVenue>();
     var returnUrl = Context.Request.Path + Context.Request.QueryString;
@@ -19,7 +20,7 @@
                 <ul>
                     <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
                     <li><a asp-action="Index" asp-route-cityId="@cityId">Каталог</a></li>
-                    <li>@ViewData["cityName"]: @(!string.IsNullOrEmpty(cuisine) ? (cuisine == "-" ? "без кухні" : CatalogService.CuisineName(cuisine, "uk")) : string.IsNullOrEmpty(type) ? "усі заклади" : CatalogService.TypeName(type, "uk"))</li>
+                    <li>@ViewData["cityName"]: @(!string.IsNullOrEmpty(feature) ? CatalogService.FeatureName(feature, "uk") : !string.IsNullOrEmpty(cuisine) ? (cuisine == "-" ? "без кухні" : CatalogService.CuisineName(cuisine, "uk")) : string.IsNullOrEmpty(type) ? "усі заклади" : CatalogService.TypeName(type, "uk"))</li>
                 </ul>
             </div>
 
@@ -45,6 +46,13 @@
                         <option value="@c.Key" selected="@(c.Key == cuisine)">@c.Value.Uk</option>
                     }
                 </select>
+                <select name="feature" onchange="this.form.submit()">
+                    <option value="">Усі особливості</option>
+                    @foreach (var f in CatalogService.Features)
+                    {
+                        <option value="@f.Key" selected="@(f.Key == feature)">@f.Value.Uk</option>
+                    }
+                </select>
                 <input type="text" name="q" value="@q" placeholder="Назва закладу" />
                 <button type="submit">Знайти</button>
                 <span style="color:#777;font-size:12px;align-self:center;">@Model.Count</span>
@@ -52,7 +60,7 @@
 
             <div style="overflow-x:auto;">
                 <table class="mainTable">
-                    <thead><tr><th>Заклад</th><th>Страв</th><th>Тип, район і кухні</th></tr></thead>
+                    <thead><tr><th>Заклад</th><th>Страв</th><th>Тип, район, кухні, особливості</th></tr></thead>
                     <tbody>
                         @foreach (var v in Model)
                         {

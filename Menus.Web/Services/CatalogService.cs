@@ -28,6 +28,10 @@ namespace Menus.Web.Services
         public string DistrictSlug { get; set; }
         public string Cuisines { get; set; } // slug кухонь через кому (venue_types.py або адмін)
         public bool CuisinesManual { get; set; }
+        public string Features { get; set; } // особливості через кому (venue_types.py або адмін); «nedorogo» - рахується за цінами
+        public bool FeaturesManual { get; set; }
+        public decimal? LunchPrice { get; set; }
+        public List<string> FeatureList => (Features ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList();
         public List<string> CuisineList => (Cuisines ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList();
         public decimal MedianPrice { get; set; }
         public int Dishes { get; set; }
@@ -126,6 +130,56 @@ namespace Menus.Web.Services
                 .OrderByDescending(x => x.Venues).ToList();
         }
 
+        // особливості: slug -> (кнопка uk/ru/en, заголовок uk/ru/en); у заголовку {gen} - «Києва», {loc} - «в Києві», {city} - «Kyiv»
+        public static readonly Dictionary<string, (string Uk, string Ru, string En, string HUk, string HRu, string HEn)> Features =
+            new Dictionary<string, (string, string, string, string, string, string)>
+            {
+                ["nedorogo"] = ("Недорого", "Недорого", "Budget",
+                    "Недорогі ресторани й кафе {gen}", "Недорогие рестораны и кафе {gen}", "Budget restaurants & cafes in {city}"),
+                ["tsilodobovo"] = ("Цілодобово", "Круглосуточно", "24/7",
+                    "Цілодобові заклади {gen}", "Круглосуточные заведения {gen}", "24/7 restaurants & cafes in {city}"),
+                ["snidanky"] = ("Сніданки", "Завтраки", "Breakfast",
+                    "Сніданки {loc}: де поснідати", "Завтраки {loc}: где позавтракать", "Breakfast in {city}"),
+                ["biznes-lanch"] = ("Бізнес-ланч", "Бизнес-ланч", "Business lunch",
+                    "Бізнес-ланчі {loc}", "Бизнес-ланчи {loc}", "Business lunch in {city}"),
+                ["kalian"] = ("Кальян", "Кальян", "Hookah",
+                    "Заклади з кальяном {gen}", "Заведения с кальяном {gen}", "Hookah places in {city}"),
+                ["dytiache-menu"] = ("Дитяче меню", "Детское меню", "Kids menu",
+                    "Заклади з дитячим меню {gen}", "Заведения с детским меню {gen}", "Restaurants with kids menu in {city}"),
+            };
+
+        public static string FeatureName(string feature, string culture)
+        {
+            if (string.IsNullOrEmpty(feature) || !Features.TryGetValue(feature, out var f)) return feature ?? "";
+            return culture == "en" ? f.En : culture == "ru" ? f.Ru : f.Uk;
+        }
+
+        public static string FeatureKey(string feature) => "f:" + feature;
+
+        // заклад має особливість; «недорого» - типова ціна страви не вище межі міста
+        public static bool HasFeature(CatalogVenue v, string feature, decimal cheapLimit) =>
+            feature == "nedorogo" ? cheapLimit > 0 && v.MedianPrice > 0 && v.MedianPrice <= cheapLimit : v.FeatureList.Contains(feature);
+
+        // «недорого»: типова ціна страви закладу в нижній третині міста
+        public static decimal CheapLimit(List<CatalogVenue> venues)
+        {
+            var medians = venues.Where(x => x.MedianPrice > 0).Select(x => x.MedianPrice).OrderBy(x => x).ToList();
+            return medians.Count < 9 ? 0 : medians[medians.Count / 3];
+        }
+
+        public static bool IsFeaturePublished(string feature, int venues, CatalogPageSettings settings) =>
+            Features.ContainsKey(feature ?? "") && venues >= MinVenues && (settings?.Enabled ?? true);
+
+        public async Task<List<(string Feature, int Venues)>> PublishedFeatures(string cityId)
+        {
+            var settings = await GetSettings();
+            var venues = await GetCity(cityId);
+            var limit = CheapLimit(venues);
+            return Features.Keys.Select(f => (Feature: f, Venues: venues.Count(v => HasFeature(v, f, limit))))
+                .Where(x => IsFeaturePublished(x.Feature, x.Venues, settings.FirstOrDefault(s => s.CityId == cityId && s.VenueType == FeatureKey(x.Feature))))
+                .ToList();
+        }
+
         public static string TypeName(string type, string culture)
         {
             if (string.IsNullOrEmpty(type) || !Types.TryGetValue(type, out var t)) t = Types["restorany"];
@@ -170,7 +224,11 @@ namespace Menus.Web.Services
                 ) DEFAULT CHARSET=utf8mb4;
                 ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS Cuisines VARCHAR(500) NULL;
                 ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS CuisinesReason VARCHAR(255) NULL;
-                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS CuisinesManual TINYINT(1) NOT NULL DEFAULT 0;");
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS CuisinesManual TINYINT(1) NOT NULL DEFAULT 0;
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS Features VARCHAR(255) NULL;
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS FeaturesReason VARCHAR(255) NULL;
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS FeaturesManual TINYINT(1) NOT NULL DEFAULT 0;
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS LunchPrice DECIMAL(10,2) NULL;");
             _tablesReady = true;
         }
 
@@ -187,7 +245,8 @@ namespace Menus.Web.Services
                     SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, r.CreateDate,
                            ri.Cuisine, ri.DisplayAddress, ri.Photos, ri.OpenHours, ri.Currency,
                            v.VenueType, v.DistrictUk, v.DistrictRu, v.DistrictEn, v.DistrictSlug,
-                           v.Cuisines, IFNULL(v.CuisinesManual, 0) AS CuisinesManual
+                           v.Cuisines, IFNULL(v.CuisinesManual, 0) AS CuisinesManual,
+                           v.Features, IFNULL(v.FeaturesManual, 0) AS FeaturesManual, v.LunchPrice
                     FROM Restaurants r
                     JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                     LEFT JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
@@ -253,7 +312,8 @@ namespace Menus.Web.Services
             await Ensure();
             return (await _connection.QueryAsync<CatalogVenue>(@"
                 SELECT CONCAT(RestaurantId, '') AS Id, VenueType, DistrictUk, DistrictRu, DistrictEn, DistrictSlug,
-                       Cuisines, IFNULL(CuisinesManual, 0) AS CuisinesManual
+                       Cuisines, IFNULL(CuisinesManual, 0) AS CuisinesManual,
+                       Features, IFNULL(FeaturesManual, 0) AS FeaturesManual, LunchPrice
                 FROM RestaurantVenue")).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First());
         }
 
@@ -295,9 +355,18 @@ namespace Menus.Web.Services
 
         // ручна зміна типу / району з адмінки: бот її більше не перезаписує
         public async Task SetVenue(string restaurantId, string type, string districtUk, string districtRu, string districtEn, string districtSlug,
-            IEnumerable<string> cuisines = null)
+            IEnumerable<string> cuisines = null, IEnumerable<string> features = null)
         {
             await Ensure();
+            if (features != null)
+            {
+                var list = string.Join(",", features.Where(f => Features.ContainsKey(f) && f != "nedorogo").Distinct());
+                await _connection.ExecuteAsync(@"
+                    INSERT INTO RestaurantVenue (RestaurantId, VenueType, Features, FeaturesReason, FeaturesManual, UpdatedAt)
+                    VALUES (@restaurantId, 'restorany', @list, 'вручну (адмін)', 1, UTC_TIMESTAMP())
+                    ON DUPLICATE KEY UPDATE Features = @list, FeaturesReason = 'вручну (адмін)', FeaturesManual = 1, UpdatedAt = UTC_TIMESTAMP()",
+                    new { restaurantId, list = list == "" ? null : list });
+            }
             if (cuisines != null)
             {
                 var list = string.Join(",", cuisines.Where(c => Cuisines.ContainsKey(c)).Distinct());

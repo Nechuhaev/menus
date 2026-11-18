@@ -39,6 +39,17 @@ namespace Menus.Web.Helpers
             return $"{cuisineName}: {cityName}";
         }
 
+        // заголовок особливості з шаблону: {gen} - «Києва», {loc} - «в Києві», {city} - назва міста
+        public static string FeatureHeading(string template, string citySlug, string cityName, string culture)
+        {
+            var gen = Genitive.TryGetValue(citySlug ?? "", out var g) ? (culture == "ru" ? g.Ru : g.Uk) : null;
+            var loc = Locative.TryGetValue(citySlug ?? "", out var l) ? (culture == "ru" ? l.Ru : l.Uk) : null;
+            return (template ?? "")
+                .Replace("{gen}", gen ?? ": " + cityName).Replace(" : ", ": ")
+                .Replace("{loc}", loc ?? "- " + cityName)
+                .Replace("{city}", cityName);
+        }
+
         // «Бари Києва» / «Бары Киева» / «Bars in Kyiv»; невідоме місто - «Бари: Київ»
         public static string Heading(string typeName, string citySlug, string cityName, string culture)
         {

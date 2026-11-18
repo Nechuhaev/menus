@@ -8,12 +8,15 @@
     string T(string uk, string ru, string en) => CatalogText.T(culture, uk, ru, en);
     var siteUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
     var basePath = $"/{culture}/{Model.CitySlug}/restaurants";
-    var pagePath = Model.Cuisine != null ? $"{basePath}/kukhnia/{Model.Cuisine}" : Model.Type == null ? basePath : $"{basePath}/{Model.Type}";
+    var pagePath = Model.Feature != null ? $"{basePath}/{Model.Feature}" : Model.Cuisine != null ? $"{basePath}/kukhnia/{Model.Cuisine}" : Model.Type == null ? basePath : $"{basePath}/{Model.Type}";
     var allTitle = CatalogText.Heading(CatalogService.TypeName("restorany", culture), Model.CitySlug, Model.CityName, culture);
-    var heading = Model.Cuisine != null
+    var featureInfo = Model.Feature != null ? CatalogService.Features[Model.Feature] : default;
+    var heading = Model.Feature != null
+        ? CatalogText.FeatureHeading(culture == "en" ? featureInfo.HEn : culture == "ru" ? featureInfo.HRu : featureInfo.HUk, Model.CitySlug, Model.CityName, culture)
+        : Model.Cuisine != null
         ? CatalogText.CuisineHeading(CatalogService.CuisineName(Model.Cuisine, culture), Model.CitySlug, Model.CityName, culture)
         : CatalogText.Heading(CatalogService.TypeName(Model.Type ?? "restorany", culture), Model.CitySlug, Model.CityName, culture);
-    var isAll = Model.Type == null && Model.Cuisine == null;
+    var isAll = Model.Type == null && Model.Cuisine == null && Model.Feature == null;
     var year = DateTime.Now.Year;
     var currency = Model.AllOfType.Select(x => x.Currency).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "₴";
     string Money(decimal v) => $"{v:0} {currency}";
@@ -188,6 +191,16 @@
                     <a href="@Link(type: t, district: null)" class="@(Model.Type == t ? "on" : "")">@CatalogService.TypeName(t, culture)<small>@n</small></a>
                 }
             </div>
+            @if (Model.Features.Any())
+            {
+                <div class="chips-label">@T("Особливості", "Особенности", "Features")</div>
+                <div class="chips">
+                    @foreach (var (f, n) in Model.Features)
+                    {
+                        <a href="@Link(type: f, district: null, price: null)" class="@(Model.Feature == f ? "on" : "")">@CatalogService.FeatureName(f, culture)<small>@n</small></a>
+                    }
+                </div>
+            }
             @if (Model.Cuisines.Any())
             {
                 <div class="chips-label">@T("Кухня", "Кухня", "Cuisine")</div>
@@ -211,7 +224,7 @@
             </div>
         }
         <div class="chips">
-            @if (Model.CheapLimit > 0)
+            @if (Model.CheapLimit > 0 && Model.Feature != "nedorogo")
             {
                 <a href="@Link(price: Model.Cheap ? null : "low")" rel="nofollow" class="@(Model.Cheap ? "on" : "")">@T("Недорого", "Недорого", "Budget")<small>≤ @Money(Model.CheapLimit)</small></a>
             }
@@ -245,9 +258,17 @@
                         {
                             <div class="meta">@(string.IsNullOrWhiteSpace(district) ? "" : district + (string.IsNullOrWhiteSpace(address) ? "" : " · "))@address</div>
                         }
-                        @if (!string.IsNullOrWhiteSpace(hours))
+                        @if (v.FeatureList.Contains("tsilodobovo"))
+                        {
+                            <div class="meta"><strong>24/7</strong> · @T("цілодобово", "круглосуточно", "open 24 hours")</div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(hours))
                         {
                             <div class="meta">@hours</div>
+                        }
+                        @if (Model.Feature == "biznes-lanch" && v.LunchPrice > 0)
+                        {
+                            <div class="meta"><strong>@T("Бізнес-ланч від", "Бизнес-ланч от", "Business lunch from") @Money(v.LunchPrice.Value)</strong></div>
                         }
                         <div class="row">
                             <span class="price">@(v.MedianPrice > 0 ? T("страва ≈ ", "блюдо ≈ ", "dish ≈ ") + Money(v.MedianPrice) : "")</span>
@@ -321,7 +342,11 @@
             <ul class="links">
                 @foreach (var (slug, name) in Model.OtherCities)
                 {
-                    @if (Model.Cuisine != null)
+                    @if (Model.Feature != null)
+                    {
+                        <li><a href="/@culture/@slug/restaurants/@Model.Feature">@CatalogText.FeatureHeading(culture == "en" ? featureInfo.HEn : culture == "ru" ? featureInfo.HRu : featureInfo.HUk, slug, name, culture)</a></li>
+                    }
+                    else if (Model.Cuisine != null)
                     {
                         <li><a href="/@culture/@slug/restaurants/kukhnia/@Model.Cuisine">@CatalogText.CuisineHeading(CatalogService.CuisineName(Model.Cuisine, culture), slug, name, culture)</a></li>
                     }

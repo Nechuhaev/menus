@@ -6,10 +6,12 @@
     var texts = ViewData["texts"] as Dictionary<string, string> ?? new Dictionary<string, string>();
     string Text(string lang) => texts.TryGetValue(lang, out var t) ? t : "";
     var isCuisine = (Model.VenueType ?? "").StartsWith("c:");
+    var isFeature = (Model.VenueType ?? "").StartsWith("f:");
     var name = string.IsNullOrEmpty(Model.VenueType) ? "Усі заклади"
-        : isCuisine ? CatalogService.CuisineName(Model.VenueType.Substring(2), "uk") : CatalogService.TypeName(Model.VenueType, "uk");
+        : isCuisine ? CatalogService.CuisineName(Model.VenueType.Substring(2), "uk")
+        : isFeature ? CatalogService.FeatureName(Model.VenueType.Substring(2), "uk") : CatalogService.TypeName(Model.VenueType, "uk");
     var path = $"/uk/{ViewData["citySlug"]}/restaurants" + (string.IsNullOrEmpty(Model.VenueType) ? ""
-        : isCuisine ? "/kukhnia/" + Model.VenueType.Substring(2) : "/" + Model.VenueType);
+        : isCuisine ? "/kukhnia/" + Model.VenueType.Substring(2) : isFeature ? "/" + Model.VenueType.Substring(2) : "/" + Model.VenueType);
 }
 
 <style>

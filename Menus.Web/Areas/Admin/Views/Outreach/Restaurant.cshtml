@@ -59,6 +59,7 @@
                     catalogVenue.DistrictUk = freshVenue.DistrictUk; catalogVenue.DistrictRu = freshVenue.DistrictRu;
                     catalogVenue.DistrictEn = freshVenue.DistrictEn; catalogVenue.DistrictSlug = freshVenue.DistrictSlug;
                     catalogVenue.Cuisines = freshVenue.Cuisines;
+                    catalogVenue.Features = freshVenue.Features;
                 }
                 var catalogDistricts = catalogVenue == null ? new List<Menus.Web.Services.CatalogVenue>()
                     : catalogAll.Where(x => x.City == catalogVenue.City && !string.IsNullOrEmpty(x.DistrictSlug)).GroupBy(x => x.DistrictSlug).Select(g => g.First()).OrderBy(x => x.DistrictUk).ToList();

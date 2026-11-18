@@ -254,7 +254,9 @@ namespace Menus.Web.Services
                 var parts = PathOf(pageOrPath).Split('/');
                 if (parts.Last() == "restaurants") return "";
                 // кухня: /restaurants/kukhnia/hruzynska -> "c:hruzynska" (як ключ CatalogPages)
-                return parts.Length >= 2 && parts[parts.Length - 2] == "kukhnia" ? "c:" + parts.Last() : parts.Last();
+                if (parts.Length >= 2 && parts[parts.Length - 2] == "kukhnia") return "c:" + parts.Last();
+                // особливість: /restaurants/snidanky -> "f:snidanky"
+                return CatalogService.Features.ContainsKey(parts.Last()) ? "f:" + parts.Last() : parts.Last();
             }
             var pattern = $"/(uk|ru|en)/{System.Text.RegularExpressions.Regex.Escape(citySlug ?? "")}/restaurants(/kukhnia)?(/[^/]+)?/?$";
             try

@@ -17,6 +17,8 @@ namespace Menus.Web.Controllers
         public string CityName { get; set; }
         public string Type { get; set; }               // null - усі заклади міста
         public string Cuisine { get; set; }            // сторінка кухні (/restaurants/kukhnia/{slug})
+        public string Feature { get; set; }            // сторінка особливості (/restaurants/snidanky)
+        public List<(string Feature, int Venues)> Features { get; set; }
         public List<(string Cuisine, int Venues)> Cuisines { get; set; }
         public List<(string Slug, string Title)> DishLinks { get; set; } // «страва + місто» цієї кухні
         public string District { get; set; }           // slug фільтра
@@ -72,9 +74,20 @@ namespace Menus.Web.Controllers
             type = string.IsNullOrEmpty(type) ? null : type.ToLowerInvariant();
             cuisine = string.IsNullOrEmpty(cuisine) ? null : cuisine.ToLowerInvariant();
             var venues = await _catalog.GetCity(cityObj.Id);
+            var cheapLimit = CatalogService.CheapLimit(venues);
             List<CatalogVenue> ofType;
             CatalogPageSettings settings;
-            if (cuisine != null)
+            // особливість - той самий сегмент адреси, що й тип: /restaurants/snidanky
+            string feature = type != null && CatalogService.Features.ContainsKey(type) ? type : null;
+            if (feature != null)
+            {
+                type = null;
+                cuisine = null;
+                ofType = venues.Where(x => CatalogService.HasFeature(x, feature, cheapLimit)).ToList();
+                settings = await _catalog.GetSettings(cityObj.Id, CatalogService.FeatureKey(feature));
+                if (!CatalogService.IsFeaturePublished(feature, ofType.Count, settings)) return NotFoundView();
+            }
+            else if (cuisine != null)
             {
                 type = null;
                 ofType = venues.Where(x => x.CuisineList.Contains(cuisine)).ToList();
@@ -89,7 +102,6 @@ namespace Menus.Web.Controllers
             }
 
             // фільтри
-            var cheapLimit = CheapLimit(venues);
             IEnumerable<CatalogVenue> filtered = ofType;
             if (!string.IsNullOrEmpty(district)) filtered = filtered.Where(x => x.DistrictSlug == district);
             var cheap = price == "low" && cheapLimit > 0;
@@ -143,6 +155,8 @@ namespace Menus.Web.Controllers
                 CityName = cityObj.Name.Get(culture),
                 Type = type,
                 Cuisine = cuisine,
+                Feature = feature,
+                Features = await _catalog.PublishedFeatures(cityObj.Id),
                 Cuisines = await _catalog.PublishedCuisines(cityObj.Id),
                 DishLinks = cuisine == null ? new List<(string, string)>()
                     : (await _dishPages.GetPublishedForCity(cityObj.Id))
@@ -172,8 +186,12 @@ namespace Menus.Web.Controllers
             var allVenues = await _catalog.GetAll();
             var settingsAll = await _catalog.GetSettings();
             model.OtherCities = cities.Where(c => c.Id != cityObj.Id)
-                .Select(c => (City: c, Count: allVenues.Count(v => v.City == c.Id && (cuisine != null ? v.CuisineList.Contains(cuisine) : type == null || v.Type == type))))
-                .Where(x => cuisine != null
+                .Select(c => (City: c, Count: feature != null
+                    ? allVenues.Count(v => v.City == c.Id && CatalogService.HasFeature(v, feature, CatalogService.CheapLimit(allVenues.Where(a => a.City == c.Id).ToList())))
+                    : allVenues.Count(v => v.City == c.Id && (cuisine != null ? v.CuisineList.Contains(cuisine) : type == null || v.Type == type))))
+                .Where(x => feature != null
+                    ? CatalogService.IsFeaturePublished(feature, x.Count, settingsAll.FirstOrDefault(s => s.CityId == x.City.Id && s.VenueType == CatalogService.FeatureKey(feature)))
+                    : cuisine != null
                     ? CatalogService.IsCuisinePublished(cuisine, x.Count, settingsAll.FirstOrDefault(s => s.CityId == x.City.Id && s.VenueType == CatalogService.CuisineKey(cuisine)))
                     : CatalogService.IsPublished(type, x.Count, settingsAll.FirstOrDefault(s => s.CityId == x.City.Id && s.VenueType == (type ?? ""))))
                 .OrderByDescending(x => x.Count)
@@ -203,17 +221,10 @@ namespace Menus.Web.Controllers
             ["virmenska"] = "хоровац|лаваш|толма|долма",
             ["krymskotatarska"] = "чебурек|янтик|плов|манти|лагман",
             ["koreiska"] = "кімчі|бібімбап|пулькогі|токпокі",
-            ["vietnamska"] = "фо бо|фо\b|бун|спрінг|нем",
+            ["vietnamska"] = "фо бо|бун бо|спрінг|нем",
             ["taiska"] = "пад тай|том ям|том кха|карі",
             ["vegetarianska"] = "веган|овоч|салат|фалафел|хумус",
         };
-
-        // «недорого»: типова ціна страви закладу в нижній третині міста
-        public static decimal CheapLimit(List<CatalogVenue> venues)
-        {
-            var medians = venues.Where(x => x.MedianPrice > 0).Select(x => x.MedianPrice).OrderBy(x => x).ToList();
-            return medians.Count < 9 ? 0 : medians[medians.Count / 3];
-        }
 
         private IActionResult NotFoundView()
         {
