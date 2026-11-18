@@ -6,7 +6,7 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
     var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
-    // правки з адмінки («Тексти сторінок»), інакше - .resx
+    // правки з адмінки («Страницы» → «Редагувати тексти»), інакше - .resx
     var textOverrides = await SiteTexts.GetOverrides("iframe-menu", culture);
     string L(string key) => textOverrides.TryGetValue(key, out var t) ? t : Localizer[key].Value;
     ViewData["Title"] = L("MetaTitle");

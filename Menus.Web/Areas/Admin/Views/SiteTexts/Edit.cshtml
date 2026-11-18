@@ -31,7 +31,7 @@
             <div class="breadcrumbs">
                 <ul>
                     <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
-                    <li><a asp-action="Index">Тексти сторінок</a></li>
+                    <li><a asp-controller="Pages" asp-action="Content">Страницы</a></li>
                     <li>@Model.Title</li>
                 </ul>
             </div>
@@ -65,7 +65,7 @@
                 }
                 <div class="actions">
                     <button type="submit">Зберегти</button>
-                    <a asp-action="Index">До списку</a>
+                    <a asp-controller="Pages" asp-action="Content">До сторінок</a>
                 </div>
             </form>
         </div>
