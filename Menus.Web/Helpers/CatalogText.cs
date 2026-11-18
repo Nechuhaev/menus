@@ -18,6 +18,27 @@ namespace Menus.Web.Helpers
             ["cherkasy"] = ("Черкас", "Черкасс"), ["bukovel"] = ("Буковеля", "Буковеля"),
         };
 
+        // місцевий відмінок: «в Києві», «во Львове»
+        private static readonly Dictionary<string, (string Uk, string Ru)> Locative = new Dictionary<string, (string, string)>
+        {
+            ["kyiv"] = ("в Києві", "в Киеве"), ["kiev"] = ("в Києві", "в Киеве"), ["odesa"] = ("в Одесі", "в Одессе"), ["odessa"] = ("в Одесі", "в Одессе"),
+            ["lviv"] = ("у Львові", "во Львове"), ["kharkiv"] = ("в Харкові", "в Харькове"), ["dnipro"] = ("в Дніпрі", "в Днепре"),
+            ["zaporizhzhia"] = ("в Запоріжжі", "в Запорожье"), ["vinnytsia"] = ("у Вінниці", "в Виннице"), ["poltava"] = ("в Полтаві", "в Полтаве"),
+            ["chernihiv"] = ("в Чернігові", "в Чернигове"), ["ivano-frankivsk"] = ("в Івано-Франківську", "в Ивано-Франковске"),
+            ["uzhhorod"] = ("в Ужгороді", "в Ужгороде"), ["lutsk"] = ("в Луцьку", "в Луцке"), ["rivne"] = ("в Рівному", "в Ровно"),
+            ["ternopil"] = ("в Тернополі", "в Тернополе"), ["chernivtsi"] = ("у Чернівцях", "в Черновцах"), ["mykolaiv"] = ("в Миколаєві", "в Николаеве"),
+            ["kherson"] = ("в Херсоні", "в Херсоне"), ["sumy"] = ("в Сумах", "в Сумах"), ["zhytomyr"] = ("в Житомирі", "в Житомире"),
+            ["cherkasy"] = ("в Черкасах", "в Черкассах"), ["bukovel"] = ("в Буковелі", "в Буковеле"),
+        };
+
+        // «Грузинська кухня в Києві» / «Грузинская кухня в Киеве» / «Georgian restaurants in Kyiv»
+        public static string CuisineHeading(string cuisineName, string citySlug, string cityName, string culture)
+        {
+            if (culture == "en") return $"{cuisineName} restaurants in {cityName}";
+            if (Locative.TryGetValue(citySlug ?? "", out var l)) return $"{cuisineName} {(culture == "ru" ? l.Ru : l.Uk)}";
+            return $"{cuisineName}: {cityName}";
+        }
+
         // «Бари Києва» / «Бары Киева» / «Bars in Kyiv»; невідоме місто - «Бари: Київ»
         public static string Heading(string typeName, string citySlug, string cityName, string culture)
         {

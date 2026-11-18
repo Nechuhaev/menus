@@ -489,6 +489,13 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                             defaults: new { controller = "Home", action = "NewsPage" });
 
                         // місто перевіряє DishCityController (невідоме - 404); областей /dishes немає
+                        // кухні міста: /uk/kyiv/restaurants/kukhnia/hruzynska (той самий CatalogController)
+                        mvcRoutes.MapRoute(
+                            name: "catalogCuisine",
+                            template: custureRoutePath + "/{city}/restaurants/kukhnia/{cuisine}",
+                            defaults: new { controller = "Catalog", action = "Index" },
+                            constraints: new { city = new Microsoft.AspNetCore.Routing.Constraints.RegexRouteConstraint("^(?!admin$|restaurants$)[a-z0-9-]+$") });
+
                         // каталог міста: /uk/kyiv/restaurants і /uk/kyiv/restaurants/bary (CatalogController; невідоме - 404)
                         mvcRoutes.MapRoute(
                             name: "catalog",

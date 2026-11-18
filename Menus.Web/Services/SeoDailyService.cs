@@ -71,7 +71,7 @@ namespace Menus.Web.Services
             ("dish", "/(uk|ru|en)/[^/]+/restaurant/[^/]+/[^/]+/?$"),
             ("restaurant", "/(uk|ru|en)/[^/]+/restaurant/[^/]+/?$"),
             ("dishcity", "/(uk|ru|en)/[^/]+/dishes/[^/]+/?$"),
-            ("catalog", "/(uk|ru|en)/[^/]+/restaurants(/[^/]+)?/?$"),
+            ("catalog", "/(uk|ru|en)/[^/]+/restaurants(/kukhnia)?(/[^/]+)?/?$"),
             ("article", "/(uk|ru|en)/(news|blog)/"),
         };
 
@@ -252,9 +252,11 @@ namespace Menus.Web.Services
             string TypeOf(string pageOrPath)
             {
                 var parts = PathOf(pageOrPath).Split('/');
-                return parts.Last() == "restaurants" ? "" : parts.Last();
+                if (parts.Last() == "restaurants") return "";
+                // кухня: /restaurants/kukhnia/hruzynska -> "c:hruzynska" (як ключ CatalogPages)
+                return parts.Length >= 2 && parts[parts.Length - 2] == "kukhnia" ? "c:" + parts.Last() : parts.Last();
             }
-            var pattern = $"/(uk|ru|en)/{System.Text.RegularExpressions.Regex.Escape(citySlug ?? "")}/restaurants(/[^/]+)?/?$";
+            var pattern = $"/(uk|ru|en)/{System.Text.RegularExpressions.Regex.Escape(citySlug ?? "")}/restaurants(/kukhnia)?(/[^/]+)?/?$";
             try
             {
                 foreach (var r in await _connection.QueryAsync<(string Page, long Clicks, long Impressions)>(

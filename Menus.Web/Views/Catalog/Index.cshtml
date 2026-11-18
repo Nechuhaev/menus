@@ -8,18 +8,22 @@
     string T(string uk, string ru, string en) => CatalogText.T(culture, uk, ru, en);
     var siteUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
     var basePath = $"/{culture}/{Model.CitySlug}/restaurants";
-    var pagePath = Model.Type == null ? basePath : $"{basePath}/{Model.Type}";
+    var pagePath = Model.Cuisine != null ? $"{basePath}/kukhnia/{Model.Cuisine}" : Model.Type == null ? basePath : $"{basePath}/{Model.Type}";
     var allTitle = CatalogText.Heading(CatalogService.TypeName("restorany", culture), Model.CitySlug, Model.CityName, culture);
-    var heading = CatalogText.Heading(CatalogService.TypeName(Model.Type ?? "restorany", culture), Model.CitySlug, Model.CityName, culture);
+    var heading = Model.Cuisine != null
+        ? CatalogText.CuisineHeading(CatalogService.CuisineName(Model.Cuisine, culture), Model.CitySlug, Model.CityName, culture)
+        : CatalogText.Heading(CatalogService.TypeName(Model.Type ?? "restorany", culture), Model.CitySlug, Model.CityName, culture);
+    var isAll = Model.Type == null && Model.Cuisine == null;
     var year = DateTime.Now.Year;
     var currency = Model.AllOfType.Select(x => x.Currency).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "₴";
     string Money(decimal v) => $"{v:0} {currency}";
     string Venue(CatalogVenue v) => $"/{culture}/{Model.CitySlug}/restaurant/{v.Slug}";
 
     // посилання зі збереженням фільтрів (n - номер сторінки)
-    string Link(int n = 1, string district = "-", string price = "-", string sort = "-", string type = "-")
+    string Link(int n = 1, string district = "-", string price = "-", string sort = "-", string type = "-", string cuisine = "-")
     {
-        var path = type == "-" ? pagePath : (string.IsNullOrEmpty(type) ? basePath : $"{basePath}/{type}");
+        var path = cuisine != "-" ? $"{basePath}/kukhnia/{cuisine}"
+            : type == "-" ? pagePath : (string.IsNullOrEmpty(type) ? basePath : $"{basePath}/{type}");
         var q = new List<string>();
         var d = district == "-" ? Model.District : district;
         var p = price == "-" ? (Model.Cheap ? "low" : null) : price;
@@ -61,9 +65,14 @@
     {
         intro.Add(T($"Типова ціна страви - {Money(median)}.", $"Типичная цена блюда - {Money(median)}.", $"A typical dish costs {Money(median)}."));
     }
-    if (cuisines.Any())
+    if (cuisines.Any() && Model.Cuisine == null)
     {
         intro.Add(T($"Кухні: {string.Join(", ", cuisines)}.", $"Кухни: {string.Join(", ", cuisines)}.", $"Cuisines: {string.Join(", ", cuisines)}."));
+    }
+    if (Model.DishLinks.Any())
+    {
+        var dishes = string.Join(", ", Model.DishLinks.Take(4).Select(x => x.Title.ToLowerInvariant()));
+        intro.Add(T($"Що скуштувати: {dishes}.", $"Что попробовать: {dishes}.", $"What to try: {dishes}."));
     }
     if (topDistricts.Any())
     {
@@ -93,7 +102,7 @@
     @(JsonLd.Script(
         JsonLd.ItemList(heading, Model.Items.Select(x => (x.Name, siteUrl + Venue(x)))),
         Model.PageIndex == 1 && !filtered ? JsonLd.FaqPage(faq.ToArray()) : null,
-        Model.Type == null
+        isAll
             ? JsonLd.Breadcrumbs(("TipMyMenu", $"{siteUrl}/{culture}"), (allTitle, siteUrl + basePath))
             : JsonLd.Breadcrumbs(("TipMyMenu", $"{siteUrl}/{culture}"), (allTitle, siteUrl + basePath), (heading, siteUrl + pagePath))))
 }
@@ -151,7 +160,7 @@
         <div class="breadcrumbs breadcrumbs-content">
             <ul>
                 <li><breadcrumb asp-area="" asp-controller="Home" asp-action="Index">TipMyMenu</breadcrumb></li>
-                @if (Model.Type == null)
+                @if (isAll)
                 {
                     <li><breadcrumb href="#">@allTitle</breadcrumb></li>
                 }
@@ -173,12 +182,22 @@
 
         <nav aria-label="@T("Тип закладу", "Тип заведения", "Type")">
             <div class="chips">
-                <a href="@Link(type: "", district: null)" class="@(Model.Type == null ? "on" : "")">@T("Усі", "Все", "All")<small>@Model.CityTotal</small></a>
+                <a href="@Link(type: "", district: null)" class="@(isAll ? "on" : "")">@T("Усі", "Все", "All")<small>@Model.CityTotal</small></a>
                 @foreach (var (t, n) in Model.Types)
                 {
                     <a href="@Link(type: t, district: null)" class="@(Model.Type == t ? "on" : "")">@CatalogService.TypeName(t, culture)<small>@n</small></a>
                 }
             </div>
+            @if (Model.Cuisines.Any())
+            {
+                <div class="chips-label">@T("Кухня", "Кухня", "Cuisine")</div>
+                <div class="chips">
+                    @foreach (var (c, n) in Model.Cuisines)
+                    {
+                        <a href="@Link(cuisine: c, district: null)" class="@(Model.Cuisine == c ? "on" : "")">@CatalogService.CuisineName(c, culture)<small>@n</small></a>
+                    }
+                </div>
+            }
         </nav>
         @if (Model.Districts.Any())
         {
@@ -282,6 +301,16 @@
             </div>
         }
 
+        @if (Model.DishLinks.Any())
+        {
+            <h2>@T("Популярні страви", "Популярные блюда", "Popular dishes")</h2>
+            <ul class="links">
+                @foreach (var (slug, title) in Model.DishLinks)
+                {
+                    <li><a href="/@culture/@Model.CitySlug/dishes/@slug">@title</a></li>
+                }
+            </ul>
+        }
         @if (Model.HasDishPages)
         {
             <p><a href="/@culture/@Model.CitySlug/dishes">@T($"Страви й ціни: де скуштувати в місті {Model.CityName}", $"Блюда и цены: где попробовать в городе {Model.CityName}", $"Dishes and prices in {Model.CityName}")</a></p>
@@ -292,7 +321,14 @@
             <ul class="links">
                 @foreach (var (slug, name) in Model.OtherCities)
                 {
-                    <li><a href="/@culture/@slug/restaurants@(Model.Type == null ? "" : "/" + Model.Type)">@CatalogText.Heading(CatalogService.TypeName(Model.Type ?? "restorany", culture), slug, name, culture)</a></li>
+                    @if (Model.Cuisine != null)
+                    {
+                        <li><a href="/@culture/@slug/restaurants/kukhnia/@Model.Cuisine">@CatalogText.CuisineHeading(CatalogService.CuisineName(Model.Cuisine, culture), slug, name, culture)</a></li>
+                    }
+                    else
+                    {
+                        <li><a href="/@culture/@slug/restaurants@(Model.Type == null ? "" : "/" + Model.Type)">@CatalogText.Heading(CatalogService.TypeName(Model.Type ?? "restorany", culture), slug, name, culture)</a></li>
+                    }
                 }
             </ul>
         }

@@ -189,6 +189,10 @@
                                     @if (catalogVenues.TryGetValue(item.Id, out var cv))
                                     {
                                         <span>@Menus.Web.Services.CatalogService.TypeName(cv.Type, "uk")@(string.IsNullOrEmpty(cv.DistrictUk) ? "" : ", " + cv.DistrictUk)</span><br />
+                                        @if (cv.CuisineList.Any())
+                                        {
+                                            <span style="font-size:12px;color:#555">@string.Join(", ", cv.CuisineList.Select(c => Menus.Web.Services.CatalogService.CuisineName(c, "uk").Replace(" кухня", "")))</span><br />
+                                        }
                                         <a style="font-size:12px" asp-controller="Outreach" asp-action="Restaurant" asp-route-id="@item.Id">змінити</a>
                                     }
                                     else

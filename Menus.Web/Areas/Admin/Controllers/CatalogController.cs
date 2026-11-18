@@ -53,7 +53,7 @@ namespace Menus.Web.Areas.Admin.Controllers
         }
 
         // заклади міста (тип: null - усі) з типом і районом
-        public async Task<IActionResult> Venues(string cityId, string type, string q)
+        public async Task<IActionResult> Venues(string cityId, string type, string cuisine, string q)
         {
             var cities = (await _core.Restaurants.GetCities()).ToList();
             var city = cities.FirstOrDefault(x => x.Id == cityId);
@@ -63,24 +63,33 @@ namespace Menus.Web.Areas.Admin.Controllers
             ViewData["cityName"] = city.Name.Get("uk");
             ViewData["citySlug"] = city.Name.Get("en").ToLower();
             ViewData["type"] = type;
+            ViewData["cuisine"] = cuisine;
             ViewData["q"] = q;
             // райони міста для вибору (slug -> назви)
             ViewData["districts"] = venues.Where(x => !string.IsNullOrEmpty(x.DistrictSlug)).GroupBy(x => x.DistrictSlug)
                 .Select(g => g.First()).OrderBy(x => x.DistrictUk).ToList();
             IEnumerable<CatalogVenue> list = venues;
             if (!string.IsNullOrEmpty(type)) list = list.Where(x => x.Type == type);
+            if (!string.IsNullOrEmpty(cuisine)) list = list.Where(x => cuisine == "-" ? !x.CuisineList.Any() : x.CuisineList.Contains(cuisine));
             if (!string.IsNullOrWhiteSpace(q)) list = list.Where(x => (x.Name ?? "").IndexOf(q.Trim(), StringComparison.OrdinalIgnoreCase) >= 0);
             return View(list.OrderBy(x => x.Name).ToList());
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SetVenue(string restaurantId, string type, string district, string returnUrl)
+        public async Task<IActionResult> SetVenue(string restaurantId, string type, string district, List<string> cuisines, bool cuisinesPosted, string returnUrl)
         {
             // незмінене поле не фіксуємо вручну - бот і далі оновлює його сам
             var current = (await _catalog.GetAll()).FirstOrDefault(x => x.Id == restaurantId);
             if (current != null && type == current.Type) type = null;
             if (current != null && district == (current.DistrictSlug ?? "")) district = null;
+            // кухні - лише якщо форма їх надіслала і набір змінився
+            List<string> newCuisines = null;
+            if (cuisinesPosted)
+            {
+                newCuisines = (cuisines ?? new List<string>()).Where(c => CatalogService.Cuisines.ContainsKey(c)).Distinct().ToList();
+                if (current != null && new HashSet<string>(newCuisines).SetEquals(current.CuisineList)) newCuisines = null;
+            }
             string uk = null, ru = null, en = null, slug = null;
             if (district != null) // "" - прибрати район; slug - вибрати з наявних районів міста
             {
@@ -93,8 +102,10 @@ namespace Menus.Web.Areas.Admin.Controllers
                     en = sample?.DistrictEn;
                 }
             }
-            await _catalog.SetVenue(restaurantId, type, uk, ru, en, slug);
-            TempData["message"] = "Збережено: тип і район закладу (бот більше не змінює їх сам)";
+            await _catalog.SetVenue(restaurantId, type, uk, ru, en, slug, newCuisines);
+            TempData["message"] = type == null && district == null && newCuisines == null
+                ? "Нічого не змінилось"
+                : "Збережено: змінене вручну бот більше не перезаписує";
             return Url.IsLocalUrl(returnUrl) ? (IActionResult)Redirect(returnUrl) : RedirectToAction("Index");
         }
 

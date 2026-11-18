@@ -47,7 +47,7 @@ namespace Menus.Web.Services
         private static readonly Regex Dish = new Regex(@"^/(uk|ru|en)/[^/]+/restaurant/[^/]+/[^/]+/?$");
         private static readonly Regex Restaurant = new Regex(@"^/(uk|ru|en)/[^/]+/restaurant/[^/]+/?$");
         private static readonly Regex DishCity = new Regex(@"^/(uk|ru|en)/[^/]+/dishes/[^/]+/?$");
-        private static readonly Regex Catalog = new Regex(@"^/(uk|ru|en)/[^/]+/restaurants(/[^/]+)?/?$");
+        private static readonly Regex Catalog = new Regex(@"^/(uk|ru|en)/[^/]+/restaurants(/kukhnia)?(/[^/]+)?/?$");
         private static readonly Regex Article = new Regex(@"^/(uk|ru|en)/(news|blog)/");
 
         private readonly IDbConnection _connection;
