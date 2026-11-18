@@ -1,46 +1,68 @@
-﻿// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using Menus.Abstract;
-using Menus.Abstract.Models;
+using Menus.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Menus.Web.Areas.Admin.Controllers
 {
     [Area("Admin")]
+    [Authorize(Roles = "admin, manager")]
     public class CustomerRequestsController : Controller
     {
-        private readonly IDbContext _db;
+        private readonly CustomerRequestService _requests;
 
-        public CustomerRequestsController(IDbContext db)
+        public CustomerRequestsController(CustomerRequestService requests)
         {
-            _db = db;
+            _requests = requests;
         }
 
-        [Authorize(Roles = "admin, manager")]
-        public IActionResult Index(int page = 0)
+        // фільтри по стовпцях: ресторан, пакет, email, телефон, IP, статус, дата створення від/до
+        public async Task<IActionResult> Index(CustomerRequestFilter filter, int page = 0)
         {
+            filter = filter ?? new CustomerRequestFilter();
+            var (rows, total) = await _requests.List(filter, page);
             ViewData["page"] = page;
-            IEnumerable<ICustomerRequest> requests = _db.CustomerRequests.OrderByDescending(x => x.CreateDate).Skip(page * 10).Take(10).ToList();
-
-            return View(requests);
+            ViewData["total"] = total;
+            ViewData["filter"] = filter;
+            return View(rows);
         }
 
-        [ValidateAntiForgeryToken]
-        [HttpPost]
-        [Authorize(Roles = "admin, manager")]
-        public async Task<IActionResult> ChangeStatus(string id, CustomerRequestStatus status)
+        public async Task<IActionResult> Edit(string id)
         {
-            var request = _db.CustomerRequests.First(x => x.Id == id);
-            request.Status = status;
-            request.UpdateDate = DateTime.Now;
-            await _db.CustomerRequests.Update(request);
+            var row = await _requests.Get(id);
+            if (row == null) return NotFound();
+            return View(row);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(string id, string restaurantName, string package, string email, string phone, int status)
+        {
+            await _requests.Update(id, restaurantName, package, email, phone, status);
+            TempData["message"] = "Запит збережено";
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangeStatus(string id, int status)
+        {
+            await _requests.SetStatus(id, status);
             return Ok();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(List<string> ids, string returnUrl)
+        {
+            await _requests.Delete(ids);
+            TempData["message"] = $"Видалено запитів: {ids?.Count ?? 0}";
+            return Url.IsLocalUrl(returnUrl) ? (IActionResult)Redirect(returnUrl) : RedirectToAction("Index");
         }
     }
 }

@@ -2,6 +2,7 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 using System;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1285,9 +1286,10 @@ namespace Menus.Web.Areas.Restaurants.Controllers
                 seo.Header = new LocalizableString() { Values = new List<LocalizableStringValue> { new LocalizableStringValue { Value = model.Name, Locale = "ru" } } };
                 await _core.Restaurants.CreateSeo(seo);
 
+                var customerRequestId = Guid.NewGuid().ToString();
                 await _db.CustomerRequests.Add(new CustomerRequest
                 {
-                    Id = Guid.NewGuid().ToString(),
+                    Id = customerRequestId,
                     UpdateDate = DateTime.Now,
                     CreateDate = DateTime.Now,
                     Status = CustomerRequestStatus.NewRequest,
@@ -1296,6 +1298,7 @@ namespace Menus.Web.Areas.Restaurants.Controllers
                     Package = "Request for Access for: " + restaurant.Name,
                     Phone = restaurant.Phone
                 });
+                await HttpContext.RequestServices.GetService<Menus.Web.Services.CustomerRequestService>().SaveIp(customerRequestId, Request);
 
                 await LogEvent("RegisterRestaurant", new { id = restaurant.Id, name = restaurant.Name });
                 if (User.IsInRole("admin") || User.IsInRole("manager"))
@@ -1376,9 +1379,10 @@ namespace Menus.Web.Areas.Restaurants.Controllers
                     restaurant.UpdateDate = DateTime.Now;
                     await _core.Restaurants.Update(restaurant);
 
+                    var customerRequestId = Guid.NewGuid().ToString();
                     await _db.CustomerRequests.Add(new CustomerRequest
                     {
-                        Id = Guid.NewGuid().ToString(),
+                        Id = customerRequestId,
                         UpdateDate = DateTime.Now,
                         CreateDate = DateTime.Now,
                         Status = CustomerRequestStatus.NewRequest,
@@ -1387,6 +1391,7 @@ namespace Menus.Web.Areas.Restaurants.Controllers
                         Package = "Request for Access for: " + restaurant.Name,
                         Phone = restaurant.Phone
                     });
+                    await HttpContext.RequestServices.GetService<Menus.Web.Services.CustomerRequestService>().SaveIp(customerRequestId, Request);
 
                     await LogEvent("RequestAccessRestaurant", new { id = restaurant.Id, name = restaurant.Name });
                     if (User.IsInRole("admin") || User.IsInRole("manager"))
