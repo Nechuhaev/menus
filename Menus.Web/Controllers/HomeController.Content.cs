@@ -69,6 +69,9 @@ namespace Menus.Web.Controllers
 
         public async Task<IActionResult> NewsPage(string id)
         {
+            var redirectTo = await HttpContext.RequestServices.GetService<Menus.Web.Services.PageRedirectService>().Target(id);
+            if (redirectTo != null) return RedirectToActionPermanent("NewsPage", new { id = redirectTo });
+
             var page = await _core.Pages.GetPublishedByUrl(id, PageCategory.News);
 
             if(string.IsNullOrEmpty(id))
