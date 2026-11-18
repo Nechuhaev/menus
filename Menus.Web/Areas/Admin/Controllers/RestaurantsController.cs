@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -428,8 +429,11 @@ namespace Menus.Web.Areas.Admin.Controllers
         public async Task<IActionResult> ChangeStatus(string id, RestaurantStatus status)
         {
             var restaurant = await _core.Restaurants.GetRestaurantById(id);
+            var wasClosed = restaurant.Status == RestaurantStatus.Closed;
             restaurant.Status = status;
             await _core.Restaurants.Update(restaurant);
+            if (status == RestaurantStatus.Closed || wasClosed)
+                await HttpContext.RequestServices.GetService<Menus.Web.Services.OutreachService>().SyncFromSiteStatus(id, status == RestaurantStatus.Closed);
             return Ok();
         }
 
@@ -460,6 +464,7 @@ namespace Menus.Web.Areas.Admin.Controllers
             if (restaurant == null) return;
             restaurant.Status = RestaurantStatus.Closed;
             await _core.Restaurants.Update(restaurant);
+            await HttpContext.RequestServices.GetService<Menus.Web.Services.OutreachService>().SyncFromSiteStatus(id, true);
         }
 
         private async Task LogEvent(string name, object data)
