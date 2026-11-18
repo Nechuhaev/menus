@@ -157,7 +157,7 @@ def menu_stats(db):
     """RestaurantId -> Counter(all, drinks, food, pizza, sushi, coffee) для активних страв."""
     cur = db.cursor(dictionary=True)
     cur.execute(
-        """SELECT d.RestaurantId, d.Name,
+        """SELECT d.RestaurantId, d.Name, d.Price, d.IsPriceMultiple,
                   GROUP_CONCAT(CONCAT_WS(' ', mc.Name, pc.Name) SEPARATOR ' ') AS Categories
            FROM Dishes d JOIN Restaurants r ON r.Id = d.RestaurantId
            LEFT JOIN DishCategories dc ON dc.DishId = d.Id
@@ -175,6 +175,10 @@ def menu_stats(db):
         for f, rx in FEATURE_MENU_RULES.items():
             if rx.search(categories) or (f == "kalian" and rx.search(name)):
                 st["f:" + f] += 1
+                # найдешевший бізнес-ланч (ціна порції, не «за 100 г») - для картки на сторінці «Бізнес-ланчі»
+                price = float(row["Price"] or 0)
+                if f == "biznes-lanch" and price > 0 and not row["IsPriceMultiple"] and (not st["lunch_min"] or price < st["lunch_min"]):
+                    st["lunch_min"] = price
         if DRINK_CATEGORY.search(categories):
             st["drinks"] += 1
             if COFFEE.search(name) or COFFEE.search(categories):
@@ -251,6 +255,7 @@ def ensure_table(db):
     cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS Features VARCHAR(255) NULL")
     cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS FeaturesReason VARCHAR(255) NULL")
     cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS FeaturesManual TINYINT(1) NOT NULL DEFAULT 0")
+    cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS LunchPrice DECIMAL(10,2) NULL")
     db.commit()
     cur.close()
 
@@ -357,6 +362,9 @@ def main():
                              VALUES (%s, %s, %s, %s, UTC_TIMESTAMP())
                              ON DUPLICATE KEY UPDATE Features = VALUES(Features), FeaturesReason = VALUES(FeaturesReason)""",
                           (r["Id"], vtype, features_str, freason[:255]))
+        if not args.dry_run:
+            write.execute("UPDATE RestaurantVenue SET LunchPrice = %s WHERE RestaurantId = %s",
+                          (stats.get(r["Id"], Counter())["lunch_min"] or None, r["Id"]))
     if not args.dry_run:
         db.commit()
     print("Типи: " + ", ".join(f"{VENUE_TYPES[t]} {n}" for t, n in by_type.most_common()) + f"; змінилось {changed}")

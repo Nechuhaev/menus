@@ -27,5 +27,16 @@
             }
         </div>
     </details>
+    <details class="venue-features" style="position:relative;">
+        <summary style="cursor:pointer;">Особливості: @(Model.Venue.FeatureList.Any() ? string.Join(", ", Model.Venue.FeatureList.Select(f => CatalogService.FeatureName(f, "uk"))) : "—")</summary>
+        <input type="hidden" name="featuresPosted" value="true" />
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 10px;padding:6px 0;max-width:520px;">
+            @foreach (var f in CatalogService.Features.Where(x => x.Key != "nedorogo"))
+            {
+                <label style="font-weight:normal;white-space:nowrap;"><input type="checkbox" name="features" value="@f.Key" checked="@Model.Venue.FeatureList.Contains(f.Key)" /> @f.Value.Uk</label>
+            }
+        </div>
+        <div style="font-size:12px;color:#777">«Недорого» - автоматично за цінами меню</div>
+    </details>
     <button type="submit">Зберегти</button>
 </form>
