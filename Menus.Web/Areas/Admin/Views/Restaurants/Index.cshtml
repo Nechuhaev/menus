@@ -1,8 +1,10 @@
-@using System.Linq
+﻿@using System.Linq
 @model List<Menus.Web.Areas.Admin.Controllers.RestaurantAdminRow>
 
 @inject Menus.Web.Services.UserService UserService
+@inject Menus.Web.Services.CatalogService CatalogSvc
 @{
+    var catalogVenues = (await CatalogSvc.GetAll()).ToDictionary(x => x.Id);
     var CurrentUser = await UserService.GetUserById(User.Identity.Name);
     var page = (int)ViewData["page"];
 }
@@ -84,6 +86,7 @@
                             <th>SEO meta</th>
                             <th>Актуальність даних</th>
                             <th>Меню (бот)</th>
+                            <th title="Тип і район у каталозі міста (/restaurants). Змінити - у «Розсилці» або «Каталозі»">Каталог</th>
                             <th>Статус</th>
                             <th>Дата создания</th>
                             <th>Мод.</th>
@@ -111,6 +114,7 @@
                                     <option value="recent" selected="@((ViewData["freshnessFilter"] as string) == "recent")">Перевірено нещодавно</option>
                                 </select>
                             </th>
+                            <th></th>
                             <th></th>
                             <th>
                                 <select name="status" onchange="this.form.submit()">
@@ -179,6 +183,17 @@
                                     @if (!string.IsNullOrEmpty(item.SyncNote))
                                     {
                                         <span>@(item.SyncNote.Length > 60 ? item.SyncNote.Substring(0, 60) + "…" : item.SyncNote)</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (catalogVenues.TryGetValue(item.Id, out var cv))
+                                    {
+                                        <span>@Menus.Web.Services.CatalogService.TypeName(cv.Type, "uk")@(string.IsNullOrEmpty(cv.DistrictUk) ? "" : ", " + cv.DistrictUk)</span><br />
+                                        <a style="font-size:12px" asp-controller="Outreach" asp-action="Restaurant" asp-route-id="@item.Id">змінити</a>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#777;font-size:12px">поза каталогом</span>
                                     }
                                 </td>
                                 <td>

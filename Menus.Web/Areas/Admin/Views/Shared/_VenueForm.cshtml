@@ -1,0 +1,21 @@
+@using Menus.Web.Services
+@model (CatalogVenue Venue, List<CatalogVenue> Districts, string ReturnUrl)
+@* Тип і район закладу для каталогу міста - та сама форма в «Каталозі» і в «Розсилці» *@
+<form method="post" asp-area="Admin" asp-controller="Catalog" asp-action="SetVenue" class="venue-form" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+    <input type="hidden" name="restaurantId" value="@Model.Venue.Id" />
+    <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+    <select name="type" aria-label="Тип закладу">
+        @foreach (var t in CatalogService.Types)
+        {
+            <option value="@t.Key" selected="@(t.Key == Model.Venue.Type)">@t.Value.Uk</option>
+        }
+    </select>
+    <select name="district" aria-label="Район">
+        <option value="" selected="@string.IsNullOrEmpty(Model.Venue.DistrictSlug)">— район не визначено —</option>
+        @foreach (var d in Model.Districts)
+        {
+            <option value="@d.DistrictSlug" selected="@(d.DistrictSlug == Model.Venue.DistrictSlug)">@d.DistrictUk</option>
+        }
+    </select>
+    <button type="submit">Зберегти</button>
+</form>
