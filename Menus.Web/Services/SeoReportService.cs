@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -40,13 +40,14 @@ namespace Menus.Web.Services
     {
         public static readonly Dictionary<string, string> Kinds = new Dictionary<string, string>
         {
-            ["restaurant"] = "Ресторани", ["dish"] = "Страви", ["dishcity"] = "Страва + місто",
+            ["restaurant"] = "Ресторани", ["dish"] = "Страви", ["dishcity"] = "Страва + місто", ["catalog"] = "Каталог міста",
             ["article"] = "Статті", ["other"] = "Інші"
         };
 
         private static readonly Regex Dish = new Regex(@"^/(uk|ru|en)/[^/]+/restaurant/[^/]+/[^/]+/?$");
         private static readonly Regex Restaurant = new Regex(@"^/(uk|ru|en)/[^/]+/restaurant/[^/]+/?$");
         private static readonly Regex DishCity = new Regex(@"^/(uk|ru|en)/[^/]+/dishes/[^/]+/?$");
+        private static readonly Regex Catalog = new Regex(@"^/(uk|ru|en)/[^/]+/restaurants(/[^/]+)?/?$");
         private static readonly Regex Article = new Regex(@"^/(uk|ru|en)/(news|blog)/");
 
         private readonly IDbConnection _connection;
@@ -62,6 +63,7 @@ namespace Menus.Web.Services
             if (Dish.IsMatch(path)) return "dish";
             if (Restaurant.IsMatch(path)) return "restaurant";
             if (DishCity.IsMatch(path)) return "dishcity";
+            if (Catalog.IsMatch(path)) return "catalog";
             if (Article.IsMatch(path)) return "article";
             return "other";
         }

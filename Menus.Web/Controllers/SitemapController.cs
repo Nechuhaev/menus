@@ -395,6 +395,23 @@ namespace Menus.Web.Controllers
                     mainPages.AddRange(cityPages.Select(x => $"<loc>{SiteBaseUrl}/{ locale.Id}/{citySlug}/dishes/{x.Slug}</loc>"));
                 }
 
+                // каталог міста: усі заклади і типи, що мають сторінку
+                var catalog = new CatalogService(_efContext);
+                var catalogVenues = await catalog.GetAll();
+                var catalogSettings = await catalog.GetSettings();
+                foreach (var city in cities)
+                {
+                    var citySlug = city.Name.Get("en").ToLower();
+                    var cityVenues = catalogVenues.Where(x => x.City == city.Id).ToList();
+                    if (CatalogService.IsPublished(null, cityVenues.Count, catalogSettings.FirstOrDefault(s => s.CityId == city.Id && s.VenueType == "")))
+                        mainPages.Add($"<loc>{SiteBaseUrl}/{ locale.Id}/{citySlug}/restaurants</loc>");
+                    foreach (var g in cityVenues.GroupBy(x => x.Type))
+                    {
+                        if (CatalogService.IsPublished(g.Key, g.Count(), catalogSettings.FirstOrDefault(s => s.CityId == city.Id && s.VenueType == g.Key)))
+                            mainPages.Add($"<loc>{SiteBaseUrl}/{ locale.Id}/{citySlug}/restaurants/{g.Key}</loc>");
+                    }
+                }
+
                 foreach (string page in mainPages)
                 {
                     var urlElem = XElement.Parse(defaultSiteMapElement);
