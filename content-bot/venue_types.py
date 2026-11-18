@@ -1,4 +1,4 @@
-"""Тип закладу і район для каталогу міста (/{мова}/{місто}/restaurants/{тип}) - кодом, без AI.
+"""Тип закладу, кухні, особливості і район для каталогу міста (/{мова}/{місто}/restaurants/{тип}) - кодом, без AI.
 
 Тип (VENUE_TYPES): спершу за назвою закладу («бар», «паб», «coffee», «піца», «суші»…), потім за полем «Кухня»
 і складом меню (частка піци, суші, кави, напоїв); інакше - «ресторан».
@@ -14,6 +14,7 @@ DistrictManual, Lat/Lon (координати, за якими визначен�
          python3 venue_types.py --restaurant <slug> --dry-run   # пояснити тип одного закладу
 """
 import argparse
+import json
 import re
 import time
 from collections import Counter, defaultdict
@@ -95,6 +96,58 @@ CUISINE_MENU_RULES = {
     "uzbetska": (re.compile(r"плов|лагман|самс|манти|шурп", re.I), 0.06),
 }
 
+# Особливості (сторінки /restaurants/{slug}): з розділів меню й графіка; «недорого» рахує сайт за цінами
+FEATURES = {
+    "tsilodobovo": "Цілодобово", "kalian": "Кальян", "snidanky": "Сніданки",
+    "biznes-lanch": "Бізнес-ланч", "dytiache-menu": "Дитяче меню",
+}
+# розділ меню (або назва страви) -> особливість; потрібно щонайменше FEATURE_MIN страв
+FEATURE_MENU_RULES = {
+    "kalian": re.compile(r"кальян|hookah|shisha", re.I),
+    "snidanky": re.compile(r"сніданк|снідан|завтрак|breakfast|бранч|brunch", re.I),
+    "biznes-lanch": re.compile(r"бізнес.?ланч|бизнес.?ланч|business.?lunch|\bланч|\blunch|комплексн|обідн[еі] меню|обеденн", re.I),
+    "dytiache-menu": re.compile(r"дитяч|детск|kids|for kids|для діт|для дет", re.I),
+}
+FEATURE_MIN = 2
+ALL_DAY = re.compile(r"24\s*/\s*7|цілодоб|круглосуточ|24\s*год|24\s*hours|open 24", re.I)
+
+
+def is_all_day(open_hours):
+    """Графік 24/7: текст («24/7», «цілодобово») або JSON {"perDay", "data": [{active, from, to}]} - щодня 00:00-24:00."""
+    raw = (open_hours or "").strip()
+    if not raw:
+        return False
+    if ALL_DAY.search(raw):
+        return True
+    try:
+        data = json.loads(raw)
+        days = data.get("data") or []
+        if not data.get("perDay"):
+            days = days[:1] * 7
+
+        def full(d):
+            return (d.get("active", True) and str(d.get("from", "")).strip() in ("00:00", "0:00")
+                    and str(d.get("to", "")).strip() in ("24:00", "23:59", "00:00", "0:00"))
+        return len(days) == 7 and all(full(d) for d in days)
+    except (ValueError, TypeError, AttributeError):
+        # текст: лише 00:00 і 24:00 (23:59) без вихідних - «Пн-Нд 00:00-24:00», «Mo-Su 00:00-24:00»
+        times = set(re.findall(r"\d{1,2}:\d{2}", raw))
+        return bool(times) and times <= {"00:00", "0:00", "24:00", "23:59"} and not re.search(r"вих|off|closed|зачин|выход", raw, re.I)
+
+
+def venue_features(open_hours, st):
+    """([slug особливостей], причина)."""
+    found, reasons = [], []
+    if is_all_day(open_hours):
+        found.append("tsilodobovo")
+        reasons.append("графік 24/7")
+    for f in FEATURE_MENU_RULES:
+        if st["f:" + f] >= FEATURE_MIN:
+            found.append(f)
+            reasons.append(f"{FEATURES[f]}: {st['f:' + f]} поз. меню")
+    return found, "; ".join(reasons) or "немає"
+
+
 PIZZA = re.compile(r"піц|пицц|pizz", re.I)
 SUSHI = re.compile(r"суш[іи]|sushi|ролл|\bрол\b|маки|урамак|нігір|нигир|гункан|каліфорні|калифорни|філадельф|филадельф", re.I)
 COFFEE = re.compile(r"капуч|латте|еспрес|эспрес|американо|раф\b|флет|кава|кофе|coffee|какао|матча", re.I)
@@ -119,6 +172,9 @@ def menu_stats(db):
         name = " ".join(get_localizable_value(row["Name"], lang) for lang in ("uk", "ru", "en"))
         st = stats[row["RestaurantId"]]
         st["all"] += 1
+        for f, rx in FEATURE_MENU_RULES.items():
+            if rx.search(categories) or (f == "kalian" and rx.search(name)):
+                st["f:" + f] += 1
         if DRINK_CATEGORY.search(categories):
             st["drinks"] += 1
             if COFFEE.search(name) or COFFEE.search(categories):
@@ -191,6 +247,10 @@ def ensure_table(db):
     cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS Cuisines VARCHAR(500) NULL")
     cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS CuisinesReason VARCHAR(255) NULL")
     cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS CuisinesManual TINYINT(1) NOT NULL DEFAULT 0")
+    # особливості (slug через кому): цілодобово, кальян, сніданки, бізнес-ланч, дитяче меню
+    cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS Features VARCHAR(255) NULL")
+    cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS FeaturesReason VARCHAR(255) NULL")
+    cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS FeaturesManual TINYINT(1) NOT NULL DEFAULT 0")
     db.commit()
     cur.close()
 
@@ -237,8 +297,8 @@ def main():
     if args.restaurant:
         where += " AND (r.Id = %s OR rs.Url = %s)"
         params += [args.restaurant, args.restaurant]
-    cur.execute(f"""SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, ri.Cuisine, ri.GpsLatitude, ri.GpsLongitude,
-                           v.VenueType, v.TypeManual, v.DistrictManual, v.DistrictSlug, v.Lat, v.Lon, v.Cuisines, v.CuisinesManual
+    cur.execute(f"""SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, ri.Cuisine, ri.OpenHours, ri.GpsLatitude, ri.GpsLongitude,
+                           v.VenueType, v.TypeManual, v.DistrictManual, v.DistrictSlug, v.Lat, v.Lon, v.Cuisines, v.CuisinesManual, v.Features, v.FeaturesManual
                     FROM Restaurants r
                     LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                     LEFT JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
@@ -250,6 +310,7 @@ def main():
     write = db.cursor()
     by_type = Counter()
     by_cuisine = Counter()
+    by_feature = Counter()
     no_cuisine = 0
     changed = 0
     for r in restaurants:
@@ -270,6 +331,14 @@ def main():
         cuisines_str = ",".join(cuisines) or None
         if args.restaurant or (args.dry_run and (r["Cuisines"] or None) != cuisines_str):
             print(f"  {r['Name']}: кухні {', '.join(CUISINES[c] for c in cuisines) or '-'} ({creason[:120]})")
+        features, freason = venue_features(r["OpenHours"], stats.get(r["Id"], Counter()))
+        if r["FeaturesManual"]:
+            features, freason = [f for f in (r["Features"] or "").split(",") if f], "вручну (адмін)"
+        for f in features:
+            by_feature[f] += 1
+        features_str = ",".join(features) or None
+        if args.restaurant or (args.dry_run and (r["Features"] or None) != features_str and features):
+            print(f"  {r['Name']}: особливості {', '.join(FEATURES[f] for f in features)} ({freason[:120]})")
         if r["VenueType"] != vtype:
             changed += 1
         if not args.dry_run and not r["TypeManual"]:
@@ -283,9 +352,15 @@ def main():
                              VALUES (%s, %s, %s, %s, UTC_TIMESTAMP())
                              ON DUPLICATE KEY UPDATE Cuisines = VALUES(Cuisines), CuisinesReason = VALUES(CuisinesReason)""",
                           (r["Id"], vtype, cuisines_str, creason[:255]))
+        if not args.dry_run and not r["FeaturesManual"]:
+            write.execute("""INSERT INTO RestaurantVenue (RestaurantId, VenueType, Features, FeaturesReason, UpdatedAt)
+                             VALUES (%s, %s, %s, %s, UTC_TIMESTAMP())
+                             ON DUPLICATE KEY UPDATE Features = VALUES(Features), FeaturesReason = VALUES(FeaturesReason)""",
+                          (r["Id"], vtype, features_str, freason[:255]))
     if not args.dry_run:
         db.commit()
     print("Типи: " + ", ".join(f"{VENUE_TYPES[t]} {n}" for t, n in by_type.most_common()) + f"; змінилось {changed}")
+    print("Особливості: " + ", ".join(f"{FEATURES[f]} {n}" for f, n in by_feature.most_common()))
     print("Кухні: " + ", ".join(f"{CUISINES[c]} {n}" for c, n in by_cuisine.most_common()) + f"; без кухні {no_cuisine}")
 
     if args.dry_run or args.no_districts:
