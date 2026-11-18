@@ -52,6 +52,31 @@ def rows(result):
     return data or []
 
 
+FOOD = re.compile(r"ресторан|кафе|кафé|кав.ярн|кофейн|бар\b|бары|бари|паб|pub|bar|cafe|restaurant|пиццер|піцер|пицц|піц|суши|суші|sushi|"
+                  r"кухн|меню|menu|бургер|burger|стейк|шашлык|шашлик|хинкал|хінкал|хачапур|плов|вареник|борщ|еда|їжа|ужин|вечер|обед|обід|"
+                  r"сніданок|завтрак|бранч|кальян|караоке|банкет|корпоратив|свадьб|весіл|день рожд|день народ|терас|летн|доставк|"
+                  r"кондитер|десерт|морожен|морозив|вино|пиво|пив|крафт|рамен|фо бо|wok|вок|пельмен|чебурек|шаурм|шаверм", re.I)
+
+CATEGORIES = [
+    ("меню/ціни конкретного закладу", r"меню|menu|цен|ціни|цін"),
+    ("доставка", r"доставк|delivery"),
+    ("привід/подія (банкет, весілля, ДН, корпоратив, свята)", r"банкет|свадьб|весіл|день рожд|день народ|корпоратив|новый год|новий рік|8 марта|романт|выпускн|випускн|юбилей|ювіле|праздн|свят"),
+    ("особливість (тераса, вид, музика, діти, недорого, цілодобово)", r"терас|летн|літн|вид|панорам|живая музыка|жива музика|дет|діт|недорог|дешев|бюджет|круглосуточ|цілодоб|24|кальян|караоке|танц|veg|вега|халял|романт"),
+    ("кухня/страва", r"кухн|итальян|італ|грузин|японск|япон|корей|китай|мексик|армян|вірмен|украинск|українськ|азиат|азій|узбек|французск|француз|суши|суші|пицц|піц|бургер|стейк|шашлык|шашлик|хинкал|хінкал|хачапур|плов|рамен|вок|wok|паст|морепрод|рыб|риб|мяс|м.яс|десерт|морожен|морозив|вареник|борщ|пельмен|шаурм|шаверм"),
+    ("тип закладу в місті/районі (кафе, бари, кав'ярні)", r"ресторан|кафе|бар|паб|pub|кофейн|кав.ярн|пиццер|піцер|клуб|столов|їдальн|ресторани|рестораны"),
+]
+
+
+def category(keyword):
+    for name, rx in CATEGORIES:
+        if re.search(rx, keyword, re.I):
+            return name
+    return "інше (назва закладу/бренд)"
+
+
+ALL = defaultdict(list)
+
+
 def num(row, *keys):
     for k in keys:
         v = row.get(k)
@@ -80,7 +105,7 @@ def pattern(url):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pages", type=int, default=100, help="топ сторінок кожного конкурента")
-    ap.add_argument("--gap", type=int, default=300, help="ключових слів конкурента, яких немає в нас")
+    ap.add_argument("--gap-pages", type=int, default=2, help="сторінок по 1000 запитів конкурента (топ-10, частота >= 50), яких немає в нас")
     ap.add_argument("--out", default="serpstat_report.json")
     args = ap.parse_args()
     if not TOKEN:
@@ -112,8 +137,8 @@ def main():
             for u in urls:
                 g = groups[pattern(u.get("url", ""))]
                 g["pages"] += 1
-                g["keywords"] += int(num(u, "keywords", "keywords_count", "count_keywords", "keywords_count_top"))
-                g["traffic"] += num(u, "traff", "traffic", "url_traff", "organic_traffic")
+                g["keywords"] += int(num(u, "organic_keywords", "keywords"))
+                g["traffic"] += num(u, "potencial_traff", "traff")
                 if len(g["examples"]) < 2:
                     g["examples"].append(u.get("url"))
             entry["patterns"] = groups
@@ -124,18 +149,38 @@ def main():
         except Exception as e:
             print(f"  топ сторінок: {e}")
         try:
-            gap = rows(call("SerpstatDomainProcedure.getDomainsUniqKeywords", {
-                "se": SE, "domains": [comp], "minusDomain": OUR, "page": 1, "size": args.gap,
-                "sort": {"traff": "desc"}}))
+            gap = []
+            for page in range(1, args.gap_pages + 1):
+                part = rows(call("SerpstatDomainProcedure.getDomainsUniqKeywords", {
+                    "se": SE, "domains": [comp], "minusDomain": OUR, "page": page, "size": 1000,
+                    "filters": {"position_to": 10, "queries_from": 50}}))
+                gap += part
+                if len(part) < 1000:
+                    break
+            gap = [k for k in gap if FOOD.search(k.get("keyword", ""))]
+            gap.sort(key=lambda k: -num(k, "traff"))
             entry["gap"] = gap
-            print(f"  Запити, де {comp} є, а нас немає (топ за трафіком):")
-            for k in gap[:40]:
-                print(f"    {k.get('keyword', '')[:55]:<55} поз {k.get('position', '-'):>3}  част {k.get('region_queries_count', '-'):>6}  "
-                      f"тр {num(k, 'traff', 'traffic'):>6.0f}  {(k.get('url') or '')[:70]}")
+            cats = defaultdict(list)
+            for k in gap:
+                cats[category(k.get("keyword", ""))].append(k)
+            print(f"  Запити про їжу/заклади, де {comp} у топ-10, а нас немає: {len(gap)}")
+            for cat, items in sorted(cats.items(), key=lambda x: -sum(num(k, 'traff') for k in x[1])):
+                traff = sum(num(k, "traff") for k in items)
+                vol = sum(num(k, "region_queries_count") for k in items)
+                print(f"   [{cat}] запитів {len(items)}, частота {vol:.0f}/міс, трафік конкурента {traff:.0f}")
+                for k in items[:8]:
+                    print(f"      {k.get('keyword', '')[:50]:<50} поз {k.get('position', '-'):>2}  част {num(k, 'region_queries_count'):>6.0f}  "
+                          f"{unquote(k.get('url') or '')[len('https://'):][:80]}")
+                ALL[cat] += items
         except Exception as e:
             print(f"  унікальні запити: {e}")
         report["competitors"][comp] = entry
 
+    print("\n=== Разом по всіх конкурентах: категорії запитів, яких у нас немає ===")
+    for cat, items in sorted(ALL.items(), key=lambda x: -sum(num(k, 'traff') for k in x[1])):
+        uniq = {k.get("keyword"): k for k in items}
+        print(f"  [{cat}] унікальних запитів {len(uniq)}, частота {sum(num(k, 'region_queries_count') for k in uniq.values()):.0f}/міс, "
+              f"трафік конкурентів {sum(num(k, 'traff') for k in items):.0f}")
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=1, default=dict)
     print(f"\nПовні дані: {args.out}")
