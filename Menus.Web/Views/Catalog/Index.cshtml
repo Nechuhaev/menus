@@ -24,10 +24,10 @@
         var d = district == "-" ? Model.District : district;
         var p = price == "-" ? (Model.Cheap ? "low" : null) : price;
         var s = sort == "-" ? Model.Sort : sort;
-        if (!string.IsNullOrEmpty(d)) q.Add("district=" + Uri.EscapeDataString(d));
-        if (!string.IsNullOrEmpty(p)) q.Add("price=" + p);
-        if (!string.IsNullOrEmpty(s) && s != "popular") q.Add("sort=" + s);
-        if (n > 1) q.Add("page=" + n);
+        if (!string.IsNullOrEmpty(d)) { q.Add("district=" + Uri.EscapeDataString(d)); }
+        if (!string.IsNullOrEmpty(p)) { q.Add("price=" + p); }
+        if (!string.IsNullOrEmpty(s) && s != "popular") { q.Add("sort=" + s); }
+        if (n > 1) { q.Add("page=" + n); }
         return path + (q.Count > 0 ? "?" + string.Join("&", q) : "");
     }
 
@@ -57,9 +57,18 @@
           $"В каталоге TipMyMenu {CatalogText.Venues(all.Count, "ru")}: меню с ценами, адреса, часы работы и фото.",
           $"TipMyMenu lists {CatalogText.Venues(all.Count, "en")} with menus and prices, addresses, opening hours and photos.")
     };
-    if (median > 0) intro.Add(T($"Типова ціна страви - {Money(median)}.", $"Типичная цена блюда - {Money(median)}.", $"A typical dish costs {Money(median)}."));
-    if (cuisines.Any()) intro.Add(T($"Кухні: {string.Join(", ", cuisines)}.", $"Кухни: {string.Join(", ", cuisines)}.", $"Cuisines: {string.Join(", ", cuisines)}."));
-    if (topDistricts.Any()) intro.Add(T($"Найбільше закладів у районах: {string.Join(", ", topDistricts)}.", $"Больше всего заведений в районах: {string.Join(", ", topDistricts)}.", $"Most places are in {string.Join(", ", topDistricts)}."));
+    if (median > 0)
+    {
+        intro.Add(T($"Типова ціна страви - {Money(median)}.", $"Типичная цена блюда - {Money(median)}.", $"A typical dish costs {Money(median)}."));
+    }
+    if (cuisines.Any())
+    {
+        intro.Add(T($"Кухні: {string.Join(", ", cuisines)}.", $"Кухни: {string.Join(", ", cuisines)}.", $"Cuisines: {string.Join(", ", cuisines)}."));
+    }
+    if (topDistricts.Any())
+    {
+        intro.Add(T($"Найбільше закладів у районах: {string.Join(", ", topDistricts)}.", $"Больше всего заведений в районах: {string.Join(", ", topDistricts)}.", $"Most places are in {string.Join(", ", topDistricts)}."));
+    }
 
     var faq = new List<(string Question, string Answer)>
     {
