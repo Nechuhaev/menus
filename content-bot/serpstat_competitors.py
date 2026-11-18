@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sys
+import time
 import uuid
 from collections import defaultdict
 from urllib.parse import urlparse, unquote
@@ -27,12 +28,21 @@ COMPETITORS = ["reston.ua", "mesta.com.ua", "tomato.ua", "topclub.ua", "lasoon.n
 TOKEN = os.environ.get("SERPSTAT_TOKEN") or os.environ.get("SERPSTAT_API_KEY")
 
 
+_debugged = set()
+
+
 def call(method, params):
+    time.sleep(1.2)  # ліміт Serpstat - 1 запит на секунду
     resp = requests.post(f"{API}?token={TOKEN}", json={"id": str(uuid.uuid4()), "method": method, "params": params}, timeout=60)
     data = resp.json()
     if "error" in data:
         raise RuntimeError(f"{method}: {data['error'].get('message')}")
-    return data.get("result") or {}
+    result = data.get("result") or {}
+    if method not in _debugged:  # назви полів відповіді - для перевірки
+        _debugged.add(method)
+        sample = rows(result)[:1]
+        print(f"  [{method}] поля: {sorted(sample[0].keys()) if sample and isinstance(sample[0], dict) else type(result.get('data'))}")
+    return result
 
 
 def rows(result):
@@ -40,6 +50,17 @@ def rows(result):
     if isinstance(data, dict):
         return list(data.values())
     return data or []
+
+
+def num(row, *keys):
+    for k in keys:
+        v = row.get(k)
+        if v not in (None, ""):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                pass
+    return 0.0
 
 
 def pattern(url):
@@ -91,8 +112,8 @@ def main():
             for u in urls:
                 g = groups[pattern(u.get("url", ""))]
                 g["pages"] += 1
-                g["keywords"] += int(u.get("keywords") or u.get("keywords_count") or 0)
-                g["traffic"] += float(u.get("traff") or u.get("traffic") or 0)
+                g["keywords"] += int(num(u, "keywords", "keywords_count", "count_keywords", "keywords_count_top"))
+                g["traffic"] += num(u, "traff", "traffic", "url_traff", "organic_traffic")
                 if len(g["examples"]) < 2:
                     g["examples"].append(u.get("url"))
             entry["patterns"] = groups
@@ -103,14 +124,14 @@ def main():
         except Exception as e:
             print(f"  топ сторінок: {e}")
         try:
-            gap = rows(call("SerpstatDomainProcedure.getUniqKeywords", {
+            gap = rows(call("SerpstatDomainProcedure.getDomainsUniqKeywords", {
                 "se": SE, "domains": [comp], "minusDomain": OUR, "page": 1, "size": args.gap,
                 "sort": {"traff": "desc"}}))
             entry["gap"] = gap
             print(f"  Запити, де {comp} є, а нас немає (топ за трафіком):")
             for k in gap[:40]:
-                print(f"    {k.get('keyword', '')[:55]:<55} поз {k.get('position', '-'):>3}  част {k.get('region_queries_count', k.get('found_results', '-'))}  "
-                      f"{(k.get('url') or '')[:70]}")
+                print(f"    {k.get('keyword', '')[:55]:<55} поз {k.get('position', '-'):>3}  част {k.get('region_queries_count', '-'):>6}  "
+                      f"тр {num(k, 'traff', 'traffic'):>6.0f}  {(k.get('url') or '')[:70]}")
         except Exception as e:
             print(f"  унікальні запити: {e}")
         report["competitors"][comp] = entry
