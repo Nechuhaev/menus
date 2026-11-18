@@ -37,20 +37,22 @@ VENUE_TYPES = {
 NAME_RULES = [
     ("sushi", r"суш[іи]|sushi|ролл|роли\b|\brolls?\b|якіторі|izakaya|ізакая"),
     ("pizzerii", r"піц|пицц|pizz"),
-    ("paby", r"(?<!\w)паб(?!\w)|\bpub\b|пивн|пивовар|броварн|brewery|brew\b|beer|пив[оа]\b|крафт|craft"),
+    ("paby", r"(?<![\w-])паб(?!\w)|\bpub\b|пивн|пивовар|броварн|brewery|brew\b|beer|bier|бир\b|пив[оа]\b|крафт|craft"),
     ("kavyarni", r"кав.?ярн|кофейн|coffee|кофе(?!\w)|кава(?!\w)|espresso|еспресо|caffe|кофі"),
-    ("bary", r"(?<!\w)бар(?!\w)|\bbar\b|lounge|лаунж|коктейл|cocktail|wine|винн|винотек|enoteca|speakeasy"),
+    # бургерні й фастфуд - кафе, навіть якщо в назві «bar» (True Burger Bar)
+    ("kafe", r"бургер|burger|хот.?дог|hot.?dog|шаурм|шаверм|донер|kebab|кебаб|фаст.?фуд|fast.?food|street.?food"),
+    ("bary", r"(?<![\w-])бар(?!\w)|\bbar\b|lounge|лаунж|коктейл|cocktail|wine bar|винн(ий|ый) бар|винотек|enoteca|speakeasy"),
     ("kafe", r"(?<!\w)кафе(?!\w)|\bcaf[eé]\b|\bkafe\b|\bcake\b|patisser|десерт|dessert|бістро|бистро|bistro|їдальн|столов|пекарн|bakery|кондитер|"
-             r"бургерн|burger|шаурм|шаверм|чебуречн|пельменн|варенич|блинн|млинц|донер|kebab|кебаб|хот.?дог|"
-             r"фаст.?фуд|fast.?food|street.?food|снек"),
+             r"бургерн|чебуречн|пельменн|варенич|блинн|млинц|снек"),
 ]
-# кухня (поле «Кухня») -> тип, якщо назва нічого не сказала
+# кухня (поле «Кухня») -> тип, якщо назва нічого не сказала; «салат-бар», «гриль-бар» - не бар
 CUISINE_RULES = [
     ("sushi", r"суш|sushi"),
     ("pizzerii", r"піц|пицц|pizz"),
     ("kavyarni", r"кав.?ярн|кофейн|coffee|кава|кофе"),
-    ("bary", r"(?<!\w)бар(?!\w)|\bbar\b|коктейл"),
-    ("paby", r"(?<!\w)паб|\bpub\b|пивн"),
+    ("paby", r"(?<![\w-])паб|\bpub\b|пивн"),
+    ("bary", r"(?<![\w-])бар(?!\w)|\bbar\b|коктейл"),
+    ("kafe", r"(?<!\w)кафе|пекарн|кондитер|бургер|фаст.?фуд|fast.?food|bakery"),
 ]
 PIZZA = re.compile(r"піц|пицц|pizz", re.I)
 SUSHI = re.compile(r"суш[іи]|sushi|ролл|\bрол\b|маки|урамак|нігір|нигир|гункан|каліфорні|калифорни|філадельф|филадельф", re.I)

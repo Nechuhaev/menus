@@ -493,7 +493,9 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
                         mvcRoutes.MapRoute(
                             name: "catalog",
                             template: custureRoutePath + "/{city}/restaurants/{type?}",
-                            defaults: new { controller = "Catalog", action = "Index" });
+                            defaults: new { controller = "Catalog", action = "Index" },
+                            // «admin» і «restaurants» - області (/uk/admin/restaurants - адмінка «Ресторани»), не міста
+                            constraints: new { city = new Microsoft.AspNetCore.Routing.Constraints.RegexRouteConstraint("^(?!admin$|restaurants$)[a-z0-9-]+$") });
 
                         mvcRoutes.MapRoute(
                             name: "dishCity",

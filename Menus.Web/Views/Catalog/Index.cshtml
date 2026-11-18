@@ -49,7 +49,7 @@
         .GroupBy(c => c.ToLowerInvariant()).OrderByDescending(g => g.Count()).Take(4).Select(g => g.First()).ToList();
     var topDistricts = Model.Districts.Take(3).Select(x => x.Name).ToList();
     var popular = all.OrderByDescending(x => x.Photo != null && x.Dishes > 0).ThenByDescending(x => x.Popularity).Take(5).Select(x => x.Name).ToList();
-    var cheapest = all.Where(x => x.MedianPrice > 0 && x.Dishes >= 10).OrderBy(x => x.MedianPrice).Take(3).ToList();
+    var cheapest = all.Where(x => x.MedianPrice >= 40 && x.Dishes >= 20).OrderBy(x => x.MedianPrice).Take(3).ToList();
 
     var intro = new List<string>
     {
