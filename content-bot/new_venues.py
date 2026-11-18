@@ -42,6 +42,11 @@ CITY_HINTS = {
     "kharkiv": r"харків|харьков|kharkiv|kharkov",
     "dnipro": r"дніпр|днепр|dnipro|dnepr",
 }
+# сторінка конкретного закладу в конкурента (а не стаття, добірка чи категорія)
+VENUE_PAGE = re.compile(r"/restaurants?/[^/]+|/place[-/]|_catalog/(?!type:|kuhnja:|osobennost:)[^/]+|/food/[^/]+|/restoran/[^/]+|/kafe-[^/]+|/bar-[^/]+", re.I)
+# порядок пошуку, коли місто з запиту не видно: спершу найбільше
+CITY_ORDER = ["kyiv", "lviv", "odesa", "kharkiv", "dnipro"]
+
 # слова, що не є назвою закладу
 NOISE = re.compile(
     r"\b(меню|menu|ціни|цiни|цени|цены|ціна|цена|ресторан[а-яіїє]*|restaurant|кафе|cafe|café|бар|bar|паб|pub|кав.ярня|кофейня|"
@@ -120,6 +125,10 @@ def gap_keywords(limit_pages):
                 if cat not in ("меню/ціни конкретного закладу", "інше (назва закладу/бренд)",
                                "тип закладу в місті/районі (кафе, бари, кав'ярні)"):
                     continue
+                # без «меню» в запиті - лише якщо конкурент показує на ньому сторінку закладу
+                # («облака», «донер кебаб», «колиба» - загальні слова, а не заклад)
+                if cat != "меню/ціни конкретного закладу" and not VENUE_PAGE.search(k.get("url") or ""):
+                    continue
                 volume = int(ss.num(k, "region_queries_count"))
                 if kw not in out or volume > out[kw][1]:
                     out[kw] = (kw, volume, k.get("url") or "")
@@ -185,9 +194,10 @@ def find(db, args):
 
     write = db.cursor()
     found, skipped_ours, not_found = [], 0, 0
+    merged = {}  # (назва транслітом, місто) -> [рядок, сумарна частота]
     now = datetime.utcnow()
     for g in todo:
-        city_slugs = [g["city"]] if g["city"] in cities else list(cities)
+        city_slugs = [g["city"]] if g["city"] in cities else [c for c in CITY_ORDER if c in cities]
         if any(is_ours(g["name"], cities[c][0]) for c in city_slugs):
             skipped_ours += 1
             continue
@@ -220,6 +230,10 @@ def find(db, args):
         if is_ours(name, city_id):
             skipped_ours += 1
             continue
+        merge_key = (latin(name), city_id)
+        if merge_key in merged:
+            merged[merge_key][1] += g["volume"]
+            continue
         osm_key = f"{r.get('osm_type')}/{r.get('osm_id')}"
         tags = r.get("extratags") or {}
         row = (osm_key, g["keyword"][:255], g["volume"], name[:255], city_id, address_of(r)[:500],
@@ -228,8 +242,13 @@ def find(db, args):
                (tags.get("phone") or tags.get("contact:phone") or "")[:100] or None,
                (tags.get("opening_hours") or "")[:500] or None, (tags.get("cuisine") or "")[:255] or None,
                g["url"][:500] or None)
-        found.append((g, c, name, row))
-        print(f"  {g['volume']:>6}  {name} ({c}) - {row[5]}; сайт {row[8] or '-'}; запит «{g['keyword']}»"
+        merged[merge_key] = [row, g["volume"], c]
+        found.append(merge_key)
+
+    for row, volume, c in sorted(merged.values(), key=lambda x: -x[1]):
+        row = row[:2] + (volume,) + row[3:]
+        osm_key = row[0]
+        print(f"  {volume:>6}  {row[3]} ({c}) - {row[5]}; сайт {row[8] or '-'}; запит «{row[1]}»"
               + ("" if osm_key not in known else " [уже в кандидатах]"))
         if not args.dry_run and osm_key not in known:
             write.execute("""INSERT INTO NewVenueCandidates (OsmKey, Keyword, Volume, Name, CityId, Address, Lat, Lon, Website,
