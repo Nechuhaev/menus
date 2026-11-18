@@ -1,0 +1,73 @@
+@model Menus.Web.Services.SitePageInfo
+@{
+    ViewData["Title"] = "Тексти: " + Model.Title;
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var defaults = ViewData["defaults"] as Dictionary<string, Dictionary<string, string>>;
+    var overrides = ViewData["overrides"] as Dictionary<string, Dictionary<string, string>>;
+    string Value(string lang, string key) =>
+        overrides[lang].TryGetValue(key, out var o) ? o : defaults[lang].TryGetValue(key, out var d) ? d : "";
+    bool Changed(string lang, string key) => overrides[lang].ContainsKey(key);
+}
+
+<style>
+    .site-texts .row { display: grid; grid-template-columns: 160px repeat(@Model.Langs.Length, minmax(0, 1fr)); gap: 10px; padding: 10px 0; border-bottom: 1px solid #eee; align-items: start; }
+    .site-texts .key { font-size: 12px; color: #777; overflow-wrap: anywhere; }
+    .site-texts textarea { width: 100%; box-sizing: border-box; min-height: 44px; font: inherit; font-size: 14px; resize: vertical; }
+    .site-texts textarea.changed { border-color: #ffb80e; background: #fffaf0; }
+    .site-texts .lang { font-size: 12px; color: #777; display: none; }
+    .site-texts .head { font-weight: bold; }
+    .site-texts .actions { position: sticky; bottom: 0; background: #fff; padding: 10px 0; border-top: 1px solid #ddd; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    /* телефон: мови одна під одною, без горизонтальної прокрутки */
+    @@media (max-width: 700px) {
+        .site-texts .row { grid-template-columns: 1fr; }
+        .site-texts .row.head { display: none; }
+        .site-texts .lang { display: block; }
+    }
+</style>
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center site-texts">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-action="Index">Тексти сторінок</a></li>
+                    <li>@Model.Title</li>
+                </ul>
+            </div>
+            <p>
+                @foreach (var lang in Model.Langs)
+                {
+                    <a href="/@lang/@Model.Url" target="_blank" rel="noopener" style="margin-right:12px">/@lang/@Model.Url ↗</a>
+                }
+            </p>
+            @if (TempData["message"] != null)
+            {
+                <p><strong>@TempData["message"]</strong></p>
+            }
+            <p style="color:#777;font-size:13px">Жовтим - змінено тут. Очистіть поле і збережіть, щоб повернути текст за замовчуванням.</p>
+
+            <form method="post" asp-action="Save" asp-route-id="@Model.Key">
+                <div class="row head"><div>Поле</div>@foreach (var lang in Model.Langs) { <div>@lang</div> }</div>
+                @foreach (var key in Model.Keys)
+                {
+                    <div class="row">
+                        <div class="key">@key</div>
+                        @foreach (var lang in Model.Langs)
+                        {
+                            var value = Value(lang, key);
+                            <div>
+                                <span class="lang">@lang</span>
+                                <textarea name="@(lang).@(key)" rows="@(value.Length > 120 ? 4 : 2)" class="@(Changed(lang, key) ? "changed" : "")">@value</textarea>
+                            </div>
+                        }
+                    </div>
+                }
+                <div class="actions">
+                    <button type="submit">Зберегти</button>
+                    <a asp-action="Index">До списку</a>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>

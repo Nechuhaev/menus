@@ -1,17 +1,22 @@
 @using Microsoft.AspNetCore.Mvc.Localization
 @inject IViewLocalizer Localizer
+@inject Menus.Web.Services.SiteTextService SiteTexts
 @{
     // Лендинг «Меню для сайту закладу» (iframe): /uk/iframe-menu, /ru/iframe-menu
     Layout = "~/Views/Shared/_Layout.cshtml";
     var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
-    ViewData["Title"] = Localizer["MetaTitle"].Value;
-    ViewData["Description"] = Localizer["MetaDescription"].Value;
+    // правки з адмінки («Тексти сторінок»), інакше - .resx
+    var textOverrides = await SiteTexts.GetOverrides("iframe-menu", culture);
+    string L(string key) => textOverrides.TryGetValue(key, out var t) ? t : Localizer[key].Value;
+    ViewData["Title"] = L("MetaTitle");
+    ViewData["Description"] = L("MetaDescription");
     ViewData["BodyClass"] = "iframe-menu-page";
 
     // живий приклад - меню ресторану «Чачапурі»; посилання без схеми, як у самому iframe
     var exampleSrc = "//tipmymenu.com/" + culture + "/kyiv/iframe/chachapuri";
-    var connectUrl = Url.Action("ForOwners", "Articles", new { culture, viewMode = "internal" });
+    // одразу на форму заявки (#join), без проміжної кнопки
+    var connectUrl = Url.Action("ForOwners", "Articles", new { culture, viewMode = "internal" }) + "#join";
     var codeSample = "<iframe src=\"https://tipmymenu.com/" + culture + "/kyiv/iframe/chachapuri"
         + "\" width=\"100%\" height=\"800\" style=\"border:0;max-width:100%\" loading=\"lazy\"></iframe>";
 
@@ -20,7 +25,7 @@
         ("🔄", "B1"), ("⚡", "B2"), ("🎨", "B3"), ("📸", "B4"), ("🔍", "B5"),
         ("⭐", "B6"), ("🕒", "B7"), ("📱", "B8"), ("🚀", "B9")
     };
-    var faq = Enumerable.Range(1, 7).Select(i => (Q: Localizer["Q" + i].Value, A: Localizer["A" + i].Value)).ToList();
+    var faq = Enumerable.Range(1, 7).Select(i => (Q: L("Q" + i), A: L("A" + i))).ToList();
     var faqJson = Newtonsoft.Json.JsonConvert.SerializeObject(new Dictionary<string, object>
     {
         ["@context"] = "https://schema.org",
@@ -131,65 +136,65 @@
     <section class="im-hero">
         <div class="im-wrap">
             <div>
-                <span class="im-badge">@Localizer["Badge"]</span>
-                <h1>@Localizer["HeroTitle1"] <em>@Localizer["HeroTitleAccent"]</em> @Localizer["HeroTitle2"]</h1>
-                <p class="im-lead">@Localizer["HeroLead"]</p>
+                <span class="im-badge">@L("Badge")</span>
+                <h1>@L("HeroTitle1") <em>@L("HeroTitleAccent")</em> @L("HeroTitle2")</h1>
+                <p class="im-lead">@L("HeroLead")</p>
                 <div class="im-cta">
-                    <a class="im-btn im-btn-main" href="@connectUrl">@Localizer["CtaConnect"]</a>
-                    <a class="im-btn im-btn-ghost" href="#how">@Localizer["CtaHow"]</a>
+                    <a class="im-btn im-btn-main" href="@connectUrl">@L("CtaConnect")</a>
+                    <a class="im-btn im-btn-ghost" href="#how">@L("CtaHow")</a>
                 </div>
                 <div class="im-facts">
-                    <div><b>@Localizer["FactCode"]</b>@Localizer["FactCodeText"]</div>
-                    <div><b>@Localizer["FactPrice"]</b>@Localizer["FactPriceText"]</div>
-                    <div><b>@Localizer["FactLangs"]</b>@Localizer["FactLangsText"]</div>
+                    <div><b>@L("FactCode")</b>@L("FactCodeText")</div>
+                    <div><b>@L("FactPrice")</b>@L("FactPriceText")</div>
+                    <div><b>@L("FactLangs")</b>@L("FactLangsText")</div>
                 </div>
             </div>
             <div>
-                <div class="im-phone"><iframe src="@exampleSrc" title="@Localizer["PhoneTitle"]" loading="lazy"></iframe></div>
-                <p class="im-phone-note">@Localizer["PhoneNote"]</p>
+                <div class="im-phone"><iframe src="@exampleSrc" title="@L("PhoneTitle")" loading="lazy"></iframe></div>
+                <p class="im-phone-note">@L("PhoneNote")</p>
             </div>
         </div>
     </section>
 
     <section class="im-section">
         <div class="im-wrap">
-            <h2>@Localizer["BenefitsTitle"]</h2>
-            <p class="im-sub">@Localizer["BenefitsSub"]</p>
+            <h2>@L("BenefitsTitle")</h2>
+            <p class="im-sub">@L("BenefitsSub")</p>
             <div class="im-grid">
                 @foreach (var b in benefits)
                 {
-                    <div class="im-card"><div class="im-ico">@b.Item1</div><h3>@Localizer[b.Item2 + "Title"]</h3><p>@Localizer[b.Item2 + "Text"]</p></div>
+                    <div class="im-card"><div class="im-ico">@b.Item1</div><h3>@L(b.Item2 + "Title")</h3><p>@L(b.Item2 + "Text")</p></div>
                 }
-                <div class="im-card im-wide"><div class="im-ico">📈</div><div><h3>@Localizer["B10Title"]</h3><p>@Localizer["B10Text"]</p></div></div>
+                <div class="im-card im-wide"><div class="im-ico">📈</div><div><h3>@L("B10Title")</h3><p>@L("B10Text")</p></div></div>
             </div>
         </div>
     </section>
 
     <section class="im-section im-alt" id="how">
         <div class="im-wrap">
-            <h2>@Localizer["HowTitle"]</h2>
-            <p class="im-sub">@Localizer["HowSub"]</p>
+            <h2>@L("HowTitle")</h2>
+            <p class="im-sub">@L("HowSub")</p>
             <div class="im-grid im-steps">
                 @for (var i = 1; i <= 3; i++)
                 {
-                    <div class="im-card im-step"><h3>@Localizer["S" + i + "Title"]</h3><p>@Localizer["S" + i + "Text"]</p></div>
+                    <div class="im-card im-step"><h3>@L("S" + i + "Title")</h3><p>@L("S" + i + "Text")</p></div>
                 }
             </div>
             <div class="im-code">
-                <h3>@Localizer["CodeTitle"]</h3>
+                <h3>@L("CodeTitle")</h3>
                 <pre>@codeSample</pre>
-                <p>@Localizer["CodeNote"]</p>
+                <p>@L("CodeNote")</p>
             </div>
         </div>
     </section>
 
     <section class="im-section">
         <div class="im-wrap">
-            <h2>@Localizer["FeaturesTitle"]</h2>
+            <h2>@L("FeaturesTitle")</h2>
             <ul class="im-features">
                 @for (var i = 1; i <= 10; i++)
                 {
-                    <li>@Localizer["F" + i]</li>
+                    <li>@L("F" + i)</li>
                 }
             </ul>
         </div>
@@ -197,7 +202,7 @@
 
     <section class="im-section im-alt">
         <div class="im-wrap">
-            <h2>@Localizer["FaqTitle"]</h2>
+            <h2>@L("FaqTitle")</h2>
             <div class="im-faq">
                 @foreach (var item in faq)
                 {
@@ -209,9 +214,9 @@
 
     <section class="im-final">
         <div class="im-wrap">
-            <h2>@Localizer["FinalTitle"]</h2>
-            <p>@Localizer["FinalText"]</p>
-            <a class="im-btn im-btn-main" href="@connectUrl">@Localizer["CtaConnect"]</a>
+            <h2>@L("FinalTitle")</h2>
+            <p>@L("FinalText")</p>
+            <a class="im-btn im-btn-main" href="@connectUrl">@L("CtaConnect")</a>
         </div>
     </section>
 </div>

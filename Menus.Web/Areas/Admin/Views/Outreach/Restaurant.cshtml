@@ -52,6 +52,14 @@
             @{
                 var catalogAll = await CatalogSvc.GetAll();
                 var catalogVenue = catalogAll.FirstOrDefault(x => x.Id == Model.Id);
+                // свіжі тип/район/кухні з бази (каталог кешується на 30 хв)
+                if (catalogVenue != null && (await CatalogSvc.GetVenueMap()).TryGetValue(Model.Id, out var freshVenue))
+                {
+                    catalogVenue.VenueType = freshVenue.VenueType;
+                    catalogVenue.DistrictUk = freshVenue.DistrictUk; catalogVenue.DistrictRu = freshVenue.DistrictRu;
+                    catalogVenue.DistrictEn = freshVenue.DistrictEn; catalogVenue.DistrictSlug = freshVenue.DistrictSlug;
+                    catalogVenue.Cuisines = freshVenue.Cuisines;
+                }
                 var catalogDistricts = catalogVenue == null ? new List<Menus.Web.Services.CatalogVenue>()
                     : catalogAll.Where(x => x.City == catalogVenue.City && !string.IsNullOrEmpty(x.DistrictSlug)).GroupBy(x => x.DistrictSlug).Select(g => g.First()).OrderBy(x => x.DistrictUk).ToList();
             }
