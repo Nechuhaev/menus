@@ -173,6 +173,7 @@ def find(db, args):
     def is_ours(name, city_id):
         return any(similar(name, n) or (u and similar(name, u.replace("-", " "))) for n, u in ours[city_id])
 
+    print("Serpstat: запити конкурентів…", flush=True)
     keywords = gap_keywords(args.pages)
     print(f"Запитів про заклади, де нас немає (частота >= {MIN_VOLUME}): {len(keywords)}")
     # одна назва + місто -> один пошук (сумарна частота запитів)
@@ -190,13 +191,15 @@ def find(db, args):
     todo = sorted(groups.values(), key=lambda g: -g["volume"])
     if args.limit:
         todo = todo[:args.limit]
-    print(f"Назв закладів: {len(todo)}; шукаю в OpenStreetMap…")
+    print(f"Назв закладів: {len(todo)}; шукаю в OpenStreetMap (~1-5 с на назву, кандидати пишуться одразу)…", flush=True)
 
     write = db.cursor()
     found, skipped_ours, not_found = [], 0, 0
     merged = {}  # (назва транслітом, місто) -> [рядок, сумарна частота]
     now = datetime.utcnow()
-    for g in todo:
+    for i, g in enumerate(todo, 1):
+        if i % 10 == 0:
+            print(f"  … {i}/{len(todo)}: знайдено {len(merged)}, уже є в нас {skipped_ours}, не знайдено {not_found}", flush=True)
         city_slugs = [g["city"]] if g["city"] in cities else [c for c in CITY_ORDER if c in cities]
         if any(is_ours(g["name"], cities[c][0]) for c in city_slugs):
             skipped_ours += 1
@@ -233,6 +236,10 @@ def find(db, args):
         merge_key = (latin(name), city_id)
         if merge_key in merged:
             merged[merge_key][1] += g["volume"]
+            if not args.dry_run:
+                write.execute("UPDATE NewVenueCandidates SET Volume = Volume + %s WHERE OsmKey = %s AND Status = 'new'",
+                              (g["volume"], merged[merge_key][0][0]))
+                db.commit()
             continue
         osm_key = f"{r.get('osm_type')}/{r.get('osm_id')}"
         tags = r.get("extratags") or {}
@@ -244,17 +251,14 @@ def find(db, args):
                g["url"][:500] or None)
         merged[merge_key] = [row, g["volume"], c]
         found.append(merge_key)
-
-    for row, volume, c in sorted(merged.values(), key=lambda x: -x[1]):
-        row = row[:2] + (volume,) + row[3:]
-        osm_key = row[0]
-        print(f"  {volume:>6}  {row[3]} ({c}) - {row[5]}; сайт {row[8] or '-'}; запит «{row[1]}»"
-              + ("" if osm_key not in known else " [уже в кандидатах]"))
+        print(f"  {g['volume']:>6}  {row[3]} ({c}) - {row[5]}; сайт {row[8] or '-'}; запит «{row[1]}»"
+              + ("" if osm_key not in known else " [уже в кандидатах]"), flush=True)
         if not args.dry_run and osm_key not in known:
             write.execute("""INSERT INTO NewVenueCandidates (OsmKey, Keyword, Volume, Name, CityId, Address, Lat, Lon, Website,
                                                              Phone, OpenHours, Cuisine, SourceUrl, Status, CreatedAt, UpdatedAt)
                              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'new', %s, %s)""",
                           row + (now, now))
+            db.commit()
             known.add(osm_key)
     if not args.dry_run:
         db.commit()
@@ -314,7 +318,7 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--create", action="store_true", help="створити схвалені в адмінці заклади")
     ap.add_argument("--pages", type=int, default=2, help="сторінок по 1000 запитів на конкурента (кредити Serpstat)")
-    ap.add_argument("--limit", type=int, default=0, help="не більше N назв (0 - усі)")
+    ap.add_argument("--limit", type=int, default=150, help="не більше N найчастіших назв (0 - усі; ~1-5 с на назву)")
     args = ap.parse_args()
     db = get_db()
     if args.create:
