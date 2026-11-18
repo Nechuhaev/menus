@@ -52,10 +52,10 @@
     var all = Model.AllOfType;
     var prices = all.Where(x => x.MedianPrice > 0).Select(x => x.MedianPrice).OrderBy(x => x).ToList();
     var median = prices.Count > 0 ? prices[prices.Count / 2] : 0;
-    var cuisines = all.Select(x => x.Localized(x.Cuisine, culture))
-        .SelectMany(c => (c ?? "").Split(new[] { ',', ';', '/' }, StringSplitOptions.RemoveEmptyEntries))
-        .Select(c => c.Trim().TrimEnd('.')).Where(c => c.Length > 2 && c.Length < 40)
-        .GroupBy(c => c.ToLowerInvariant()).OrderByDescending(g => g.Count()).Take(4).Select(g => g.First()).ToList();
+    // кухні - з нашого списку (бот звів поле «Кухня» закладу), а не сирий текст картки
+    string ShortCuisine(string c) => CatalogService.CuisineName(c, culture).Replace(" кухня", "");
+    var cuisines = all.SelectMany(x => x.CuisineList).GroupBy(c => c).OrderByDescending(g => g.Count())
+        .Take(4).Select(g => ShortCuisine(g.Key)).ToList();
     var topDistricts = Model.Districts.Take(3).Select(x => x.Name).ToList();
     var popular = all.OrderByDescending(x => x.Photo != null && x.Dishes > 0).ThenByDescending(x => x.Popularity).Select(x => x.Name.Trim()).Distinct().Take(5).ToList();
     var cheapest = all.Where(x => x.MedianPrice >= 40 && x.Dishes >= 20).OrderBy(x => x.MedianPrice)
@@ -243,7 +243,8 @@
         <ul class="grid">
             @foreach (var v in Model.Items)
             {
-                var cuisine = v.Localized(v.Cuisine, culture);
+                // на картці - кухні з нашого списку; якщо бот кухню не визначив - текст із картки закладу
+                var cuisine = v.CuisineList.Any() ? string.Join(", ", v.CuisineList.Take(3).Select(ShortCuisine)) : v.Localized(v.Cuisine, culture);
                 var address = v.Localized(v.DisplayAddress, culture);
                 var district = v.District(culture);
                 var hours = OpenHoursHelper.Describe(v.OpenHours);
