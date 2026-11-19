@@ -210,6 +210,104 @@ namespace Menus.Web.Services
             System.Text.RegularExpressions.Regex.Replace((UrlGenerateService.Translit(name ?? "") ?? "").ToLowerInvariant()
                 .Replace("j", "i").Replace("y", "i").Replace("kh", "h").Replace("ts", "c"), "[^a-z0-9]", "");
 
+        // сторінки «страва + місто», що належать кухні (за назвою страви uk)
+        public static readonly Dictionary<string, string> CuisineDishes = new Dictionary<string, string>
+        {
+            ["hruzynska"] = "хінкал|хачапур|чахохбіл|оджахур|чашушул|пхалі|лобіо|сацив|шкмерул|аджапсандал",
+            ["italiiska"] = "піц|паст|спагет|карбонар|різот|лазань|тірамісу|брускет|равіол",
+            ["yaponska"] = "суші|рол|рамен|сашимі|темпур|місо|удон",
+            ["ukrainska"] = "борщ|варени|деруни|голубц|сирник|галушк|холодец|банош|пампуш",
+            ["uzbetska"] = "плов|лагман|самс|манти|шурп",
+            ["aziiska"] = "вок|рамен|пад тай|том ям|фо бо|локшин",
+            ["kytaiska"] = "вок|локшин|качк|димсам|дім сам",
+            ["amerykanska"] = "бургер|ребр|крильц|хот.?дог|наггетс",
+            ["ryba-moreprodukty"] = "лосос|форел|мідії|устриц|креветк|кальмар|дорадо|сібас|судак",
+            ["miasna"] = "стейк|рибай|стриплойн|тібон|ребр|шашлик|телятин",
+            ["frantsuzka"] = "круасан|рататуй|крем.?брюле|кіш|фуа",
+            ["seredzemnomorska"] = "хумус|фалафел|гірос|грецьк|дорадо|сібас",
+            ["yevreiska"] = "хумус|фалафел|шакшук|форшмак|фаршир",
+            ["meksykanska"] = "тако|буріто|кесаділ|начос|гуакамол",
+            ["virmenska"] = "хоровац|лаваш|толма|долма",
+            ["krymskotatarska"] = "чебурек|янтик|плов|манти|лагман",
+            ["koreiska"] = "кімчі|бібімбап|пулькогі|токпокі",
+            ["vietnamska"] = "фо бо|бун бо|спрінг|нем",
+            ["taiska"] = "пад тай|том ям|том кха|карі",
+            ["vegetarianska"] = "веган|овоч|салат|фалафел|хумус",
+        };
+
+        // ---- перелінковка: посилання на опубліковані сторінки каталогу (лише ті, що є на сайті й не вимкнені в адмінці) ----
+
+        // тип, особливості й кухні закладу - для сторінки закладу
+        public async Task<List<(string Href, string Title)>> VenueLinks(CatalogVenue v, string citySlug, string cityName, string culture, int max = 6)
+        {
+            var result = new List<(string, string)>();
+            var basePath = $"/{culture}/{citySlug}/restaurants";
+            if ((await PublishedTypes(v.City)).Any(x => x.Type == v.Type))
+                result.Add(($"{basePath}/{v.Type}", Menus.Web.Helpers.CatalogText.Heading(TypeName(v.Type, culture), citySlug, cityName, culture)));
+            var cheap = CheapLimit(await GetCity(v.City));
+            foreach (var (f, _) in await PublishedFeatures(v.City))
+                if (HasFeature(v, f, cheap)) result.Add(($"{basePath}/{f}", FeatureHeadingText(f, citySlug, cityName, culture)));
+            var cuisines = (await PublishedCuisines(v.City)).Select(x => x.Cuisine).ToList();
+            foreach (var c in v.CuisineList.Where(cuisines.Contains))
+                result.Add(($"{basePath}/kukhnia/{c}", Menus.Web.Helpers.CatalogText.CuisineHeading(CuisineName(c, culture), citySlug, cityName, culture)));
+            return result.Take(max).ToList();
+        }
+
+        // кухні, до яких належить страва (за назвою uk) - для сторінки «страва + місто»
+        public async Task<List<(string Href, string Title)>> DishLinks(string cityId, string dishTitleUk, string citySlug, string cityName, string culture)
+        {
+            var result = new List<(string, string)>();
+            foreach (var (c, _) in await PublishedCuisines(cityId))
+                if (CuisineDishes.TryGetValue(c, out var rx) && System.Text.RegularExpressions.Regex.IsMatch(dishTitleUk ?? "", rx, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    result.Add(($"/{culture}/{citySlug}/restaurants/kukhnia/{c}", Menus.Web.Helpers.CatalogText.CuisineHeading(CuisineName(c, culture), citySlug, cityName, culture)));
+            return result.Take(3).ToList();
+        }
+
+        // усі заклади міста + типи - для хабу страв міста
+        public async Task<List<(string Href, string Title)>> CityLinks(string cityId, string citySlug, string cityName, string culture)
+        {
+            var result = new List<(string, string)>();
+            var basePath = $"/{culture}/{citySlug}/restaurants";
+            var venues = await GetCity(cityId);
+            if (!IsPublished(null, venues.Count, await GetSettings(cityId, ""))) return result;
+            result.Add((basePath, Menus.Web.Helpers.CatalogText.Heading(TypeName("restorany", culture), citySlug, cityName, culture)));
+            foreach (var (t, _) in await PublishedTypes(cityId))
+                result.Add(($"{basePath}/{t}", Menus.Web.Helpers.CatalogText.Heading(TypeName(t, culture), citySlug, cityName, culture)));
+            foreach (var (f, _) in await PublishedFeatures(cityId))
+                result.Add(($"{basePath}/{f}", FeatureHeadingText(f, citySlug, cityName, culture)));
+            return result;
+        }
+
+        public static string FeatureHeadingText(string f, string citySlug, string cityName, string culture)
+        {
+            var info = Features[f];
+            return Menus.Web.Helpers.CatalogText.FeatureHeading(culture == "en" ? info.HEn : culture == "ru" ? info.HRu : info.HUk, citySlug, cityName, culture);
+        }
+
+        // міста, де є сторінка «усі заклади» - для футера; легкий запит з окремим кешем 30 хв (без цін і страв)
+        private static List<string> _catalogCities;
+        private static DateTime _catalogCitiesAt;
+
+        public async Task<List<string>> CatalogCityIds()
+        {
+            if (_catalogCities != null && DateTime.UtcNow - _catalogCitiesAt < TimeSpan.FromMinutes(30)) return _catalogCities;
+            try
+            {
+                var settings = await GetSettings();
+                _catalogCities = (await _connection.QueryAsync<(string City, long Venues)>(@"
+                    SELECT CONCAT(r.City, ''), COUNT(*) FROM Restaurants r JOIN RestaurantSeo rs ON rs.ItemId = r.Id
+                    WHERE r.Status = 0 GROUP BY r.City"))
+                    .Where(x => IsPublished(null, (int)x.Venues, settings.FirstOrDefault(s => s.CityId == x.City && s.VenueType == "")))
+                    .Select(x => x.City).ToList();
+            }
+            catch (Exception)
+            {
+                _catalogCities = new List<string>();
+            }
+            _catalogCitiesAt = DateTime.UtcNow;
+            return _catalogCities;
+        }
+
         public static string TypeName(string type, string culture)
         {
             if (string.IsNullOrEmpty(type) || !Types.TryGetValue(type, out var t)) t = Types["restorany"];

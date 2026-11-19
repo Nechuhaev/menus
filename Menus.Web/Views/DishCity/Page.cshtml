@@ -207,6 +207,19 @@
                         </div>
                     }
 
+                    @if (ViewData["catalogLinks"] is List<(string Href, string Title)> catalogLinks && catalogLinks.Any())
+                    {
+                        <div class="catalog-links">
+                            <h2>@Menus.Web.Helpers.CatalogText.T(culture, $"Ресторани й кафе: {cityName}", $"Рестораны и кафе: {cityName}", $"Restaurants & cafes in {cityName}")</h2>
+                            <ul class="dish-city-related">
+                                @foreach (var (href, linkTitle) in catalogLinks)
+                                {
+                                    <li><a href="@href">@linkTitle</a></li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
                     @if (related.Any())
                     {
                         <h2>@string.Format(Localizer["Related"].Value, cityName)</h2>

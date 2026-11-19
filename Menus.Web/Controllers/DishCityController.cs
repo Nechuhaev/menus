@@ -15,9 +15,11 @@ namespace Menus.Web.Controllers
         private readonly Core _core;
         private readonly DishCityPageService _pages;
         private readonly IConfiguration _config;
+        private readonly CatalogService _catalog;
 
-        public DishCityController(Core core, DishCityPageService pages, IConfiguration config)
+        public DishCityController(Core core, DishCityPageService pages, IConfiguration config, CatalogService catalog)
         {
+            _catalog = catalog;
             _core = core;
             _pages = pages;
             _config = config;
@@ -52,6 +54,8 @@ namespace Menus.Web.Controllers
 
             if (string.IsNullOrEmpty(slug))
             {
+                // перелінковка: каталог міста (усі заклади, типи, особливості)
+                ViewData["catalogLinks"] = await CatalogLinksSafe(() => _catalog.CityLinks(cityObj.Id, city, cityObj.Name.Get(culture), culture));
                 return View("Hub", await _pages.GetPublishedForCity(cityObj.Id));
             }
 
@@ -73,7 +77,28 @@ namespace Menus.Web.Controllers
             ViewData["pageIndex"] = page;
             ViewData["pageCount"] = pageCount;
             ViewData["related"] = (await _pages.GetPublishedForCity(cityObj.Id)).Where(x => x.Id != dishPage.Id).Take(12).ToList();
+            // перелінковка: кухня страви («Грузинська кухня в Києві») + усі заклади міста
+            ViewData["catalogLinks"] = await CatalogLinksSafe(async () =>
+            {
+                var links = await _catalog.DishLinks(cityObj.Id, dishPage.GetTitle("uk"), city, cityObj.Name.Get(culture), culture);
+                links.AddRange((await _catalog.CityLinks(cityObj.Id, city, cityObj.Name.Get(culture), culture)).Take(1));
+                return links;
+            });
             return View("Page", dishPage);
+        }
+
+        // каталог недоступний - сторінка без посилань, а не помилка
+        private static async Task<System.Collections.Generic.List<(string Href, string Title)>> CatalogLinksSafe(
+            Func<Task<System.Collections.Generic.List<(string Href, string Title)>>> load)
+        {
+            try
+            {
+                return await load();
+            }
+            catch (Exception)
+            {
+                return new System.Collections.Generic.List<(string Href, string Title)>();
+            }
         }
     }
 }

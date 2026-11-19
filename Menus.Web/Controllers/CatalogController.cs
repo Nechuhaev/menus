@@ -177,7 +177,7 @@ namespace Menus.Web.Controllers
                 Cuisines = await _catalog.PublishedCuisines(cityObj.Id),
                 DishLinks = cuisine == null ? new List<(string, string)>()
                     : (await _dishPages.GetPublishedForCity(cityObj.Id))
-                        .Where(p => CuisineDishes.TryGetValue(cuisine, out var rx) && System.Text.RegularExpressions.Regex.IsMatch(p.GetTitle("uk") ?? "", rx, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                        .Where(p => CatalogService.CuisineDishes.TryGetValue(cuisine, out var rx) && System.Text.RegularExpressions.Regex.IsMatch(p.GetTitle("uk") ?? "", rx, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                         .Take(8).Select(p => (p.Slug, p.GetTitle(culture))).ToList(),
                 District = district,
                 Cheap = cheap,
@@ -221,31 +221,6 @@ namespace Menus.Web.Controllers
 
             return View("Index", model);
         }
-
-        // сторінки «страва + місто», що належать кухні (за назвою страви uk)
-        private static readonly Dictionary<string, string> CuisineDishes = new Dictionary<string, string>
-        {
-            ["hruzynska"] = "хінкал|хачапур|чахохбіл|оджахур|чашушул|пхалі|лобіо|сацив|шкмерул|аджапсандал",
-            ["italiiska"] = "піц|паст|спагет|карбонар|різот|лазань|тірамісу|брускет|равіол",
-            ["yaponska"] = "суші|рол|рамен|сашимі|темпур|місо|удон",
-            ["ukrainska"] = "борщ|варени|деруни|голубц|сирник|галушк|холодец|банош|пампуш",
-            ["uzbetska"] = "плов|лагман|самс|манти|шурп",
-            ["aziiska"] = "вок|рамен|пад тай|том ям|фо бо|локшин",
-            ["kytaiska"] = "вок|локшин|качк|димсам|дім сам",
-            ["amerykanska"] = "бургер|ребр|крильц|хот.?дог|наггетс",
-            ["ryba-moreprodukty"] = "лосос|форел|мідії|устриц|креветк|кальмар|дорадо|сібас|судак",
-            ["miasna"] = "стейк|рибай|стриплойн|тібон|ребр|шашлик|телятин",
-            ["frantsuzka"] = "круасан|рататуй|крем.?брюле|кіш|фуа",
-            ["seredzemnomorska"] = "хумус|фалафел|гірос|грецьк|дорадо|сібас",
-            ["yevreiska"] = "хумус|фалафел|шакшук|форшмак|фаршир",
-            ["meksykanska"] = "тако|буріто|кесаділ|начос|гуакамол",
-            ["virmenska"] = "хоровац|лаваш|толма|долма",
-            ["krymskotatarska"] = "чебурек|янтик|плов|манти|лагман",
-            ["koreiska"] = "кімчі|бібімбап|пулькогі|токпокі",
-            ["vietnamska"] = "фо бо|бун бо|спрінг|нем",
-            ["taiska"] = "пад тай|том ям|том кха|карі",
-            ["vegetarianska"] = "веган|овоч|салат|фалафел|хумус",
-        };
 
         private IActionResult NotFoundView()
         {
