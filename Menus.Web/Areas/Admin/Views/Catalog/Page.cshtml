@@ -7,11 +7,13 @@
     string Text(string lang) => texts.TryGetValue(lang, out var t) ? t : "";
     var isCuisine = (Model.VenueType ?? "").StartsWith("c:");
     var isFeature = (Model.VenueType ?? "").StartsWith("f:");
+    var isChain = (Model.VenueType ?? "").StartsWith("m:");
     var name = string.IsNullOrEmpty(Model.VenueType) ? "Усі заклади"
         : isCuisine ? CatalogService.CuisineName(Model.VenueType.Substring(2), "uk")
-        : isFeature ? CatalogService.FeatureName(Model.VenueType.Substring(2), "uk") : CatalogService.TypeName(Model.VenueType, "uk");
+        : isFeature ? CatalogService.FeatureName(Model.VenueType.Substring(2), "uk")
+        : isChain ? "мережа " + (ViewData["chainName"] ?? Model.VenueType.Substring(2)) : CatalogService.TypeName(Model.VenueType, "uk");
     var path = $"/uk/{ViewData["citySlug"]}/restaurants" + (string.IsNullOrEmpty(Model.VenueType) ? ""
-        : isCuisine ? "/kukhnia/" + Model.VenueType.Substring(2) : isFeature ? "/" + Model.VenueType.Substring(2) : "/" + Model.VenueType);
+        : isCuisine ? "/kukhnia/" + Model.VenueType.Substring(2) : isChain ? "/merezha/" + Model.VenueType.Substring(2) : isFeature ? "/" + Model.VenueType.Substring(2) : "/" + Model.VenueType);
 }
 
 <style>
@@ -33,7 +35,7 @@
             <form method="post" asp-action="Page">
                 <input type="hidden" name="cityId" value="@Model.CityId" />
                 <input type="hidden" name="type" value="@Model.VenueType" />
-                <label><input type="checkbox" name="enabled" value="true" checked="@Model.Enabled" /> Показувати на сайті (якщо закладів ≥ @CatalogService.MinVenues)</label>
+                <label><input type="checkbox" name="enabled" value="true" checked="@Model.Enabled" /> Показувати на сайті (якщо закладів ≥ @(isChain ? CatalogService.ChainMin : CatalogService.MinVenues))</label>
                 <input type="hidden" name="enabled" value="false" />
                 <p style="color:#777;font-size:12px;">Вступний текст: порожньо - зібраний з даних автоматично (кількість, ціни, кухні, райони).</p>
                 <label>Текст uk</label><textarea name="textUk">@Text("uk")</textarea>

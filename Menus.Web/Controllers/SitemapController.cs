@@ -422,6 +422,11 @@ namespace Menus.Web.Controllers
                         if (CatalogService.IsCuisinePublished(g.Key, g.Count(), catalogSettings.FirstOrDefault(s => s.CityId == city.Id && s.VenueType == CatalogService.CuisineKey(g.Key))))
                             mainPages.Add($"<loc>{SiteBaseUrl}/{ locale.Id}/{citySlug}/restaurants/kukhnia/{g.Key}</loc>");
                     }
+                    foreach (var m in CatalogService.Chains(cityVenues))
+                    {
+                        if (CatalogService.IsChainPublished(m.Venues, catalogSettings.FirstOrDefault(s => s.CityId == city.Id && s.VenueType == CatalogService.ChainKey(m.Slug))))
+                            mainPages.Add($"<loc>{SiteBaseUrl}/{ locale.Id}/{citySlug}/restaurants/merezha/{m.Slug}</loc>");
+                    }
                 }
 
                 foreach (string page in mainPages)

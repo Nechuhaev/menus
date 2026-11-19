@@ -39,6 +39,15 @@ namespace Menus.Web.Helpers
             return $"{cuisineName}: {cityName}";
         }
 
+        // «il Molino в Києві: усі заклади мережі» / «… во Львове: все заведения сети» / «il Molino in Kyiv: all locations»
+        public static string ChainHeading(string chainName, string citySlug, string cityName, string culture)
+        {
+            if (culture == "en") return $"{chainName} in {cityName}: all locations";
+            var loc = Locative.TryGetValue(citySlug ?? "", out var l) ? (culture == "ru" ? l.Ru : l.Uk) : null;
+            var tail = culture == "ru" ? "все заведения сети" : "усі заклади мережі";
+            return loc != null ? $"{chainName} {loc}: {tail}" : $"{chainName}, {cityName}: {tail}";
+        }
+
         // заголовок особливості з шаблону: {gen} - «Києва», {loc} - «в Києві», {city} - назва міста
         public static string FeatureHeading(string template, string citySlug, string cityName, string culture)
         {

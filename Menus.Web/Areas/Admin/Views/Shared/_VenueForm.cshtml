@@ -1,6 +1,6 @@
 @using Menus.Web.Services
 @model (CatalogVenue Venue, List<CatalogVenue> Districts, string ReturnUrl)
-@* Тип, район і кухні закладу для каталогу міста - та сама форма в «Каталозі» і в «Розсилці» *@
+@* Тип, район, кухні, особливості й мережа закладу для каталогу міста - та сама форма в «Каталозі» і в «Розсилці» *@
 <form method="post" asp-area="Admin" asp-controller="Catalog" asp-action="SetVenue" class="venue-form" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
     <input type="hidden" name="restaurantId" value="@Model.Venue.Id" />
     <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
@@ -38,5 +38,9 @@
         </div>
         <div style="font-size:12px;color:#777">«Недорого» - автоматично за цінами меню</div>
     </details>
+    <input type="hidden" name="chainPosted" value="true" />
+    <input type="text" name="chain" value="@Model.Venue.ChainName" placeholder="Мережа: назва" aria-label="Мережа"
+           title="Назва мережі (філії з однаковою назвою в місті). Порожньо - не мережа. Назва іншої мережі міста - приєднати до неї"
+           style="width:150px;max-width:100%;box-sizing:border-box;" />
     <button type="submit">Зберегти</button>
 </form>

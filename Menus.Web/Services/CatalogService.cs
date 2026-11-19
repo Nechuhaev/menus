@@ -31,6 +31,9 @@ namespace Menus.Web.Services
         public string Features { get; set; } // особливості через кому (venue_types.py або адмін); «nedorogo» - рахується за цінами
         public bool FeaturesManual { get; set; }
         public decimal? LunchPrice { get; set; }
+        public string ChainSlug { get; set; } // мережа: заклади з однаковою назвою в місті (venue_types.py або адмін)
+        public string ChainName { get; set; }
+        public bool ChainManual { get; set; }
         public List<string> FeatureList => (Features ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList();
         public List<string> CuisineList => (Cuisines ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList();
         public decimal MedianPrice { get; set; }
@@ -180,6 +183,33 @@ namespace Menus.Web.Services
                 .ToList();
         }
 
+        // мережі: сторінка /restaurants/merezha/{slug}, якщо в місті від ChainMin закладів мережі
+        public const int ChainMin = 2;
+
+        public static string ChainKey(string chain) => "m:" + chain;
+
+        public static bool IsChainPublished(int venues, CatalogPageSettings settings) =>
+            venues >= ChainMin && (settings?.Enabled ?? true);
+
+        // мережі міста: (slug, назва, закладів) - усі з ChainSlug, published - лише ті, що мають сторінку
+        public static List<(string Slug, string Name, int Venues)> Chains(IEnumerable<CatalogVenue> venues) =>
+            venues.Where(v => !string.IsNullOrEmpty(v.ChainSlug)).GroupBy(v => v.ChainSlug)
+                .Select(g => (Slug: g.Key, Name: g.GroupBy(v => v.ChainName ?? v.Name).OrderByDescending(n => n.Count()).First().Key, Venues: g.Count()))
+                .OrderByDescending(x => x.Venues).ThenBy(x => x.Name).ToList();
+
+        public async Task<List<(string Slug, string Name, int Venues)>> PublishedChains(string cityId)
+        {
+            var settings = await GetSettings();
+            return Chains(await GetCity(cityId))
+                .Where(x => IsChainPublished(x.Venues, settings.FirstOrDefault(s => s.CityId == cityId && s.VenueType == ChainKey(x.Slug))))
+                .ToList();
+        }
+
+        // ключ назви мережі (як chain_key у venue_types.py): без регістру, пробілів і розділових знаків
+        public static string ChainNameKey(string name) =>
+            System.Text.RegularExpressions.Regex.Replace((UrlGenerateService.Translit(name ?? "") ?? "").ToLowerInvariant()
+                .Replace("j", "i").Replace("y", "i").Replace("kh", "h").Replace("ts", "c"), "[^a-z0-9]", "");
+
         public static string TypeName(string type, string culture)
         {
             if (string.IsNullOrEmpty(type) || !Types.TryGetValue(type, out var t)) t = Types["restorany"];
@@ -228,7 +258,11 @@ namespace Menus.Web.Services
                 ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS Features VARCHAR(255) NULL;
                 ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS FeaturesReason VARCHAR(255) NULL;
                 ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS FeaturesManual TINYINT(1) NOT NULL DEFAULT 0;
-                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS LunchPrice DECIMAL(10,2) NULL;");
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS LunchPrice DECIMAL(10,2) NULL;
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS ChainSlug VARCHAR(128) NULL;
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS ChainName VARCHAR(255) NULL;
+                ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS ChainManual TINYINT(1) NOT NULL DEFAULT 0;
+                ALTER TABLE CatalogPages MODIFY VenueType VARCHAR(160) NOT NULL;");
             _tablesReady = true;
         }
 
@@ -246,7 +280,8 @@ namespace Menus.Web.Services
                            ri.Cuisine, ri.DisplayAddress, ri.Photos, ri.OpenHours, ri.Currency,
                            v.VenueType, v.DistrictUk, v.DistrictRu, v.DistrictEn, v.DistrictSlug,
                            v.Cuisines, IFNULL(v.CuisinesManual, 0) AS CuisinesManual,
-                           v.Features, IFNULL(v.FeaturesManual, 0) AS FeaturesManual, v.LunchPrice
+                           v.Features, IFNULL(v.FeaturesManual, 0) AS FeaturesManual, v.LunchPrice,
+                           v.ChainSlug, v.ChainName, IFNULL(v.ChainManual, 0) AS ChainManual
                     FROM Restaurants r
                     JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                     LEFT JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
@@ -313,7 +348,8 @@ namespace Menus.Web.Services
             return (await _connection.QueryAsync<CatalogVenue>(@"
                 SELECT CONCAT(RestaurantId, '') AS Id, VenueType, DistrictUk, DistrictRu, DistrictEn, DistrictSlug,
                        Cuisines, IFNULL(CuisinesManual, 0) AS CuisinesManual,
-                       Features, IFNULL(FeaturesManual, 0) AS FeaturesManual, LunchPrice
+                       Features, IFNULL(FeaturesManual, 0) AS FeaturesManual, LunchPrice,
+                       ChainSlug, ChainName, IFNULL(ChainManual, 0) AS ChainManual
                 FROM RestaurantVenue")).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First());
         }
 
@@ -355,9 +391,15 @@ namespace Menus.Web.Services
 
         // ручна зміна типу / району з адмінки: бот її більше не перезаписує
         public async Task SetVenue(string restaurantId, string type, string districtUk, string districtRu, string districtEn, string districtSlug,
-            IEnumerable<string> cuisines = null, IEnumerable<string> features = null)
+            IEnumerable<string> cuisines = null, IEnumerable<string> features = null, string chainSlug = null, string chainName = null)
         {
             await Ensure();
+            if (chainSlug != null) // "" - не мережа
+                await _connection.ExecuteAsync(@"
+                    INSERT INTO RestaurantVenue (RestaurantId, VenueType, ChainSlug, ChainName, ChainManual, UpdatedAt)
+                    VALUES (@restaurantId, 'restorany', @slug, @name, 1, UTC_TIMESTAMP())
+                    ON DUPLICATE KEY UPDATE ChainSlug = @slug, ChainName = @name, ChainManual = 1, UpdatedAt = UTC_TIMESTAMP()",
+                    new { restaurantId, slug = chainSlug == "" ? null : chainSlug, name = chainSlug == "" ? null : chainName });
             if (features != null)
             {
                 var list = string.Join(",", features.Where(f => Features.ContainsKey(f) && f != "nedorogo").Distinct());

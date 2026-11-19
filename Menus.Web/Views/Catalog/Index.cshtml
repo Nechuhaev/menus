@@ -8,15 +8,17 @@
     string T(string uk, string ru, string en) => CatalogText.T(culture, uk, ru, en);
     var siteUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
     var basePath = $"/{culture}/{Model.CitySlug}/restaurants";
-    var pagePath = Model.Feature != null ? $"{basePath}/{Model.Feature}" : Model.Cuisine != null ? $"{basePath}/kukhnia/{Model.Cuisine}" : Model.Type == null ? basePath : $"{basePath}/{Model.Type}";
+    var pagePath = Model.Chain != null ? $"{basePath}/merezha/{Model.Chain}" : Model.Feature != null ? $"{basePath}/{Model.Feature}" : Model.Cuisine != null ? $"{basePath}/kukhnia/{Model.Cuisine}" : Model.Type == null ? basePath : $"{basePath}/{Model.Type}";
     var allTitle = CatalogText.Heading(CatalogService.TypeName("restorany", culture), Model.CitySlug, Model.CityName, culture);
     var featureInfo = Model.Feature != null ? CatalogService.Features[Model.Feature] : default;
-    var heading = Model.Feature != null
+    var heading = Model.Chain != null
+        ? CatalogText.ChainHeading(Model.ChainName, Model.CitySlug, Model.CityName, culture)
+        : Model.Feature != null
         ? CatalogText.FeatureHeading(culture == "en" ? featureInfo.HEn : culture == "ru" ? featureInfo.HRu : featureInfo.HUk, Model.CitySlug, Model.CityName, culture)
         : Model.Cuisine != null
         ? CatalogText.CuisineHeading(CatalogService.CuisineName(Model.Cuisine, culture), Model.CitySlug, Model.CityName, culture)
         : CatalogText.Heading(CatalogService.TypeName(Model.Type ?? "restorany", culture), Model.CitySlug, Model.CityName, culture);
-    var isAll = Model.Type == null && Model.Cuisine == null && Model.Feature == null;
+    var isAll = Model.Type == null && Model.Cuisine == null && Model.Feature == null && Model.Chain == null;
     var year = DateTime.Now.Year;
     var currency = Model.AllOfType.Select(x => x.Currency).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "₴";
     string Money(decimal v) => $"{v:0} {currency}";
@@ -90,12 +92,27 @@
         (T($"Скільки закладів у розділі «{heading}»?", $"Сколько заведений в разделе «{heading}»?", $"How many places are listed in {heading}?"),
          T($"{CatalogText.Venues(all.Count, "uk")} з меню й цінами, список оновлюється щодня.", $"{CatalogText.Venues(all.Count, "ru")} с меню и ценами, список обновляется ежедневно.", $"{CatalogText.Venues(all.Count, "en")} with menus and prices, updated daily."))
     };
-    if (popular.Any())
+    if (Model.Chain != null)
+    {
+        // мережа: адреси філій замість «популярних» (назва в усіх однакова)
+        var addresses = all.Select(x => x.Localized(x.DisplayAddress, culture)).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().Take(10).ToList();
+        if (addresses.Any())
+        {
+            faq.Add((T($"Де знаходяться заклади {Model.ChainName}?", $"Где находятся заведения {Model.ChainName}?", $"Where are {Model.ChainName} locations?"),
+                string.Join("; ", addresses) + "."));
+        }
+        if (median > 0)
+        {
+            faq.Add((T($"Скільки коштують страви в {Model.ChainName}?", $"Сколько стоят блюда в {Model.ChainName}?", $"How much do dishes cost at {Model.ChainName}?"),
+                T($"Типова ціна страви - {Money(median)}, ціни - в меню кожного закладу.", $"Типичная цена блюда - {Money(median)}, цены - в меню каждого заведения.", $"A typical dish costs {Money(median)}; see each location's menu for prices.")));
+        }
+    }
+    else if (popular.Any())
     {
         faq.Add((T($"Які заклади найпопулярніші?", $"Какие заведения самые популярные?", "Which places are the most popular?"),
             string.Join(", ", popular) + "."));
     }
-    if (cheapest.Any())
+    if (cheapest.Any() && Model.Chain == null)
     {
         faq.Add((T("Де поїсти недорого?", "Где поесть недорого?", "Where to eat cheaply?"),
             string.Join("; ", cheapest.Select(x => $"{x.Name} - {T("типова ціна страви", "типичная цена блюда", "typical dish")} {Money(x.MedianPrice)}")) + "."));
@@ -211,6 +228,16 @@
                     @foreach (var (c, n) in Model.Cuisines)
                     {
                         <a href="@Link(cuisine: c, district: null)" class="@(Model.Cuisine == c ? "on" : "")">@CatalogService.CuisineName(c, culture)<small>@n</small></a>
+                    }
+                </div>
+            }
+            @if (Model.Chains.Any())
+            {
+                <div class="chips-label">@T("Мережі", "Сети", "Chains")</div>
+                <div class="chips">
+                    @foreach (var (m, mName, n) in Model.Chains)
+                    {
+                        <a href="@basePath/merezha/@m" class="@(Model.Chain == m ? "on" : "")">@mName<small>@n</small></a>
                     }
                 </div>
             }
@@ -346,7 +373,11 @@
             <ul class="links">
                 @foreach (var (slug, name) in Model.OtherCities)
                 {
-                    @if (Model.Feature != null)
+                    @if (Model.Chain != null)
+                    {
+                        <li><a href="/@culture/@slug/restaurants/merezha/@Model.Chain">@CatalogText.ChainHeading(Model.ChainName, slug, name, culture)</a></li>
+                    }
+                    else if (Model.Feature != null)
                     {
                         <li><a href="/@culture/@slug/restaurants/@Model.Feature">@CatalogText.FeatureHeading(culture == "en" ? featureInfo.HEn : culture == "ru" ? featureInfo.HRu : featureInfo.HUk, slug, name, culture)</a></li>
                     }
