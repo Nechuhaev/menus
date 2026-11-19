@@ -19,7 +19,7 @@ namespace Menus.Web.Controllers
 
         public DishCityController(Core core, DishCityPageService pages, IConfiguration config, CatalogService catalog)
         {
-            _catalog = catalog;
+            _catalog = catalog.CachedOnly(); // лише перелінковка: готовий кеш, без очікування бази
             _core = core;
             _pages = pages;
             _config = config;

@@ -288,24 +288,18 @@ namespace Menus.Web.Services
         private static List<string> _catalogCities;
         private static DateTime _catalogCitiesAt;
 
-        public async Task<List<string>> CatalogCityIds()
+        // з готового кешу закладів, без запитів до бази (футер є на кожній сторінці)
+        public Task<List<string>> CatalogCityIds()
         {
-            if (_catalogCities != null && DateTime.UtcNow - _catalogCitiesAt < TimeSpan.FromMinutes(30)) return _catalogCities;
-            try
-            {
-                var settings = await GetSettings();
-                _catalogCities = (await _connection.QueryAsync<(string City, long Venues)>(@"
-                    SELECT CONCAT(r.City, ''), COUNT(*) FROM Restaurants r JOIN RestaurantSeo rs ON rs.ItemId = r.Id
-                    WHERE r.Status = 0 GROUP BY r.City"))
-                    .Where(x => IsPublished(null, (int)x.Venues, settings.FirstOrDefault(s => s.CityId == x.City && s.VenueType == "")))
-                    .Select(x => x.City).ToList();
-            }
-            catch (Exception)
-            {
-                _catalogCities = new List<string>();
-            }
+            if (_catalogCities != null && DateTime.UtcNow - _catalogCitiesAt < TimeSpan.FromMinutes(5)) return Task.FromResult(_catalogCities);
+            var all = _all;
+            var settings = _settings ?? new List<CatalogPageSettings>();
+            if (all == null) return Task.FromResult(_catalogCities ?? new List<string>());
+            _catalogCities = all.GroupBy(x => x.City)
+                .Where(g => IsPublished(null, g.Count(), settings.FirstOrDefault(s => s.CityId == g.Key && s.VenueType == "")))
+                .Select(g => g.Key).ToList();
             _catalogCitiesAt = DateTime.UtcNow;
-            return _catalogCities;
+            return Task.FromResult(_catalogCities);
         }
 
         public static string TypeName(string type, string culture)
@@ -367,6 +361,9 @@ namespace Menus.Web.Services
         // усі активні заклади з типом, районом і цінами; кеш 30 хв (сторінки й так у EdgeCache)
         public async Task<List<CatalogVenue>> GetAll(bool fresh = false)
         {
+            // сторінки закладів, страв і футер: лише готовий кеш, без очікування на перечитування бази
+            // (інакше під час оновлення кешу черга запитів забирає всі з'єднання з базою і сайт висне)
+            if (_cachedOnly && !fresh) return _all ?? new List<CatalogVenue>();
             if (!fresh && _all != null && DateTime.UtcNow - _loadedAt < TimeSpan.FromMinutes(30)) return _all;
             await Lock.WaitAsync();
             try
@@ -454,10 +451,27 @@ namespace Menus.Web.Services
         public async Task<List<CatalogVenue>> GetCity(string cityId) =>
             (await GetAll()).Where(x => x.City == cityId).ToList();
 
+        // налаштування сторінок: кеш 2 хв (читаються на кожній сторінці закладу), збереження в адмінці скидає кеш
+        private static List<CatalogPageSettings> _settings;
+        private static DateTime _settingsAt;
+
         public async Task<List<CatalogPageSettings>> GetSettings()
         {
+            if (_settings != null && DateTime.UtcNow - _settingsAt < TimeSpan.FromMinutes(2)) return _settings;
+            if (_cachedOnly && _settings != null) return _settings;
             await Ensure();
-            return (await _connection.QueryAsync<CatalogPageSettings>("SELECT CityId, VenueType, Enabled, CustomText FROM CatalogPages")).ToList();
+            _settings = (await _connection.QueryAsync<CatalogPageSettings>("SELECT CityId, VenueType, Enabled, CustomText FROM CatalogPages")).ToList();
+            _settingsAt = DateTime.UtcNow;
+            return _settings;
+        }
+
+        // режим «лише кеш» для цього запиту (сервіс scoped - один на запит)
+        private bool _cachedOnly;
+
+        public CatalogService CachedOnly()
+        {
+            _cachedOnly = true;
+            return this;
         }
 
         public async Task<CatalogPageSettings> GetSettings(string cityId, string type) =>
@@ -471,6 +485,7 @@ namespace Menus.Web.Services
                 INSERT INTO CatalogPages (CityId, VenueType, Enabled, CustomText) VALUES (@cityId, @type, @enabled, @customTextJson)
                 ON DUPLICATE KEY UPDATE Enabled = @enabled, CustomText = @customTextJson",
                 new { cityId, type = type ?? "", enabled, customTextJson });
+            _settings = null;
         }
 
         // сторінка показується: тип відомий, закладів >= MinVenues, адмін не вимкнув

@@ -323,7 +323,7 @@ namespace Menus.Web.Controllers
             // інші заклади мережі в місті + посилання на сторінку мережі (якщо вона є на сайті)
             try
             {
-                var cityVenues = await Catalog.GetCity(restaurant.City);
+                var cityVenues = await Catalog.CachedOnly().GetCity(restaurant.City);
                 var self = cityVenues.FirstOrDefault(x => x.Id == restaurant.Id);
                 // перелінковка: тип, особливості й кухні закладу -> сторінки каталогу міста
                 if (self != null) ViewData["catalogLinks"] = await Catalog.VenueLinks(self, city, restaurantCityObj.Name.Get(culture), culture);
