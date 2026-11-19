@@ -320,6 +320,27 @@ namespace Menus.Web.Controllers
             // посилання на сторінки «страва + місто» зі стравами цього закладу
             ViewData["dishCityPages"] = await DishCityPages.GetPagesWithDishes(restaurant.City,
                 menu.Categories.SelectMany(c => c.Dishes ?? new List<IDishWithSeoAndRatings>()).Select(d => d.Id));
+            // інші заклади мережі в місті + посилання на сторінку мережі (якщо вона є на сайті)
+            try
+            {
+                var cityVenues = await Catalog.GetCity(restaurant.City);
+                var self = cityVenues.FirstOrDefault(x => x.Id == restaurant.Id);
+                if (!string.IsNullOrEmpty(self?.ChainSlug))
+                {
+                    var branches = cityVenues.Where(x => x.ChainSlug == self.ChainSlug).ToList();
+                    var chainSettings = await Catalog.GetSettings(restaurant.City, CatalogService.ChainKey(self.ChainSlug));
+                    if (branches.Count > 1)
+                    {
+                        ViewData["chainVenues"] = branches.Where(x => x.Id != restaurant.Id).Take(10).ToList();
+                        ViewData["chainName"] = self.ChainName ?? self.Name;
+                        if (CatalogService.IsChainPublished(branches.Count, chainSettings)) ViewData["chainSlug"] = self.ChainSlug;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // каталог недоступний - сторінка закладу без блоку мережі
+            }
 
             return View(data);
         }
@@ -539,6 +560,7 @@ namespace Menus.Web.Controllers
 
         private SeoNoindexService NoindexService => (SeoNoindexService)HttpContext.RequestServices.GetService(typeof(SeoNoindexService));
         private PopularRestaurantService PopularRestaurants => (PopularRestaurantService)HttpContext.RequestServices.GetService(typeof(PopularRestaurantService));
+        private CatalogService Catalog => (CatalogService)HttpContext.RequestServices.GetService(typeof(CatalogService));
         private DishCityPageService DishCityPages => (DishCityPageService)HttpContext.RequestServices.GetService(typeof(DishCityPageService));
         private MenuVerifiedService MenuVerified => (MenuVerifiedService)HttpContext.RequestServices.GetService(typeof(MenuVerifiedService));
         private DeletedRestaurantRedirectService DeletedRedirects => (DeletedRestaurantRedirectService)HttpContext.RequestServices.GetService(typeof(DeletedRestaurantRedirectService));

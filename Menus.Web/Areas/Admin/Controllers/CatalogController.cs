@@ -53,7 +53,7 @@ namespace Menus.Web.Areas.Admin.Controllers
         }
 
         // заклади міста (тип: null - усі) з типом і районом
-        public async Task<IActionResult> Venues(string cityId, string type, string cuisine, string feature, string q)
+        public async Task<IActionResult> Venues(string cityId, string type, string cuisine, string feature, string q, string chain = null)
         {
             var cities = (await _core.Restaurants.GetCities()).ToList();
             var city = cities.FirstOrDefault(x => x.Id == cityId);
@@ -66,6 +66,8 @@ namespace Menus.Web.Areas.Admin.Controllers
             ViewData["cuisine"] = cuisine;
             ViewData["feature"] = feature;
             ViewData["q"] = q;
+            ViewData["chain"] = chain;
+            ViewData["chainName"] = string.IsNullOrEmpty(chain) ? null : CatalogService.Chains(venues).FirstOrDefault(x => x.Slug == chain).Name;
             // райони міста для вибору (slug -> назви)
             ViewData["districts"] = venues.Where(x => !string.IsNullOrEmpty(x.DistrictSlug)).GroupBy(x => x.DistrictSlug)
                 .Select(g => g.First()).OrderBy(x => x.DistrictUk).ToList();
@@ -75,6 +77,7 @@ namespace Menus.Web.Areas.Admin.Controllers
             ViewData["cheapLimit"] = cheapLimit;
             if (!string.IsNullOrEmpty(feature)) list = list.Where(x => CatalogService.HasFeature(x, feature, cheapLimit));
             if (!string.IsNullOrEmpty(cuisine)) list = list.Where(x => cuisine == "-" ? !x.CuisineList.Any() : x.CuisineList.Contains(cuisine));
+            if (!string.IsNullOrEmpty(chain)) list = list.Where(x => x.ChainSlug == chain);
             if (!string.IsNullOrWhiteSpace(q)) list = list.Where(x => (x.Name ?? "").IndexOf(q.Trim(), StringComparison.OrdinalIgnoreCase) >= 0);
             return View(list.OrderBy(x => x.Name).ToList());
         }
@@ -82,7 +85,7 @@ namespace Menus.Web.Areas.Admin.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetVenue(string restaurantId, string type, string district, List<string> cuisines, bool cuisinesPosted,
-            List<string> features, bool featuresPosted, string returnUrl)
+            List<string> features, bool featuresPosted, string returnUrl, string chain = null, bool chainPosted = false)
         {
             // незмінене поле не фіксуємо вручну - бот і далі оновлює його сам
             var current = (await _catalog.GetAll()).FirstOrDefault(x => x.Id == restaurantId);
@@ -101,6 +104,31 @@ namespace Menus.Web.Areas.Admin.Controllers
                 newFeatures = (features ?? new List<string>()).Where(f => CatalogService.Features.ContainsKey(f) && f != "nedorogo").Distinct().ToList();
                 if (current != null && new HashSet<string>(newFeatures).SetEquals(current.FeatureList)) newFeatures = null;
             }
+            // мережа: назва вручну; та сама назва, що в іншої мережі міста, - приєднати до неї; порожньо - не мережа
+            string chainSlug = null, chainName = null;
+            if (chainPosted && current != null)
+            {
+                chainName = (chain ?? "").Trim();
+                if (chainName == (current.ChainName ?? "").Trim()) chainName = null;
+                else if (chainName == "") chainSlug = "";
+                else
+                {
+                    var key = CatalogService.ChainNameKey(chainName);
+                    var same = (await _catalog.GetAll()).FirstOrDefault(x => x.City == current.City && !string.IsNullOrEmpty(x.ChainSlug) &&
+                        CatalogService.ChainNameKey(x.ChainName) == key);
+                    if (same != null)
+                    {
+                        chainSlug = same.ChainSlug;
+                        chainName = same.ChainName;
+                    }
+                    else
+                    {
+                        chainSlug = System.Text.RegularExpressions.Regex.Replace(UrlGenerateService.Translit(chainName), "[^a-z0-9-]", "").Trim('-');
+                        if (chainSlug.Length > 128) chainSlug = chainSlug.Substring(0, 128);
+                        if (chainSlug == "") chainSlug = null;
+                    }
+                }
+            }
             string uk = null, ru = null, en = null, slug = null;
             if (district != null) // "" - прибрати район; slug - вибрати з наявних районів міста
             {
@@ -113,8 +141,8 @@ namespace Menus.Web.Areas.Admin.Controllers
                     en = sample?.DistrictEn;
                 }
             }
-            await _catalog.SetVenue(restaurantId, type, uk, ru, en, slug, newCuisines, newFeatures);
-            TempData["message"] = type == null && district == null && newCuisines == null && newFeatures == null
+            await _catalog.SetVenue(restaurantId, type, uk, ru, en, slug, newCuisines, newFeatures, chainSlug, chainName);
+            TempData["message"] = type == null && district == null && newCuisines == null && newFeatures == null && chainSlug == null
                 ? "Нічого не змінилось"
                 : "Збережено: змінене вручну бот більше не перезаписує";
             return Url.IsLocalUrl(returnUrl) ? (IActionResult)Redirect(returnUrl) : RedirectToAction("Index");
@@ -128,6 +156,8 @@ namespace Menus.Web.Areas.Admin.Controllers
             var settings = await _catalog.GetSettings(cityId, type);
             ViewData["cityName"] = city.Name.Get("uk");
             ViewData["citySlug"] = city.Name.Get("en").ToLower();
+            if ((type ?? "").StartsWith("m:"))
+                ViewData["chainName"] = CatalogService.Chains((await _catalog.GetCity(cityId))).FirstOrDefault(x => x.Slug == type.Substring(2)).Name;
             ViewData["texts"] = string.IsNullOrWhiteSpace(settings.CustomText)
                 ? new Dictionary<string, string>()
                 : JsonConvert.DeserializeObject<Dictionary<string, string>>(settings.CustomText) ?? new Dictionary<string, string>();

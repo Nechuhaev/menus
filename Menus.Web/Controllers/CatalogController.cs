@@ -18,6 +18,9 @@ namespace Menus.Web.Controllers
         public string Type { get; set; }               // null - усі заклади міста
         public string Cuisine { get; set; }            // сторінка кухні (/restaurants/kukhnia/{slug})
         public string Feature { get; set; }            // сторінка особливості (/restaurants/snidanky)
+        public string Chain { get; set; }              // сторінка мережі (/restaurants/merezha/{slug})
+        public string ChainName { get; set; }
+        public List<(string Slug, string Name, int Venues)> Chains { get; set; }
         public List<(string Feature, int Venues)> Features { get; set; }
         public List<(string Cuisine, int Venues)> Cuisines { get; set; }
         public List<(string Slug, string Title)> DishLinks { get; set; } // «страва + місто» цієї кухні
@@ -58,7 +61,7 @@ namespace Menus.Web.Controllers
         }
 
         [EdgeCache(1800)]
-        public async Task<IActionResult> Index(string culture, string city, string type, string cuisine, string district, string price, string sort, int page = 1)
+        public async Task<IActionResult> Index(string culture, string city, string type, string cuisine, string district, string price, string sort, int page = 1, string chain = null)
         {
             if ((culture != "ru" && culture != "uk" && culture != "en") ||
                 (_config["DisableLanguages:uk"]?.ToLower() != "false" && culture == "uk") ||
@@ -73,13 +76,24 @@ namespace Menus.Web.Controllers
 
             type = string.IsNullOrEmpty(type) ? null : type.ToLowerInvariant();
             cuisine = string.IsNullOrEmpty(cuisine) ? null : cuisine.ToLowerInvariant();
+            chain = string.IsNullOrEmpty(chain) ? null : chain.ToLowerInvariant();
             var venues = await _catalog.GetCity(cityObj.Id);
             var cheapLimit = CatalogService.CheapLimit(venues);
             List<CatalogVenue> ofType;
             CatalogPageSettings settings;
             // особливість - той самий сегмент адреси, що й тип: /restaurants/snidanky
-            string feature = type != null && CatalogService.Features.ContainsKey(type) ? type : null;
-            if (feature != null)
+            string feature = chain == null && type != null && CatalogService.Features.ContainsKey(type) ? type : null;
+            string chainName = null;
+            if (chain != null)
+            {
+                type = null;
+                cuisine = null;
+                ofType = venues.Where(x => x.ChainSlug == chain).ToList();
+                chainName = CatalogService.Chains(ofType).FirstOrDefault().Name;
+                settings = await _catalog.GetSettings(cityObj.Id, CatalogService.ChainKey(chain));
+                if (chainName == null || !CatalogService.IsChainPublished(ofType.Count, settings)) return NotFoundView();
+            }
+            else if (feature != null)
             {
                 type = null;
                 cuisine = null;
@@ -156,6 +170,9 @@ namespace Menus.Web.Controllers
                 Type = type,
                 Cuisine = cuisine,
                 Feature = feature,
+                Chain = chain,
+                ChainName = chainName,
+                Chains = (await _catalog.PublishedChains(cityObj.Id)).Take(30).ToList(),
                 Features = await _catalog.PublishedFeatures(cityObj.Id),
                 Cuisines = await _catalog.PublishedCuisines(cityObj.Id),
                 DishLinks = cuisine == null ? new List<(string, string)>()
@@ -186,10 +203,14 @@ namespace Menus.Web.Controllers
             var allVenues = await _catalog.GetAll();
             var settingsAll = await _catalog.GetSettings();
             model.OtherCities = cities.Where(c => c.Id != cityObj.Id)
-                .Select(c => (City: c, Count: feature != null
+                .Select(c => (City: c, Count: chain != null
+                    ? allVenues.Count(v => v.City == c.Id && v.ChainSlug == chain)
+                    : feature != null
                     ? allVenues.Count(v => v.City == c.Id && CatalogService.HasFeature(v, feature, CatalogService.CheapLimit(allVenues.Where(a => a.City == c.Id).ToList())))
                     : allVenues.Count(v => v.City == c.Id && (cuisine != null ? v.CuisineList.Contains(cuisine) : type == null || v.Type == type))))
-                .Where(x => feature != null
+                .Where(x => chain != null
+                    ? CatalogService.IsChainPublished(x.Count, settingsAll.FirstOrDefault(s => s.CityId == x.City.Id && s.VenueType == CatalogService.ChainKey(chain)))
+                    : feature != null
                     ? CatalogService.IsFeaturePublished(feature, x.Count, settingsAll.FirstOrDefault(s => s.CityId == x.City.Id && s.VenueType == CatalogService.FeatureKey(feature)))
                     : cuisine != null
                     ? CatalogService.IsCuisinePublished(cuisine, x.Count, settingsAll.FirstOrDefault(s => s.CityId == x.City.Id && s.VenueType == CatalogService.CuisineKey(cuisine)))

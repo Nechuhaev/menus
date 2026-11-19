@@ -71,7 +71,7 @@ namespace Menus.Web.Services
             ("dish", "/(uk|ru|en)/[^/]+/restaurant/[^/]+/[^/]+/?$"),
             ("restaurant", "/(uk|ru|en)/[^/]+/restaurant/[^/]+/?$"),
             ("dishcity", "/(uk|ru|en)/[^/]+/dishes/[^/]+/?$"),
-            ("catalog", "/(uk|ru|en)/[^/]+/restaurants(/kukhnia)?(/[^/]+)?/?$"),
+            ("catalog", "/(uk|ru|en)/[^/]+/restaurants(/kukhnia|/merezha)?(/[^/]+)?/?$"),
             ("article", "/(uk|ru|en)/(news|blog)/"),
         };
 
@@ -255,10 +255,12 @@ namespace Menus.Web.Services
                 if (parts.Last() == "restaurants") return "";
                 // кухня: /restaurants/kukhnia/hruzynska -> "c:hruzynska" (як ключ CatalogPages)
                 if (parts.Length >= 2 && parts[parts.Length - 2] == "kukhnia") return "c:" + parts.Last();
+                // мережа: /restaurants/merezha/il-molino -> "m:il-molino"
+                if (parts.Length >= 2 && parts[parts.Length - 2] == "merezha") return "m:" + parts.Last();
                 // особливість: /restaurants/snidanky -> "f:snidanky"
                 return CatalogService.Features.ContainsKey(parts.Last()) ? "f:" + parts.Last() : parts.Last();
             }
-            var pattern = $"/(uk|ru|en)/{System.Text.RegularExpressions.Regex.Escape(citySlug ?? "")}/restaurants(/kukhnia)?(/[^/]+)?/?$";
+            var pattern = $"/(uk|ru|en)/{System.Text.RegularExpressions.Regex.Escape(citySlug ?? "")}/restaurants(/kukhnia|/merezha)?(/[^/]+)?/?$";
             try
             {
                 foreach (var r in await _connection.QueryAsync<(string Page, long Clicks, long Impressions)>(

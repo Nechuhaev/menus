@@ -24,6 +24,7 @@
     var cuisineRows = CatalogService.Cuisines.Keys.Select(c => (Cuisine: c, Venues: Model.Count(v => v.CuisineList.Contains(c))))
         .OrderByDescending(x => x.Venues).ToList();
     var noDistrict = Model.Count(v => string.IsNullOrEmpty(v.DistrictSlug));
+    var chainRows = CatalogService.Chains(Model);
 }
 
 <style>
@@ -244,6 +245,70 @@
                     </tbody>
                 </table>
             </div>
+
+            <h3 style="margin-top:24px;">Мережі</h3>
+            <p class="muted">Заклади з однаковою назвою в місті (від @CatalogService.ChainMin) - бот venue_types.py щоночі. Змінити мережу закладу - поле «Мережа» у формі закладу (тут або в «Розсилці»).</p>
+            @if (!chainRows.Any())
+            {
+                <p class="muted">Мереж у місті немає (бот ще не запускався або всі заклади з різними назвами).</p>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table class="mainTable">
+                        <thead>
+                            <tr>
+                                <th>Сторінка</th><th>Закладів</th><th>На сайті</th><th>Кліки Google</th><th>Покази Google</th>
+                                @if (hasGa) { <th>Перегляди / сеанси GA4</th> }
+                                <th>Текст</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var (chain, chainName, venues) in chainRows)
+                            {
+                                var key = CatalogService.ChainKey(chain);
+                                var s = settings.FirstOrDefault(x => x.CityId == cityId && x.VenueType == key);
+                                var published = CatalogService.IsChainPublished(venues, s);
+                                var st = stats.TryGetValue(key, out var x5) ? x5 : new SeoSlugStats();
+                                var path = $"/uk/{citySlug}/restaurants/merezha/{chain}";
+                                <tr>
+                                    <td style="overflow-wrap:anywhere;">
+                                        <strong>@chainName</strong><br />
+                                        @if (published)
+                                        {
+                                            <a class="muted" href="@path" target="_blank" rel="noopener">@path ↗</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="muted">@path</span>
+                                        }
+                                    </td>
+                                    <td><a asp-action="Venues" asp-route-cityId="@cityId" asp-route-chain="@chain">@venues</a></td>
+                                    <td>
+                                        @if (published)
+                                        {
+                                            <span class="on">так</span>
+                                        }
+                                        else if (s != null && !s.Enabled)
+                                        {
+                                            <span class="off">вимкнено</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="muted">ні (менше @CatalogService.ChainMin)</span>
+                                        }
+                                    </td>
+                                    <td>@(st.Clicks > 0 ? st.Clicks.ToString("N0") : "–")</td>
+                                    <td>@(st.Impressions > 0 ? st.Impressions.ToString("N0") : "–")</td>
+                                    @if (hasGa) { <td>@(st.Views > 0 ? $"{st.Views:N0} / {st.Sessions:N0}" : "–")</td> }
+                                    <td>@(string.IsNullOrWhiteSpace(s?.CustomText) ? "авто" : "власний")</td>
+                                    <td><a asp-action="Page" asp-route-cityId="@cityId" asp-route-type="@key">Налаштувати</a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
 
             <p class="muted">
                 Без кухні: @noCuisine <a asp-action="Venues" asp-route-cityId="@cityId" asp-route-cuisine="-">показати →</a>.

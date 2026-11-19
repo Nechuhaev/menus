@@ -902,6 +902,27 @@
                         </div>
                     }
 
+                    @* інші заклади тієї ж мережі в місті (RestaurantVenue.ChainSlug) *@
+                    @if (ViewData["chainVenues"] is List<Menus.Web.Services.CatalogVenue> chainVenues && chainVenues.Any())
+                    {
+                        var chainCitySlug = restaurantCity.Name.Get("en").ToLower();
+                        var chainTitle = Menus.Web.Helpers.CatalogText.T(culture, $"Інші заклади мережі {ViewData["chainName"]}", $"Другие заведения сети {ViewData["chainName"]}", $"Other {ViewData["chainName"]} locations");
+                        <div class="restaurant-dish-city restaurant-chain">
+                            <h2>@chainTitle</h2>
+                            <ul>
+                                @foreach (var branch in chainVenues)
+                                {
+                                    var branchAddress = branch.Localized(branch.DisplayAddress, culture);
+                                    <li style="overflow-wrap:anywhere;"><a href="/@culture/@chainCitySlug/restaurant/@branch.Slug">@branch.Name</a>@(string.IsNullOrWhiteSpace(branchAddress) ? "" : " - " + branchAddress)</li>
+                                }
+                            </ul>
+                            @if (ViewData["chainSlug"] is string chainSlug)
+                            {
+                                <p><a href="/@culture/@chainCitySlug/restaurants/merezha/@chainSlug">@Menus.Web.Helpers.CatalogText.ChainHeading(ViewData["chainName"] as string, chainCitySlug, restaurantCity.Name.Get(culture), culture) →</a></p>
+                            }
+                        </div>
+                    }
+
                     @if (faq.Any())
                     {
                         <div class="restaurant-faq">

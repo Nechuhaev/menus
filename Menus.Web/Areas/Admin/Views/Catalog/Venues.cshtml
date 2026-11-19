@@ -9,6 +9,7 @@
     var cuisine = ViewData["cuisine"] as string;
     var feature = ViewData["feature"] as string;
     var q = ViewData["q"] as string;
+    var chain = ViewData["chain"] as string;
     var districts = ViewData["districts"] as List<CatalogVenue> ?? new List<CatalogVenue>();
     var returnUrl = Context.Request.Path + Context.Request.QueryString;
 }
@@ -20,7 +21,7 @@
                 <ul>
                     <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
                     <li><a asp-action="Index" asp-route-cityId="@cityId">Каталог</a></li>
-                    <li>@ViewData["cityName"]: @(!string.IsNullOrEmpty(feature) ? CatalogService.FeatureName(feature, "uk") : !string.IsNullOrEmpty(cuisine) ? (cuisine == "-" ? "без кухні" : CatalogService.CuisineName(cuisine, "uk")) : string.IsNullOrEmpty(type) ? "усі заклади" : CatalogService.TypeName(type, "uk"))</li>
+                    <li>@ViewData["cityName"]: @(!string.IsNullOrEmpty(chain) ? "мережа " + (ViewData["chainName"] ?? chain) : !string.IsNullOrEmpty(feature) ? CatalogService.FeatureName(feature, "uk") : !string.IsNullOrEmpty(cuisine) ? (cuisine == "-" ? "без кухні" : CatalogService.CuisineName(cuisine, "uk")) : string.IsNullOrEmpty(type) ? "усі заклади" : CatalogService.TypeName(type, "uk"))</li>
                 </ul>
             </div>
 
@@ -53,6 +54,10 @@
                         <option value="@f.Key" selected="@(f.Key == feature)">@f.Value.Uk</option>
                     }
                 </select>
+                @if (!string.IsNullOrEmpty(chain))
+                {
+                    <input type="hidden" name="chain" value="@chain" />
+                }
                 <input type="text" name="q" value="@q" placeholder="Назва закладу" />
                 <button type="submit">Знайти</button>
                 <span style="color:#777;font-size:12px;align-self:center;">@Model.Count</span>
