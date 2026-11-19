@@ -23,7 +23,7 @@ import requests
 
 from dish_city_candidates import DRINK_CATEGORY
 from dish_city_pages import slugify
-from sync_restaurants import NOMINATIM_USER_AGENT, get_db, get_localizable_value
+from sync_restaurants import NOMINATIM_USER_AGENT, get_db, get_localizable_value, normalize_name
 
 RESTAURANT_STATUS_ACTIVE = 0
 DISH_STATUS_ACTIVE = 0
@@ -109,6 +109,7 @@ FEATURE_MENU_RULES = {
     "dytiache-menu": re.compile(r"дитяч|детск|kids|for kids|для діт|для дет", re.I),
 }
 FEATURE_MIN = 2
+CHAIN_MIN = 2  # філій в одному місті, щоб була сторінка мережі
 ALL_DAY = re.compile(r"24\s*/\s*7|цілодоб|круглосуточ|24\s*год|24\s*hours|open 24", re.I)
 
 
@@ -231,6 +232,44 @@ def venue_cuisines(cuisine_text, st):
     return [], "не визначено"
 
 
+def chain_key(name):
+    """Ключ мережі: назва транслітом, без регістру, лапок і пробілів («Хачапурі і Вино » = «Хачапури и вино»)."""
+    s = slugify(normalize_name(name or ""))
+    s = s.replace("j", "i").replace("y", "i").replace("kh", "h").replace("ts", "c")
+    return re.sub(r"[^a-z0-9]", "", s)
+
+
+def update_chains(db, restaurants, dry_run):
+    """Мережа = щонайменше CHAIN_MIN заклади з однаковою назвою в одному місті. Ручні прив'язки (ChainManual) не чіпаємо."""
+    groups = defaultdict(list)
+    for r in restaurants:
+        key = chain_key(r["Name"])
+        if len(key) >= 2:
+            groups[(r["City"], key)].append(r)
+    write = db.cursor()
+    chains = 0
+    assigned = set()
+    for (city, key), items in sorted(groups.items(), key=lambda x: -len(x[1])):
+        if len(items) < CHAIN_MIN:
+            continue
+        name = Counter((x["Name"] or "").strip() for x in items).most_common(1)[0][0]
+        slug = re.sub(r"[^a-z0-9-]", "", slugify(normalize_name(name)))[:128] or key[:128]
+        chains += 1
+        print(f"  мережа {name} ({len(items)}): /restaurants/merezha/{slug}")
+        for x in items:
+            assigned.add(x["Id"])
+            if not dry_run and not x["ChainManual"]:
+                write.execute("UPDATE RestaurantVenue SET ChainSlug = %s, ChainName = %s WHERE RestaurantId = %s AND ChainManual = 0",
+                              (slug, name[:255], x["Id"]))
+    # заклади, що перестали бути мережею (назву змінили, філію закрили) - відв'язати
+    if not dry_run:
+        for r in restaurants:
+            if r["Id"] not in assigned and r["ChainSlug"] and not r["ChainManual"]:
+                write.execute("UPDATE RestaurantVenue SET ChainSlug = NULL, ChainName = NULL WHERE RestaurantId = %s AND ChainManual = 0", (r["Id"],))
+        db.commit()
+    print(f"Мережі: {chains} (від {CHAIN_MIN} закладів з однаковою назвою в місті)")
+
+
 def ensure_table(db):
     cur = db.cursor()
     cur.execute("""CREATE TABLE IF NOT EXISTS RestaurantVenue (
@@ -256,6 +295,10 @@ def ensure_table(db):
     cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS FeaturesReason VARCHAR(255) NULL")
     cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS FeaturesManual TINYINT(1) NOT NULL DEFAULT 0")
     cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS LunchPrice DECIMAL(10,2) NULL")
+    # мережа: заклади з однаковою назвою в місті (ChainSlug - адреса сторінки, ChainName - назва), ручна прив'язка з адмінки
+    cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS ChainSlug VARCHAR(128) NULL")
+    cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS ChainName VARCHAR(255) NULL")
+    cur.execute("ALTER TABLE RestaurantVenue ADD COLUMN IF NOT EXISTS ChainManual TINYINT(1) NOT NULL DEFAULT 0")
     db.commit()
     cur.close()
 
@@ -303,7 +346,8 @@ def main():
         where += " AND (r.Id = %s OR rs.Url = %s)"
         params += [args.restaurant, args.restaurant]
     cur.execute(f"""SELECT CONCAT(r.Id, '') AS Id, r.Name, r.City, rs.Url AS Slug, ri.Cuisine, ri.OpenHours, ri.GpsLatitude, ri.GpsLongitude,
-                           v.VenueType, v.TypeManual, v.DistrictManual, v.DistrictSlug, v.Lat, v.Lon, v.Cuisines, v.CuisinesManual, v.Features, v.FeaturesManual
+                           v.VenueType, v.TypeManual, v.DistrictManual, v.DistrictSlug, v.Lat, v.Lon, v.Cuisines, v.CuisinesManual, v.Features, v.FeaturesManual,
+                           v.ChainSlug, v.ChainManual
                     FROM Restaurants r
                     LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                     LEFT JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
@@ -370,6 +414,9 @@ def main():
     print("Типи: " + ", ".join(f"{VENUE_TYPES[t]} {n}" for t, n in by_type.most_common()) + f"; змінилось {changed}")
     print("Особливості: " + ", ".join(f"{FEATURES[f]} {n}" for f, n in by_feature.most_common()))
     print("Кухні: " + ", ".join(f"{CUISINES[c]} {n}" for c, n in by_cuisine.most_common()) + f"; без кухні {no_cuisine}")
+
+    if not args.restaurant:
+        update_chains(db, restaurants, args.dry_run)
 
     if args.dry_run or args.no_districts:
         db.close()
