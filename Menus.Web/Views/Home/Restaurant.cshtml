@@ -902,6 +902,20 @@
                         </div>
                     }
 
+                    @* перелінковка: тип, особливості й кухні закладу -> сторінки каталогу міста *@
+                    @if (ViewData["catalogLinks"] is List<(string Href, string Title)> catalogLinks && catalogLinks.Any())
+                    {
+                        <div class="restaurant-dish-city restaurant-catalog">
+                            <h2>@Menus.Web.Helpers.CatalogText.T(culture, $"Більше закладів: {restaurantCity.Name.Get(culture)}", $"Больше заведений: {restaurantCity.Name.Get(culture)}", $"More places in {restaurantCity.Name.Get(culture)}")</h2>
+                            <ul>
+                                @foreach (var (catalogHref, catalogTitle) in catalogLinks)
+                                {
+                                    <li><a href="@catalogHref">@catalogTitle</a></li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
                     @* інші заклади тієї ж мережі в місті (RestaurantVenue.ChainSlug) *@
                     @if (ViewData["chainVenues"] is List<Menus.Web.Services.CatalogVenue> chainVenues && chainVenues.Any())
                     {

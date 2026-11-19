@@ -63,6 +63,18 @@
                     }
                 </ul>
             }
+            @if (ViewData["catalogLinks"] is List<(string Href, string Title)> catalogLinks && catalogLinks.Any())
+            {
+                <div class="catalog-links">
+                    <h2>@Menus.Web.Helpers.CatalogText.T(culture, $"Ресторани й кафе: {cityName}", $"Рестораны и кафе: {cityName}", $"Restaurants & cafes in {cityName}")</h2>
+                    <ul style="display:flex;flex-wrap:wrap;gap:8px 16px;padding:0;list-style:none;">
+                        @foreach (var (href, linkTitle) in catalogLinks)
+                        {
+                            <li><a href="@href">@linkTitle</a></li>
+                        }
+                    </ul>
+                </div>
+            }
         </div>
     </main>
 </div>

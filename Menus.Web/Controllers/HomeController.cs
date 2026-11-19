@@ -325,6 +325,8 @@ namespace Menus.Web.Controllers
             {
                 var cityVenues = await Catalog.GetCity(restaurant.City);
                 var self = cityVenues.FirstOrDefault(x => x.Id == restaurant.Id);
+                // перелінковка: тип, особливості й кухні закладу -> сторінки каталогу міста
+                if (self != null) ViewData["catalogLinks"] = await Catalog.VenueLinks(self, city, restaurantCityObj.Name.Get(culture), culture);
                 if (!string.IsNullOrEmpty(self?.ChainSlug))
                 {
                     var branches = cityVenues.Where(x => x.ChainSlug == self.ChainSlug).ToList();
