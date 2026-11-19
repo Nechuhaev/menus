@@ -39,8 +39,10 @@
         <div style="font-size:12px;color:#777">«Недорого» - автоматично за цінами меню</div>
     </details>
     <input type="hidden" name="chainPosted" value="true" />
-    <input type="text" name="chain" value="@Model.Venue.ChainName" placeholder="Мережа: назва" aria-label="Мережа"
+    <label style="font-weight:normal;display:inline-flex;align-items:center;gap:4px;margin:0;">Мережа:
+    <input type="text" name="chain" value="@Model.Venue.ChainName" placeholder="не мережа" aria-label="Мережа"
            title="Назва мережі (філії з однаковою назвою в місті). Порожньо - не мережа. Назва іншої мережі міста - приєднати до неї"
            style="width:150px;max-width:100%;box-sizing:border-box;" />
+    </label>
     <button type="submit">Зберегти</button>
 </form>
