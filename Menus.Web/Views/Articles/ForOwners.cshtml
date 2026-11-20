@@ -1,5 +1,6 @@
 @using Microsoft.AspNetCore.Mvc.Localization
 @inject IViewLocalizer Localizer
+@inject Menus.Web.Services.TelegramOwnersService TelegramOwners
 @{
     // «Для власників ресторанів»: що отримує заклад + заявка (форма -> Home/SendFormdata, як і раніше)
     Layout = "~/Views/Shared/_Layout.cshtml";
@@ -210,7 +211,7 @@
     <section class="im-final" id="join">
         <div class="im-wrap im-form">
             <h2>@Localizer["FormTitle"]</h2>
-            <p>@Localizer["FormCall"] <a href="tel:+380505562653">+38 050 556 26 53</a> @Localizer["FormOr"]</p>
+            <p>@Localizer["FormCall"] <a href="https://t.me/@TelegramOwners.BotName" target="_blank" rel="noopener">@@@TelegramOwners.BotName</a> @Localizer["FormOr"]</p>
             <form id="requestForm" method="post">
                 <input type="hidden" name="Package" value="@Localizer["Free"]" />
                 <input type="hidden" name="Restaurant" value="NewPage" />
