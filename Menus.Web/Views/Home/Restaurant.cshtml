@@ -30,7 +30,7 @@
     var seoDishCount = seoPrices.Count(x => x > 0);
     var seoTypical = Menus.Web.Helpers.JsonLd.TypicalPrices(seoPrices, Model.RestaurantInfo.Currency);
     var seoHasMenu = seoDishCount >= 5 && seoTypical != null;
-    var customTitle = seo.Title.Get(culture);
+    var customTitle = seo.Title?.Get(culture) ?? "";
     var title = !Menus.Web.Helpers.SeoText.IsGeneric(customTitle) && customTitle.Length <= Menus.Web.Helpers.SeoText.TitleMax
         ? customTitle
         : null;
@@ -44,8 +44,8 @@
     // og:image для соцмереж: фото ресторану замість загальної картинки
     if (Model.Photos != null && Model.Photos.Any()) { ViewData["MainImage"] = Img.Url(Model.Photos.First(), Quality.High); }
 
-    var restaurantDescription = Model.RestaurantInfo.ShortInfo.Get(culture);
-    var customDescription = seo.Description.Get(culture);
+    var restaurantDescription = Model.RestaurantInfo.ShortInfo?.Get(culture) ?? "";
+    var customDescription = seo.Description?.Get(culture) ?? "";
     if (!Menus.Web.Helpers.SeoText.IsGeneric(customDescription))
     {
         ViewData["Description"] = customDescription;
@@ -110,7 +110,7 @@
     var canSeeAddMenuAndAddDish = (Model.RestaurantInfo.UserAllowedAddMenu || Model.RestaurantInfo.UserAllowedOpenMenu || Model.RestaurantInfo.UserAllowedAddDishes) || !Model.Restaurant.IsModeratable;
     var canSeeAddMenu = (Model.RestaurantInfo.UserAllowedAddMenu || Model.RestaurantInfo.UserAllowedOpenMenu) || !Model.Restaurant.IsModeratable;
     var canSeeAddDish = (Model.RestaurantInfo.UserAllowedAddDishes) || !Model.Restaurant.IsModeratable;
-    var h1Text = !string.IsNullOrEmpty(seo.Header.Get(culture)) ? seo.Header.Get(culture): Model.Restaurant.Name;
+    var h1Text = !string.IsNullOrEmpty(seo.Header?.Get(culture)) ? seo.Header.Get(culture) : Model.Restaurant.Name;
 
     // FAQ з даних ресторану: питання без даних не показуються
     var faq = new List<(string Question, string Answer)>();
@@ -788,7 +788,7 @@
                         </div>
 
 
-                        if (!string.IsNullOrEmpty(Model.RestaurantInfo.ShortInfo.Get(culture)))
+                        if (!string.IsNullOrEmpty(Model.RestaurantInfo.ShortInfo?.Get(culture)))
                         {
                             <div class="description_area">
                                 <h2>@Localizer["Description"]</h2>
