@@ -160,7 +160,7 @@
     <value>підключення</value>
   </data>
   <data name="FactLangs" xml:space="preserve">
-    <value>UA / RU</value>
+    <value>UA / EN</value>
   </data>
   <data name="FactLangsText" xml:space="preserve">
     <value>дві мови</value>
@@ -292,7 +292,7 @@
     <value>Ціни в гривнях, діапазон цін для порцій</value>
   </data>
   <data name="F8" xml:space="preserve">
-    <value>Перемикач мов: українська та російська</value>
+    <value>Перемикач мов: українська та англійська</value>
   </data>
   <data name="F9" xml:space="preserve">
     <value>Сайт і Instagram закладу</value>
@@ -343,7 +343,7 @@
     <value>Якими мовами доступне меню?</value>
   </data>
   <data name="A7" xml:space="preserve">
-    <value>Українською та російською. Гість перемикає мову прямо в меню.</value>
+    <value>Українською та англійською — англійську ми перекладаємо автоматично. Гість перемикає мову прямо в меню.</value>
   </data>
   <data name="FinalTitle" xml:space="preserve">
     <value>Додайте меню на свій сайт уже сьогодні</value>

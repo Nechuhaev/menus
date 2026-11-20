@@ -1,5 +1,6 @@
 ﻿@using Microsoft.AspNetCore.Mvc.Localization
 @inject IViewLocalizer Localizer
+@inject Menus.Web.Services.TelegramOwnersService TelegramOwners
 
 @inject Menus.Web.Services.UserService  UserService;
 
@@ -238,7 +239,7 @@
             <div class="site-content-align-small">
                 <div class="form">
                     <h2>@Localizer["JoinTheService"] Tip<span>mymenu</span></h2>
-                    <p>@Localizer["Call"] <a href="tel:+380505562653">+380505562653</a> @Localizer["LeaveYourContacts"]</p>
+                    <p>Telegram: <a href="https://t.me/@TelegramOwners.BotName" target="_blank" rel="noopener">@@@TelegramOwners.BotName</a>. @Localizer["LeaveYourContacts"]</p>
                     <form>
                         <div>
                             <label>@Localizer["RestarauntName"]<span>*</span></label>
@@ -362,7 +363,7 @@
             <form>
                 <span class="popUp_close"></span>
                 <h2>@Localizer["JoinTheService"] Tip<span>mymenu</span></h2>
-                <p>@Localizer["Call"] <a href="tel:+380505562653">+380505562653</a> @Localizer["LeaveYourContacts"]</p>
+                <p>Telegram: <a href="https://t.me/@TelegramOwners.BotName" target="_blank" rel="noopener">@@@TelegramOwners.BotName</a>. @Localizer["LeaveYourContacts"]</p>
                 <label>@Localizer["RestarauntName"]<span>*</span></label>
                 <input required name="Restaurant" type="text" />
                 <label>Email <span>*</span></label>
