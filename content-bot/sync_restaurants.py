@@ -513,32 +513,35 @@ def verify_restaurant_closure(name, address, city):
     closure merely from an absent website record (OSM's website-tag coverage for
     Ukrainian restaurants is patchy — treating it as ground truth risks wrongly
     closing active restaurants)."""
-    try:
-        message = anthropic_client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=600,
-            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
-            messages=[{
-                "role": "user",
-                "content": (
-                    f'Ресторан "{name}" за адресою {address}, {city}, Україна. '
-                    "Пошукай в інтернеті: (1) чи є в закладу власний сайт, і якщо так — яка саме URL-адреса, "
-                    "(2) чи є ознаки, що заклад остаточно закрився (позначка \"Заклад закритий\" на Google Maps, "
-                    "новини про закриття, відсутність активності/відгуків останнім часом тощо). "
-                    "Поверни ЛИШЕ валідний JSON, без жодного тексту до чи після:\n"
-                    '{"website": "..." or null, "likely_closed": true/false, "confidence": "high"/"medium"/"low", "reason": "коротке пояснення"}'
-                ),
-            }],
-        )
-        searches = getattr(getattr(message.usage, "server_tool_use", None), "web_search_requests", 0) or 0
-        record_usage("claude-sonnet-4-5", message.usage.input_tokens, message.usage.output_tokens, searches)
-        text_blocks = [block.text for block in message.content if block.type == "text"]
-        raw = "\n".join(text_blocks).strip()
-        raw = re.sub(r"^```json\s*|\s*```$", "", raw)
-        return json.loads(raw)
-    except Exception as e:
-        print(f"    Closure verification failed: {e}")
-        return None
+    prompt = (
+        f'Ресторан "{name}" за адресою {address}, {city}, Україна. '
+        "Пошукай в інтернеті: (1) чи є в закладу власний сайт, і якщо так — яка саме URL-адреса, "
+        "(2) чи є ознаки, що заклад остаточно закрився (позначка \"Заклад закритий\" на Google Maps, "
+        "новини про закриття, відсутність активності/відгуків останнім часом тощо). "
+        "Поверни ЛИШЕ валідний JSON, без жодного тексту до чи після:\n"
+        '{"website": "..." or null, "likely_closed": true/false, "confidence": "high"/"medium"/"low", "reason": "коротке пояснення"}'
+    )
+    # спершу дешева модель (токени результатів пошуку ~30 разів дешевші), Sonnet - лише якщо вона не впоралась
+    for model in (CHEAP_MODEL, "claude-sonnet-4-5"):
+        try:
+            message = anthropic_client.messages.create(
+                model=model,
+                max_tokens=600,
+                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
+                messages=[{"role": "user", "content": prompt}],
+            )
+            searches = getattr(getattr(message.usage, "server_tool_use", None), "web_search_requests", 0) or 0
+            record_usage(model, message.usage.input_tokens, message.usage.output_tokens, searches)
+            text_blocks = [block.text for block in message.content if block.type == "text"]
+            raw = "\n".join(text_blocks).strip()
+            raw = re.sub(r"^```json\s*|\s*```$", "", raw)
+            # JSON може стояти після пояснень - беремо останній об'єкт {...}
+            found = re.findall(r"\{[^{}]*\}", raw)
+            return json.loads(found[-1] if found else raw)
+        except Exception as e:
+            print(f"    Closure verification failed ({model}): {e}")
+    return None
+
 
 def osm_lookup(name, address, city):
     """Free lookup via OpenStreetMap Nominatim: GPS always if matched, plus website/
