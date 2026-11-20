@@ -142,8 +142,47 @@ namespace Menus.Web.Areas.Restaurants.Controllers
                 : "https://tipmymenu.com/{0}/" + iframeCity.Name.Get("en").ToLower() + "/iframe/" + iframeSeo.Url;
             ViewData["iframeName"] = selectedRestaurant.Name;
             ViewData["iframeDesign"] = await HttpContext.RequestServices.GetRequiredService<IframeDesignService>().Get(selectedRestaurant.Id);
+            // «Ваш заклад у Google» за 28 днів і QR-код на стіл (веде на iframe-меню)
+            ViewData["googleStats"] = await HttpContext.RequestServices.GetRequiredService<RestaurantStatsService>().GetLast28(iframeSeo?.Url);
+            ViewData["ownerReport"] = await HttpContext.RequestServices.GetRequiredService<OwnerReportService>().IsEnabled(selectedRestaurant.Id);
 
             return View(restaurantInfo);
+        }
+
+        // галочка «Щомісячний звіт на пошту» в блоці «Ваш заклад у Google»
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> OwnerReport(bool enabled)
+        {
+            var restaurant = await _usrService.GetSelecedRestaurant(User, Request);
+            if (restaurant == null ||
+                (!(await _core.Restaurants.IsUserAllowedToEdit(restaurant.Id, User.Identity.Name)) && !User.IsInRole("admin") && !User.IsInRole("manager")))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+            await HttpContext.RequestServices.GetRequiredService<OwnerReportService>().SetEnabled(restaurant.Id, enabled);
+            return Redirect(Url.Action("Index") + "#google-stats");
+        }
+
+        // Табличка з QR-кодом на стіл (A6, друк або PDF з браузера). id - для адміна/менеджера (з «Розсилки»),
+        // власник бачить лише свій вибраний заклад
+        public async Task<IActionResult> QrSign(string id)
+        {
+            var isStaff = User.IsInRole("admin") || User.IsInRole("manager");
+            var restaurant = !string.IsNullOrEmpty(id) && isStaff
+                ? await _core.Restaurants.GetRestaurantByIdOrSeo(id)
+                : await _usrService.GetSelecedRestaurant(User, Request);
+            if (restaurant == null ||
+                (!isStaff && !(await _core.Restaurants.IsUserAllowedToEdit(restaurant.Id, User.Identity.Name))))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+            var seo = await _core.Restaurants.GetSeoByRestaurantId(restaurant.Id);
+            var city = (await _core.Restaurants.GetCities()).FirstOrDefault(x => x.Id == restaurant.City);
+            if (string.IsNullOrEmpty(seo?.Url) || city == null) return NotFound();
+            ViewData["qrUrl"] = $"https://tipmymenu.com/uk/{city.Name.Get("en").ToLower()}/iframe/{seo.Url}";
+            ViewData["name"] = restaurant.Name;
+            return View();
         }
 
         [HttpGet]

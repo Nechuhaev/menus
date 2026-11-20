@@ -1,6 +1,8 @@
 """Щоденна статистика сторінок для адмінки (SEO-дашборд, «Страва + місто»), кодом, без AI.
 
 - Search Console: кліки, покази, позиція кожної сторінки за кожен день -> SeoPageDays.
+- Search Console: пошукові запити сторінок закладів (/restaurant/{адреса}) за кожен день -> SeoPageQueryDays
+  (кабінет власника, «Розсилка», щомісячний звіт: «за якими запитами вас знаходять»), зберігаються QUERY_KEEP_DAYS днів.
 - GA4 (Data API, той самий сервісний акаунт, що й для Search Console; його треба додати в GA4 як «Глядач»):
   перегляди й сеанси кожної сторінки за кожен день -> GaPageDays. Без доступу до GA4 - лише попередження.
 
@@ -10,6 +12,7 @@ Search Console дораховує останні 2-3 дні, тож щоразу
          python3 seo_daily.py --days 90    # перший запуск: історія за 90 днів
 Змінні в .env: GSC_KEY_FILE, GSC_SITE (як для gsc.py), GA4_PROPERTY (за замовчуванням 359387752).
 """
+import re
 import time
 import argparse
 import os
@@ -20,6 +23,27 @@ from sync_restaurants import get_db
 
 GA4_PROPERTY = os.environ.get("GA4_PROPERTY", "359387752")
 GSC_LAG_DAYS = 3  # останні дні Search Console ще неповні
+QUERY_KEEP_DAYS = 120
+RESTAURANT_PAGE = re.compile(r"/restaurant/[^/?#]+/?$")
+QUERY_SQL = """CREATE TABLE IF NOT EXISTS SeoPageQueryDays (
+    Id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    Day DATE NOT NULL,
+    Page VARCHAR(700) NOT NULL,
+    Query VARCHAR(255) NOT NULL,
+    Clicks INT NOT NULL,
+    Impressions INT NOT NULL,
+    Position DECIMAL(6,2) NOT NULL,
+    KEY IX_SeoPageQueryDays_Day (Day),
+    KEY IX_SeoPageQueryDays_Page (Page(191))
+) DEFAULT CHARSET=utf8mb4"""
+
+
+def gsc_query_days(days):
+    """[(день, сторінка закладу, запит, кліки, покази, позиція)] - лише сторінки /restaurant/{адреса}."""
+    return [(keys[0], keys[1][:700], keys[2][:255], int(clicks), int(impressions), round(position, 2))
+            for keys, clicks, impressions, position in gsc.query(["date", "page", "query"], days=days, end_offset=GSC_LAG_DAYS,
+                                                                  page_contains="/restaurant/")
+            if RESTAURANT_PAGE.search(keys[1])]
 
 GSC_SQL = """CREATE TABLE IF NOT EXISTS SeoPageDays (
     Day DATE NOT NULL,
@@ -115,6 +139,21 @@ def main():
     gsc_first = date.today() - timedelta(days=GSC_LAG_DAYS + args.days - 1)
     n = save(db, "SeoPageDays", ("Day", "Page", "Clicks", "Impressions", "Position"), gsc_days(args.days), gsc_first)
     print(f"Search Console: {n} рядків (день x сторінка) з {gsc_first}")
+
+    try:
+        cur = db.cursor()
+        cur.execute(QUERY_SQL)
+        cur.execute("DELETE FROM SeoPageQueryDays WHERE Day >= %s OR Day < %s",
+                    (gsc_first, date.today() - timedelta(days=QUERY_KEEP_DAYS)))
+        rows = gsc_query_days(args.days)
+        for i in range(0, len(rows), 5000):
+            cur.executemany("INSERT INTO SeoPageQueryDays (Day, Page, Query, Clicks, Impressions, Position) VALUES (%s, %s, %s, %s, %s, %s)",
+                            rows[i:i + 5000])
+        db.commit()
+        cur.close()
+        print(f"Search Console: {len(rows)} рядків (день x заклад x запит) з {gsc_first}")
+    except Exception as e:
+        print(f"Запити закладів пропущено: {str(e)[:300]}")
 
     try:
         ga_first = date.today() - timedelta(days=args.days)

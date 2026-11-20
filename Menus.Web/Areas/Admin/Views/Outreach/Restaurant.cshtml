@@ -1,5 +1,6 @@
 ﻿@model Menus.Web.Services.OutreachRecipient
 @inject Menus.Web.Services.CatalogService CatalogSvc
+@inject Menus.Web.Services.RestaurantStatsService StatsSvc
 
 @{
     ViewData["Title"] = "Розсилка: " + Model.Name;
@@ -75,6 +76,25 @@
                 {
                     <partial name="_VenueForm" model="(catalogVenue, catalogDistricts, Context.Request.Path + Context.Request.QueryString)" />
                 }
+            </div>
+            @{
+                var googleStats = await StatsSvc.GetLast28(Model.Slug);
+            }
+            <div class="muted" style="margin-bottom:10px;overflow-wrap:anywhere;">
+                Google за 28 днів:
+                @if (googleStats.HasData)
+                {
+                    <span>@Menus.Web.Services.RestaurantStatsService.Describe(googleStats)@(googleStats.Position > 0 ? $", позиція {googleStats.Position:0.#}" : "")</span>
+                    if (googleStats.Queries.Any())
+                    {
+                        <br /><span>Запити: @string.Join(", ", googleStats.Queries.Take(5).Select(q => $"«{q.Query}» ({q.Impressions:N0})"))</span>
+                    }
+                }
+                else
+                {
+                    <span>даних немає</span>
+                }
+                · <a asp-area="Restaurants" asp-controller="About" asp-action="QrSign" asp-route-id="@Model.Id" target="_blank" rel="noopener">QR-табличка на стіл ↗</a>
             </div>
             <div class="alive-box">
                 @if (Model.Closed)
@@ -287,7 +307,7 @@
                                 <td>@((row.SentAt ?? row.CreatedAt).ToString("dd.MM.yyyy HH:mm"))</td>
                                 <td>@(kinds.TryGetValue(row.Channel, out var channelName) ? channelName : row.Channel)</td>
                                 <td>@row.Recipient</td>
-                                <td>@(row.TemplateId.HasValue && templateNames.TryGetValue(row.TemplateId.Value, out var templateName) ? templateName : "")</td>
+                                <td>@(row.TemplateId == Menus.Web.Services.OwnerReportService.TemplateId ? "звіт власнику" : row.TemplateId.HasValue && templateNames.TryGetValue(row.TemplateId.Value, out var templateName) ? templateName : "")</td>
                                 <td>@(statuses.TryGetValue(row.Status, out var statusName) ? statusName : row.Status) <span class="muted">@row.Error</span></td>
                                 <td>
                                     <details>

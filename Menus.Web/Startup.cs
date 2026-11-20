@@ -124,6 +124,8 @@ namespace Menus.Web
             services.AddScoped<CustomerRequestService>();
             services.AddScoped<PageRedirectService>();
             services.AddScoped<CatalogService>();
+            services.AddScoped<RestaurantStatsService>();
+            services.AddScoped<OwnerReportService>();
             services.AddScoped<SiteTextService>();
             services.AddScoped<NewVenueService>();
             services.AddScoped<UserVisitService>();
@@ -192,6 +194,8 @@ namespace Menus.Web
                 {
                     Thread.Sleep(10000);
                     RecurringJob.Trigger("UpdateSitemap");
+                    // щомісячний звіт власникам «Ваш заклад у Google» - 4-го числа (дані seo_daily.py за весь місяць уже є)
+                    RecurringJob.AddOrUpdate<OwnerReportService>("OwnerMonthlyReport", x => x.SendMonthly(), "0 7 4 * *");
                 });
             }
 
