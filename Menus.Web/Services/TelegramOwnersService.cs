@@ -190,7 +190,10 @@ namespace Menus.Web.Services
                     "SELECT Name FROM Restaurants WHERE Id = @restaurantId", new { restaurantId });
                 if (name == null)
                 {
-                    return await SendMessage(chatId.Value, "Вітаємо! Це бот TipMyMenu для власників закладів. Щоб підключитися, відкрийте персональне посилання з нашого листа.");
+                    // прийшов з сайту (лендинги «Для власників», «Меню для сайту») - заявка в «Запити», щоб не загубити контакт
+                    await SaveLead(chatId.Value, username, firstName, "натиснув Start у боті");
+                    return await SendMessage(chatId.Value, "Вітаємо! Це бот TipMyMenu для власників закладів. Напишіть назву закладу й місто - " +
+                        "ми безкоштовно підключимо меню, QR-код на стіл і меню для вашого сайту. Якщо отримали від нас лист - відкрийте персональне посилання з нього.");
                 }
                 await _connection.ExecuteAsync(@"INSERT INTO OutreachTelegramLinks (RestaurantId, ChatId, Username, FirstName, LinkedAt)
                     VALUES (@restaurantId, @chatId, @username, @firstName, NOW())
@@ -204,10 +207,26 @@ namespace Menus.Web.Services
                 "SELECT CONCAT(RestaurantId, '') FROM OutreachTelegramLinks WHERE ChatId = @chatId", new { chatId })).ToList();
             foreach (var restaurantId in restaurants)
                 await outreach.LogTelegram(restaurantId, Title(chatId.Value, username, firstName), text, "received");
-            return restaurants.Any()
-                ? await SendMessage(chatId.Value, "Дякуємо, повідомлення отримали - відповімо найближчим часом.")
-                : await SendMessage(chatId.Value, "Щоб підключитися, відкрийте персональне посилання з листа TipMyMenu.");
+            if (!restaurants.Any())
+            {
+                // не підключений до закладу: повідомлення - заявка в «Запити» (адмін відповідає в Telegram за @username)
+                await SaveLead(chatId.Value, username, firstName, text);
+            }
+            return await SendMessage(chatId.Value, "Дякуємо, повідомлення отримали - відповімо найближчим часом.");
         }
+
+        // заявка в адмінку «Запити» (таблиця CustomerRequests): текст - у полі «Заклад», контакт Telegram - у «Телефон»
+        private Task SaveLead(long chatId, string username, string firstName, string text) =>
+            _connection.ExecuteAsync(@"INSERT INTO CustomerRequests (Id, RestaurantName, Email, Phone, Package, Status, CreateDate, UpdateDate)
+                VALUES (@id, @text, '', @contact, 'Telegram-бот', 0, UTC_TIMESTAMP(), UTC_TIMESTAMP())",
+                new
+                {
+                    id = Guid.NewGuid().ToString(),
+                    text = Cut(text),
+                    contact = Cut("Telegram " + Title(chatId, username, firstName) + (string.IsNullOrEmpty(username) ? "" : " (t.me/" + username + ")"))
+                });
+
+        private static string Cut(string value) => (value ?? "").Length > 250 ? value.Substring(0, 250) : value ?? "";
 
         private static string Title(long chatId, string username, string firstName) =>
             !string.IsNullOrEmpty(username) ? "@" + username : !string.IsNullOrEmpty(firstName) ? firstName : chatId.ToString();
