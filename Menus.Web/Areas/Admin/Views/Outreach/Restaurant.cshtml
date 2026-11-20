@@ -85,7 +85,7 @@
                 @if (googleStats.HasData)
                 {
                     <span>@Menus.Web.Services.RestaurantStatsService.Describe(googleStats)@(googleStats.Position > 0 ? $", позиція {googleStats.Position:0.#}" : "")</span>
-                    @if (googleStats.Queries.Any())
+                    if (googleStats.Queries.Any())
                     {
                         <br /><span>Запити: @string.Join(", ", googleStats.Queries.Take(5).Select(q => $"«{q.Query}» ({q.Impressions:N0})"))</span>
                     }

@@ -64,7 +64,7 @@
                                 <div><b>@googleStats.Views.ToString("N0")</b>переглядів сторінки</div>
                             }
                         </div>
-                        @if (googleStats.Queries.Any())
+                        if (googleStats.Queries.Any())
                         {
                             <div class="gs-queries">
                                 <b>За якими запитами вас знаходять:</b>
