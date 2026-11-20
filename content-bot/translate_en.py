@@ -11,6 +11,8 @@ Iframe закладу показує мови UA та EN. Англійські �
 Запуск:  python3 translate_en.py --iframe --dry-run              # скільки текстів і символів, без DeepL
          python3 translate_en.py --iframe                        # усі заклади, що налаштували iframe
          python3 translate_en.py --restaurant chachapuri         # один заклад: Id або адреса сторінки
+         python3 translate_en.py --all --dry-run                 # усі активні заклади (QR-код на стіл веде на iframe):
+         python3 translate_en.py --all                           #   спершу ті, кого більше бачать у Google; щоночі в межах ліміту
          python3 translate_en.py --iframe --redo-glossary        # перекласти наново тексти з термінами глосарію
 Змінні в .env: DEEPL_API_KEY; ліміт за запуск - DEEPL_MAX_CHARS (за замовчуванням 100000).
 """
@@ -117,6 +119,20 @@ def restaurant_ids(db, args):
     if args.iframe:
         cur.execute("SELECT CONCAT(RestaurantId, '') FROM IframeDesign")
         ids += [row[0] for row in cur.fetchall()]
+    if getattr(args, "all", False):
+        # активні заклади: спершу популярні в Google за 28 днів (SeoPageDays), далі - з більшим меню
+        try:
+            cur.execute("""SELECT LOWER(SUBSTRING_INDEX(SUBSTRING_INDEX(Page, '/restaurant/', -1), '/', 1)), SUM(Impressions)
+                           FROM SeoPageDays WHERE Day >= DATE_SUB((SELECT MAX(Day) FROM SeoPageDays), INTERVAL 28 DAY)
+                             AND Page REGEXP '/restaurant/[^/]+/?$' GROUP BY 1""")
+            shows = {slug: int(n) for slug, n in cur.fetchall()}
+        except Exception:
+            shows = {}
+        cur.execute("""SELECT CONCAT(r.Id, ''), LOWER(rs.Url),
+                              (SELECT COUNT(*) FROM Dishes d WHERE d.RestaurantId = r.Id AND d.Status = 0)
+                       FROM Restaurants r JOIN RestaurantSeo rs ON rs.ItemId = r.Id WHERE r.Status = 0""")
+        rows = [(rid, shows.get(slug or "", 0), dishes) for rid, slug, dishes in cur.fetchall() if dishes > 0]
+        ids += [rid for rid, _, _ in sorted(rows, key=lambda x: (-x[1], -x[2]))]
     for value in args.restaurant or []:
         cur.execute("SELECT CONCAT(ItemId, '') FROM RestaurantSeo WHERE Url = %s LIMIT 1", (value,))
         row = cur.fetchone()
@@ -144,11 +160,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--iframe", action="store_true", help="усі заклади, що налаштували iframe (таблиця IframeDesign)")
     parser.add_argument("--restaurant", action="append", metavar="ID", help="Id або адреса сторінки закладу (можна кілька)")
+    parser.add_argument("--all", action="store_true", help="усі активні заклади з меню, спершу популярні в Google")
     parser.add_argument("--dry-run", action="store_true", help="лише порахувати, без DeepL і без запису")
     parser.add_argument("--redo-glossary", action="store_true", help="перекласти наново тексти з термінами глосарію")
     args = parser.parse_args()
-    if not args.iframe and not args.restaurant:
-        parser.error("вкажіть --iframe або --restaurant")
+    if not args.iframe and not args.restaurant and not args.all:
+        parser.error("вкажіть --iframe, --all або --restaurant")
 
     db = get_db()
     total_texts = total_chars = 0
@@ -157,7 +174,8 @@ def main():
         chars = sum(len(j[5][1]) for j in jobs)
         total_texts += len(jobs)
         total_chars += chars
-        print(f"{rid}: текстів {len(jobs)}, символів {chars}")
+        if jobs or not args.all:
+            print(f"{rid}: текстів {len(jobs)}, символів {chars}")
         if args.dry_run or not jobs:
             continue
         cur = db.cursor()

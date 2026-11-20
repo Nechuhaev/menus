@@ -1,5 +1,6 @@
 ﻿@inject Menus.Web.Services.LocaleService LocaleSrvc;
 @inject Menus.Web.Services.DishTagsService DishTags;
+@inject Menus.Web.Services.DishBadgeService DishBadgeSvc;
 @model Menus.Abstract.Models.IDish
 @{
     ViewData["Title"] = "EditDish";
@@ -268,6 +269,40 @@
                     <input tabindex="7" type="submit" onclick="$('.my_menu').attr('action', '@Url.Action("EditDish")')" value="сохранить" />
                 </div>
             </form>
+
+            @* мітки страви в меню: автоматично (рейтинг, слова «веган», «гостре» в назві й описі) або вручну *@
+            @{
+                var manualBadges = (await DishBadgeSvc.GetManual(new[] { Model.Id })).TryGetValue(Model.Id, out var mbv) ? mbv : null;
+                var shownBadges = Menus.Web.Services.DishBadgeService.Resolve(manualBadges, false,
+                    Model.Name?.Get("uk"), Model.Name?.Get("en"), Model.ShortDescription?.Get("uk"), Model.Description?.Get("uk"), Model.Ingredients?.Get("uk"));
+            }
+            <form method="post" asp-action="SetDishBadges" class="dish-badges-form">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <h3>Мітки в меню</h3>
+                <p class="dbf-hint">@(manualBadges == null ? "Зараз - автоматично: «Хіт» для найкраще оцінених страв, «Веган» і «Гостре» за словами в назві чи описі." : "Зараз - вручну (автоматичні мітки для цієї страви вимкнено).")</p>
+                <div class="dbf-row">
+                    @foreach (var b in Menus.Web.Services.DishBadgeService.All)
+                    {
+                        <label><input type="checkbox" name="badges" value="@b.Key" checked="@shownBadges.Contains(b.Key)" /> @b.Value.Icon @b.Value.Uk</label>
+                    }
+                </div>
+                <div class="dbf-row">
+                    <button type="submit" name="mode" value="manual">Зберегти мітки</button>
+                    @if (manualBadges != null)
+                    {
+                        <button type="submit" name="mode" value="auto" class="dbf-ghost">Повернути автоматичні</button>
+                    }
+                </div>
+            </form>
+            <style>
+                .dish-badges-form { margin: 24px 0; padding: 14px 16px; border: 1px solid #eceef2; border-radius: 12px; background: #fff; }
+                .dish-badges-form h3 { margin: 0 0 6px; font-size: 18px; }
+                .dish-badges-form .dbf-hint { margin: 0 0 10px; font-size: 13px; color: #5f6670; }
+                .dish-badges-form .dbf-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 10px; }
+                .dish-badges-form label { display: inline-flex; gap: 6px; align-items: center; font-size: 15px; }
+                .dish-badges-form button { min-height: 36px; padding: 6px 16px; border: 0; border-radius: 8px; background: #ffb80e; font-weight: 600; cursor: pointer; }
+                .dish-badges-form .dbf-ghost { background: #fff; border: 1px solid #dfe2e8; font-weight: normal; }
+            </style>
 
         </div>
 
