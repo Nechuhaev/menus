@@ -172,7 +172,7 @@ namespace Menus.Web.Services
 
         // Повідомлення боту: /start <код> - підключення до ресторану; інше - відповідь власника в історію розсилки
         // Повертає помилку відповіді бота (null - відповів або відповідати не треба)
-        public async Task<string> HandleUpdate(JObject update, OutreachService outreach)
+        public async Task<string> HandleUpdate(JObject update, OutreachService outreach, DishStopService stops = null, Menus.Abstract.ITaskRunner runner = null)
         {
             var message = update["message"] as JObject;
             var chatId = message?["chat"]?.Value<long?>("id");
@@ -188,6 +188,10 @@ namespace Menus.Web.Services
                 var restaurantId = ParseStartCode(text.Substring(6));
                 var name = restaurantId == null ? null : await _connection.QueryFirstOrDefaultAsync<string>(
                     "SELECT Name FROM Restaurants WHERE Id = @restaurantId", new { restaurantId });
+                if (name == null && stops != null && (await LinkedRestaurants(chatId.Value)).Any())
+                {
+                    return await SendMessage(chatId.Value, HelpText);
+                }
                 if (name == null)
                 {
                     // прийшов з сайту (лендинги «Для власників», «Меню для сайту») - заявка в «Запити», щоб не загубити контакт
@@ -203,16 +207,125 @@ namespace Menus.Web.Services
                 return await SendMessage(chatId.Value, $"Дякуємо! Telegram підключено до «{name}» на TipMyMenu. Сюди ми напишемо щодо меню закладу, а ви можете відповідати прямо тут.");
             }
 
-            var restaurants = (await _connection.QueryAsync<string>(
-                "SELECT CONCAT(RestaurantId, '') FROM OutreachTelegramLinks WHERE ChatId = @chatId", new { chatId })).ToList();
+            var restaurants = await LinkedRestaurants(chatId.Value);
             foreach (var restaurantId in restaurants)
                 await outreach.LogTelegram(restaurantId, Title(chatId.Value, username, firstName), text, "received");
+            // стоп-лист і ціни: команди лише з чату, підключеного до закладу персональним посиланням
+            if (restaurants.Any() && stops != null)
+            {
+                var reply = await HandleMenuCommand(chatId.Value, restaurants, text.Trim(), stops, runner);
+                if (reply != null)
+                {
+                    foreach (var restaurantId in restaurants)
+                        await outreach.LogTelegram(restaurantId, "бот", reply, "sent");
+                    return await SendMessage(chatId.Value, reply);
+                }
+            }
             if (!restaurants.Any())
             {
                 // не підключений до закладу: повідомлення - заявка в «Запити» (адмін відповідає в Telegram за @username)
                 await SaveLead(chatId.Value, username, firstName, text);
             }
             return await SendMessage(chatId.Value, "Дякуємо, повідомлення отримали - відповімо найближчим часом.");
+        }
+
+        private async Task<List<string>> LinkedRestaurants(long chatId) =>
+            (await _connection.QueryAsync<string>("SELECT CONCAT(RestaurantId, '') FROM OutreachTelegramLinks WHERE ChatId = @chatId", new { chatId })).ToList();
+
+        private const string HelpText = "Команди для меню закладу:\n" +
+            "/stop назва - «Немає в наявності» до 6:00 ранку\n" +
+            "/back назва - повернути страву в меню\n" +
+            "/price назва 185 - нова ціна\n" +
+            "/stoplist - що зараз у стоп-листі\n" +
+            "Назву можна писати частково: «/stop борщ».";
+
+        private class PendingCommand
+        {
+            public string Command;
+            public decimal? Price;
+            public List<(string Id, string RestaurantId, string Name)> Options;
+            public DateTime At;
+        }
+
+        // вибір страви номером, якщо назва підійшла кільком
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, PendingCommand> Pending =
+            new System.Collections.Concurrent.ConcurrentDictionary<long, PendingCommand>();
+
+        private static string Norm(string v) => System.Text.RegularExpressions.Regex.Replace((v ?? "").ToLowerInvariant().Replace("ё", "е"), @"['’ʼ`""«»]", "").Trim();
+
+        // null - не команда (звичайне повідомлення власника)
+        private async Task<string> HandleMenuCommand(long chatId, List<string> restaurants, string text, DishStopService stops, Menus.Abstract.ITaskRunner runner)
+        {
+            if (Pending.TryGetValue(chatId, out var pending) && DateTime.UtcNow - pending.At < TimeSpan.FromMinutes(10) &&
+                int.TryParse(text, out var number) && number >= 1 && number <= pending.Options.Count)
+            {
+                Pending.TryRemove(chatId, out _);
+                return await Apply(pending.Command, pending.Options[number - 1], pending.Price, stops, runner);
+            }
+            var lower = text.ToLowerInvariant();
+            if (lower == "/help" || lower == "/menu") return HelpText;
+            if (lower.StartsWith("/stoplist"))
+            {
+                var lines = new List<string>();
+                var dishes = await LoadDishes(restaurants);
+                foreach (var r in restaurants)
+                {
+                    var active = await stops.Active(r);
+                    lines.AddRange(dishes.Where(d => active.Contains(d.Id)).Select(d => "• " + d.Name));
+                }
+                return lines.Any() ? "Зараз у стоп-листі:\n" + string.Join("\n", lines) : "Стоп-лист порожній: усі страви в меню.";
+            }
+            var m = System.Text.RegularExpressions.Regex.Match(text, @"^/(stop|back|price)(?:@\w+)?\s+(.+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (!m.Success) return text.StartsWith("/") ? HelpText : null;
+            var command = m.Groups[1].Value.ToLowerInvariant();
+            var query = m.Groups[2].Value.Trim();
+            decimal? price = null;
+            if (command == "price")
+            {
+                var pm = System.Text.RegularExpressions.Regex.Match(query, @"^(.+?)\s+(\d+(?:[.,]\d{1,2})?)\s*(?:грн|₴)?$");
+                if (!pm.Success) return "Формат: /price назва 185";
+                query = pm.Groups[1].Value.Trim();
+                price = decimal.Parse(pm.Groups[2].Value.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+                if (price <= 0 || price > 100000) return "Ціна має бути від 1 до 100000.";
+            }
+            var q = Norm(query);
+            var all = await LoadDishes(restaurants);
+            var exact = all.Where(d => Norm(d.Name) == q).ToList();
+            var found = exact.Any() ? exact : all.Where(d => Norm(d.Name).Contains(q)).ToList();
+            if (!found.Any()) return $"Не знайшов страву «{query}» у меню. Напишіть частину назви, наприклад «/{command} борщ».";
+            if (found.Count == 1) return await Apply(command, found[0], price, stops, runner);
+            if (found.Count > 10) return $"Під «{query}» підходить {found.Count} страв - уточніть назву.";
+            Pending[chatId] = new PendingCommand { Command = command, Price = price, Options = found, At = DateTime.UtcNow };
+            return "Яку саме? Надішліть номер:\n" + string.Join("\n", found.Select((d, i) => $"{i + 1}. {d.Name}"));
+        }
+
+        private async Task<List<(string Id, string RestaurantId, string Name)>> LoadDishes(List<string> restaurants) =>
+            (await _connection.QueryAsync<(string Id, string RestaurantId, string Name)>(
+                "SELECT CONCAT(Id, ''), CONCAT(RestaurantId, ''), Name FROM Dishes WHERE RestaurantId IN @restaurants AND Status = 0",
+                new { restaurants }))
+            .Select(d => (d.Id, d.RestaurantId, Name: Menus.Web.Models.LocalizableString.FromJson(d.Name).Get("uk", true)))
+            .Where(d => !string.IsNullOrWhiteSpace(d.Name)).ToList();
+
+        private async Task<string> Apply(string command, (string Id, string RestaurantId, string Name) dish, decimal? price, DishStopService stops, Menus.Abstract.ITaskRunner runner)
+        {
+            string reply;
+            if (command == "stop")
+            {
+                await stops.Stop(dish.Id, dish.RestaurantId, DishStopService.NextMorningUtc(), "telegram");
+                reply = $"«{dish.Name}» - у стоп-листі до 6:00 ранку. Повернути раніше: /back {dish.Name}";
+            }
+            else if (command == "back")
+            {
+                await stops.Back(dish.Id);
+                reply = $"«{dish.Name}» знову в меню.";
+            }
+            else
+            {
+                await _connection.ExecuteAsync("UPDATE Dishes SET Price = @price WHERE Id = @id", new { price, id = dish.Id });
+                reply = $"Ціна «{dish.Name}»: {price.Value:0.##} ₴.";
+            }
+            runner?.RunUpdateRestaurantIframeCache(dish.RestaurantId);
+            return reply + " На сайті оновиться протягом 30 хвилин.";
         }
 
         // заявка в адмінку «Запити» (таблиця CustomerRequests): текст - у полі «Заклад», контакт Telegram - у «Телефон»

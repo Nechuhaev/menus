@@ -13,11 +13,15 @@ namespace Menus.Web.Controllers
     {
         private readonly TelegramOwnersService _telegram;
         private readonly OutreachService _outreach;
+        private readonly DishStopService _stops;
+        private readonly Menus.Abstract.ITaskRunner _runner;
 
-        public TelegramOwnersController(TelegramOwnersService telegram, OutreachService outreach)
+        public TelegramOwnersController(TelegramOwnersService telegram, OutreachService outreach, DishStopService stops, Menus.Abstract.ITaskRunner runner)
         {
             _telegram = telegram;
             _outreach = outreach;
+            _stops = stops;
+            _runner = runner;
         }
 
         [HttpPost]
@@ -37,7 +41,7 @@ namespace Menus.Web.Controllers
                 {
                     json = await reader.ReadToEndAsync();
                 }
-                var replyError = await _telegram.HandleUpdate(JObject.Parse(json), _outreach);
+                var replyError = await _telegram.HandleUpdate(JObject.Parse(json), _outreach, _stops, _runner);
                 TelegramOwnersService.LastWebhookResult = replyError == null ? "оброблено" : "оброблено, але бот не відповів: " + replyError;
             }
             catch (Exception ex)

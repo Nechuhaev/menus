@@ -12,6 +12,7 @@
 @inject IViewLocalizer Localizer
 @inject Menus.Domain.Core Core
 @inject Menus.Web.Services.DishBadgeService DishBadgeSvc
+@inject Menus.Web.Services.DishStopService DishStopSvc
 @functions {
     // Одиниці з різних джерел (г / g / gr, мл / ml, psc, «/», «\», порожньо) - до одного вигляду.
     // Напої (за назвою розділу) у грамах - у мл. Без одиниці: до 20 - штуки, більше - г або мл.
@@ -63,6 +64,7 @@
         public float Rating;
         public int RatingCount;
         public List<string> Badges = new List<string>(); // «Хіт», «Веган»… (DishBadgeService)
+        public bool Stopped;                              // стоп-лист: «Немає в наявності» (DishStopService)
     }
     static TimeZoneInfo KyivZone()
     {
@@ -155,6 +157,8 @@
     var badgeDishes = allCategories.Where(c => c.Dishes != null).SelectMany(c => c.Dishes).GroupBy(x => x.Id).Select(g => g.First()).ToList();
     var manualBadges = await DishBadgeSvc.GetManual(badgeDishes.Select(x => x.Id));
     var hitDishes = Menus.Web.Services.DishBadgeService.Hits(badgeDishes.Select(x => (x.Id, (double)x.RatingFloat, x.RatingCount)));
+    var stoppedDishes = await DishStopSvc.Active(Model.Restaurant.Id);
+    var stopText = culture == "en" ? "Not available" : culture == "ru" ? "Нет в наличии" : "Немає в наявності";
     foreach (var (cat, d) in allCategories.Where(c => c.Dishes != null).SelectMany(c => c.Dishes.Select(x => (c, x))))
     {
         if (cards.ContainsKey(d.Id)) { continue; }
@@ -181,6 +185,7 @@
             Rating = d.RatingFloat,
             RatingCount = d.RatingCount,
             RatingText = d.RatingCount > 0 ? $"★ {d.RatingFloat.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} · {d.RatingCount} {Localizer["Ratings"].Value}" : null,
+            Stopped = stoppedDishes.Contains(d.Id ?? ""),
             Badges = Menus.Web.Services.DishBadgeService.Resolve(manualBadges.TryGetValue(d.Id ?? "", out var mb) ? mb : null, hitDishes.Contains(d.Id ?? ""),
                 d.Name?.Get("uk"), d.Name?.Get("en"), d.ShortDescription?.Get("uk"), d.Description?.Get("uk"), d.Ingredients?.Get("uk"))
         };
@@ -243,6 +248,8 @@
         .dish .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; line-height: 18px; background: #fff3d6; color: #6b4b00; white-space: nowrap; }
         .dish .badge-vegan { background: #e6f6ea; color: #1b6e35; }
         .dish .badge-spicy { background: #fde8e6; color: #9b2c1f; }
+        .dish .badge-stop { background: #e9eaee; color: #4b4f57; }
+        .dish.stopped { opacity: .55; }
         .dish p { margin: 0; color: var(--muted); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
         .meta { margin-top: auto; padding-top: 10px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
         .price { font-weight: 700; font-size: 17px; white-space: nowrap; }
@@ -385,10 +392,14 @@
                     {
                         dishIndex++;
                         var card = cards[dish.Id];
-                        <article class="dish@(card.Photo == null ? " nophoto" : "")" tabindex="0" role="button" data-title="@card.Title" data-desc="@card.FullDesc" data-ingr="@card.Ingr"
+                        <article class="dish@(card.Photo == null ? " nophoto" : "")@(card.Stopped ? " stopped" : "")" tabindex="0" role="button" data-title="@card.Title" data-desc="@card.FullDesc" data-ingr="@card.Ingr"
                                  data-photo="@card.PhotoHigh" data-price="@card.PriceText" data-weight="@card.Weight" data-variants="@card.Variants" data-rating="@card.RatingText">
                             <div class="dt">
                                 <h3>@card.Title</h3>
+                                @if (card.Stopped)
+                                {
+                                    <div class="badges"><span class="badge badge-stop">@stopText</span></div>
+                                }
                                 @if (card.Badges.Any())
                                 {
                                     <div class="badges">@foreach (var b in card.Badges) {<span class="badge badge-@b">@Menus.Web.Services.DishBadgeService.Icon(b) @Menus.Web.Services.DishBadgeService.Name(b, culture)</span>}</div>

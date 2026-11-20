@@ -1,6 +1,7 @@
 ﻿@inject Menus.Web.Services.LocaleService LocaleSrvc;
 @inject Menus.Web.Services.DishTagsService DishTags;
 @inject Menus.Web.Services.DishBadgeService DishBadgeSvc;
+@inject Menus.Web.Services.DishStopService DishStopSvc;
 @model Menus.Abstract.Models.IDish
 @{
     ViewData["Title"] = "EditDish";
@@ -291,6 +292,24 @@
                     @if (manualBadges != null)
                     {
                         <button type="submit" name="mode" value="auto" class="dbf-ghost">Повернути автоматичні</button>
+                    }
+                </div>
+            </form>
+            @* стоп-лист: «Немає в наявності» на сьогодні (до 6:00) або до повернення; те саме, що /stop у Telegram-боті *@
+            @{ var dishStopped = await DishStopSvc.IsStopped(Model.Id); }
+            <form method="post" asp-action="SetDishStop" class="dish-badges-form">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <h3>Наявність</h3>
+                <p class="dbf-hint">@(dishStopped ? "Зараз страва в стоп-листі: у меню позначена «Немає в наявності»." : "Страва в наявності.") У Telegram-боті: /stop назва, /back назва.</p>
+                <div class="dbf-row">
+                    @if (dishStopped)
+                    {
+                        <button type="submit" name="mode" value="back">Повернути в меню</button>
+                    }
+                    else
+                    {
+                        <button type="submit" name="mode" value="today">Немає сьогодні (до 6:00)</button>
+                        <button type="submit" name="mode" value="forever" class="dbf-ghost">Немає до повернення</button>
                     }
                 </div>
             </form>

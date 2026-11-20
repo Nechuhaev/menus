@@ -127,6 +127,7 @@ namespace Menus.Web
             services.AddScoped<RestaurantStatsService>();
             services.AddScoped<OwnerReportService>();
             services.AddScoped<DishBadgeService>();
+            services.AddScoped<DishStopService>();
             services.AddScoped<SiteTextService>();
             services.AddScoped<NewVenueService>();
             services.AddScoped<UserVisitService>();
@@ -617,27 +618,26 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions { ForwardedHeaders = F
             }
 
 
+            // перший адміністратор - лише на новій базі й лише з секретами в /root/menus.env
+            // (SeedAdmin__Email, SeedAdmin__Password); пароль у коді більше не зберігається.
+            // Id сталий: на нього посилається кабінет («власник за замовчуванням»).
+            var adminEmail = Configuration["SeedAdmin:Email"];
+            var adminPassword = Configuration["SeedAdmin:Password"];
+            if (string.IsNullOrEmpty(adminEmail) || string.IsNullOrEmpty(adminPassword)) return;
+            if (await UserManager.FindByIdAsync("1a950ec5-7fd3-4d82-adca-d27fda6025b5") != null || await UserManager.FindByEmailAsync(adminEmail) != null) return;
+
             var poweruser = new ApplicationUser
             {
-
                 Id = "1a950ec5-7fd3-4d82-adca-d27fda6025b5",
                 NormalizedUserName = "1A950EC5-7FD3-4D82-ADCA-D27FDA6025B5",
                 EmailConfirmed = true,
                 UserName = "1a950ec5-7fd3-4d82-adca-d27fda6025b5",
-                Email = "admin@vvertigoo.pp.ua",
-                PhoneNumber = "+380678946096"
+                Email = adminEmail
             };
-
-            string userPWD = "!QNtfBhgYaA0DVdZ6Gb3v";
-            var _user = await UserManager.FindByEmailAsync("admin@vvertigoo.pp.ua");
-
-            if (_user == null)
+            var createPowerUser = await UserManager.CreateAsync(poweruser, adminPassword);
+            if (createPowerUser.Succeeded)
             {
-                var createPowerUser = await UserManager.CreateAsync(poweruser, userPWD);
-                if (createPowerUser.Succeeded)
-                {
-                    await UserManager.AddToRoleAsync(poweruser, "admin");
-                }
+                await UserManager.AddToRoleAsync(poweruser, "admin");
             }
         }
     }
