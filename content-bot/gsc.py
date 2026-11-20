@@ -16,7 +16,7 @@ def available():
     return os.path.exists(KEY_FILE)
 
 
-def query(dimensions, days=28, end_offset=3):
+def query(dimensions, days=28, end_offset=3, page_contains=None):
     """[(ключі, кліки, покази, позиція)] за days днів до (сьогодні - end_offset): останні дні ще неповні."""
     from google.auth.transport.requests import AuthorizedSession
     from google.oauth2 import service_account
@@ -28,8 +28,11 @@ def query(dimensions, days=28, end_offset=3):
     end = date.today() - timedelta(days=end_offset)
     rows, start_row = [], 0
     while True:
-        resp = session.post(url, json={"startDate": str(end - timedelta(days=days - 1)), "endDate": str(end),
-                                       "dimensions": dimensions, "rowLimit": PAGE_SIZE, "startRow": start_row}, timeout=60)
+        body = {"startDate": str(end - timedelta(days=days - 1)), "endDate": str(end),
+                "dimensions": dimensions, "rowLimit": PAGE_SIZE, "startRow": start_row}
+        if page_contains:  # лише сторінки, що містять рядок (напр. "/restaurant/")
+            body["dimensionFilterGroups"] = [{"filters": [{"dimension": "page", "operator": "contains", "expression": page_contains}]}]
+        resp = session.post(url, json=body, timeout=60)
         resp.raise_for_status()
         batch = resp.json().get("rows", [])
         rows += [(r["keys"], r["clicks"], r["impressions"], r["position"]) for r in batch]

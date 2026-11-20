@@ -74,6 +74,7 @@ namespace Menus.Web.Services
                 if (string.IsNullOrEmpty(o.Slug) || !stats.TryGetValue(o.Slug.ToLowerInvariant(), out var s) || s.Impressions < MinImpressions) continue;
                 if (await _outreach.SentSince(o.RestaurantId, TemplateId, new DateTime(today.Year, today.Month, 1))) continue; // уже надіслано цього місяця
                 var token = Guid.NewGuid().ToString("N");
+                s.Queries = await _stats.TopQueries(o.Slug, from, to, 5);
                 var (subject, body) = Text(o.Name, month, s, token);
                 await _outreach.QueueSystemEmail(o.RestaurantId, TemplateId, o.Email.Trim(), subject, body, token, delay);
                 delay += TimeSpan.FromSeconds(OutreachService.IntervalSeconds);
@@ -96,6 +97,12 @@ namespace Menus.Web.Services
             };
             if (s.Position > 0) lines.Add($"- середня позиція {s.Position:0.#}");
             if (s.Views > 0) lines.Add($"- {s.Views:N0} переглядів сторінки");
+            if (s.Queries.Any())
+            {
+                lines.Add("");
+                lines.Add("Вас знаходили за запитами:");
+                lines.AddRange(s.Queries.Select(q => $"- «{q.Query}» - {q.Impressions:N0} показів"));
+            }
             lines.AddRange(new[]
             {
                 "",

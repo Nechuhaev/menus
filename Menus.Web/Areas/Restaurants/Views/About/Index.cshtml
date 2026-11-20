@@ -64,6 +64,18 @@
                                 <div><b>@googleStats.Views.ToString("N0")</b>переглядів сторінки</div>
                             }
                         </div>
+                        @if (googleStats.Queries.Any())
+                        {
+                            <div class="gs-queries">
+                                <b>За якими запитами вас знаходять:</b>
+                                <ul>
+                                    @foreach (var q in googleStats.Queries)
+                                    {
+                                        <li>«@q.Query» <span>@q.Impressions.ToString("N0") показів@(q.Clicks > 0 ? $", {q.Clicks:N0} переходів" : "")</span></li>
+                                    }
+                                </ul>
+                            </div>
+                        }
                         <p class="gs-hint">Більше фото страв, актуальні ціни й години роботи - вище позиція і більше переходів.</p>
                     }
                     else
@@ -84,6 +96,10 @@
                     .google-stats .gs-row div { background: #f5f6f9; border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #5f6670; }
                     .google-stats .gs-row b { display: block; font-size: 22px; color: #231f20; }
                     .google-stats .gs-hint { margin: 10px 0 0; font-size: 13px; color: #5f6670; }
+                    .google-stats .gs-queries { margin-top: 10px; font-size: 14px; }
+                    .google-stats .gs-queries ul { margin: 6px 0 0; padding-left: 18px; }
+                    .google-stats .gs-queries li { overflow-wrap: anywhere; margin-bottom: 2px; }
+                    .google-stats .gs-queries span { color: #8a9099; font-size: 12px; }
                     .google-stats .gs-report { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; font-size: 13px; color: #5f6670; }
                     .google-stats .gs-report button { min-height: 32px; padding: 4px 12px; border: 1px solid #dfe2e8; border-radius: 8px; background: #fff; cursor: pointer; }
                 </style>

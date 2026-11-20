@@ -18,6 +18,8 @@ namespace Menus.Web.Services
         public DateTime? From { get; set; }
         public DateTime? To { get; set; }
         public bool HasData => Impressions > 0 || Views > 0;
+        // пошукові запити, за якими знаходять заклад (SeoPageQueryDays) - лише для одного закладу
+        public List<(string Query, int Clicks, int Impressions)> Queries { get; set; } = new List<(string, int, int)>();
     }
 
     // Сторінка закладу в Google і GA4 (усі мови разом): SeoPageDays / GaPageDays, які щодня пише content-bot/seo_daily.py.
@@ -38,8 +40,29 @@ namespace Menus.Web.Services
         {
             var last = await LastDay();
             if (last == null || string.IsNullOrEmpty(slug)) return new RestaurantStats();
-            return (await GetRange(last.Value.AddDays(-27), last.Value, slug)).TryGetValue(slug.ToLowerInvariant(), out var s)
-                ? s : new RestaurantStats { From = last.Value.AddDays(-27), To = last.Value };
+            var s = (await GetRange(last.Value.AddDays(-27), last.Value, slug)).TryGetValue(slug.ToLowerInvariant(), out var found)
+                ? found : new RestaurantStats { From = last.Value.AddDays(-27), To = last.Value };
+            s.Queries = await TopQueries(slug, last.Value.AddDays(-27), last.Value);
+            return s;
+        }
+
+        // топ запитів Google сторінки закладу за період (за показами)
+        public async Task<List<(string Query, int Clicks, int Impressions)>> TopQueries(string slug, DateTime from, DateTime to, int limit = 10)
+        {
+            if (string.IsNullOrEmpty(slug)) return new List<(string, int, int)>();
+            var like = "%/restaurant/" + slug.ToLowerInvariant().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+            try
+            {
+                return (await _connection.QueryAsync<(string Query, long Clicks, long Impressions)>(@"
+                    SELECT Query, CAST(SUM(Clicks) AS SIGNED), CAST(SUM(Impressions) AS SIGNED) FROM SeoPageQueryDays
+                    WHERE Day BETWEEN @from AND @to AND (Page LIKE @like OR Page LIKE @likeSlash)
+                    GROUP BY Query ORDER BY 3 DESC, 2 DESC LIMIT @limit", new { from, to, like, likeSlash = like + "/", limit }, commandTimeout: 60))
+                    .Select(x => (x.Query, (int)x.Clicks, (int)x.Impressions)).ToList();
+            }
+            catch (Exception)
+            {
+                return new List<(string, int, int)>(); // seo_daily.py ще не зберігав запити
+            }
         }
 
         public async Task<DateTime?> LastDay()
