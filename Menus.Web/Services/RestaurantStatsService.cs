@@ -35,6 +35,35 @@ namespace Menus.Web.Services
             _connection = dbContext.Database.GetDbConnection();
         }
 
+        // Усі заклади за 28 днів - кеш на 6 год для публічних сторінок (блок «Власник закладу»).
+        // Оновлює один запит (інші не чекають: беруть старий кеш або нічого), щоб не тримати з'єднання з базою.
+        private static Dictionary<string, RestaurantStats> _all28;
+        private static DateTime _all28At;
+        private static readonly System.Threading.SemaphoreSlim All28Lock = new System.Threading.SemaphoreSlim(1, 1);
+
+        public async Task<RestaurantStats> Cached28(string slug)
+        {
+            if (string.IsNullOrEmpty(slug)) return null;
+            if ((_all28 == null || DateTime.UtcNow - _all28At > TimeSpan.FromHours(6)) && All28Lock.Wait(0))
+            {
+                try
+                {
+                    var last = await LastDay();
+                    _all28 = last == null ? new Dictionary<string, RestaurantStats>() : await GetRange(last.Value.AddDays(-27), last.Value);
+                    _all28At = DateTime.UtcNow;
+                }
+                catch (Exception)
+                {
+                    _all28At = DateTime.UtcNow; // повтор через 6 год, а не на кожному запиті
+                }
+                finally
+                {
+                    All28Lock.Release();
+                }
+            }
+            return _all28 != null && _all28.TryGetValue(slug.ToLowerInvariant(), out var s) ? s : null;
+        }
+
         // останні 28 днів до останнього дня з даними
         public async Task<RestaurantStats> GetLast28(string slug)
         {

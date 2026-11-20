@@ -528,6 +528,39 @@
                         </div>
                     </div>
                 </section>
+                @* посилання на меню для Google Business Profile (Google Maps): та сама адреса, що й у QR *@
+                <section class="qr-menu gbp-menu" id="gbp-menu">
+                    <h3>Меню у Google Maps</h3>
+                    <p class="embed-hint">Додайте посилання на меню в профіль закладу в Google - кнопка «Меню» з'явиться в Google Maps і в пошуку.</p>
+                    <div class="gbp-row">
+                        <input type="text" id="gbpUrl" readonly value="@string.Format(iframeUrl, "uk")" aria-label="Посилання на меню" />
+                        <button type="button" class="qr-btn" id="gbpCopy">Скопіювати</button>
+                    </div>
+                    <ol class="gbp-steps">
+                        <li>Відкрийте <a href="https://business.google.com/" target="_blank" rel="noopener">business.google.com</a> або знайдіть свій заклад у Google і натисніть «Редагувати профіль».</li>
+                        <li>Розділ «Меню» → «Посилання на меню».</li>
+                        <li>Вставте скопійоване посилання і збережіть. Google показує зміни протягом кількох днів.</li>
+                    </ol>
+                </section>
+                <script>
+                    (function () {
+                        var btn = document.getElementById('gbpCopy'), input = document.getElementById('gbpUrl');
+                        if (!btn || !input) return;
+                        btn.addEventListener('click', function () {
+                            input.select();
+                            var done = function () { btn.textContent = 'Скопійовано ✓'; setTimeout(function () { btn.textContent = 'Скопіювати'; }, 2000); };
+                            if (navigator.clipboard) navigator.clipboard.writeText(input.value).then(done, function () { document.execCommand('copy'); done(); });
+                            else { document.execCommand('copy'); done(); }
+                        });
+                    })();
+                </script>
+                <style>
+                    .gbp-menu .gbp-row { display: flex; flex-wrap: wrap; gap: 8px; }
+                    .gbp-menu .gbp-row input { flex: 1 1 220px; min-width: 0; min-height: 36px; padding: 4px 8px; border: 1px solid #dfe2e8; border-radius: 8px; font-size: 13px; }
+                    .gbp-menu .gbp-row button { border: 0; cursor: pointer; }
+                    .gbp-menu .gbp-steps { margin: 10px 0 0; padding-left: 20px; font-size: 14px; color: #5f6670; }
+                    .gbp-menu .gbp-steps li { margin-bottom: 4px; overflow-wrap: anywhere; }
+                </style>
                 <style>
                     .qr-menu { margin: 24px 0; padding-top: 16px; border-top: 1px solid #eceef2; }
                     .qr-menu .qr-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
