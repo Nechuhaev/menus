@@ -277,7 +277,7 @@ https://tipmymenu.com
 {Відписатися}"
         };
 
-        public static readonly string[] Placeholders = { "{Назва}", "{Місто}", "{Сторінка}", "{Страв}", "{ДляВласників}", "{Iframe}", "{Telegram}", "{Покази}", "{Кліки}", "{Перегляди}", "{Відписатися}" };
+        public static readonly string[] Placeholders = { "{Назва}", "{Місто}", "{Сторінка}", "{Страв}", "{ДляВласників}", "{Iframe}", "{Telegram}", "{МенюДляGoogle}", "{Покази}", "{Кліки}", "{Перегляди}", "{Відписатися}" };
 
         public static readonly string[] Kinds = { "email", "telegram", "instagram", "phone" };
         public const int PageSize = 30;
@@ -562,6 +562,7 @@ https://tipmymenu.com
                 ["{Страв}"] = r.Dishes.ToString(),
                 ["{ДляВласників}"] = $"{baseUrl}/uk/articles/forowners",
                 ["{Iframe}"] = $"{baseUrl}/uk/{citySlug}/iframe/{r.Slug}",
+                ["{МенюДляGoogle}"] = $"Додайте меню в Google Maps (кнопка «Меню» в профілі закладу): Google Business Profile → Редагувати профіль → Меню → Посилання на меню: {baseUrl}/uk/{citySlug}/iframe/{r.Slug}",
                 ["{Telegram}"] = telegramLink ?? "",
                 ["{Покази}"] = r.Google.Impressions.ToString("N0"),
                 ["{Кліки}"] = r.Google.Clicks.ToString("N0"),

@@ -771,6 +771,10 @@
                         </div>
 
                         <div class="rest_info_text">
+                            @if (ViewData["pageGoogle"] is Menus.Web.Services.RestaurantStats pageGoogle)
+                            {
+                                <strong>@Menus.Web.Helpers.CatalogText.T(culture, $"Цю сторінку за 28 днів побачили {pageGoogle.Impressions:N0} разів у Google.", $"Эту страницу за 28 дней увидели {pageGoogle.Impressions:N0} раз в Google.", $"This page was seen {pageGoogle.Impressions:N0} times in Google in the last 28 days.")</strong>
+                            }
                             @Localizer["AreYouAnOwner"]? <a class="reg-restaurant" asp-area="" asp-controller="Articles" asp-action="ForOwners">@Localizer["RegisterInOrderToHaveAccess"]</a>
                         </div>
 

@@ -320,6 +320,16 @@ namespace Menus.Web.Controllers
             // посилання на сторінки «страва + місто» зі стравами цього закладу
             ViewData["dishCityPages"] = await DishCityPages.GetPagesWithDishes(restaurant.City,
                 menu.Categories.SelectMany(c => c.Dishes ?? new List<IDishWithSeoAndRatings>()).Select(d => d.Id));
+            // «Власник закладу»: скільки разів сторінку бачили в Google за 28 днів (кеш на 6 год)
+            try
+            {
+                var pageGoogle = await ((RestaurantStatsService)HttpContext.RequestServices.GetService(typeof(RestaurantStatsService))).Cached28(seo?.Url);
+                if (pageGoogle != null && pageGoogle.Impressions >= 10) ViewData["pageGoogle"] = pageGoogle;
+            }
+            catch (Exception)
+            {
+                // статистики немає - блок без цифр
+            }
             // інші заклади мережі в місті + посилання на сторінку мережі (якщо вона є на сайті)
             try
             {
