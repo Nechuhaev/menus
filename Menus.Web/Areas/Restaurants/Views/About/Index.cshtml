@@ -45,6 +45,43 @@
 
             <partial name="_AboutSubheader" />
 
+            @* «Ваш заклад у Google» за 28 днів: Search Console + GA4 сторінки закладу (усі мови) *@
+            @if (ViewData["googleStats"] is Menus.Web.Services.RestaurantStats googleStats)
+            {
+                <section class="google-stats">
+                    <h3>Ваш заклад у Google <small>@(googleStats.From?.ToString("dd.MM") ?? "")–@(googleStats.To?.ToString("dd.MM.yyyy") ?? "") · 28 днів</small></h3>
+                    @if (googleStats.HasData)
+                    {
+                        <div class="gs-row">
+                            <div><b>@googleStats.Impressions.ToString("N0")</b>показів у Google</div>
+                            <div><b>@googleStats.Clicks.ToString("N0")</b>переходів з Google</div>
+                            @if (googleStats.Position > 0)
+                            {
+                                <div><b>@googleStats.Position.ToString("0.#")</b>середня позиція</div>
+                            }
+                            @if (googleStats.Views > 0)
+                            {
+                                <div><b>@googleStats.Views.ToString("N0")</b>переглядів сторінки</div>
+                            }
+                        </div>
+                        <p class="gs-hint">Більше фото страв, актуальні ціни й години роботи - вище позиція і більше переходів.</p>
+                    }
+                    else
+                    {
+                        <p class="gs-hint">Даних поки немає: Google ще не показував сторінку закладу. Додайте меню з цінами й фото - це допомагає потрапити в пошук.</p>
+                    }
+                </section>
+                <style>
+                    .google-stats { margin: 16px 0; padding: 14px 16px; border: 1px solid #eceef2; border-radius: 12px; background: #fff; }
+                    .google-stats h3 { margin: 0 0 10px; font-size: 18px; }
+                    .google-stats h3 small { color: #8a9099; font-size: 13px; font-weight: normal; }
+                    .google-stats .gs-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+                    .google-stats .gs-row div { background: #f5f6f9; border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #5f6670; }
+                    .google-stats .gs-row b { display: block; font-size: 22px; color: #231f20; }
+                    .google-stats .gs-hint { margin: 10px 0 0; font-size: 13px; color: #5f6670; }
+                </style>
+            }
+
             <div class="language_and_text">
                 <div class="column_left">
                     <p class="requiredField"><span>*</span> поля обязательные к заполнению</p>
@@ -452,6 +489,42 @@
                             else { document.execCommand('copy'); done(); }
                         });
                         update();
+                    })();
+                </script>
+
+                @* QR-код на стіл: веде на iframe-меню закладу; табличка A6 - окрема сторінка для друку *@
+                <section class="qr-menu" id="qr-menu">
+                    <h3>QR-код на стіл</h3>
+                    <p class="embed-hint">Гість наводить камеру телефона на код - і бачить ваше меню з фото й цінами. Без застосунків і без оплати.</p>
+                    <div class="qr-row">
+                        <div id="qrPreview" class="qr-box"></div>
+                        <div class="qr-actions">
+                            <a class="qr-btn" asp-action="QrSign" target="_blank" rel="noopener">Табличка для друку (A6) →</a>
+                            <a class="qr-btn qr-ghost" id="qrPng" download="qr-menu.png" href="#">Завантажити QR (PNG)</a>
+                            <small>Код веде на: @string.Format(iframeUrl, "uk")</small>
+                        </div>
+                    </div>
+                </section>
+                <style>
+                    .qr-menu { margin: 24px 0; padding-top: 16px; border-top: 1px solid #eceef2; }
+                    .qr-menu .qr-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+                    .qr-menu .qr-box { width: 160px; height: 160px; flex: 0 0 auto; }
+                    .qr-menu .qr-box img, .qr-menu .qr-box canvas { width: 100% !important; height: auto !important; }
+                    .qr-menu .qr-actions { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1 1 220px; }
+                    .qr-menu .qr-btn { display: inline-block; min-height: 36px; padding: 8px 16px; border-radius: 8px; background: #ffb80e; color: #231f20; font-weight: 600; text-decoration: none; text-align: center; }
+                    .qr-menu .qr-ghost { background: #fff; border: 1px solid #dfe2e8; }
+                    .qr-menu small { color: #5f6670; font-size: 12px; overflow-wrap: anywhere; }
+                </style>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+                <script>
+                    (function () {
+                        var box = document.getElementById('qrPreview');
+                        if (!box || typeof QRCode === 'undefined') return;
+                        new QRCode(box, { text: @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(string.Format(iframeUrl, "uk"))), width: 600, height: 600, correctLevel: QRCode.CorrectLevel.M });
+                        setTimeout(function () {
+                            var canvas = box.querySelector('canvas');
+                            if (canvas) document.getElementById('qrPng').href = canvas.toDataURL('image/png');
+                        }, 300);
                     })();
                 </script>
             }

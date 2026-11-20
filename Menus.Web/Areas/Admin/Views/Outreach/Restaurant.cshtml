@@ -1,5 +1,6 @@
 ﻿@model Menus.Web.Services.OutreachRecipient
 @inject Menus.Web.Services.CatalogService CatalogSvc
+@inject Menus.Web.Services.RestaurantStatsService StatsSvc
 
 @{
     ViewData["Title"] = "Розсилка: " + Model.Name;
@@ -75,6 +76,21 @@
                 {
                     <partial name="_VenueForm" model="(catalogVenue, catalogDistricts, Context.Request.Path + Context.Request.QueryString)" />
                 }
+            </div>
+            @{
+                var googleStats = await StatsSvc.GetLast28(Model.Slug);
+            }
+            <div class="muted" style="margin-bottom:10px;overflow-wrap:anywhere;">
+                Google за 28 днів:
+                @if (googleStats.HasData)
+                {
+                    <span>@Menus.Web.Services.RestaurantStatsService.Describe(googleStats)@(googleStats.Position > 0 ? $", позиція {googleStats.Position:0.#}" : "")</span>
+                }
+                else
+                {
+                    <span>даних немає</span>
+                }
+                · <a asp-area="Restaurants" asp-controller="About" asp-action="QrSign" asp-route-id="@Model.Id" target="_blank" rel="noopener">QR-табличка на стіл ↗</a>
             </div>
             <div class="alive-box">
                 @if (Model.Closed)

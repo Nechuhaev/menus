@@ -124,6 +124,7 @@ namespace Menus.Web
             services.AddScoped<CustomerRequestService>();
             services.AddScoped<PageRedirectService>();
             services.AddScoped<CatalogService>();
+            services.AddScoped<RestaurantStatsService>();
             services.AddScoped<SiteTextService>();
             services.AddScoped<NewVenueService>();
             services.AddScoped<UserVisitService>();
