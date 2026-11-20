@@ -143,7 +143,7 @@ namespace Menus.Web.Areas.Restaurants.Controllers
             ViewData["iframeName"] = selectedRestaurant.Name;
             ViewData["iframeDesign"] = await HttpContext.RequestServices.GetRequiredService<IframeDesignService>().Get(selectedRestaurant.Id);
             // «Ваш заклад у Google» за 28 днів і QR-код на стіл (веде на iframe-меню)
-            ViewData["googleStats"] = await HttpContext.RequestServices.GetRequiredService<RestaurantStatsService>().GetLast28(iframeSeo?.Url);
+            ViewData["googleStats"] = await HttpContext.RequestServices.GetRequiredService<RestaurantStatsService>().GetLast28(iframeSeo?.Url, selectedRestaurant.Id);
             ViewData["ownerReport"] = await HttpContext.RequestServices.GetRequiredService<OwnerReportService>().IsEnabled(selectedRestaurant.Id);
 
             return View(restaurantInfo);
@@ -180,7 +180,7 @@ namespace Menus.Web.Areas.Restaurants.Controllers
             var seo = await _core.Restaurants.GetSeoByRestaurantId(restaurant.Id);
             var city = (await _core.Restaurants.GetCities()).FirstOrDefault(x => x.Id == restaurant.City);
             if (string.IsNullOrEmpty(seo?.Url) || city == null) return NotFound();
-            ViewData["qrUrl"] = $"https://tipmymenu.com/uk/{city.Name.Get("en").ToLower()}/iframe/{seo.Url}";
+            ViewData["qrUrl"] = $"https://tipmymenu.com/uk/{city.Name.Get("en").ToLower()}/iframe/{seo.Url}?src=qr";
             ViewData["name"] = restaurant.Name;
             return View();
         }

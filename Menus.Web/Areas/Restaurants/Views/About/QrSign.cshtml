@@ -39,7 +39,7 @@
     <div class="tools">
         <button type="button" onclick="window.print()">Друкувати / зберегти PDF</button>
         <a class="ghost" id="png" download="qr-menu.png" href="#">Завантажити QR (PNG)</a>
-        <a class="ghost" href="@qrUrl" target="_blank" rel="noopener">Відкрити меню ↗</a>
+        <a class="ghost" href="@qrUrl.Replace("?src=qr", "")" target="_blank" rel="noopener">Відкрити меню ↗</a>
     </div>
     <p class="hint">Формат A6 (105×148 мм). У вікні друку виберіть розмір паперу A6 або друкуйте на A4 і виріжте.</p>
     <div class="sign">

@@ -78,7 +78,7 @@
                 }
             </div>
             @{
-                var googleStats = await StatsSvc.GetLast28(Model.Slug);
+                var googleStats = await StatsSvc.GetLast28(Model.Slug, Model.Id);
             }
             <div class="muted" style="margin-bottom:10px;overflow-wrap:anywhere;">
                 Google за 28 днів:

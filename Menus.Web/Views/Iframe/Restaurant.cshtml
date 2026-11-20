@@ -567,5 +567,12 @@
             tabs[0].classList.add('on');
         })();
     </script>
+    @* скан QR-коду на стіл (адреса з ?src=qr): +1 у QrScanDays; вбудоване на сайт меню не рахується *@
+    <script>
+        (function () {
+            if (!/[?&]src=qr(&|$)/.test(location.search)) return;
+            try { fetch('/uk/qr/hit/@Model.Restaurant.Id', { method: 'POST', keepalive: true }); } catch (e) { }
+        })();
+    </script>
 </body>
 </html>
