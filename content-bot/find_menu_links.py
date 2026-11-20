@@ -47,6 +47,7 @@ PLATFORMS = {
 }
 NAME_MATCH = 0.9     # «рекомендовано»: майже точний збіг («7 Пятниц» - «П'ятниця» 0.84 - ні)
 NAME_PROPOSE = 0.5   # нижче - сторінка іншого закладу, в адмінку не потрапляє
+NAME_CATALOG = 0.8   # --catalog: сотні сторінок × сотні закладів - лише близькі назви, інакше тисячі хибних пар
 NAME_CONTAINS = 0.7  # наша назва цілком у назві сторінки («Avalon» - «Avalon Palace»): лише пропозиція
 
 # Частини заголовка сторінки, що не є назвою закладу («Bigoli - Доставка, З собою», «Меню - ...»)
@@ -237,7 +238,7 @@ def catalog_rows(platform, pages, restaurants):
     for root, res in pages.items():
         title, desc = (res.get("title") or "")[:500], (res.get("description") or "")[:300]
         for r in restaurants:
-            if name_score(r["Name"], title, root) >= NAME_PROPOSE:
+            if name_score(r["Name"], title, root) >= NAME_CATALOG:
                 rows.append({"RestaurantId": r["Id"], "Platform": platform, "Url": root,
                              "PageTitle": title, "PageDescription": desc})
     return rows
