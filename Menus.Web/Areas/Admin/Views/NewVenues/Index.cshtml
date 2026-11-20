@@ -100,7 +100,31 @@
                         {
                             <div class="muted">Примітка: @v.Note</div>
                         }
-                        @if (v.Status == "added" && v.RestaurantSlug != null)
+                        @if (v.Status == "suspect")
+                        {
+                            if (v.RestaurantSlug != null)
+                            {
+                                <div>Створений: <a href="/uk/@CitySlug(v.CityId)/restaurant/@v.RestaurantSlug" target="_blank" rel="noopener">сторінка ↗</a></div>
+                            }
+                            if (v.DuplicateSlug != null)
+                            {
+                                <div>Наявний: <a href="/uk/@CitySlug(v.DuplicateCity ?? v.CityId)/restaurant/@v.DuplicateSlug" target="_blank" rel="noopener">сторінка ↗</a> ·
+                                    <a asp-controller="Outreach" asp-action="Restaurant" asp-route-id="@v.DuplicateOf">картка в «Розсилці»</a></div>
+                            }
+                            <div class="actions">
+                                <form method="post" asp-action="Duplicate">
+                                    <input type="hidden" name="id" value="@v.Id" /><input type="hidden" name="isDuplicate" value="true" />
+                                    <input type="hidden" name="cityId" value="@cityId" />
+                                    <button type="submit">@(v.RestaurantId != null ? "Дубль — закрити новий" : "Дубль")</button>
+                                </form>
+                                <form method="post" asp-action="Duplicate">
+                                    <input type="hidden" name="id" value="@v.Id" /><input type="hidden" name="isDuplicate" value="false" />
+                                    <input type="hidden" name="cityId" value="@cityId" />
+                                    <button type="submit">Не дубль</button>
+                                </form>
+                            </div>
+                        }
+                        else if (v.Status == "added" && v.RestaurantSlug != null)
                         {
                             <div>
                                 <a href="/uk/@CitySlug(v.CityId)/restaurant/@v.RestaurantSlug" target="_blank" rel="noopener">сторінка закладу ↗</a> ·

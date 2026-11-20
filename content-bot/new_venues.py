@@ -16,7 +16,13 @@
 Запуск:  python3 new_venues.py --dry-run          # знайти кандидатів і показати, нічого не писати
          python3 new_venues.py                    # записати нових кандидатів (раз на тиждень)
          python3 new_venues.py --create           # створити схвалені заклади (щоночі, перед sync_restaurants)
+         python3 new_venues.py --duplicates --dry-run  # показати можливі дублі наявних закладів
+         python3 new_venues.py --duplicates       # позначити їх (Status suspect -> вкладка «Можливі дублі»)
+
+Дублі: схожа назва (транслітом) у тому ж місті І (до DUP_METERS метрів за координатами АБО та сама вулиця й номер).
+--create спершу перевіряє дублі, тож схвалений дубль не створюється.
 """
+import math
 import argparse
 import difflib
 import json
@@ -76,6 +82,91 @@ CANDIDATES_SQL = """CREATE TABLE IF NOT EXISTS NewVenueCandidates (
     UpdatedAt DATETIME NOT NULL,
     UNIQUE KEY UX_OsmKey (OsmKey)
 ) DEFAULT CHARSET=utf8mb4"""
+
+
+DUP_METERS = 150
+DUP_COLUMNS_SQL = [
+    "ALTER TABLE NewVenueCandidates ADD COLUMN IF NOT EXISTS DuplicateOf VARCHAR(255) NULL",
+    "ALTER TABLE NewVenueCandidates ADD COLUMN IF NOT EXISTS PrevStatus VARCHAR(16) NULL",
+    "ALTER TABLE NewVenueCandidates ADD COLUMN IF NOT EXISTS NotDuplicate TINYINT(1) NOT NULL DEFAULT 0",
+]
+STREET_NOISE = re.compile(r"\b(вул|вулиця|ул|улица|просп|проспект|пр|бульв|бульвар|бул|пров|провулок|пер|переулок|пл|площа|площадь|"
+                          r"шосе|шоссе|наб|набережна|набережная|узвіз|спуск|str|street|ave|avenue)\b\.?", re.I)
+
+
+def meters(lat1, lon1, lat2, lon2):
+    try:
+        lat1, lon1, lat2, lon2 = (float(x) for x in (lat1, lon1, lat2, lon2))
+    except (TypeError, ValueError):
+        return None
+    if not (lat1 and lon1 and lat2 and lon2):
+        return None
+    k = math.pi / 180
+    x = (lon2 - lon1) * k * math.cos((lat1 + lat2) / 2 * k)
+    y = (lat2 - lat1) * k
+    return round(math.hypot(x, y) * 6371000)
+
+
+def address_key(address):
+    """«вул. Чкалова, 2Д» / «ул. Чкалова 2-д» -> ("chkal", "2d"): початок назви вулиці + номер будинку."""
+    text = STREET_NOISE.sub(" ", (address or "").lower())
+    number = re.search(r"\b(\d+)\s*[-/]?\s*([а-яіїєa-z])?\b", text)
+    words = [w for w in re.findall(r"[a-zа-яіїєґ']{4,}", text)]
+    if not number or not words:
+        return None
+    return latin(max(words, key=len))[:5], number.group(1) + latin(number.group(2) or "")
+
+
+def duplicates(db, dry_run):
+    """Кандидати (нові, схвалені, уже додані), що збігаються з наявним закладом -> Status suspect."""
+    cur = db.cursor(dictionary=True)
+    cur.execute(CANDIDATES_SQL)
+    for sql in DUP_COLUMNS_SQL:
+        cur.execute(sql)
+    cur.execute("""SELECT CONCAT(r.Id, '') AS Id, r.Name, CONCAT(r.City, '') AS City, r.Status, r.Address,
+                          ri.GpsLatitude AS Lat, ri.GpsLongitude AS Lon, rs.Url AS Slug
+                   FROM Restaurants r LEFT JOIN RestaurantInfo ri ON ri.RestaurantId = r.Id
+                   LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id""")
+    by_city = defaultdict(list)
+    for r in cur.fetchall():
+        by_city[r["City"]].append(r)
+    cur.execute("""SELECT Id, Name, CityId, Address, Lat, Lon, Status, RestaurantId FROM NewVenueCandidates
+                   WHERE Status IN ('new', 'approved', 'added') AND NotDuplicate = 0 ORDER BY Id""")
+    candidates = cur.fetchall()
+    # заклад, створений з кандидата: дублем вважаємо пізніший (більший Id кандидата), а не обидва
+    created_by = {c["RestaurantId"]: c["Id"] for c in candidates if c["RestaurantId"]}
+    cur.execute("SELECT RestaurantId, Id FROM NewVenueCandidates WHERE RestaurantId IS NOT NULL")
+    created_by.update({row["RestaurantId"]: row["Id"] for row in cur.fetchall()})
+    write = db.cursor()
+    found = 0
+    for c in candidates:
+        own_key = address_key(c["Address"])
+        best = None
+        for r in by_city.get(c["CityId"], []):
+            if r["Id"] == c["RestaurantId"] or created_by.get(r["Id"], 0) > c["Id"]:
+                continue
+            if not similar(c["Name"], r["Name"]):
+                continue
+            dist = meters(c["Lat"], c["Lon"], r["Lat"], r["Lon"])
+            same_address = own_key is not None and own_key == address_key(r["Address"])
+            if (dist is not None and dist <= DUP_METERS) or same_address:
+                rank = dist if dist is not None else DUP_METERS
+                if best is None or rank < best[0]:
+                    best = (rank, r, dist, same_address)
+        if not best:
+            continue
+        _, r, dist, same_address = best
+        found += 1
+        status = {0: "активний", 1: "прихований", 3: "закритий"}.get(r["Status"], f"статус {r['Status']}")
+        why = ", ".join(x for x in [f"{dist} м" if dist is not None else "", "та сама адреса" if same_address else ""] if x)
+        note = f"Схожий: {r['Name']} ({status}), {r['Address'] or ''}; {why}"[:255]
+        print(f"  {c['Name']} [{c['Status']}] ~ {r['Name']} /{r['Slug']} ({status}; {why})")
+        if not dry_run:
+            write.execute("""UPDATE NewVenueCandidates SET PrevStatus = Status, Status = 'suspect', DuplicateOf = %s, Note = %s,
+                             UpdatedAt = UTC_TIMESTAMP() WHERE Id = %s""", (r["Id"], note, c["Id"]))
+    if not dry_run:
+        db.commit()
+    print(f"Можливих дублів: {found}" + (" (перевірка, нічого не записано)" if dry_run else " -> «Нові заклади» → «Можливі дублі»"))
 
 
 def latin(value):
@@ -271,7 +362,8 @@ def localizable(value):
 
 
 def create(db, args):
-    """Схвалені кандидати -> заклади (Restaurants, RestaurantInfo, RestaurantSeo)."""
+    """Схвалені кандидати -> заклади (Restaurants, RestaurantInfo, RestaurantSeo). Спершу - перевірка дублів."""
+    duplicates(db, args.dry_run)
     cur = db.cursor(dictionary=True)
     cur.execute(CANDIDATES_SQL)
     cur.execute("SELECT * FROM NewVenueCandidates WHERE Status = 'approved'")
@@ -317,11 +409,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--create", action="store_true", help="створити схвалені в адмінці заклади")
+    ap.add_argument("--duplicates", action="store_true", help="позначити кандидатів, схожих на наявні заклади")
     ap.add_argument("--pages", type=int, default=2, help="сторінок по 1000 запитів на конкурента (кредити Serpstat)")
     ap.add_argument("--limit", type=int, default=150, help="не більше N найчастіших назв (0 - усі; ~1-5 с на назву)")
     args = ap.parse_args()
     db = get_db()
-    if args.create:
+    if args.duplicates:
+        duplicates(db, args.dry_run)
+    elif args.create:
         create(db, args)
     else:
         if not ss.TOKEN:

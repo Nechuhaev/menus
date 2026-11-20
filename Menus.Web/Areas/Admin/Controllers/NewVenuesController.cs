@@ -40,5 +40,15 @@ namespace Menus.Web.Areas.Admin.Controllers
                 : status == "rejected" ? "Позначено: не додавати" : status == "duplicate" ? "Позначено як дубль" : "Повернуто в нові";
             return RedirectToAction("Index", new { status = returnStatus, cityId });
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Duplicate(int id, bool isDuplicate, string cityId)
+        {
+            if (isDuplicate) await _venues.ConfirmDuplicate(id);
+            else await _venues.NotDuplicate(id);
+            TempData["message"] = isDuplicate ? "Дубль: кандидат у «Дублях», створений заклад (якщо був) закрито" : "Не дубль: повернуто, бот більше не позначатиме";
+            return RedirectToAction("Index", new { status = "suspect", cityId });
+        }
     }
 }
