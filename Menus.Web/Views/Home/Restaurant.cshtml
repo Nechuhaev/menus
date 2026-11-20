@@ -5,6 +5,7 @@
 @inject Menus.Web.Services.UserService  UserService;
 @inject Menus.Domain.Core Core
 @inject Menus.Web.Services.DishBadgeService DishBadgeSvc
+@inject Menus.Web.Services.DishStopService DishStopSvc
 @using Microsoft.AspNetCore.Mvc.Localization
 @inject IViewLocalizer Localizer
 
@@ -25,11 +26,15 @@
     var pageBadges = badgeDishes.ToDictionary(d => d.Id, d => Menus.Web.Services.DishBadgeService.Resolve(
         manualBadges.TryGetValue(d.Id ?? "", out var mb) ? mb : null, hitDishes.Contains(d.Id ?? ""),
         d.Name?.Get("uk"), d.Name?.Get("en"), d.ShortDescription?.Get("uk"), d.Description?.Get("uk"), d.Ingredients?.Get("uk")));
-    string BadgeStyle(string b) => b == "vegan" ? "background:#e6f6ea;color:#1b6e35" : b == "spicy" ? "background:#fde8e6;color:#9b2c1f" : "background:#fff3d6;color:#6b4b00";
+    // стоп-лист: «Немає в наявності» - першою міткою, сірою
+    var stoppedDishes = await DishStopSvc.Active(Model.Restaurant.Id);
+    foreach (var stopped in stoppedDishes.Where(pageBadges.ContainsKey)) { pageBadges[stopped].Insert(0, "stop"); }
+    string BadgeStyle(string b) => b == "stop" ? "background:#e9eaee;color:#4b4f57" : b == "vegan" ? "background:#e6f6ea;color:#1b6e35" : b == "spicy" ? "background:#fde8e6;color:#9b2c1f" : "background:#fff3d6;color:#6b4b00";
 
     var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
     // Culture contains the information of the requested culture
     var culture = rqf.RequestCulture.Culture.TwoLetterISOLanguageName;
+    var stopText = culture == "en" ? "Not available" : culture == "ru" ? "Нет в наличии" : "Немає в наявності";
 
     // Title і description для видачі - з даних меню (кількість страв, типові ціни, кухня, топ-страви), без AI.
     // Найважливіше спочатку: на мобільному Google обрізає опис приблизно до 120 символів.
@@ -605,7 +610,7 @@
                                                         </h3>
                                                         @if (pageBadges.TryGetValue(dish.Id, out var tableBadges) && tableBadges.Any())
                                                         {
-                                                            <div style="display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 4px;">@foreach (var b in tableBadges) {<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;line-height:18px;white-space:nowrap;@BadgeStyle(b)">@Menus.Web.Services.DishBadgeService.Icon(b) @Menus.Web.Services.DishBadgeService.Name(b, culture)</span>}</div>
+                                                            <div style="display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 4px;">@foreach (var b in tableBadges) {<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;line-height:18px;white-space:nowrap;@BadgeStyle(b)">@(b == "stop" ? stopText : Menus.Web.Services.DishBadgeService.Icon(b) + " " + Menus.Web.Services.DishBadgeService.Name(b, culture))</span>}</div>
                                                         }
                                                         @if (dish.ShortDescription.Get(culture).Length > 0)
                                                         {
@@ -711,7 +716,7 @@
                                                             </h3>
                                                             @if (pageBadges.TryGetValue(dish.Id, out var listBadges) && listBadges.Any())
                                                             {
-                                                                <div style="display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 4px;">@foreach (var b in listBadges) {<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;line-height:18px;white-space:nowrap;@BadgeStyle(b)">@Menus.Web.Services.DishBadgeService.Icon(b) @Menus.Web.Services.DishBadgeService.Name(b, culture)</span>}</div>
+                                                                <div style="display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 4px;">@foreach (var b in listBadges) {<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;line-height:18px;white-space:nowrap;@BadgeStyle(b)">@(b == "stop" ? stopText : Menus.Web.Services.DishBadgeService.Icon(b) + " " + Menus.Web.Services.DishBadgeService.Name(b, culture))</span>}</div>
                                                             }
                                                             @if (dish.ShortDescription.Get(culture).Length > 0)
                                                             {
