@@ -303,7 +303,7 @@
                                 <td>@((row.SentAt ?? row.CreatedAt).ToString("dd.MM.yyyy HH:mm"))</td>
                                 <td>@(kinds.TryGetValue(row.Channel, out var channelName) ? channelName : row.Channel)</td>
                                 <td>@row.Recipient</td>
-                                <td>@(row.TemplateId.HasValue && templateNames.TryGetValue(row.TemplateId.Value, out var templateName) ? templateName : "")</td>
+                                <td>@(row.TemplateId == Menus.Web.Services.OwnerReportService.TemplateId ? "звіт власнику" : row.TemplateId.HasValue && templateNames.TryGetValue(row.TemplateId.Value, out var templateName) ? templateName : "")</td>
                                 <td>@(statuses.TryGetValue(row.Status, out var statusName) ? statusName : row.Status) <span class="muted">@row.Error</span></td>
                                 <td>
                                     <details>

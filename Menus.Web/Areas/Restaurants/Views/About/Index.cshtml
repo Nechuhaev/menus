@@ -48,7 +48,7 @@
             @* «Ваш заклад у Google» за 28 днів: Search Console + GA4 сторінки закладу (усі мови) *@
             @if (ViewData["googleStats"] is Menus.Web.Services.RestaurantStats googleStats)
             {
-                <section class="google-stats">
+                <section class="google-stats" id="google-stats">
                     <h3>Ваш заклад у Google <small>@(googleStats.From?.ToString("dd.MM") ?? "")–@(googleStats.To?.ToString("dd.MM.yyyy") ?? "") · 28 днів</small></h3>
                     @if (googleStats.HasData)
                     {
@@ -70,6 +70,11 @@
                     {
                         <p class="gs-hint">Даних поки немає: Google ще не показував сторінку закладу. Додайте меню з цінами й фото - це допомагає потрапити в пошук.</p>
                     }
+                    <form method="post" asp-action="OwnerReport" class="gs-report">
+                        <input type="hidden" name="enabled" value="@((ViewData["ownerReport"] as bool? ?? true) ? "false" : "true")" />
+                        <span>Щомісячний звіт на пошту: <b>@((ViewData["ownerReport"] as bool? ?? true) ? "увімкнено" : "вимкнено")</b></span>
+                        <button type="submit">@((ViewData["ownerReport"] as bool? ?? true) ? "Вимкнути" : "Увімкнути")</button>
+                    </form>
                 </section>
                 <style>
                     .google-stats { margin: 16px 0; padding: 14px 16px; border: 1px solid #eceef2; border-radius: 12px; background: #fff; }
@@ -79,6 +84,8 @@
                     .google-stats .gs-row div { background: #f5f6f9; border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #5f6670; }
                     .google-stats .gs-row b { display: block; font-size: 22px; color: #231f20; }
                     .google-stats .gs-hint { margin: 10px 0 0; font-size: 13px; color: #5f6670; }
+                    .google-stats .gs-report { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; font-size: 13px; color: #5f6670; }
+                    .google-stats .gs-report button { min-height: 32px; padding: 4px 12px; border: 1px solid #dfe2e8; border-radius: 8px; background: #fff; cursor: pointer; }
                 </style>
             }
 

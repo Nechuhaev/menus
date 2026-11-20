@@ -43,6 +43,8 @@ namespace Menus.Web.Services
         public string Website { get; set; }
         // картка закладу (те, що бачать гості) - у «Розсилці» лише показується, редагується в адмінці ресторану
         public string Phone { get; set; }
+        // сторінка закладу в Google і GA4 за 28 днів - для картки й змінних {Покази} {Кліки} {Перегляди}
+        public RestaurantStats Google { get; set; } = new RestaurantStats();
         public string DisplayAddress { get; set; }
         public string OpenHours { get; set; }
         public string AddressText => string.IsNullOrWhiteSpace(DisplayAddress) ? "" : Menus.Web.Models.LocalizableString.FromJson(DisplayAddress).Get("uk", true);
@@ -231,6 +233,16 @@ namespace Menus.Web.Services
                 Manual TINYINT(1) NOT NULL DEFAULT 0,
                 CheckedAt DATETIME NOT NULL
             ) DEFAULT CHARSET=utf8mb4;
+            -- одноразові дії (шаблони за замовчуванням), щоб видалене адміном не поверталось
+            CREATE TABLE IF NOT EXISTS OutreachSeeds (
+                Name VARCHAR(64) NOT NULL PRIMARY KEY,
+                CreatedAt DATETIME NOT NULL
+            ) DEFAULT CHARSET=utf8mb4;
+            -- щомісячний звіт власнику «Ваш заклад у Google»: вимкнені заклади (галочка в кабінеті)
+            CREATE TABLE IF NOT EXISTS OwnerReportOptOut (
+                RestaurantId VARCHAR(255) NOT NULL PRIMARY KEY,
+                CreatedAt DATETIME NOT NULL
+            ) DEFAULT CHARSET=utf8mb4;
             -- входи користувачів (пише UserVisitService) - тут лише щоб запит «Вхід власника» не падав на новій базі
             CREATE TABLE IF NOT EXISTS UserVisits (
                 UserId VARCHAR(255) NOT NULL PRIMARY KEY,
@@ -265,7 +277,7 @@ https://tipmymenu.com
 {Відписатися}"
         };
 
-        public static readonly string[] Placeholders = { "{Назва}", "{Місто}", "{Сторінка}", "{Страв}", "{ДляВласників}", "{Iframe}", "{Telegram}", "{Відписатися}" };
+        public static readonly string[] Placeholders = { "{Назва}", "{Місто}", "{Сторінка}", "{Страв}", "{ДляВласників}", "{Iframe}", "{Telegram}", "{Покази}", "{Кліки}", "{Перегляди}", "{Відписатися}" };
 
         public static readonly string[] Kinds = { "email", "telegram", "instagram", "phone" };
         public const int PageSize = 30;
@@ -278,7 +290,10 @@ https://tipmymenu.com
         {
             _connection = dbContext.Database.GetDbConnection();
             _email = email;
+            _stats = new RestaurantStatsService(dbContext);
         }
+
+        private readonly RestaurantStatsService _stats;
 
         private async Task Ensure()
         {
@@ -289,11 +304,39 @@ https://tipmymenu.com
 
         // --- шаблони ---
 
+        public static readonly OutreachTemplate GoogleTemplate = new OutreachTemplate
+        {
+            Name = "Вас шукають у Google",
+            Subject = "«{Назва}»: {Покази} показів у Google за місяць",
+            Body = @"Добрий день!
+
+Ми - TipMyMenu (tipmymenu.com), сервіс меню й цін закладів. Сторінку «{Назва}» ({Місто}) за останні 28 днів показали в Google {Покази} разів, з пошуку на неї перейшли {Кліки} гостей:
+{Сторінка}
+
+Що допоможе отримувати більше гостей, безкоштовно:
+- актуальне меню з цінами й фото страв - вище в пошуку й більше переходів;
+- QR-код на стіл з вашим меню та меню на ваш сайт: {Iframe}
+- кабінет власника, щоб оновлювати все самостійно: {ДляВласників}
+
+Якщо щось на сторінці неправильно, просто напишіть у відповідь на цей лист - виправимо.
+
+З повагою,
+команда TipMyMenu
+
+{Відписатися}"
+        };
+
         public async Task<List<OutreachTemplate>> GetTemplates()
         {
             await Ensure();
             var list = (await _connection.QueryAsync<OutreachTemplate>(
                 "SELECT Id, IFNULL(Name, CONCAT('Шаблон ', Id)) AS Name, Subject, Body FROM OutreachTemplate ORDER BY Id")).ToList();
+            // шаблон «Вас шукають у Google» додається один раз (видалений адміном - не повертається)
+            if (list.Count > 0 && await _connection.ExecuteAsync("INSERT IGNORE INTO OutreachSeeds (Name, CreatedAt) VALUES ('google-template', NOW())") > 0)
+            {
+                await SaveTemplate(null, GoogleTemplate.Name, GoogleTemplate.Subject, GoogleTemplate.Body);
+                return await GetTemplates();
+            }
             if (list.Any()) return list;
             await SaveTemplate(null, DefaultTemplate.Name, DefaultTemplate.Subject, DefaultTemplate.Body);
             return await GetTemplates();
@@ -384,6 +427,17 @@ https://tipmymenu.com
                 var own = (r.Email ?? "").Trim().ToLowerInvariant();
                 if (own.Contains("@") && !r.Emails.Contains(own))
                     r.Contacts.Insert(0, new OutreachContact { Id = 0, RestaurantId = r.Id, Kind = "email", Value = own, SourceUrl = "картка ресторану" });
+            }
+            // покази й переходи з Google за 28 днів (один запит на всі заклади)
+            var last = await _stats.LastDay();
+            var oneSlug = onlyId == null ? null : restaurants.Values.FirstOrDefault()?.Slug;
+            if (last != null && (onlyId == null || !string.IsNullOrEmpty(oneSlug)))
+            {
+                var google = await _stats.GetRange(last.Value.AddDays(-27), last.Value, oneSlug);
+                foreach (var r in restaurants.Values)
+                {
+                    if (!string.IsNullOrEmpty(r.Slug) && google.TryGetValue(r.Slug.ToLowerInvariant(), out var g)) r.Google = g;
+                }
             }
             foreach (var row in await _connection.QueryAsync<OutreachLogRow>(
                          "SELECT Id, CONCAT(RestaurantId, '') AS RestaurantId, TemplateId, Channel, Recipient, " +
@@ -509,6 +563,9 @@ https://tipmymenu.com
                 ["{ДляВласників}"] = $"{baseUrl}/uk/articles/forowners",
                 ["{Iframe}"] = $"{baseUrl}/uk/{citySlug}/iframe/{r.Slug}",
                 ["{Telegram}"] = telegramLink ?? "",
+                ["{Покази}"] = r.Google.Impressions.ToString("N0"),
+                ["{Кліки}"] = r.Google.Clicks.ToString("N0"),
+                ["{Перегляди}"] = r.Google.Views.ToString("N0"),
                 ["{Відписатися}"] = string.IsNullOrEmpty(unsubscribeUrl) ? "" : $"Не хочете отримувати листи від TipMyMenu? Відписатися: {unsubscribeUrl}"
             };
             string FillText(string text) => values.Aggregate(text ?? "", (acc, kv) => acc.Replace(kv.Key, kv.Value));
@@ -552,6 +609,22 @@ https://tipmymenu.com
             await InsertLog(token, restaurantId, templateId, "email", email, subject, body, "queued");
             await SendQueued(token);
             return await _connection.QueryFirstOrDefaultAsync<string>("SELECT Error FROM OutreachLog WHERE Id = @token", new { token });
+        }
+
+        // Системний лист (щомісячний звіт власнику): у журнал і в чергу; відписані пропускаються в SendQueued
+        public async Task QueueSystemEmail(string restaurantId, int templateId, string email, string subject, string body, string token, TimeSpan delay)
+        {
+            await Ensure();
+            await InsertLog(token, restaurantId, templateId, "email", email, subject, body, "queued");
+            BackgroundJob.Schedule<OutreachService>(x => x.SendQueued(token), delay);
+        }
+
+        public async Task<bool> SentSince(string restaurantId, int templateId, DateTime since)
+        {
+            await Ensure();
+            return await _connection.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM OutreachLog WHERE RestaurantId = @restaurantId AND TemplateId = @templateId AND CreatedAt >= @since",
+                new { restaurantId, templateId, since }) > 0;
         }
 
         private Task InsertLog(string id, string restaurantId, int? templateId, string channel, string recipient, string subject, string body, string status) =>
