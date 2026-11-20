@@ -640,6 +640,19 @@ def website_was_cleaned(db, restaurant_id):
     return found
 
 
+def is_new_venue(db, restaurant_id):
+    """Заклад створено з «Нових закладів» (new_venues.py): його вже підтвердили OSM і адмін -
+    без сайту не ховаємо й не питаємо AI (пошук в інтернеті ~$0.13 на заклад)."""
+    cur = db.cursor()
+    try:
+        cur.execute("SELECT 1 FROM NewVenueCandidates WHERE RestaurantId = %s AND Status = 'added' LIMIT 1", (restaurant_id,))
+        return cur.fetchone() is not None
+    except Exception:
+        return False  # таблиці ще немає
+    finally:
+        cur.close()
+
+
 def is_dead_website(url):
     """Сайт мертвий лише тоді, коли його домен не існує: DNS не знаходить хост двічі поспіль.
     404 на сторінці, 403 від захисту від ботів, тайм-аути й 5xx - не підстава ховати ресторан
@@ -1678,6 +1691,12 @@ def _process_restaurant(db, restaurant):
         # меню з'явиться, щойно адмін підтвердить посилання Expirenza/ChoiceQR у «Звітах»
         log_check(db, restaurant["Id"], "no website (cleaned) - waiting for menu link", closed_detected=False)
         print("  -> no website (cleaned), waiting for menu link")
+        return
+
+    if not website and is_new_venue(db, restaurant["Id"]):
+        # новий заклад з OSM без сайту: лишається на сайті без меню, доки адмін не додасть посилання на меню
+        log_check(db, restaurant["Id"], "new venue (OSM), no website - waiting for menu link", closed_detected=False)
+        print("  -> new venue without website, waiting for menu link (no AI)")
         return
 
     if not website:
