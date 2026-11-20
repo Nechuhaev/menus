@@ -63,6 +63,7 @@
                             {
                                 <div><b>@googleStats.Views.ToString("N0")</b>переглядів сторінки</div>
                             }
+                            <div><b>@googleStats.QrScans.ToString("N0")</b>сканів QR-коду на столах</div>
                         </div>
                         if (googleStats.Queries.Any())
                         {
@@ -524,7 +525,7 @@
                         <div class="qr-actions">
                             <a class="qr-btn" asp-action="QrSign" target="_blank" rel="noopener">Табличка для друку (A6) →</a>
                             <a class="qr-btn qr-ghost" id="qrPng" download="qr-menu.png" href="#">Завантажити QR (PNG)</a>
-                            <small>Код веде на: @string.Format(iframeUrl, "uk")</small>
+                            <small>Код веде на: @(string.Format(iframeUrl, "uk") + "?src=qr")</small>
                         </div>
                     </div>
                 </section>
@@ -576,7 +577,7 @@
                     (function () {
                         var box = document.getElementById('qrPreview');
                         if (!box || typeof QRCode === 'undefined') return;
-                        new QRCode(box, { text: @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(string.Format(iframeUrl, "uk"))), width: 600, height: 600, correctLevel: QRCode.CorrectLevel.M });
+                        new QRCode(box, { text: @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(string.Format(iframeUrl, "uk") + "?src=qr")), width: 600, height: 600, correctLevel: QRCode.CorrectLevel.M });
                         setTimeout(function () {
                             var canvas = box.querySelector('canvas');
                             if (canvas) document.getElementById('qrPng').href = canvas.toDataURL('image/png');

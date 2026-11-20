@@ -17,7 +17,8 @@ namespace Menus.Web.Services
         public int Views { get; set; }          // перегляди сторінки (GA4)
         public DateTime? From { get; set; }
         public DateTime? To { get; set; }
-        public bool HasData => Impressions > 0 || Views > 0;
+        public int QrScans { get; set; }        // скани QR-коду на стіл (QrScanDays)
+        public bool HasData => Impressions > 0 || Views > 0 || QrScans > 0;
         // пошукові запити, за якими знаходять заклад (SeoPageQueryDays) - лише для одного закладу
         public List<(string Query, int Clicks, int Impressions)> Queries { get; set; } = new List<(string, int, int)>();
     }
@@ -65,14 +66,31 @@ namespace Menus.Web.Services
         }
 
         // останні 28 днів до останнього дня з даними
-        public async Task<RestaurantStats> GetLast28(string slug)
+        public async Task<RestaurantStats> GetLast28(string slug, string restaurantId = null)
         {
             var last = await LastDay();
             if (last == null || string.IsNullOrEmpty(slug)) return new RestaurantStats();
             var s = (await GetRange(last.Value.AddDays(-27), last.Value, slug)).TryGetValue(slug.ToLowerInvariant(), out var found)
                 ? found : new RestaurantStats { From = last.Value.AddDays(-27), To = last.Value };
             s.Queries = await TopQueries(slug, last.Value.AddDays(-27), last.Value);
+            // скани QR - за останні 28 календарних днів (лічильник живий, без затримки Search Console)
+            if (restaurantId != null) s.QrScans = await QrScans(restaurantId, DateTime.UtcNow.Date.AddDays(-27), DateTime.UtcNow.Date);
             return s;
+        }
+
+        public async Task<int> QrScans(string restaurantId, DateTime from, DateTime to)
+        {
+            if (string.IsNullOrEmpty(restaurantId)) return 0;
+            try
+            {
+                return await _connection.ExecuteScalarAsync<int?>(
+                    "SELECT CAST(SUM(Scans) AS SIGNED) FROM QrScanDays WHERE RestaurantId = @restaurantId AND Day BETWEEN @from AND @to",
+                    new { restaurantId, from, to }) ?? 0;
+            }
+            catch (Exception)
+            {
+                return 0; // ще жодного скану - таблиці немає
+            }
         }
 
         // топ запитів Google сторінки закладу за період (за показами)
@@ -151,6 +169,7 @@ namespace Menus.Web.Services
 
         // «1 240 показів у Google, 85 переходів» - для кабінету й листів
         public static string Describe(RestaurantStats s) =>
-            $"{s.Impressions:N0} показів у Google, {s.Clicks:N0} переходів з Google" + (s.Views > 0 ? $", {s.Views:N0} переглядів сторінки" : "");
+            $"{s.Impressions:N0} показів у Google, {s.Clicks:N0} переходів з Google" + (s.Views > 0 ? $", {s.Views:N0} переглядів сторінки" : "")
+            + (s.QrScans > 0 ? $", {s.QrScans:N0} сканів QR" : "");
     }
 }
