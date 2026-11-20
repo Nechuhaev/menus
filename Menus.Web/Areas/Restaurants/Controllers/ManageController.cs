@@ -387,6 +387,23 @@ namespace Menus.Web.Areas.Restaurants.Controllers
         }
 
         [HttpGet]
+        // мітки страви («Хіт», «Новинка», «Веган», «Гостре»): mode=manual - вибрані вручну, auto - знову автоматично
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetDishBadges(string id, List<string> badges, string mode)
+        {
+            var selectedRestaurant = await _usrService.GetSelecedRestaurant(User, Request);
+            var dish = string.IsNullOrEmpty(id) ? null : await _core.Dishes.GetDishById(id);
+            if (dish == null || selectedRestaurant == null || dish.RestaurantId != selectedRestaurant.Id ||
+                (!(await _core.Restaurants.IsUserAllowedToEdit(selectedRestaurant.Id, User.Identity.Name)) && !User.IsInRole("admin") && !User.IsInRole("manager")))
+            {
+                return RedirectToAction("Menu");
+            }
+            await HttpContext.RequestServices.GetRequiredService<DishBadgeService>().Set(id, mode == "auto" ? null : (badges ?? new List<string>()));
+            HttpContext.RequestServices.GetRequiredService<ITaskRunner>().RunUpdateRestaurantIframeCache(selectedRestaurant.Id);
+            return RedirectToAction("EditDish", new { id });
+        }
+
         public async Task<IActionResult> EditDish(string id)
         {
             var selectedRestaurant = await _usrService.GetSelecedRestaurant(User, Request);

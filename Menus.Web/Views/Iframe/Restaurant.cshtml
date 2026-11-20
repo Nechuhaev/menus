@@ -11,6 +11,7 @@
 @model Menus.Web.Models.ViewModels.RestaurantViewModel
 @inject IViewLocalizer Localizer
 @inject Menus.Domain.Core Core
+@inject Menus.Web.Services.DishBadgeService DishBadgeSvc
 @functions {
     // Одиниці з різних джерел (г / g / gr, мл / ml, psc, «/», «\», порожньо) - до одного вигляду.
     // Напої (за назвою розділу) у грамах - у мл. Без одиниці: до 20 - штуки, більше - г або мл.
@@ -61,6 +62,7 @@
         public string Title, Desc, FullDesc, Ingr, Photo, PhotoHigh, PriceText, Weight, Variants, RatingText;
         public float Rating;
         public int RatingCount;
+        public List<string> Badges = new List<string>(); // «Хіт», «Веган»… (DishBadgeService)
     }
     static TimeZoneInfo KyivZone()
     {
@@ -149,6 +151,10 @@
     var extras = ViewData["extras"] as Menus.Web.Services.IframeExtras ?? new Menus.Web.Services.IframeExtras();
     string Money(decimal v) => $"{v.ToString("0.##")} {currency}";
     var cards = new Dictionary<string, DishCard>();
+    // мітки страв: ручні з кабінету або автоматичні (рейтинг, слова в назві й описі)
+    var badgeDishes = allCategories.Where(c => c.Dishes != null).SelectMany(c => c.Dishes).GroupBy(x => x.Id).Select(g => g.First()).ToList();
+    var manualBadges = await DishBadgeSvc.GetManual(badgeDishes.Select(x => x.Id));
+    var hitDishes = Menus.Web.Services.DishBadgeService.Hits(badgeDishes.Select(x => (x.Id, (double)x.RatingFloat, x.RatingCount)));
     foreach (var (cat, d) in allCategories.Where(c => c.Dishes != null).SelectMany(c => c.Dishes.Select(x => (c, x))))
     {
         if (cards.ContainsKey(d.Id)) { continue; }
@@ -174,7 +180,9 @@
             Variants = multi ? string.Join("\n", variants.Select(v => (design.HideWeight || v.Weight == 0 ? "" : Unit(v.Weight.ToString(), v.Type, drink) + " — ") + Money(v.Price))) : null,
             Rating = d.RatingFloat,
             RatingCount = d.RatingCount,
-            RatingText = d.RatingCount > 0 ? $"★ {d.RatingFloat.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} · {d.RatingCount} {Localizer["Ratings"].Value}" : null
+            RatingText = d.RatingCount > 0 ? $"★ {d.RatingFloat.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} · {d.RatingCount} {Localizer["Ratings"].Value}" : null,
+            Badges = Menus.Web.Services.DishBadgeService.Resolve(manualBadges.TryGetValue(d.Id ?? "", out var mb) ? mb : null, hitDishes.Contains(d.Id ?? ""),
+                d.Name?.Get("uk"), d.Name?.Get("en"), d.ShortDescription?.Get("uk"), d.Description?.Get("uk"), d.Ingredients?.Get("uk"))
         };
     }
     // «Топ страви»: найвище оцінені відвідувачами TipMyMenu (від 3 таких страв)
@@ -231,6 +239,10 @@
         .dish { background: var(--card); border-radius: 16px; padding: 14px; display: flex; gap: 12px; margin-bottom: 10px; align-items: stretch; }
         .dish .dt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
         .dish h3 { margin: 0 0 4px; font-size: 16px; line-height: 1.25; }
+        .dish .badges { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 4px; }
+        .dish .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; line-height: 18px; background: #fff3d6; color: #6b4b00; white-space: nowrap; }
+        .dish .badge-vegan { background: #e6f6ea; color: #1b6e35; }
+        .dish .badge-spicy { background: #fde8e6; color: #9b2c1f; }
         .dish p { margin: 0; color: var(--muted); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
         .meta { margin-top: auto; padding-top: 10px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
         .price { font-weight: 700; font-size: 17px; white-space: nowrap; }
@@ -377,6 +389,10 @@
                                  data-photo="@card.PhotoHigh" data-price="@card.PriceText" data-weight="@card.Weight" data-variants="@card.Variants" data-rating="@card.RatingText">
                             <div class="dt">
                                 <h3>@card.Title</h3>
+                                @if (card.Badges.Any())
+                                {
+                                    <div class="badges">@foreach (var b in card.Badges) {<span class="badge badge-@b">@Menus.Web.Services.DishBadgeService.Icon(b) @Menus.Web.Services.DishBadgeService.Name(b, culture)</span>}</div>
+                                }
                                 @if (!string.IsNullOrWhiteSpace(card.Desc))
                                 {
                                     <p>@card.Desc</p>

@@ -4,6 +4,7 @@
 @model Menus.Web.Models.ViewModels.RestaurantViewModel
 @inject Menus.Web.Services.UserService  UserService;
 @inject Menus.Domain.Core Core
+@inject Menus.Web.Services.DishBadgeService DishBadgeSvc
 @using Microsoft.AspNetCore.Mvc.Localization
 @inject IViewLocalizer Localizer
 
@@ -17,6 +18,14 @@
     var selectedCity = ViewData["selectedCity"] as Menus.Abstract.Models.ICity;
     var url = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
     var restaurantCity = await Core.Restaurants.GetCityById(Model.Restaurant.City);
+    // мітки страв («Хіт», «Веган», «Гостре», «Новинка»): ручні з кабінету або автоматичні
+    var badgeDishes = Model.Menu.Categories.SelectMany(c => c.Dishes ?? new List<IDishWithSeoAndRatings>()).GroupBy(x => x.Id).Select(g => g.First()).ToList();
+    var manualBadges = await DishBadgeSvc.GetManual(badgeDishes.Select(x => x.Id));
+    var hitDishes = Menus.Web.Services.DishBadgeService.Hits(badgeDishes.Select(x => (x.Id, (double)x.RatingFloat, x.RatingCount)));
+    var pageBadges = badgeDishes.ToDictionary(d => d.Id, d => Menus.Web.Services.DishBadgeService.Resolve(
+        manualBadges.TryGetValue(d.Id ?? "", out var mb) ? mb : null, hitDishes.Contains(d.Id ?? ""),
+        d.Name?.Get("uk"), d.Name?.Get("en"), d.ShortDescription?.Get("uk"), d.Description?.Get("uk"), d.Ingredients?.Get("uk")));
+    string BadgeStyle(string b) => b == "vegan" ? "background:#e6f6ea;color:#1b6e35" : b == "spicy" ? "background:#fde8e6;color:#9b2c1f" : "background:#fff3d6;color:#6b4b00";
 
     var rqf = Context.Request.HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
     // Culture contains the information of the requested culture
@@ -594,6 +603,10 @@
                                                             </a>
 
                                                         </h3>
+                                                        @if (pageBadges.TryGetValue(dish.Id, out var tableBadges) && tableBadges.Any())
+                                                        {
+                                                            <div style="display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 4px;">@foreach (var b in tableBadges) {<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;line-height:18px;white-space:nowrap;@BadgeStyle(b)">@Menus.Web.Services.DishBadgeService.Icon(b) @Menus.Web.Services.DishBadgeService.Name(b, culture)</span>}</div>
+                                                        }
                                                         @if (dish.ShortDescription.Get(culture).Length > 0)
                                                         {
                                                             <p>@dish.ShortDescription.Get(culture)</p>
@@ -696,6 +709,10 @@
                                                                     </span>
                                                                 }
                                                             </h3>
+                                                            @if (pageBadges.TryGetValue(dish.Id, out var listBadges) && listBadges.Any())
+                                                            {
+                                                                <div style="display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 4px;">@foreach (var b in listBadges) {<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;line-height:18px;white-space:nowrap;@BadgeStyle(b)">@Menus.Web.Services.DishBadgeService.Icon(b) @Menus.Web.Services.DishBadgeService.Name(b, culture)</span>}</div>
+                                                            }
                                                             @if (dish.ShortDescription.Get(culture).Length > 0)
                                                             {
                                                                 <p>@dish.ShortDescription.Get(culture)</p>
