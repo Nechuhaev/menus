@@ -14,6 +14,7 @@
          python3 find_menu_links.py --limit 20                # перші 20 ресторанів (пробний прогін)
          python3 find_menu_links.py                           # усі
          python3 find_menu_links.py --import menu_links.csv   # пропозиції з CSV попереднього прогону
+         python3 find_menu_links.py --new-venues --dry-run    # лише заклади з «Нових закладів» (new_venues.py)
          python3 find_menu_links.py --platform restoapp       # лише один сервіс, зокрема для вже перевірених
                                                               # ресторанів (новий сервіс раніше не шукали)
          python3 find_menu_links.py --catalog restoapp        # навпаки: зібрати сторінки сервісу пошуком
@@ -323,6 +324,8 @@ def main():
     parser.add_argument("--catalog", choices=sorted(PLATFORMS), help="зворотний пошук: сторінки сервісу -> наші ресторани")
     parser.add_argument("--platform", choices=sorted(PLATFORMS), action="append",
                         help="шукати лише в цьому сервісі (можна кілька); ресторани, по яких уже шукали, теж")
+    parser.add_argument("--new-venues", action="store_true",
+                        help="лише заклади, створені з «Нових закладів» (new_venues.py --create)")
     args = parser.parse_args()
 
     db = get_db()
@@ -373,6 +376,10 @@ def main():
                     " ORDER BY IFNULL(k.Clicks, 0) DESC, r.Name",
                     (SEARCH_AGAIN_DAYS,))
     restaurants = cur.fetchall()
+    if args.new_venues:
+        cur.execute("SELECT RestaurantId FROM NewVenueCandidates WHERE Status = 'added' AND RestaurantId IS NOT NULL")
+        new_ids = {row["RestaurantId"] for row in cur.fetchall()}
+        restaurants = [r for r in restaurants if r["Id"] in new_ids]
     if args.limit:
         restaurants = restaurants[:args.limit]
     queries = len({query_name(r["Name"]).lower() for r in restaurants}) * len(args.platform or PLATFORMS)
