@@ -304,11 +304,8 @@ https://tipmymenu.com
 
         // --- шаблони ---
 
-        public static readonly OutreachTemplate GoogleTemplate = new OutreachTemplate
-        {
-            Name = "Вас шукають у Google",
-            Subject = "«{Назва}»: {Покази} показів у Google за місяць",
-            Body = @"Добрий день!
+        // тексти шаблону «Вас шукають у Google» до листопада 2026 - оновлюємо в базі, лише якщо адмін їх не змінював
+        private const string GoogleTemplateOldBody = @"Добрий день!
 
 Ми - TipMyMenu (tipmymenu.com), сервіс меню й цін закладів. Сторінку «{Назва}» ({Місто}) за останні 28 днів показали в Google {Покази} разів, з пошуку на неї перейшли {Кліки} гостей:
 {Сторінка}
@@ -323,6 +320,56 @@ https://tipmymenu.com
 З повагою,
 команда TipMyMenu
 
+{Відписатися}";
+
+        public static readonly OutreachTemplate GoogleTemplate = new OutreachTemplate
+        {
+            Name = "Вас шукають у Google",
+            Subject = "«{Назва}»: {Покази} показів у Google за місяць",
+            Body = @"Добрий день!
+
+Ми - TipMyMenu (tipmymenu.com), сервіс меню й цін закладів. Сторінку «{Назва}» ({Місто}) за останні 28 днів показали в Google {Покази} разів, з пошуку на неї перейшли {Кліки} гостей:
+{Сторінка}
+
+Усе це для вас безкоштовно - достатньо стати власником сторінки: {ДляВласників}
+- статистика в кабінеті: покази в Google, за якими запитами вас знаходять, скани QR-коду; щомісячний звіт на пошту;
+- QR-код на стіл з вашим меню - готова табличка для друку;
+- кнопка «Меню» в Google Maps. {МенюДляGoogle}
+- меню на ваш сайт одним рядком коду: {Iframe}
+- стоп-лист і ціни прямо з Telegram (/stop, /price): {Telegram}
+
+Меню оновлюється саме з вашого сайту або QR-меню (ChoiceQR, Expirenza), англійську перекладаємо автоматично.
+Якщо щось на сторінці неправильно, просто напишіть у відповідь - виправимо.
+
+З повагою,
+команда TipMyMenu
+
+{Відписатися}"
+        };
+
+        // «Що нового»: усі безкоштовні інструменти коротко - для закладів, яким уже писали
+        public static readonly OutreachTemplate NewsTemplate = new OutreachTemplate
+        {
+            Name = "Що нового: QR, Google Maps, Telegram",
+            Subject = "«{Назва}»: безкоштовний QR-код на стіл і меню в Google Maps",
+            Body = @"Добрий день!
+
+Пишемо з TipMyMenu (tipmymenu.com) - тут гості дивляться меню й ціни «{Назва}» ({Місто}): {Сторінка}
+За 28 днів сторінку показали в Google {Покази} разів.
+
+Що з'явилося нового - усе безкоштовно:
+1. QR-код на стіл: гість наводить камеру й бачить ваше меню з фото й цінами (українська та англійська). Готова табличка A6 для друку, у кабінеті видно кількість сканів.
+2. Кнопка «Меню» в Google Maps і пошуку. {МенюДляGoogle}
+3. Стоп-лист і ціни з Telegram: напишіть боту «/stop борщ» - страва позначиться «Немає в наявності» до ранку; «/price борщ 185» - нова ціна. Підключити: {Telegram}
+4. Звіт щомісяця: покази в Google, за якими запитами вас шукають, скани QR.
+5. Позначки в меню «Хіт», «Веган», «Гостре» - ставляться самі, можна змінити.
+6. Меню на ваш сайт одним рядком коду: {Iframe}
+
+Стати власником сторінки (2 хвилини): {ДляВласників}
+Питання чи правки - просто дайте відповідь на цей лист.
+
+Команда TipMyMenu
+
 {Відписатися}"
         };
 
@@ -335,6 +382,14 @@ https://tipmymenu.com
             if (list.Count > 0 && await _connection.ExecuteAsync("INSERT IGNORE INTO OutreachSeeds (Name, CreatedAt) VALUES ('google-template', NOW())") > 0)
             {
                 await SaveTemplate(null, GoogleTemplate.Name, GoogleTemplate.Subject, GoogleTemplate.Body);
+                return await GetTemplates();
+            }
+            // листопад 2026: оновлений «Вас шукають у Google» (якщо його не змінювали) і новий «Що нового»
+            if (list.Count > 0 && await _connection.ExecuteAsync("INSERT IGNORE INTO OutreachSeeds (Name, CreatedAt) VALUES ('templates-2026-11', NOW())") > 0)
+            {
+                await _connection.ExecuteAsync("UPDATE OutreachTemplate SET Body = @body, UpdatedAt = NOW() WHERE Name = @name AND Body = @old",
+                    new { body = GoogleTemplate.Body, name = GoogleTemplate.Name, old = GoogleTemplateOldBody });
+                await SaveTemplate(null, NewsTemplate.Name, NewsTemplate.Subject, NewsTemplate.Body);
                 return await GetTemplates();
             }
             if (list.Any()) return list;

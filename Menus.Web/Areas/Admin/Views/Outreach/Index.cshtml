@@ -15,7 +15,8 @@
     var cityNames = cities.ToDictionary(x => x.Id, x => x.Name.Get("uk"));
     var filters = new[] { ("contacts", "З контактами"), ("new", "Ще не писали"), ("sent", "Уже писали"),
                           ("qr", "Меню оновлено з ChoiceQR/Expirenza"), ("noqr", "З контактами, меню не з QR"),
-                          ("doubt", "Перевірка: сумнівні"), ("closed", "ЗАКРИТО"), ("qrsuspended", "QR-меню призупинено"), ("all", "Усі ресторани") };
+                          ("doubt", "Перевірка: сумнівні"), ("closed", "ЗАКРИТО"), ("qrsuspended", "QR-меню призупинено"),
+                          ("owners", "З власником"), ("telegram", "Підключили Telegram"), ("qrscans", "Скани QR за 28 днів"), ("all", "Усі ресторани") };
 }
 
 <style>
@@ -44,14 +45,16 @@
             @* підсумок: чи приводить розсилка власників (заклади з власником, Telegram, скани QR, заявки) *@
             @{ var summary = await ChecklistSvc.Summary(); }
             <div class="outreach-summary">
-                <div><b>@summary.WithOwner.ToString("N0")</b> з @summary.Restaurants.ToString("N0") закладів мають власника</div>
-                <div><b>@summary.WithTelegram.ToString("N0")</b> підключили Telegram</div>
-                <div><b>@summary.QrScans28.ToString("N0")</b> сканів QR за 28 днів</div>
-                <div><b>@summary.Requests28.ToString("N0")</b> заявок за 28 днів · <a asp-controller="CustomerRequests" asp-action="Index">нових: @summary.NewRequests</a></div>
+                <a class="@(filter == "owners" ? "on" : "")" asp-action="Index" asp-route-filter="owners"><b>@summary.WithOwner.ToString("N0")</b> з @summary.Restaurants.ToString("N0") закладів мають власника →</a>
+                <a class="@(filter == "telegram" ? "on" : "")" asp-action="Index" asp-route-filter="telegram"><b>@summary.WithTelegram.ToString("N0")</b> підключили Telegram →</a>
+                <a class="@(filter == "qrscans" ? "on" : "")" asp-action="Index" asp-route-filter="qrscans"><b>@summary.QrScans28.ToString("N0")</b> сканів QR за 28 днів →</a>
+                <a asp-controller="CustomerRequests" asp-action="Index" asp-route-Status="0"><b>@summary.Requests28.ToString("N0")</b> заявок за 28 днів, нових: @summary.NewRequests →</a>
             </div>
             <style>
                 .outreach-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin: 12px 0; }
-                .outreach-summary div { background: #f5f6f9; border-radius: 10px; padding: 8px 12px; font-size: 13px; color: #5f6670; }
+                .outreach-summary a { display: block; background: #f5f6f9; border-radius: 10px; padding: 8px 12px; font-size: 13px; color: #5f6670; text-decoration: none; border: 2px solid transparent; }
+                .outreach-summary a:hover { border-color: #ffb80e; }
+                .outreach-summary a.on { border-color: #ffb80e; background: #fff8e6; }
                 .outreach-summary b { display: block; font-size: 20px; color: #231f20; }
             </style>
 
