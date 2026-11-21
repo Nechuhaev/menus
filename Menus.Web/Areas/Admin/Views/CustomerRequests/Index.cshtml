@@ -19,8 +19,8 @@
 <style>
     .requests .table-wrap { overflow-x: auto; }
     .requests table td { vertical-align: top; overflow-wrap: anywhere; }
-    .requests .filters input, .requests .filters select { width: 100%; min-width: 90px; box-sizing: border-box; font-size: 13px; }
-    .requests .filters .dates input { min-width: 120px; margin-bottom: 2px; }
+    .requests .filter-row input, .requests .filter-row select { width: 100%; min-width: 90px; box-sizing: border-box; font-size: 13px; }
+    .requests .filter-row .dates input { min-width: 120px; margin-bottom: 2px; }
     .requests .muted { color: #777; font-size: 12px; }
     .requests .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
     .requests .pager a, .requests .pager span { margin: 0 4px; }
@@ -30,8 +30,8 @@
         .requests .table-wrap { overflow-x: visible; }
         .requests table, .requests thead, .requests tbody, .requests tr, .requests th, .requests td { display: block; width: 100%; box-sizing: border-box; }
         .requests thead tr:first-child { display: none; }
-        .requests tr.filters th { padding: 2px 0; }
-        .requests tr.filters th:empty { display: none; }
+        .requests tr.filter-row th { padding: 2px 0; }
+        .requests tr.filter-row th:empty { display: none; }
         .requests tbody tr { border: 1px solid #e5e5e5; border-radius: 10px; margin: 0 0 10px; padding: 8px 10px; background: #fff; }
         .requests tbody td { border: 0; padding: 3px 0; }
         .requests tbody td[data-label]::before { content: attr(data-label) ": "; color: #777; font-size: 12px; }
@@ -86,7 +86,7 @@
                             <th>Статус</th>
                             <th></th>
                         </tr>
-                        <tr class="filters">
+                        <tr class="filter-row">
                             <th></th>
                             <th><input form="filter-form" name="Restaurant" value="@f.Restaurant" placeholder="назва" /></th>
                             <th><input form="filter-form" name="Package" value="@f.Package" placeholder="пакет" /></th>
