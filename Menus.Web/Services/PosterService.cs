@@ -84,7 +84,9 @@ namespace Menus.Web.Services
                 var resp = await Http.PostAsync($"https://{account}.joinposter.com/api/v2/auth/access_token", form);
                 var json = JObject.Parse(await resp.Content.ReadAsStringAsync());
                 var token = json.Value<string>("access_token");
-                return string.IsNullOrEmpty(token) ? (null, json.Value<string>("error_message") ?? json.Value<string>("error") ?? "Poster не видав токен") : (token, null);
+                if (string.IsNullOrEmpty(token))
+                    return (null, json.Value<string>("error_message") ?? json.Value<string>("error") ?? "Poster не видав токен");
+                return (token, null);
             }
             catch (Exception ex)
             {
