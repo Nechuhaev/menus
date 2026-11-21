@@ -144,9 +144,27 @@ namespace Menus.Web.Areas.Restaurants.Controllers
             ViewData["iframeDesign"] = await HttpContext.RequestServices.GetRequiredService<IframeDesignService>().Get(selectedRestaurant.Id);
             // «Ваш заклад у Google» за 28 днів і QR-код на стіл (веде на iframe-меню)
             ViewData["googleStats"] = await HttpContext.RequestServices.GetRequiredService<RestaurantStatsService>().GetLast28(iframeSeo?.Url, selectedRestaurant.Id);
+            ViewData["checklist"] = await HttpContext.RequestServices.GetRequiredService<OwnerChecklistService>()
+                .Get(selectedRestaurant.Id, HttpContext.RequestServices.GetRequiredService<TelegramOwnersService>().StartLink(selectedRestaurant.Id));
             ViewData["ownerReport"] = await HttpContext.RequestServices.GetRequiredService<OwnerReportService>().IsEnabled(selectedRestaurant.Id);
 
             return View(restaurantInfo);
+        }
+
+        // «Підготуйте заклад»: пункт, який не видно з даних (Google Maps - після «Скопіювати»)
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> ChecklistDone(string item)
+        {
+            if (item != "gbp") return BadRequest();
+            var restaurant = await _usrService.GetSelecedRestaurant(User, Request);
+            if (restaurant == null ||
+                (!(await _core.Restaurants.IsUserAllowedToEdit(restaurant.Id, User.Identity.Name)) && !User.IsInRole("admin") && !User.IsInRole("manager")))
+            {
+                return Forbid();
+            }
+            await HttpContext.RequestServices.GetRequiredService<OwnerChecklistService>().MarkDone(restaurant.Id, item);
+            return NoContent();
         }
 
         // галочка «Щомісячний звіт на пошту» в блоці «Ваш заклад у Google»

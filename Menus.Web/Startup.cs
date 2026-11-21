@@ -128,6 +128,7 @@ namespace Menus.Web
             services.AddScoped<OwnerReportService>();
             services.AddScoped<DishBadgeService>();
             services.AddScoped<DishStopService>();
+            services.AddScoped<OwnerChecklistService>();
             services.AddScoped<SiteTextService>();
             services.AddScoped<NewVenueService>();
             services.AddScoped<UserVisitService>();

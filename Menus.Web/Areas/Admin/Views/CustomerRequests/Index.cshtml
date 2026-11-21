@@ -24,6 +24,18 @@
     .requests .muted { color: #777; font-size: 12px; }
     .requests .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
     .requests .pager a, .requests .pager span { margin: 0 4px; }
+    .requests .tg-badge { display: inline-block; padding: 0 6px; border-radius: 8px; background: #e7f3fd; color: #1d6fb8; font-size: 12px; }
+    /* телефон: таблиця - картками, без бокової прокрутки; фільтри - стовпчиком */
+    @@media (max-width: 760px) {
+        .requests .table-wrap { overflow-x: visible; }
+        .requests table, .requests thead, .requests tbody, .requests tr, .requests th, .requests td { display: block; width: 100%; box-sizing: border-box; }
+        .requests thead tr:first-child { display: none; }
+        .requests tr.filters th { padding: 2px 0; }
+        .requests tr.filters th:empty { display: none; }
+        .requests tbody tr { border: 1px solid #e5e5e5; border-radius: 10px; margin: 0 0 10px; padding: 8px 10px; background: #fff; }
+        .requests tbody td { border: 0; padding: 3px 0; }
+        .requests tbody td[data-label]::before { content: attr(data-label) ": "; color: #777; font-size: 12px; }
+    }
 </style>
 
 <div class="site-content">
@@ -102,7 +114,7 @@
                         {
                             <tr data-id="@item.Id">
                                 <td><input type="checkbox" form="delete-form" name="ids" value="@item.Id" class="row-check" /></td>
-                                <td>
+                                <td data-label="Ресторан / повідомлення">
                                     @if (item.IsAccessRequest)
                                     {
                                         <a target="_blank" href="@Url.Action("Edit", "Restaurants", new { id = item.RestaurantName })">@(item.RestaurantTitle ?? "Перейти в ресторан")</a>
@@ -112,13 +124,42 @@
                                         @item.RestaurantName
                                     }
                                 </td>
-                                <td>@item.Package</td>
-                                <td>@item.Email</td>
-                                <td>@item.Phone</td>
-                                <td>@(item.Ip ?? "–")</td>
-                                <td>@item.CreateDate.ToString("dd.MM.yyyy HH:mm")</td>
-                                <td>@item.UpdateDate.ToString("dd.MM.yyyy HH:mm")</td>
-                                <td>
+                                <td data-label="Пакет">@if (item.Package == "Telegram-бот")
+                                    {
+                                        <span class="tg-badge">Telegram-бот</span>
+                                    }
+                                    else
+                                    {
+                                        @item.Package
+                                    }</td>
+                                <td data-label="Email">@if (!string.IsNullOrWhiteSpace(item.Email) && item.Email.Contains("@"))
+                                    {
+                                        <a href="mailto:@item.Email">@item.Email</a>
+                                    }
+                                    else
+                                    {
+                                        @item.Email
+                                    }</td>
+                                <td data-label="Контакт">@{
+                                        var tgUser = System.Text.RegularExpressions.Regex.Match(item.Phone ?? "", @"t\.me/([A-Za-z0-9_]{3,})").Groups[1].Value;
+                                        var phoneDigits = System.Text.RegularExpressions.Regex.Replace(item.Phone ?? "", @"[^\d+]", "");
+                                    }
+                                    @if (tgUser != "")
+                                    {
+                                        <a href="https://t.me/@tgUser" target="_blank" rel="noopener">@@@tgUser</a>
+                                    }
+                                    else if (phoneDigits.Length >= 9)
+                                    {
+                                        <a href="tel:@phoneDigits">@item.Phone</a>
+                                    }
+                                    else
+                                    {
+                                        @item.Phone
+                                    }</td>
+                                <td data-label="IP">@(item.Ip ?? "–")</td>
+                                <td data-label="Створено">@item.CreateDate.ToString("dd.MM.yyyy HH:mm")</td>
+                                <td data-label="Оновлено">@item.UpdateDate.ToString("dd.MM.yyyy HH:mm")</td>
+                                <td data-label="Статус">
                                     <select class="status-select">
                                         @foreach (var (value, title) in statuses)
                                         {
