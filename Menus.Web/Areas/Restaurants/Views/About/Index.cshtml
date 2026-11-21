@@ -1,4 +1,5 @@
 ﻿@inject Menus.Web.Services.LocaleService LocaleSrvc;
+@inject Menus.Web.Services.PosterService PosterSvc;
 @using Menus.Abstract.Models
 @model Menus.Abstract.Models.IRestaurantInfo
 @{
@@ -90,6 +91,43 @@
                     .owner-checklist .oc-text small { display: block; color: #8a9099; font-size: 12px; }
                 </style>
             }
+
+            @* каса Poster: меню й ціни з каси (OAuth Poster -> content-bot читає меню за посиланням poster://) *@
+            @{
+                var posterConnection = Model?.RestaurantId == null ? null : await PosterSvc.Get(Model.RestaurantId);
+            }
+            <section class="poster-box" id="poster">
+                <h3>Каса Poster</h3>
+                @if (TempData["posterMessage"] != null)
+                {
+                    <p class="pb-msg">@TempData["posterMessage"]</p>
+                }
+                @if (posterConnection != null)
+                {
+                    <p>Підключено: акаунт <b>@posterConnection.Account</b>@(string.IsNullOrEmpty(posterConnection.SpotName) ? "" : ", точка «" + posterConnection.SpotName + "»"), з @posterConnection.ConnectedAt.ToString("dd.MM.yyyy"). Меню й ціни на сайті оновлюються з каси.</p>
+                    <form method="post" action="/uk/poster/disconnect" onsubmit="return confirm('Відключити Poster? Меню на сайті лишиться, але не оновлюватиметься з каси.');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="pb-ghost">Відключити</button>
+                    </form>
+                }
+                else if (PosterSvc.IsConfigured)
+                {
+                    <p>Працюєте в Poster? Підключіть касу - страви, ціни й фото з неї з'являться на сайті й в меню за QR-кодом і оновлюватимуться самі.</p>
+                    <a class="pb-btn" href="/uk/poster/connect">Підключити Poster</a>
+                }
+                else
+                {
+                    <p>Підключення каси Poster скоро з'явиться.</p>
+                }
+            </section>
+            <style>
+                .poster-box { margin: 16px 0; padding: 14px 16px; border: 1px solid #eceef2; border-radius: 12px; background: #fff; }
+                .poster-box h3 { margin: 0 0 6px; font-size: 18px; }
+                .poster-box p { margin: 0 0 10px; font-size: 14px; color: #5f6670; overflow-wrap: anywhere; }
+                .poster-box .pb-msg { background: #e9f7ee; color: #1b7f3b; border-radius: 8px; padding: 8px 12px; }
+                .poster-box .pb-btn { display: inline-block; min-height: 36px; padding: 8px 16px; border-radius: 8px; background: #ffb80e; color: #231f20; font-weight: 600; text-decoration: none; }
+                .poster-box .pb-ghost { min-height: 36px; padding: 6px 16px; border: 1px solid #dfe2e8; border-radius: 8px; background: #fff; cursor: pointer; }
+            </style>
 
             @* «Ваш заклад у Google» за 28 днів: Search Console + GA4 сторінки закладу (усі мови) *@
             @if (ViewData["googleStats"] is Menus.Web.Services.RestaurantStats googleStats)

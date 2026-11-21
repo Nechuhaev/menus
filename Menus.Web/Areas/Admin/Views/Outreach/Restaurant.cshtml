@@ -1,6 +1,7 @@
 ﻿@model Menus.Web.Services.OutreachRecipient
 @inject Menus.Web.Services.CatalogService CatalogSvc
 @inject Menus.Web.Services.RestaurantStatsService StatsSvc
+@inject Menus.Web.Services.PosterService PosterSvc
 
 @{
     ViewData["Title"] = "Розсилка: " + Model.Name;
@@ -95,6 +96,11 @@
                     <span>даних немає</span>
                 }
                 · <a asp-area="Restaurants" asp-controller="About" asp-action="QrSign" asp-route-id="@Model.Id" target="_blank" rel="noopener">QR-табличка на стіл ↗</a>
+                @{ var posterLink = await PosterSvc.Get(Model.Id); }
+                @if (posterLink != null)
+                {
+                    <br /><span>Каса Poster: підключено (@posterLink.Account@(string.IsNullOrEmpty(posterLink.SpotName) ? "" : ", " + posterLink.SpotName)) з @posterLink.ConnectedAt.ToString("dd.MM.yyyy")</span>
+                }
             </div>
             <div class="alive-box">
                 @if (Model.Closed)

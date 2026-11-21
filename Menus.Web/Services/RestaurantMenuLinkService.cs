@@ -37,7 +37,7 @@ namespace Menus.Web.Services
         {
             await _connection.ExecuteAsync(CreateTableSql);
             url = url?.Trim();
-            if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
+            if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https" && uri.Scheme != "poster"))
             {
                 await _connection.ExecuteAsync("DELETE FROM RestaurantMenuLinks WHERE RestaurantId = @restaurantId", new { restaurantId });
                 return;
