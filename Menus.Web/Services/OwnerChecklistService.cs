@@ -61,7 +61,7 @@ namespace Menus.Web.Services
         public async Task<List<ChecklistItem>> Get(string restaurantId, string telegramLink)
         {
             await Ensure();
-            var dishes = await Safe(() => _connection.QueryFirstAsync<(long Priced, long Photos)>(@"
+            (long Priced, long Photos) dishes = await Safe(() => _connection.QueryFirstAsync<(long Priced, long Photos)>(@"
                 SELECT CAST(IFNULL(SUM(Price > 0), 0) AS SIGNED),
                        CAST(IFNULL(SUM(PhotoLink IS NOT NULL AND PhotoLink <> '' AND PhotoLink <> '[]'), 0) AS SIGNED)
                 FROM Dishes WHERE RestaurantId = @restaurantId AND Status = 0", new { restaurantId }), (0L, 0L));
