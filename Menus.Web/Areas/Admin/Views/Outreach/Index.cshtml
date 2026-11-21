@@ -46,9 +46,12 @@
             @{ var summary = await ChecklistSvc.Summary(); }
             <div class="outreach-summary">
                 <a class="@(filter == "owners" ? "on" : "")" asp-action="Index" asp-route-filter="owners"><b>@summary.WithOwner.ToString("N0")</b> з @summary.Restaurants.ToString("N0") закладів мають власника →</a>
-                <a class="@(filter == "telegram" ? "on" : "")" asp-action="Index" asp-route-filter="telegram"><b>@summary.WithTelegram.ToString("N0")</b> підключили Telegram →</a>
+                <a class="@(filter == "telegram" ? "on" : "")" asp-action="Index" asp-route-filter="telegram"><b>@summary.WithTelegram.ToString("N0")</b> підключили Telegram →@if (summary.TelegramUnlinked > 0)
+                    {
+                        <small style="display:block">ще @summary.TelegramUnlinked - заклад прихований чи видалений</small>
+                    }</a>
                 <a class="@(filter == "qrscans" ? "on" : "")" asp-action="Index" asp-route-filter="qrscans"><b>@summary.QrScans28.ToString("N0")</b> сканів QR за 28 днів →</a>
-                <a asp-controller="CustomerRequests" asp-action="Index" asp-route-Status="0"><b>@summary.Requests28.ToString("N0")</b> заявок за 28 днів, нових: @summary.NewRequests →</a>
+                <a asp-controller="CustomerRequests" asp-action="Index" asp-route-Status="0"><b>@summary.Requests28.ToString("N0")</b> заявок за 28 днів →<small style="display:block">необроблених за весь час: @summary.NewRequests</small></a>
             </div>
             <style>
                 .outreach-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin: 12px 0; }
