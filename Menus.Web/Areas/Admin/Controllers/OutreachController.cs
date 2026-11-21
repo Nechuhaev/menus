@@ -47,6 +47,15 @@ namespace Menus.Web.Areas.Admin.Controllers
                 case "sent": list = list.Where(x => x.LastSent != null); break;
                 case "qr": list = list.Where(x => x.MenuUpdatedFromQr); break;
                 case "noqr": list = list.Where(x => !x.MenuUpdatedFromQr && x.Contacts.Any()); break;
+                case "owners": list = list.Where(x => x.Owners > 0); break;
+                case "telegram":
+                    var linked = await _telegram.GetLinkedRestaurants();
+                    list = list.Where(x => linked.Contains(x.Id));
+                    break;
+                case "qrscans":
+                    var scanned = await ((OwnerChecklistService)HttpContext.RequestServices.GetService(typeof(OwnerChecklistService))).ScannedRestaurants();
+                    list = list.Where(x => scanned.Contains(x.Id));
+                    break;
                 case "all": break;
                 default: list = list.Where(x => x.Contacts.Any()); break;
             }

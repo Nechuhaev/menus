@@ -80,6 +80,11 @@ namespace Menus.Web.Services
             };
         }
 
+        // заклади зі сканами QR за 28 днів (фільтр «Розсилки»)
+        public async Task<HashSet<string>> ScannedRestaurants() =>
+            new HashSet<string>(await Safe(() => _connection.QueryAsync<string>(
+                "SELECT DISTINCT RestaurantId FROM QrScanDays WHERE Day >= UTC_DATE() - INTERVAL 27 DAY"), Enumerable.Empty<string>()));
+
         public class OutreachSummary
         {
             public int Restaurants, WithOwner, WithTelegram, QrScans28, Requests28, NewRequests;
