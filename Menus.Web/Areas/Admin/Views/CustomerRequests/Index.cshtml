@@ -17,10 +17,15 @@
 }
 
 <style>
-    .requests .table-wrap { overflow-x: auto; }
+    /* таблиця вміщається в екран: фіксовані ширини колонок, довгий текст переноситься */
+    .requests .table-wrap { overflow-x: visible; max-width: 100%; }
+    .requests table.mainTable { table-layout: fixed; width: 100%; }
+    .requests table th, .requests table td { overflow-wrap: anywhere; word-break: break-word; padding-left: 6px !important; padding-right: 6px !important; }
+    .requests td small { display: block; color: #8a9099; font-size: 11px; }
+    .requests .status-select { width: 100%; min-width: 0; height: auto; min-height: 32px; line-height: normal; padding: 4px; font-size: 13px; }
     .requests table td { vertical-align: top; overflow-wrap: anywhere; }
-    .requests .filter-row input, .requests .filter-row select { width: 100%; min-width: 90px; box-sizing: border-box; font-size: 13px; }
-    .requests .filter-row .dates input { min-width: 120px; margin-bottom: 2px; }
+    .requests .filter-row input, .requests .filter-row select { width: 100%; min-width: 0; box-sizing: border-box; font-size: 13px; }
+    .requests .filter-row .dates input { display: block; min-width: 0; margin-bottom: 2px; }
     .requests .muted { color: #777; font-size: 12px; }
     .requests .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
     .requests .pager a, .requests .pager span { margin: 0 4px; }
@@ -30,6 +35,7 @@
         .requests .table-wrap { overflow-x: visible; }
         .requests table, .requests thead, .requests tbody, .requests tr, .requests th, .requests td { display: block; width: 100%; box-sizing: border-box; }
         .requests thead tr:first-child { display: none; }
+        .requests colgroup { display: none; }
         .requests tr.filter-row th { padding: 2px 0; }
         .requests tr.filter-row th:empty { display: none; }
         .requests tbody tr { border: 1px solid #e5e5e5; border-radius: 10px; margin: 0 0 10px; padding: 8px 10px; background: #fff; }
@@ -73,6 +79,10 @@
 
             <div class="table-wrap">
                 <table class="mainTable">
+                    <colgroup>
+                        <col style="width:4%" /><col style="width:20%" /><col style="width:9%" /><col style="width:15%" />
+                        <col style="width:14%" /><col style="width:9%" /><col style="width:11%" /><col style="width:12%" /><col style="width:6%" />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th><input type="checkbox" id="check-all" title="Вибрати всі" /></th>
@@ -82,7 +92,6 @@
                             <th>Телефон</th>
                             <th>IP</th>
                             <th>Створено</th>
-                            <th>Оновлено</th>
                             <th>Статус</th>
                             <th></th>
                         </tr>
@@ -93,7 +102,7 @@
                             <th><input form="filter-form" name="Email" value="@f.Email" placeholder="email" /></th>
                             <th><input form="filter-form" name="Phone" value="@f.Phone" placeholder="телефон" /></th>
                             <th><input form="filter-form" name="Ip" value="@f.Ip" placeholder="IP" /></th>
-                            <th class="dates" colspan="2">
+                            <th class="dates">
                                 <input form="filter-form" type="date" name="From" value="@f.From?.ToString("yyyy-MM-dd")" title="Створено від" />
                                 <input form="filter-form" type="date" name="To" value="@f.To?.ToString("yyyy-MM-dd")" title="Створено до" />
                             </th>
@@ -157,8 +166,10 @@
                                         @item.Phone
                                     }</td>
                                 <td data-label="IP">@(item.Ip ?? "–")</td>
-                                <td data-label="Створено">@item.CreateDate.ToString("dd.MM.yyyy HH:mm")</td>
-                                <td data-label="Оновлено">@item.UpdateDate.ToString("dd.MM.yyyy HH:mm")</td>
+                                <td data-label="Створено">@item.CreateDate.ToString("dd.MM.yyyy HH:mm")@if (item.UpdateDate > item.CreateDate.AddMinutes(1))
+                                    {
+                                        <small>змінено @item.UpdateDate.ToString("dd.MM.yyyy HH:mm")</small>
+                                    }</td>
                                 <td data-label="Статус">
                                     <select class="status-select">
                                         @foreach (var (value, title) in statuses)
@@ -172,7 +183,7 @@
                         }
                         @if (Model.Count == 0)
                         {
-                            <tr><td colspan="10">Запитів не знайдено</td></tr>
+                            <tr><td colspan="9">Запитів не знайдено</td></tr>
                         }
                     </tbody>
                 </table>
