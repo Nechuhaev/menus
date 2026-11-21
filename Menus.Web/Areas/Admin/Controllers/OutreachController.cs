@@ -37,7 +37,8 @@ namespace Menus.Web.Areas.Admin.Controllers
             if (!string.IsNullOrWhiteSpace(q)) list = list.Where(x => (x.Name ?? "").IndexOf(q.Trim(), StringComparison.OrdinalIgnoreCase) >= 0);
             if (!string.IsNullOrEmpty(cityId)) list = list.Where(x => x.City == cityId);
             // QR-меню «Сервіс призупинено» - у розсилку не беремо (видно лише у своєму фільтрі)
-            if (filter != "qrsuspended" && filter != "all") list = list.Where(x => !x.QrSuspended);
+            if (filter != "qrsuspended" && filter != "all" && filter != "owners" && filter != "telegram" && filter != "qrscans")
+                list = list.Where(x => !x.QrSuspended);
             switch (filter)
             {
                 case "closed": list = list.Where(x => x.Closed); break;
@@ -49,11 +50,11 @@ namespace Menus.Web.Areas.Admin.Controllers
                 case "noqr": list = list.Where(x => !x.MenuUpdatedFromQr && x.Contacts.Any()); break;
                 case "owners": list = list.Where(x => x.Owners > 0); break;
                 case "telegram":
-                    var linked = await _telegram.GetLinkedRestaurants();
+                    var linked = new HashSet<string>(await _telegram.GetLinkedRestaurants(), StringComparer.OrdinalIgnoreCase);
                     list = list.Where(x => linked.Contains(x.Id));
                     break;
                 case "qrscans":
-                    var scanned = await ((OwnerChecklistService)HttpContext.RequestServices.GetService(typeof(OwnerChecklistService))).ScannedRestaurants();
+                    var scanned = new HashSet<string>(await ((OwnerChecklistService)HttpContext.RequestServices.GetService(typeof(OwnerChecklistService))).ScannedRestaurants(), StringComparer.OrdinalIgnoreCase);
                     list = list.Where(x => scanned.Contains(x.Id));
                     break;
                 case "all": break;

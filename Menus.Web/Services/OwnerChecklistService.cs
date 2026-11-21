@@ -87,18 +87,22 @@ namespace Menus.Web.Services
 
         public class OutreachSummary
         {
-            public int Restaurants, WithOwner, WithTelegram, QrScans28, Requests28, NewRequests;
+            public int Restaurants, WithOwner, WithTelegram, QrScans28, Requests28, NewRequests, TelegramUnlinked;
         }
 
         // підсумок для «Розсилки»: активні заклади, з власником, з Telegram, скани QR і заявки за 28 днів
         public async Task<OutreachSummary> Summary()
         {
             var s = new OutreachSummary();
-            s.Restaurants = (int)await Safe(() => _connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Restaurants WHERE Status = 0"), 0L);
+            // ті самі заклади, що й у списку «Розсилки» (активні й закриті), щоб цифра збігалася з фільтром
+            s.Restaurants = (int)await Safe(() => _connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Restaurants WHERE Status IN (0, 3)"), 0L);
             s.WithOwner = (int)await Safe(() => _connection.ExecuteScalarAsync<long>(
-                "SELECT COUNT(DISTINCT rr.RestaurantId) FROM RestaurantRoles rr JOIN Restaurants r ON r.Id = rr.RestaurantId WHERE r.Status = 0"), 0L);
-            s.WithTelegram = (int)await Safe(() => _connection.ExecuteScalarAsync<long>("SELECT COUNT(DISTINCT RestaurantId) FROM OutreachTelegramLinks"), 0L);
+                "SELECT COUNT(DISTINCT rr.RestaurantId) FROM RestaurantRoles rr JOIN Restaurants r ON r.Id = rr.RestaurantId WHERE r.Status IN (0, 3)"), 0L);
+            s.WithTelegram = (int)await Safe(() => _connection.ExecuteScalarAsync<long>(
+                "SELECT COUNT(DISTINCT l.RestaurantId) FROM OutreachTelegramLinks l JOIN Restaurants r ON r.Id = l.RestaurantId WHERE r.Status IN (0, 3)"), 0L);
             s.QrScans28 = (int)(await Safe(() => _connection.ExecuteScalarAsync<long?>("SELECT SUM(Scans) FROM QrScanDays WHERE Day >= UTC_DATE() - INTERVAL 27 DAY"), null) ?? 0);
+            s.TelegramUnlinked = (int)await Safe(() => _connection.ExecuteScalarAsync<long>(
+                "SELECT COUNT(DISTINCT l.RestaurantId) FROM OutreachTelegramLinks l LEFT JOIN Restaurants r ON r.Id = l.RestaurantId WHERE r.Id IS NULL OR r.Status NOT IN (0, 3)"), 0L);
             s.Requests28 = (int)await Safe(() => _connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM CustomerRequests WHERE CreateDate >= UTC_TIMESTAMP() - INTERVAL 28 DAY"), 0L);
             s.NewRequests = (int)await Safe(() => _connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM CustomerRequests WHERE Status IN (0, 2)"), 0L);
             return s;
