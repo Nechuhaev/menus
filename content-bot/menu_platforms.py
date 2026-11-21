@@ -377,12 +377,90 @@ def find_platform_link(raw_html):
     return m.group(0) if m else None
 
 
+# Poster (каса): посилання на меню «poster://{акаунт}?spot={точка}» ставить сайт, коли власник підключив Poster
+# у кабінеті (PosterConnections: токен OAuth). Меню - з API каси: категорії, страви, ціни (копійки), вага, фото.
+POSTER_LINK = re.compile(r"^poster://([a-z0-9_-]+)(?:\?spot=(\d+))?", re.I)
+POSTER_API = "https://joinposter.com/api/{method}"
+
+
+def poster_token(account):
+    from sync_restaurants import get_db  # тут, щоб не було циклічного імпорту
+    db = get_db()
+    try:
+        cur = db.cursor()
+        cur.execute("SELECT Token FROM PosterConnections WHERE Account = %s ORDER BY ConnectedAt DESC LIMIT 1", (account,))
+        row = cur.fetchone()
+        return row[0] if row else None
+    finally:
+        db.close()
+
+
+def poster_call(method, token, **params):
+    resp = requests.get(POSTER_API.format(method=method), params={"token": token, **params}, timeout=30, headers=HEADERS)
+    resp.raise_for_status()
+    data = resp.json()
+    if "error" in data:
+        raise RuntimeError(f"Poster {method}: {data.get('error')} {data.get('message', '')}".strip())
+    return data.get("response") or []
+
+
+def parse_poster_menu(products, categories, spot, account):
+    """Страви з menu.getProducts: лише страви й товари (не напівфабрикати), не приховані, видимі на точці."""
+    hidden_categories = {str(c.get("category_id")) for c in categories if str(c.get("category_hidden", "0")) == "1"}
+    items = []
+    for p in products:
+        if str(p.get("type")) == "1" or str(p.get("hidden", "0")) == "1":
+            continue
+        if str(p.get("menu_category_id")) in hidden_categories:
+            continue
+        spots = p.get("spots") or []
+        chosen = next((x for x in spots if spot and str(x.get("spot_id")) == str(spot)), None) or (spots[0] if spots else None)
+        if chosen is not None and str(chosen.get("visible", "1")) == "0":
+            continue
+        cents = (chosen or {}).get("price")
+        if cents is None:
+            cents = next(iter((p.get("price") or {}).values()), None)
+        try:
+            price = round(int(cents) / 100, 2) if cents not in (None, "") else None
+        except (TypeError, ValueError):
+            price = None
+        out = p.get("out")
+        try:
+            out = int(float(out or 0))
+        except (TypeError, ValueError):
+            out = 0
+        unit = (p.get("unit") or "").lower()
+        weight = f"{out} {'мл' if unit in ('l', 'ml') else 'г'}" if out > 0 else ""
+        photo = p.get("photo_origin") or p.get("photo") or ""
+        image = f"https://{account}.joinposter.com{photo}" if photo.startswith("/") else (photo or None)
+        name = text(p.get("product_name") or "")
+        if not name:
+            continue
+        items.append(dish(name, text(p.get("category_name") or ""), price, weight,
+                          clean_description(text(p.get("product_production_description") or "")), image))
+    return items
+
+
+def read_poster(url):
+    m = POSTER_LINK.match(url)
+    account, spot = m.group(1), m.group(2)
+    token = poster_token(account)
+    if not token:
+        print(f"    Poster: немає токена для акаунта {account} (власник відключив застосунок?)")
+        return []
+    categories = poster_call("menu.getCategories", token)
+    products = poster_call("menu.getProducts", token)
+    return parse_poster_menu(products, categories, spot, account)
+
+
 def platform_menu(url):
     """Страви з QR-меню сервісу або None, якщо адреса не з підтримуваних сервісів."""
     if not url:
         return None
     host = urlparse(url).netloc.lower()
-    if EXPZ_ROOT.match(url):
+    if POSTER_LINK.match(url):
+        reader = read_poster
+    elif EXPZ_ROOT.match(url):
         reader = read_expz
     elif host.endswith(".choiceqr.com") or is_choiceqr_domain(url):
         reader = read_choiceqr

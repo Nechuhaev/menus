@@ -1,0 +1,38 @@
+@{
+    Layout = null;
+    var spots = ViewData["spots"] as List<(string Id, string Name, string Address)> ?? new List<(string, string, string)>();
+}
+<!doctype html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Poster: точка продажу</title>
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; background: #f5f6f9; color: #231f20; }
+        .box { max-width: 520px; margin: 24px auto; padding: 20px 16px; background: #fff; border-radius: 12px; box-sizing: border-box; }
+        h1 { font-size: 20px; margin: 0 0 8px; }
+        p { color: #5f6670; font-size: 14px; }
+        form { margin: 8px 0; }
+        button { width: 100%; min-height: 48px; padding: 10px 14px; border: 1px solid #dfe2e8; border-radius: 10px; background: #fff; text-align: left; font-size: 15px; cursor: pointer; overflow-wrap: anywhere; }
+        button:hover { border-color: #ffb80e; }
+        button small { display: block; color: #8a9099; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>Яка точка продажу - цей заклад?</h1>
+        <p>У вашому акаунті Poster кілька закладів. Оберіть той, чиє меню показувати на TipMyMenu.</p>
+        @foreach (var s in spots)
+        {
+            <form method="post" action="/uk/poster/selectspot">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="spotId" value="@s.Id" />
+                <input type="hidden" name="spotName" value="@s.Name" />
+                <button type="submit">@s.Name<small>@s.Address</small></button>
+            </form>
+        }
+    </div>
+</body>
+</html>

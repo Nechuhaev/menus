@@ -68,6 +68,7 @@ namespace Menus.Web.Services
             var scans = await Safe(() => _connection.ExecuteScalarAsync<long?>("SELECT SUM(Scans) FROM QrScanDays WHERE RestaurantId = @restaurantId", new { restaurantId }), null);
             var iframe = await Safe(() => _connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM IframeDesign WHERE RestaurantId = @restaurantId", new { restaurantId }), 0L);
             var telegram = await Safe(() => _connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM OutreachTelegramLinks WHERE RestaurantId = @restaurantId", new { restaurantId }), 0L);
+            var poster = await Safe(() => _connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM PosterConnections WHERE RestaurantId = @restaurantId", new { restaurantId }), 0L);
             var gbp = await Safe(() => _connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM OwnerChecklistDone WHERE RestaurantId = @restaurantId AND Item = 'gbp'", new { restaurantId }), 0L);
             return new List<ChecklistItem>
             {
@@ -76,6 +77,7 @@ namespace Menus.Web.Services
                 new ChecklistItem { Key = "qr", Title = "QR-код на столах", Hint = "роздрукуйте табличку - галочка з'явиться після першого скану", Href = "#qr-menu", Done = (scans ?? 0) > 0 },
                 new ChecklistItem { Key = "gbp", Title = "Меню в Google Maps", Hint = "скопіюйте посилання й додайте в профіль закладу в Google", Href = "#gbp-menu", Done = gbp > 0 },
                 new ChecklistItem { Key = "iframe", Title = "Меню на вашому сайті", Hint = "налаштуйте вигляд і вставте код на сайт", Href = "#embed-menu", Done = iframe > 0 },
+                new ChecklistItem { Key = "poster", Title = "Каса Poster", Hint = "меню й ціни з каси оновлюються самі (якщо у вас Poster)", Href = "#poster", Done = poster > 0 },
                 new ChecklistItem { Key = "telegram", Title = "Telegram-бот", Hint = "стоп-лист і ціни прямо з Telegram: /stop, /price", Href = string.IsNullOrEmpty(telegramLink) ? null : telegramLink, Done = telegram > 0 },
             };
         }
