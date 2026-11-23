@@ -184,8 +184,10 @@ namespace Menus.Web.Areas.Restaurants.Controllers
 
         // Табличка з QR-кодом на стіл (A6, друк або PDF з браузера). id - для адміна/менеджера (з «Розсилки»),
         // власник бачить лише свій вибраний заклад
-        public async Task<IActionResult> QrSign(string id)
+        // kind = door - наліпка «Ми на TipMyMenu» на вітрину чи двері (той самий QR, інший текст)
+        public async Task<IActionResult> QrSign(string id, string kind = null)
         {
+            ViewData["kind"] = kind == "door" ? "door" : "table";
             var isStaff = User.IsInRole("admin") || User.IsInRole("manager");
             var restaurant = !string.IsNullOrEmpty(id) && isStaff
                 ? await _core.Restaurants.GetRestaurantByIdOrSeo(id)
