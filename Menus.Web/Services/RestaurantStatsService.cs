@@ -18,6 +18,7 @@ namespace Menus.Web.Services
         public DateTime? From { get; set; }
         public DateTime? To { get; set; }
         public int QrScans { get; set; }        // скани QR-коду на стіл (QrScanDays)
+        public int GuestRatings { get; set; }   // оцінки страв гостями (з входом і без: Ratings + AnonymousRatings)
         public bool HasData => Impressions > 0 || Views > 0 || QrScans > 0;
         // пошукові запити, за якими знаходять заклад (SeoPageQueryDays) - лише для одного закладу
         public List<(string Query, int Clicks, int Impressions)> Queries { get; set; } = new List<(string, int, int)>();
@@ -74,8 +75,29 @@ namespace Menus.Web.Services
                 ? found : new RestaurantStats { From = last.Value.AddDays(-27), To = last.Value };
             s.Queries = await TopQueries(slug, last.Value.AddDays(-27), last.Value);
             // скани QR - за останні 28 календарних днів (лічильник живий, без затримки Search Console)
-            if (restaurantId != null) s.QrScans = await QrScans(restaurantId, DateTime.UtcNow.Date.AddDays(-27), DateTime.UtcNow.Date);
+            if (restaurantId != null)
+            {
+                s.QrScans = await QrScans(restaurantId, DateTime.UtcNow.Date.AddDays(-27), DateTime.UtcNow.Date);
+                s.GuestRatings = await GuestRatings(restaurantId, DateTime.UtcNow.Date.AddDays(-27), DateTime.UtcNow.Date.AddDays(1));
+            }
             return s;
+        }
+
+        // оцінки страв закладу за період [from, to)
+        public async Task<int> GuestRatings(string restaurantId, DateTime from, DateTime to)
+        {
+            if (string.IsNullOrEmpty(restaurantId)) return 0;
+            try
+            {
+                return await _connection.ExecuteScalarAsync<int>(@"
+                    SELECT (SELECT COUNT(*) FROM Ratings WHERE RestaurantId = @restaurantId AND Rate > 0 AND ParentId IS NULL AND UpdateDate >= @from AND UpdateDate < @to)
+                         + (SELECT COUNT(*) FROM AnonymousRatings WHERE RestaurantId = @restaurantId AND Rate > 0 AND UpdateDate >= @from AND UpdateDate < @to)",
+                    new { restaurantId, from, to });
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
         }
 
         public async Task<int> QrScans(string restaurantId, DateTime from, DateTime to)
