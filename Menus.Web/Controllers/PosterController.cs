@@ -47,7 +47,7 @@ namespace Menus.Web.Controllers
                 // без закладу в кабінеті - спершу стати власником
                 return Redirect("/uk/articles/forowners");
             }
-            Response.Cookies.Append(RestaurantCookie, id, new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromMinutes(20) });
+            Response.Cookies.Append(RestaurantCookie, id, new CookieOptions { IsEssential = true, HttpOnly = true, Secure = true, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromMinutes(20) });
             return Redirect(_poster.AuthorizeUrl(BaseUrl));
         }
 
