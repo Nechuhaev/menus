@@ -1880,6 +1880,10 @@ def sync_menu(db, restaurant, menu_url, force_ai=False):
     drop_generic_images(site_menu)
 
     updated, price_changes = 0, []
+    # каса Poster: ціни пишемо одразу, лише коли меню каси справді наше (збіглася щонайменше половина наших страв);
+    # інакше (підключили не той акаунт чи точку, тестовий акаунт) - ціни на підтвердження в «Звітах»
+    direct_qr = SITE_MENU_SOURCE.get(menu_url) == "QR" and not (
+        (menu_url or "").startswith("poster://") and our_dishes and len(matches) / len(our_dishes) < MIN_MATCH_SHARE)
     for dish in our_dishes:
         site = matches.get(dish["Id"])
         if not site:
@@ -1892,7 +1896,7 @@ def sync_menu(db, restaurant, menu_url, force_ai=False):
         if new_price and new_price != old_price and not dish["IsPriceMultiple"] and not site.get("price_from"):
             # з QR-меню (Expirenza, ChoiceQR, RestoApp, ps.me) ціна - від самого закладу: пишемо одразу;
             # з сайту - зміна більше ніж удвічі йде на підтвердження (там можна сплутати порцію чи страву)
-            if old_price == 0 or SITE_MENU_SOURCE.get(menu_url) == "QR" or 0.5 <= new_price / old_price <= 2:
+            if old_price == 0 or direct_qr or (SITE_MENU_SOURCE.get(menu_url) != "QR" and 0.5 <= new_price / old_price <= 2):
                 updates["Price"] = new_price
             else:
                 price_changes.append((dish, new_price))  # більше ніж удвічі - на підтвердження адміну

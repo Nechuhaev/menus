@@ -23,6 +23,7 @@ namespace Menus.Web.Services
         public string SpotName { get; set; }
         public DateTime ConnectedAt { get; set; }
         public DateTime? LastWebhookAt { get; set; }
+        public string PrevMenuUrl { get; set; }   // посилання на меню до підключення - повертається при відключенні
     }
 
     // Каса Poster: власник підключає застосунок TipMyMenu (OAuth) - меню з каси читає content-bot (menu_platforms.read_poster)
@@ -60,6 +61,7 @@ namespace Menus.Web.Services
                 LastWebhookAt DATETIME NULL,
                 KEY IX_PosterConnections_Account (Account)
             ) DEFAULT CHARSET=utf8mb4");
+            await _connection.ExecuteAsync("ALTER TABLE PosterConnections ADD COLUMN IF NOT EXISTS PrevMenuUrl VARCHAR(1000) NULL");
             _ready = true;
         }
 
@@ -133,23 +135,39 @@ namespace Menus.Web.Services
         public async Task Save(string restaurantId, string account, string token, string spotId, string spotName)
         {
             await Ensure();
-            await _connection.ExecuteAsync(@"INSERT INTO PosterConnections (RestaurantId, Account, Token, SpotId, SpotName, ConnectedAt)
-                VALUES (@restaurantId, @account, @token, @spotId, @spotName, UTC_TIMESTAMP())
-                ON DUPLICATE KEY UPDATE Account = @account, Token = @token, SpotId = @spotId, SpotName = @spotName, ConnectedAt = UTC_TIMESTAMP()",
-                new { restaurantId, account = account.ToLowerInvariant(), token, spotId, spotName });
-            var url = $"poster://{account.ToLowerInvariant()}" + (string.IsNullOrEmpty(spotId) ? "" : $"?spot={spotId}");
             await _connection.ExecuteAsync(@"CREATE TABLE IF NOT EXISTS RestaurantMenuLinks (
-                    RestaurantId VARCHAR(255) NOT NULL PRIMARY KEY, Url VARCHAR(1000) NOT NULL, UpdatedAt DATETIME NOT NULL) DEFAULT CHARSET=utf8mb4;
-                INSERT INTO RestaurantMenuLinks (RestaurantId, Url, UpdatedAt) VALUES (@restaurantId, @url, NOW())
+                    RestaurantId VARCHAR(255) NOT NULL PRIMARY KEY, Url VARCHAR(1000) NOT NULL, UpdatedAt DATETIME NOT NULL) DEFAULT CHARSET=utf8mb4");
+            // попереднє посилання на меню (сайт, QR-меню) - щоб повернути його при відключенні; повторне підключення його не змінює
+            var prevUrl = await _connection.ExecuteScalarAsync<string>(
+                "SELECT Url FROM RestaurantMenuLinks WHERE RestaurantId = @restaurantId AND Url NOT LIKE 'poster://%'", new { restaurantId });
+            await _connection.ExecuteAsync(@"INSERT INTO PosterConnections (RestaurantId, Account, Token, SpotId, SpotName, ConnectedAt, PrevMenuUrl)
+                VALUES (@restaurantId, @account, @token, @spotId, @spotName, UTC_TIMESTAMP(), @prevUrl)
+                ON DUPLICATE KEY UPDATE Account = @account, Token = @token, SpotId = @spotId, SpotName = @spotName, ConnectedAt = UTC_TIMESTAMP(),
+                    PrevMenuUrl = IFNULL(@prevUrl, PrevMenuUrl)",
+                new { restaurantId, account = account.ToLowerInvariant(), token, spotId, spotName, prevUrl });
+            var url = $"poster://{account.ToLowerInvariant()}" + (string.IsNullOrEmpty(spotId) ? "" : $"?spot={spotId}");
+            await _connection.ExecuteAsync(@"INSERT INTO RestaurantMenuLinks (RestaurantId, Url, UpdatedAt) VALUES (@restaurantId, @url, NOW())
                 ON DUPLICATE KEY UPDATE Url = @url, UpdatedAt = NOW()", new { restaurantId, url });
             await QueueSync(new[] { restaurantId });
         }
 
-        public async Task Disconnect(string restaurantId)
+        // відключення: повертає посилання на меню, що було до Poster (true - повернуто), і ставить заклад у чергу синхронізації
+        public async Task<bool> Disconnect(string restaurantId)
         {
             await Ensure();
-            await _connection.ExecuteAsync(@"DELETE FROM PosterConnections WHERE RestaurantId = @restaurantId;
-                DELETE FROM RestaurantMenuLinks WHERE RestaurantId = @restaurantId AND Url LIKE 'poster://%'", new { restaurantId });
+            var prevUrl = (await Get(restaurantId))?.PrevMenuUrl;
+            await _connection.ExecuteAsync("DELETE FROM PosterConnections WHERE RestaurantId = @restaurantId", new { restaurantId });
+            if (string.IsNullOrEmpty(prevUrl))
+            {
+                await _connection.ExecuteAsync("DELETE FROM RestaurantMenuLinks WHERE RestaurantId = @restaurantId AND Url LIKE 'poster://%'", new { restaurantId });
+            }
+            else
+            {
+                await _connection.ExecuteAsync("UPDATE RestaurantMenuLinks SET Url = @prevUrl, UpdatedAt = NOW() WHERE RestaurantId = @restaurantId AND Url LIKE 'poster://%'",
+                    new { restaurantId, prevUrl });
+            }
+            await QueueSync(new[] { restaurantId });
+            return !string.IsNullOrEmpty(prevUrl);
         }
 
         // наступний запуск sync_restaurants.py бере заклад першим (як ще не перевірений)
