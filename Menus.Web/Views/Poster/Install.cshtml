@@ -1,0 +1,88 @@
+@inject Menus.Web.Services.TelegramOwnersService TelegramOwners
+@{
+    Layout = null;
+    var spots = ViewData["spots"] as List<(string Id, string Name, string Address)>;
+    var account = ViewData["account"] as string;
+    var error = ViewData["error"] as string;
+    var done = ViewData["done"] as bool? == true;
+    (string Venue, string City, string Contact, string Email) form = ViewData["form"] as (string, string, string, string)? ?? default((string, string, string, string));
+    var bot = TelegramOwners.BotName;
+}
+<!doctype html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Poster + TipMyMenu</title>
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; background: #f5f6f9; color: #231f20; }
+        .box { max-width: 520px; margin: 24px auto; padding: 20px 16px; background: #fff; border-radius: 12px; box-sizing: border-box; }
+        @@media (max-width: 560px) { .box { margin: 0; border-radius: 0; min-height: 100vh; } }
+        h1 { font-size: 20px; margin: 0 0 8px; }
+        p, li { color: #5f6670; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+        ul { padding-left: 18px; }
+        label { display: block; margin: 12px 0 4px; font-size: 14px; font-weight: bold; }
+        input, select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid #dfe2e8; border-radius: 10px; font-size: 16px; box-sizing: border-box; background: #fff; }
+        .hint { color: #8a9099; font-size: 12px; margin-top: 4px; }
+        .err { background: #fdecec; color: #b42318; border-radius: 8px; padding: 8px 12px; }
+        .ok { background: #e9f7ee; color: #1b7f3b; border-radius: 8px; padding: 8px 12px; }
+        button { width: 100%; min-height: 48px; margin-top: 16px; border: 0; border-radius: 10px; background: #ffb80e; color: #231f20; font-size: 16px; font-weight: bold; cursor: pointer; }
+        a { color: #1a73e8; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>Poster + TipMyMenu</h1>
+        @if (done)
+        {
+            <p class="ok">Дякуємо! Poster «@account» підключено до TipMyMenu.</p>
+            <p>Протягом робочого дня ми створимо сторінку закладу з меню з вашої каси й напишемо вам. Далі страви, ціни й фото оновлюватимуться з Poster самі.</p>
+            <p>Питання - у Telegram: <a href="https://t.me/@bot" target="_blank" rel="noopener">@@@bot</a></p>
+        }
+        else if (spots == null)
+        {
+            <p class="err">@(error ?? "Не вдалося підключити Poster.")</p>
+            <p>Встановіть застосунок TipMyMenu в Poster ще раз або напишіть нам у Telegram: <a href="https://t.me/@bot" target="_blank" rel="noopener">@@@bot</a></p>
+        }
+        else
+        {
+            <p>Меню з вашої каси Poster - на TipMyMenu безкоштовно:</p>
+            <ul>
+                <li>сторінка закладу з меню, цінами й фото - її знаходять у Google;</li>
+                <li>QR-код на стіл і меню для вашого сайту;</li>
+                <li>страви й ціни оновлюються з Poster самі.</li>
+            </ul>
+            <p>Розкажіть, що це за заклад, - ми створимо сторінку й напишемо вам.</p>
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <p class="err">@error</p>
+            }
+            <form method="post" action="/uk/poster/install">
+                @Html.AntiForgeryToken()
+                @if (spots.Count > 1)
+                {
+                    <label for="spot">Точка продажу</label>
+                    <select id="spot" name="spot" required>
+                        <option value="">- оберіть заклад -</option>
+                        @foreach (var s in spots)
+                        {
+                            <option value="@s.Id">@(s.Name + (string.IsNullOrEmpty(s.Address) ? "" : " - " + s.Address))</option>
+                        }
+                    </select>
+                }
+                <label for="venue">Назва закладу</label>
+                <input id="venue" name="venue" value="@form.Venue" maxlength="150" required />
+                <label for="city">Місто</label>
+                <input id="city" name="city" value="@form.City" maxlength="80" />
+                <label for="contact">Телефон або Telegram</label>
+                <input id="contact" name="contact" value="@form.Contact" maxlength="120" required />
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" value="@form.Email" maxlength="120" />
+                <div class="hint">Акаунт Poster: @account</div>
+                <button type="submit">Підключити</button>
+            </form>
+        }
+    </div>
+</body>
+</html>

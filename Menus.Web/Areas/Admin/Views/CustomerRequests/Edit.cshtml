@@ -10,6 +10,8 @@
     .request-edit label { display: block; margin: 10px 0 4px; font-weight: bold; }
     .request-edit input, .request-edit select, .request-edit textarea { width: 100%; max-width: 560px; box-sizing: border-box; }
     .request-edit .muted { color: #777; font-size: 12px; }
+    .request-edit .poster-link { margin-top: 24px; padding: 12px 14px; border: 1px solid #ffb80e; border-radius: 10px; max-width: 560px; box-sizing: border-box; }
+    .request-edit .poster-link h3 { margin: 0 0 6px; }
     .request-edit .buttons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 </style>
 
@@ -25,6 +27,10 @@
             </div>
 
             <h2>Запит від @Model.CreateDate.ToString("dd.MM.yyyy HH:mm")</h2>
+            @if (TempData["message"] != null)
+            {
+                <p><strong>@TempData["message"]</strong></p>
+            }
             <p class="muted">IP: @(Model.Ip ?? "не збережено") · оновлено @Model.UpdateDate.ToString("dd.MM.yyyy HH:mm")</p>
 
             <form method="post" asp-action="Edit">
@@ -53,6 +59,22 @@
                     <a asp-action="Index">Скасувати</a>
                 </div>
             </form>
+
+            @{
+                var posterPending = ViewData["posterPending"] as Menus.Web.Services.PosterPending;
+            }
+            @if (posterPending != null)
+            {
+                <form method="post" asp-action="LinkPoster" class="poster-link">
+                    <h3>Poster чекає на заклад</h3>
+                    <p class="muted">Акаунт <b>@posterPending.Account</b>@(string.IsNullOrEmpty(posterPending.SpotName) ? "" : ", точка «" + posterPending.SpotName + "»") · встановлено @posterPending.CreatedAt.ToString("dd.MM.yyyy HH:mm").
+                        Створіть заклад (або знайдіть наявний) і вкажіть його - меню з каси підтягнеться синхронізацією.</p>
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <label>Заклад: Id або адреса сторінки</label>
+                    <input name="restaurant" placeholder="https://tipmymenu.com/uk/kyiv/restaurant/..." required />
+                    <div class="buttons"><button type="submit">Прив'язати Poster</button></div>
+                </form>
+            }
 
             <form method="post" asp-action="Delete" style="margin-top: 24px;" onsubmit="return confirm('Видалити запит?');">
                 <input type="hidden" name="ids" value="@Model.Id" />

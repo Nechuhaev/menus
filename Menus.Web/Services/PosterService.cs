@@ -26,6 +26,18 @@ namespace Menus.Web.Services
         public string PrevMenuUrl { get; set; }   // посилання на меню до підключення - повертається при відключенні
     }
 
+    // встановлення з каталогу Poster без закладу на TipMyMenu: токен чекає, поки адмін прив'яже заклад
+    // (заявка в «Запитах», пакет «Poster: акаунт»)
+    public class PosterPending
+    {
+        public string Account { get; set; }
+        public string Token { get; set; }
+        public string SpotId { get; set; }
+        public string SpotName { get; set; }
+        public string RequestId { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
     // Каса Poster: власник підключає застосунок TipMyMenu (OAuth) - меню з каси читає content-bot (menu_platforms.read_poster)
     // за посиланням «poster://{акаунт}?spot={точка}» у RestaurantMenuLinks; вебхук Poster про зміну меню ставить заклад
     // у чергу синхронізації. Ключі застосунку - Poster__ApplicationId / Poster__ApplicationSecret у menus.env.
@@ -62,6 +74,15 @@ namespace Menus.Web.Services
                 KEY IX_PosterConnections_Account (Account)
             ) DEFAULT CHARSET=utf8mb4");
             await _connection.ExecuteAsync("ALTER TABLE PosterConnections ADD COLUMN IF NOT EXISTS PrevMenuUrl VARCHAR(1000) NULL");
+            await _connection.ExecuteAsync(@"CREATE TABLE IF NOT EXISTS PosterPending (
+                Account VARCHAR(100) NOT NULL PRIMARY KEY,
+                Token VARCHAR(255) NOT NULL,
+                SpotId VARCHAR(32) NULL,
+                SpotName VARCHAR(255) NULL,
+                RequestId VARCHAR(255) NULL,
+                CreatedAt DATETIME NOT NULL,
+                KEY IX_PosterPending_Request (RequestId)
+            ) DEFAULT CHARSET=utf8mb4");
             _ready = true;
         }
 
@@ -170,6 +191,59 @@ namespace Menus.Web.Services
             return !string.IsNullOrEmpty(prevUrl);
         }
 
+        private static string Cut(string value, int max = 250) => (value ?? "").Trim().Length > max ? value.Trim().Substring(0, max) : (value ?? "").Trim();
+
+        // встановлення без закладу: заявка в «Запити» (одна на акаунт Poster - повторне встановлення оновлює її) і токен в очікуванні
+        public async Task<string> SavePending(string account, string token, string spotId, string spotName, string venue, string contact, string email)
+        {
+            await Ensure();
+            account = account.ToLowerInvariant();
+            var requestId = await _connection.ExecuteScalarAsync<string>("SELECT RequestId FROM PosterPending WHERE Account = @account", new { account })
+                            ?? Guid.NewGuid().ToString();
+            var package = Cut("Poster: " + account + (string.IsNullOrEmpty(spotName) ? "" : " · " + spotName));
+            await _connection.ExecuteAsync(@"INSERT INTO CustomerRequests (Id, RestaurantName, Email, Phone, Package, Status, CreateDate, UpdateDate)
+                VALUES (@requestId, @venue, @email, @contact, @package, 0, UTC_TIMESTAMP(), UTC_TIMESTAMP())
+                ON DUPLICATE KEY UPDATE RestaurantName = IF(@hasContact, @venue, RestaurantName), Email = IF(@hasContact, @email, Email),
+                    Phone = IF(@hasContact, @contact, Phone), Package = @package, Status = 0, UpdateDate = UTC_TIMESTAMP()",
+                new { requestId, venue = Cut(venue), email = Cut(email), contact = Cut(contact), package, hasContact = !string.IsNullOrWhiteSpace(contact) });
+            await _connection.ExecuteAsync(@"INSERT INTO PosterPending (Account, Token, SpotId, SpotName, RequestId, CreatedAt)
+                VALUES (@account, @token, @spotId, @spotName, @requestId, UTC_TIMESTAMP())
+                ON DUPLICATE KEY UPDATE Token = @token, SpotId = IFNULL(@spotId, SpotId), SpotName = IFNULL(@spotName, SpotName), RequestId = @requestId",
+                new { account, token, spotId, spotName, requestId });
+            return requestId;
+        }
+
+        public async Task<PosterPending> PendingByRequest(string requestId)
+        {
+            if (string.IsNullOrEmpty(requestId)) return null;
+            try
+            {
+                await Ensure();
+                return await _connection.QueryFirstOrDefaultAsync<PosterPending>("SELECT * FROM PosterPending WHERE RequestId = @requestId", new { requestId });
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        // «Запити» -> «Прив'язати Poster»: заклад за Id або адресою сторінки; null - успіх, інакше текст помилки
+        public async Task<string> LinkPending(string requestId, string restaurant)
+        {
+            var pending = await PendingByRequest(requestId);
+            if (pending == null) return "очікуваного підключення Poster для цього запиту немає";
+            var key = (restaurant ?? "").Trim().TrimEnd('/');
+            var slug = key.Contains("/") ? key.Substring(key.LastIndexOf('/') + 1) : key;
+            var restaurantId = await _connection.ExecuteScalarAsync<string>(@"
+                SELECT CONCAT(r.Id, '') FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
+                WHERE r.Id = @key OR rs.Url = @slug LIMIT 1", new { key, slug });
+            if (restaurantId == null) return "заклад не знайдено - вкажіть Id або адресу сторінки закладу";
+            await Save(restaurantId, pending.Account, pending.Token, pending.SpotId, pending.SpotName);
+            await _connection.ExecuteAsync(@"DELETE FROM PosterPending WHERE Account = @account;
+                UPDATE CustomerRequests SET Status = 1, UpdateDate = UTC_TIMESTAMP() WHERE Id = @requestId", new { account = pending.Account, requestId });
+            return null;
+        }
+
         // наступний запуск sync_restaurants.py бере заклад першим (як ще не перевірений)
         private async Task QueueSync(IEnumerable<string> restaurantIds)
         {
@@ -200,10 +274,29 @@ namespace Menus.Web.Services
             }
             if (!string.Equals(md5, hook.Value<string>("verify"), StringComparison.OrdinalIgnoreCase)) return "bad signature";
             await Ensure();
+            account = account.ToLowerInvariant();
             var restaurants = (await _connection.QueryAsync<string>("SELECT RestaurantId FROM PosterConnections WHERE Account = @account",
-                new { account = account.ToLowerInvariant() })).ToList();
-            await _connection.ExecuteAsync("UPDATE PosterConnections SET LastWebhookAt = UTC_TIMESTAMP() WHERE Account = @account", new { account = account.ToLowerInvariant() });
+                new { account })).ToList();
+            await _connection.ExecuteAsync("UPDATE PosterConnections SET LastWebhookAt = UTC_TIMESTAMP() WHERE Account = @account", new { account });
             var obj = (hook.Value<string>("object") ?? "").ToLowerInvariant();
+            var action = (hook.Value<string>("action") ?? "").ToLowerInvariant();
+            if (obj == "application" && action == "removed")
+            {
+                // застосунок видалили в Poster: заклади відключаються (повертається попереднє посилання на меню)
+                foreach (var restaurantId in restaurants) await Disconnect(restaurantId);
+                await _connection.ExecuteAsync("DELETE FROM PosterPending WHERE Account = @account", new { account });
+                return "ok";
+            }
+            if (obj == "application" && action == "added" && !restaurants.Any())
+            {
+                // встановили з каталогу: токен приходить у data.access_token - заявка, навіть якщо форму на сайті не заповнили
+                JObject extra = null;
+                try { extra = hook["data"]?.Type == JTokenType.String ? JObject.Parse(hook.Value<string>("data")) : hook["data"] as JObject; } catch (Exception) { }
+                var token = extra?.Value<string>("access_token");
+                if (!string.IsNullOrEmpty(token))
+                    await SavePending(account, token, null, null, "Встановили з каталогу Poster (контакти ще не залишили)", "", "");
+                return "ok";
+            }
             if (obj == "product" || obj == "dish" || obj == "category" || obj == "menu")
                 await QueueSync(restaurants);
             return "ok";

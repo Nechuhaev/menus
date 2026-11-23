@@ -15,10 +15,12 @@ namespace Menus.Web.Areas.Admin.Controllers
     public class CustomerRequestsController : Controller
     {
         private readonly CustomerRequestService _requests;
+        private readonly PosterService _poster;
 
-        public CustomerRequestsController(CustomerRequestService requests)
+        public CustomerRequestsController(CustomerRequestService requests, PosterService poster)
         {
             _requests = requests;
+            _poster = poster;
         }
 
         // фільтри по стовпцях: ресторан, пакет, email, телефон, IP, статус, дата створення від/до
@@ -36,7 +38,18 @@ namespace Menus.Web.Areas.Admin.Controllers
         {
             var row = await _requests.Get(id);
             if (row == null) return NotFound();
+            ViewData["posterPending"] = await _poster.PendingByRequest(id); // встановлення з каталогу Poster чекає на заклад
             return View(row);
+        }
+
+        // заявка з каталогу Poster: прив'язати акаунт Poster до закладу (Id або адреса сторінки)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> LinkPoster(string id, string restaurant)
+        {
+            var error = await _poster.LinkPending(id, restaurant);
+            TempData["message"] = error == null ? "Poster прив'язано - меню з каси підтягнеться найближчою синхронізацією" : "Poster не прив'язано: " + error;
+            return error == null ? RedirectToAction("Index") : RedirectToAction("Edit", new { id });
         }
 
         [HttpPost]
