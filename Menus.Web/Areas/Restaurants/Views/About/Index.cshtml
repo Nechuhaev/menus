@@ -609,6 +609,7 @@
                         <div id="qrPreview" class="qr-box"></div>
                         <div class="qr-actions">
                             <a class="qr-btn" asp-action="QrSign" target="_blank" rel="noopener">Табличка для друку (A6) →</a>
+                            <a class="qr-btn qr-ghost" asp-action="QrSign" asp-route-kind="door" target="_blank" rel="noopener">Наліпка «Ми на TipMyMenu» на вітрину →</a>
                             <a class="qr-btn qr-ghost" id="qrPng" download="qr-menu.png" href="#">Завантажити QR (PNG)</a>
                             <small>Код веде на: @(string.Format(iframeUrl, "uk") + "?src=qr")</small>
                         </div>

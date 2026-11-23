@@ -2,6 +2,7 @@
     Layout = null;
     var qrUrl = ViewData["qrUrl"] as string;
     var name = ViewData["name"] as string;
+    var door = ViewData["kind"] as string == "door";
 }
 <!doctype html>
 <html lang="uk">
@@ -28,6 +29,8 @@
         .sign .scan { font-size: 13px; color: #5f6670; }
         .sign .brand { font-size: 12px; color: #8a9099; }
         .sign .brand b { color: #ffb80e; }
+        .sign .badge-top { display: inline-block; margin-bottom: 4mm; padding: 1.5mm 4mm; border-radius: 20px; background: #231f20; color: #fff; font-size: 14px; }
+        .sign .badge-top b { color: #ffb80e; }
         @@media print {
             body { background: #fff; }
             .tools, .hint { display: none; }
@@ -39,19 +42,37 @@
     <div class="tools">
         <button type="button" onclick="window.print()">Друкувати / зберегти PDF</button>
         <a class="ghost" id="png" download="qr-menu.png" href="#">Завантажити QR (PNG)</a>
+        <a class="ghost" href="?kind=@(door ? "table" : "door")@(Context.Request.Query.ContainsKey("id") ? "&id=" + Context.Request.Query["id"] : "")">@(door ? "Табличка на стіл" : "Наліпка на вітрину")</a>
         <a class="ghost" href="@qrUrl.Replace("?src=qr", "")" target="_blank" rel="noopener">Відкрити меню ↗</a>
     </div>
     <p class="hint">Формат A6 (105×148 мм). У вікні друку виберіть розмір паперу A6 або друкуйте на A4 і виріжте.</p>
     <div class="sign">
-        <div>
-            <div class="name">@name</div>
-            <div class="lead">Меню й ціни</div>
-        </div>
-        <div id="qr"></div>
-        <div>
-            <div class="scan">Наведіть камеру телефона на код</div>
-            <div class="brand">меню від <b>TipMyMenu</b></div>
-        </div>
+        @if (door)
+        {
+            @* наліпка на вітрину / двері: перехожий дивиться меню й ціни ще до входу *@
+            <div>
+                <div class="badge-top">Ми на <b>TipMyMenu</b></div>
+                <div class="name">@name</div>
+                <div class="lead">Меню й ціни - до того, як зайти</div>
+            </div>
+            <div id="qr"></div>
+            <div>
+                <div class="scan">Скануйте камерою телефона</div>
+                <div class="brand">tipmymenu.com</div>
+            </div>
+        }
+        else
+        {
+            <div>
+                <div class="name">@name</div>
+                <div class="lead">Меню й ціни</div>
+            </div>
+            <div id="qr"></div>
+            <div>
+                <div class="scan">Наведіть камеру телефона на код</div>
+                <div class="brand">меню від <b>TipMyMenu</b></div>
+            </div>
+        }
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
