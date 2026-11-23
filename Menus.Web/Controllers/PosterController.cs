@@ -110,8 +110,10 @@ namespace Menus.Web.Controllers
             var id = await AllowedRestaurant(restaurant?.Id);
             if (id != null)
             {
-                await _poster.Disconnect(id);
-                TempData["posterMessage"] = "Poster відключено. Меню на сайті лишається, але більше не оновлюється з каси.";
+                var restored = await _poster.Disconnect(id);
+                TempData["posterMessage"] = restored
+                    ? "Poster відключено. Меню знову оновлюватиметься з попереднього джерела, як до підключення."
+                    : "Poster відключено. Меню на сайті лишається, але більше не оновлюється з каси.";
             }
             return Redirect("/uk/restaurants/about#poster");
         }
