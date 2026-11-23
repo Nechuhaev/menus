@@ -76,6 +76,7 @@ namespace Menus.Web.Services
                 var token = Guid.NewGuid().ToString("N");
                 s.Queries = await _stats.TopQueries(o.Slug, from, to, 5);
                 s.QrScans = await _stats.QrScans(o.RestaurantId, from, to);
+                s.GuestRatings = await _stats.GuestRatings(o.RestaurantId, from, to.AddDays(1));
                 var (subject, body) = Text(o.Name, month, s, token);
                 await _outreach.QueueSystemEmail(o.RestaurantId, TemplateId, o.Email.Trim(), subject, body, token, delay);
                 delay += TimeSpan.FromSeconds(OutreachService.IntervalSeconds);
@@ -99,6 +100,7 @@ namespace Menus.Web.Services
             if (s.Position > 0) lines.Add($"- середня позиція {s.Position:0.#}");
             if (s.Views > 0) lines.Add($"- {s.Views:N0} переглядів сторінки");
             if (s.QrScans > 0) lines.Add($"- {s.QrScans:N0} сканів QR-коду на столах");
+            if (s.GuestRatings > 0) lines.Add($"- {s.GuestRatings:N0} оцінок страв від гостей");
             if (s.Queries.Any())
             {
                 lines.Add("");

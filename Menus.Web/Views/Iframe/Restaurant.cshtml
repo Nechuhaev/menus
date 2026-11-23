@@ -278,6 +278,10 @@
         .sheet .sp { width: 100%; aspect-ratio: 4 / 3; background: var(--line) center/cover no-repeat; border-radius: 20px 20px 0 0; }
         .sheet .sb { padding: 16px 18px 0; }
         .sheet h3 { margin: 0 0 8px; font-size: 20px; line-height: 1.25; }
+        .sheet .rate { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 12px; font-size: 15px; }
+        .sheet .rate-stars button { background: none; border: 0; padding: 2px 3px; font-size: 30px; line-height: 1; color: var(--line); cursor: pointer; min-width: 40px; min-height: 40px; }
+        .sheet .rate-stars button.on { color: #ffb80e; }
+        .sheet .rate-thanks { color: var(--muted); font-weight: 600; }
         .sheet p { margin: 0 0 10px; color: var(--muted); font-size: 15px; white-space: pre-line; }
         .sheet .close { position: sticky; top: 10px; float: right; margin: 10px 10px -46px 0; width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 20px; line-height: 36px; cursor: pointer; z-index: 1; }
         @@media (min-width: 720px) { .sheet-bg { align-items: center; } .sheet { border-radius: 20px; } }
@@ -365,7 +369,7 @@
                         @foreach (var item in popular)
                         {
                             var pc = item.Value;
-                            <article class="dish pop" tabindex="0" role="button" data-title="@pc.Title" data-desc="@pc.FullDesc" data-ingr="@pc.Ingr"
+                            <article class="dish pop" tabindex="0" role="button" data-id="@item.Key" data-title="@pc.Title" data-desc="@pc.FullDesc" data-ingr="@pc.Ingr"
                                      data-photo="@pc.PhotoHigh" data-price="@pc.PriceText" data-weight="@pc.Weight" data-variants="@pc.Variants" data-rating="@pc.RatingText">
                                 @if (pc.Photo != null)
                                 {
@@ -392,7 +396,7 @@
                     {
                         dishIndex++;
                         var card = cards[dish.Id];
-                        <article class="dish@(card.Photo == null ? " nophoto" : "")@(card.Stopped ? " stopped" : "")" tabindex="0" role="button" data-title="@card.Title" data-desc="@card.FullDesc" data-ingr="@card.Ingr"
+                        <article class="dish@(card.Photo == null ? " nophoto" : "")@(card.Stopped ? " stopped" : "")" tabindex="0" role="button" data-id="@dish.Id" data-title="@card.Title" data-desc="@card.FullDesc" data-ingr="@card.Ingr"
                                  data-photo="@card.PhotoHigh" data-price="@card.PriceText" data-weight="@card.Weight" data-variants="@card.Variants" data-rating="@card.RatingText">
                             <div class="dt">
                                 <h3>@card.Title</h3>
@@ -490,6 +494,12 @@
                 <p id="sheetIngr"></p>
                 <p class="variants" id="sheetVariants"></p>
                 <p class="rating" id="sheetRating"></p>
+                @* оцінка гостя - лише в меню, відкритому з QR-коду на столі (?src=qr), без реєстрації *@
+                <div class="rate" id="sheetRate" hidden>
+                    <span class="rate-q">@(culture == "en" ? "How was it?" : culture == "ru" ? "Как вам блюдо?" : "Як вам страва?")</span>
+                    <span class="rate-stars">@for (var star = 1; star <= 5; star++) {<button type="button" data-star="@star" aria-label="@star">★</button>}</span>
+                    <span class="rate-thanks" hidden>@(culture == "en" ? "Thank you!" : culture == "ru" ? "Спасибо!" : "Дякуємо!")</span>
+                </div>
                 <div class="meta"><span class="price" id="sheetPrice"></span><span class="w" id="sheetWeight"></span></div>
             </div>
         </div>
@@ -507,6 +517,7 @@
                 set('sheetTitle', d.dataset.title); set('sheetDesc', d.dataset.desc); set('sheetIngr', d.dataset.ingr);
                 set('sheetPrice', d.dataset.price); set('sheetWeight', d.dataset.weight);
                 set('sheetVariants', d.dataset.variants); set('sheetRating', d.dataset.rating);
+                showRate(d.dataset.id);
                 sheet.classList.add('open'); sheet.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
             }
             function closeDish() { sheet.classList.remove('open'); sheet.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
@@ -565,6 +576,39 @@
             }, { rootMargin: '-130px 0px -65% 0px' });
             document.querySelectorAll('section[id^="c-"]').forEach(function (s) { spy.observe(s); });
             tabs[0].classList.add('on');
+        })();
+    </script>
+    @* оцінки страв з QR: токен і DeviceId - /antiforgery/token (сторінку кешує Cloudflare), оцінка - RateDishAnonymous *@
+    <script>
+        var showRate = function () { };
+        (function () {
+            if (!/[?&]src=qr(&|$)/.test(location.search)) return;
+            var box = document.getElementById('sheetRate');
+            if (!box) return;
+            var rateUrl = '@Url.Action("RateDishAnonymous", "Home")', restaurantId = '@Model.Restaurant.Id';
+            var token = null, current = null, given = {};
+            fetch('/antiforgery/token', { credentials: 'same-origin', cache: 'no-store' })
+                .then(function (r) { return r.json(); }).then(function (j) { token = j.token; }).catch(function () { });
+            var stars = box.querySelectorAll('[data-star]'), thanks = box.querySelector('.rate-thanks');
+            function paint(n) { stars.forEach(function (s) { s.classList.toggle('on', +s.getAttribute('data-star') <= n); }); }
+            showRate = function (dishId) {
+                current = dishId || null;
+                box.hidden = !current;
+                paint(given[current] || 0);
+                thanks.hidden = !given[current];
+            };
+            stars.forEach(function (s) {
+                s.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    if (!current) return;
+                    var n = +s.getAttribute('data-star');
+                    given[current] = n; paint(n); thanks.hidden = false;
+                    var body = new URLSearchParams();
+                    if (token) body.append('__RequestVerificationToken', token);
+                    body.append('rating', n); body.append('restaurantId', restaurantId); body.append('dishId', current); body.append('text', '');
+                    fetch(rateUrl, { method: 'POST', body: body, credentials: 'same-origin' }).catch(function () { });
+                });
+            });
         })();
     </script>
     @* скан QR-коду на стіл (адреса з ?src=qr): +1 у QrScanDays; вбудоване на сайт меню не рахується *@
