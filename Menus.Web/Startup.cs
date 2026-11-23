@@ -169,7 +169,7 @@ namespace Menus.Web
                 .SetCompatibilityVersion(CompatibilityVersion.Version_2_1)
                 .AddViewLocalization(options => options.ResourcesPath = "Resources");
             // повідомлення після редиректу (TempData) - службова кука: без неї зникають і підказки, і вибір точки Poster
-            services.Configure<Microsoft.AspNetCore.Mvc.ViewFeatures.CookieTempDataProviderOptions>(o => o.Cookie.IsEssential = true);
+            services.Configure<Microsoft.AspNetCore.Mvc.CookieTempDataProviderOptions>(o => o.Cookie.IsEssential = true);
 
             services.AddDataProtection()
                 .SetApplicationName("Menus.Web")
