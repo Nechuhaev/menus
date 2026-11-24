@@ -18,7 +18,9 @@ import requests
 
 from sync_restaurants import get_db
 
-RU_ONLY = re.compile(r"[ыэёъ]|ск(ая|ое|ие|ий)\b|\bкухни\b", re.I)
+# російські слова в «Кухні» українською: літери, закінчення (-ская, -ная, -ия, -яя) і типи закладів без таких ознак
+# («Пиццерия», «Кофейня», «Суши», «Бистро»)
+RU_ONLY = re.compile(r"[ыэёъ]|ск(ая|ое|ие|ий)\b|\bкухни\b|(н|ов)ая\b|[^і]ия\b|яя\b|\bсуши\b|\bкофейн|\bбистро\b|ицц", re.I)
 UK_ONLY = re.compile(r"[іїєґ]|ськ", re.I)
 LOG_TABLE_SQL = """CREATE TABLE IF NOT EXISTS CuisineLangLog (
     RestaurantId VARCHAR(255) NOT NULL PRIMARY KEY,

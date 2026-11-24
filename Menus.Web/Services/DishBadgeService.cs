@@ -43,6 +43,18 @@ namespace Menus.Web.Services
             new HashSet<string>(dishes.Where(d => d.Count >= HitMinRatings && d.Rating >= HitMinRating)
                 .OrderByDescending(d => d.Rating).ThenByDescending(d => d.Count).Take(HitsPerRestaurant).Select(d => d.Id));
 
+        public const int TopDishesCount = 5;
+
+        // «Топ страви»: найкраще оцінені з фото; мало оцінок - доповнюємо стравами з фото в порядку меню,
+        // щоб блок не стояв з однією стравою
+        public static List<T> TopDishes<T>(IEnumerable<T> dishes, Func<T, bool> hasPhoto, Func<T, double> rating)
+        {
+            var withPhoto = dishes.Where(hasPhoto).ToList();
+            var top = withPhoto.Where(x => rating(x) > 2).OrderByDescending(rating).Take(TopDishesCount).ToList();
+            top.AddRange(withPhoto.Where(x => !top.Contains(x)).Take(TopDishesCount - top.Count));
+            return top;
+        }
+
         // мітки страви: ручні (manual != null) або автоматичні з тексту й рейтингу
         public static List<string> Resolve(string manual, bool hit, params string[] texts)
         {

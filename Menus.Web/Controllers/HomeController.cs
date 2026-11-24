@@ -385,7 +385,7 @@ namespace Menus.Web.Controllers
             var dishCategories = (await _core.Restaurants.GetDishCategoriesForMenuCategories(categories.Select(x => x.Id)))
                 .OrderBy(x => x.Index).ToList();
 
-            ViewData["topDishes"] = dishes.Where(x => x.Photos.Any() && x.RatingFloat > 2).OrderByDescending(x => x.RatingFloat).Take(5).ToList();
+            ViewData["topDishes"] = DishBadgeService.TopDishes(dishes, x => x.Photos.Any(), x => x.RatingFloat);
 
             var menu = new DishesListViewModel {Categories = new List<DishesListViewModelCategory>()};
 

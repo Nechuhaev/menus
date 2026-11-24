@@ -176,10 +176,14 @@ def query_name(name):
     return " ".join(w.translate(LOOKALIKES) if re.search(r"[a-z]", w, re.I) else w for w in (name or "").split())
 
 
-def find(restaurants, key, platforms=None):
+def find(restaurants, key, platforms=None, cache=None, start=1, total=None, failed=None, processed=None):
+    """failed (set) - Id закладів, де пошук не вдався: їх не позначаємо перевіреними, наступний запуск візьме знову.
+    Кредити Firecrawl скінчилися (402) - зупинка: решта закладів лишається в черзі."""
     rows = []
-    cache = {}  # філії мережі з однаковою назвою - один запит на всіх
-    for i, r in enumerate(restaurants, 1):
+    failed = set() if failed is None else failed
+    processed = set() if processed is None else processed
+    cache = {} if cache is None else cache  # філії мережі з однаковою назвою - один запит на всіх
+    for i, r in enumerate(restaurants, start):
         found = 0
         for platform, (site, _) in PLATFORMS.items():
             if platforms and platform not in platforms:
@@ -190,6 +194,11 @@ def find(restaurants, key, platforms=None):
                     cache[query.lower()] = search(query, key)
                 except requests.RequestException as e:
                     print(f"  ! {r['Name']} {platform}: {e}")
+                    failed.add(r["Id"])
+                    if getattr(getattr(e, "response", None), "status_code", None) == 402:
+                        err = OutOfCredits()
+                        err.rows = rows  # знайдене до зупинки
+                        raise err from e
                     continue
             results = cache[query.lower()]
             pages = {}
@@ -202,7 +211,8 @@ def find(restaurants, key, platforms=None):
                              "PageTitle": (res.get("title") or "")[:500],
                              "PageDescription": (res.get("description") or "")[:300]})
                 found += 1
-        print(f"[{i}/{len(restaurants)}] {r['Name']}: знайдено {found}")
+        processed.add(r["Id"])
+        print(f"[{i}/{total or len(restaurants)}] {r['Name']}: знайдено {found}")
     return rows
 
 
@@ -310,6 +320,24 @@ def save(db, rows, searched_ids):
     db.commit()
 
 
+SAVE_EVERY = 20  # закладів у порції пошуку
+
+
+class OutOfCredits(Exception):
+    pass
+
+
+def demote_shared(db):
+    """Нові рекомендовані пропозиції з посиланням, знайденим для кількох наших ресторанів, - без рекомендації."""
+    cur = db.cursor()
+    cur.execute("""UPDATE MenuLinkProposals p JOIN (
+                       SELECT Url FROM MenuLinkProposals WHERE Status = 0 AND Recommended = 1
+                       GROUP BY Url HAVING COUNT(DISTINCT RestaurantId) > 1) d ON d.Url = p.Url
+                   SET p.Recommended = 0, p.Reason = 'посилання знайдено для кількох наших ресторанів'
+                   WHERE p.Status = 0 AND p.Recommended = 1""")
+    db.commit()
+
+
 RESTAURANTS_SQL = """SELECT CONCAT(r.Id, '') AS Id, r.Name, r.Address, r.City FROM Restaurants r
                      LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id""" + RESTAURANT_CLICKS_JOIN + """
                      LEFT JOIN RestaurantMenuLinks ml ON ml.RestaurantId = r.Id
@@ -393,11 +421,29 @@ def main():
     if not key:
         raise SystemExit("FIRECRAWL_API_KEY немає в content-bot/.env")
     started = time.time()
-    rows = classify(score(find(restaurants, key, args.platform), restaurants, cities), restaurants)
-    # з'єднання могло закритися за час пошуку
     db.close()
+    # порціями: кожна записується одразу - обрив прогону (кредити, мережа, перезапуск) не губить уже знайдене,
+    # а наступний запуск пропускає записані заклади (MenuLinkSearches)
+    rows, cache, stopped = [], {}, False
+    for start in range(0, len(restaurants), SAVE_EVERY):
+        chunk = restaurants[start:start + SAVE_EVERY]
+        failed, processed, found = set(), set(), []
+        try:
+            found = find(chunk, key, args.platform, cache, start + 1, len(restaurants), failed, processed)
+        except OutOfCredits as e:
+            found, stopped = getattr(e, "rows", []), True
+        part = classify(score(found, restaurants, cities), restaurants)
+        db = get_db()  # нове з'єднання: старе могло закритися за час пошуку
+        done = [r["Id"] for r in chunk if r["Id"] in processed and r["Id"] not in failed]
+        save(db, part, done)
+        db.close()
+        rows += part
+        if stopped:
+            print("\n! Кредити Firecrawl закінчилися - зупинка. Знайдене збережено, решта закладів лишається в черзі.")
+            break
+    # одне посилання на кількох наших ресторанах (з різних порцій) - без рекомендації, як у classify
     db = get_db()
-    save(db, rows, [r["Id"] for r in restaurants])
+    demote_shared(db)
     db.close()
     print(f"\nпропозицій: {len(rows)}, рекомендовано: {sum(r['Recommended'] for r in rows)}, "
           f"ресторанів з пропозиціями: {len({r['RestaurantId'] for r in rows})} з {len(restaurants)}; "
