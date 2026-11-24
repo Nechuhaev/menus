@@ -8,6 +8,9 @@ sitemap дата зміни в усіх сторінок «сьогодні», �
 Звідки список: SeoPageWeeks (seo_weekly.py) - сторінка мала >= MIN_IMPRESSIONS показів на тиждень раніше,
 а в останньому тижні її немає. Кожну перевіряє запитом: у sitemap лише ті, що зараз віддають 200 без noindex.
 Сторінка знову з'явилась у видачі (покази в останньому тижні) або перестала віддавати 200 - прибирається.
+
+Друге джерело - сторінки каталогу (типи, кухні, особливості, мережі: /<місто>/restaurants/...) із загального sitemap,
+яких Google ще не показував (немає показів в останньому тижні): нові сторінки Google сам знаходить тижнями.
 Таблиця SeoRecrawl, сайт читає її на /sitemap-recrawl.xml.
 
 Запуск:  python3 recrawl_pages.py --dry-run   # показати, нічого не записувати
@@ -23,6 +26,23 @@ import requests
 from sync_restaurants import get_db
 
 MIN_IMPRESSIONS = 30
+SITE = "https://tipmymenu.com"
+CATALOG_SITEMAPS = ["/sitemapuk.xml", "/sitemapru.xml"]
+CATALOG_PAGE = re.compile(r"^https://tipmymenu\.com/(uk|ru)/[a-z-]+/restaurants/[a-z0-9/-]+$")
+MAX_CATALOG = 300  # сторінок каталогу в sitemap за раз
+
+
+def catalog_pages():
+    """Сторінки каталогу (без головної сторінки міста) із загальних sitemap."""
+    pages = []
+    for path in CATALOG_SITEMAPS:
+        try:
+            xml = requests.get(SITE + path, timeout=60, headers={"User-Agent": "TipMyMenuBot/1.0"}).text
+        except requests.RequestException as e:
+            print(f"! {path}: {e}")
+            continue
+        pages += [u for u in re.findall(r"<loc>([^<]+)</loc>", xml) if CATALOG_PAGE.match(u)]
+    return pages
 NOINDEX = re.compile(r"<meta[^>]+name=[\"']robots[\"'][^>]+noindex", re.I)
 
 TABLE_SQL = """CREATE TABLE IF NOT EXISTS SeoRecrawl (
@@ -64,6 +84,15 @@ def main():
                      AND Page NOT IN (SELECT Page FROM SeoPageWeeks WHERE WeekEnd = %s AND Impressions > 0)
                    GROUP BY Page""", (last, MIN_IMPRESSIONS, last))
     lost = dict(cur.fetchall())
+    # сторінки каталогу без показів в останньому тижні (Google їх ще не показує) - покази 0, після «зниклих»
+    cur.execute("SELECT DISTINCT Page FROM SeoPageWeeks WHERE WeekEnd = %s AND Impressions > 0", (last,))
+    shown = {row[0] for row in cur.fetchall()}
+    # спершу мережі (за «<мережа> меню» конкурують філії), спершу українська версія
+    unseen = sorted({p for p in catalog_pages() if p not in shown and p not in lost},
+                    key=lambda p: ("/merezha/" not in p, "/ru/" in p, p))[:MAX_CATALOG]
+    print(f"сторінки каталогу без показів: {len(unseen)}")
+    for page in unseen:
+        lost[page] = 0
     cur.execute("SELECT Page, ReturnedAt FROM SeoRecrawl")
     known = dict(cur.fetchall())
 

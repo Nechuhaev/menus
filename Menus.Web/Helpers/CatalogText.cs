@@ -39,13 +39,24 @@ namespace Menus.Web.Helpers
             return $"{cuisineName}: {cityName}";
         }
 
-        // «il Molino в Києві: усі заклади мережі» / «… во Львове: все заведения сети» / «il Molino in Kyiv: all locations»
+        // «il Molino в Києві: меню всіх закладів» / «… во Львове: меню всех заведений» / «il Molino in Kyiv: menus of all locations»
+        // (H1 сторінки мережі й посилання на неї з філій)
         public static string ChainHeading(string chainName, string citySlug, string cityName, string culture)
         {
-            if (culture == "en") return $"{chainName} in {cityName}: all locations";
+            if (culture == "en") return $"{chainName} in {cityName}: menus of all locations";
             var loc = Locative.TryGetValue(citySlug ?? "", out var l) ? (culture == "ru" ? l.Ru : l.Uk) : null;
-            var tail = culture == "ru" ? "все заведения сети" : "усі заклади мережі";
+            var tail = culture == "ru" ? "меню всех заведений" : "меню всіх закладів";
             return loc != null ? $"{chainName} {loc}: {tail}" : $"{chainName}, {cityName}: {tail}";
+        }
+
+        // <title> сторінки мережі під запит «<мережа> меню»: «Черноморка меню й ціни 2026: 3 заклади в Києві»
+        public static string ChainTitle(string chainName, int venues, string citySlug, string cityName, string culture, int year)
+        {
+            if (culture == "en") return $"{chainName} menu & prices {year}: {Venues(venues, "en")} in {cityName}";
+            var loc = Locative.TryGetValue(citySlug ?? "", out var l) ? (culture == "ru" ? l.Ru : l.Uk) : ", " + cityName;
+            return culture == "ru"
+                ? $"{chainName} меню и цены {year}: {Venues(venues, "ru")} {loc}".Replace(" , ", ", ")
+                : $"{chainName} меню й ціни {year}: {Venues(venues, "uk")} {loc}".Replace(" , ", ", ");
         }
 
         // заголовок особливості з шаблону: {gen} - «Києва», {loc} - «в Києві», {city} - назва міста

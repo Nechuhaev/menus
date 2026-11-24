@@ -233,6 +233,12 @@
                     <a itemprop="telephone" content="@Model.Restaurant.Phone" href="tel:@Model.Restaurant.Phone">@(!string.IsNullOrEmpty(Model.Restaurant.Phone) ? Model.Restaurant.Phone : string.Empty)</a>
                     <span itemprop="servesCuisine" class="@(!string.IsNullOrEmpty(Model.Restaurant.Phone) ? "" : "hidden")" content="@Model.RestaurantInfo.Cuisine.Get(culture)">|</span> @(!string.IsNullOrEmpty(Model.RestaurantInfo.Cuisine.Get(culture)) ? Model.RestaurantInfo.Cuisine.Get(culture) : string.Empty)
                 </p>
+                @* філія мережі: посилання на сторінку мережі одразу під назвою - головна сторінка для запиту «<мережа> меню» *@
+                @if (ViewData["chainSlug"] is string topChainSlug)
+                {
+                    var topChainCity = restaurantCity.Name.Get("en").ToLower();
+                    <p class="restaurant-chain-link" style="margin:4px 0 8px;overflow-wrap:anywhere;"><a href="/@culture/@topChainCity/restaurants/merezha/@topChainSlug" style="color:inherit;text-decoration:underline;">@Menus.Web.Helpers.CatalogText.T(culture, $"Меню всіх закладів {ViewData["chainName"]}", $"Меню всех заведений {ViewData["chainName"]}", $"Menus of all {ViewData["chainName"]} locations") →</a></p>
+                }
                 @if (!Model.SchedulePerDay)
                 {
                     <strong>@Localizer["WorkHours"]: @Model.OpenHours</strong>
