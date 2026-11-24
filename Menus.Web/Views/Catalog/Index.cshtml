@@ -47,6 +47,12 @@
         $"{heading}{titleSep}{T("меню й ціни", "меню и цены", "menus & prices")} {year} | TipMyMenu" + (Model.PageIndex > 1 ? $" ({Model.PageIndex})" : ""),
         $"{heading}{titleSep}{T("меню й ціни", "меню и цены", "menus & prices")} {year}",
         $"{heading} | TipMyMenu");
+    if (Model.Chain != null)
+    {
+        // мережа: назва й «меню» на початку заголовка - під запит «<мережа> меню», за який конкурують філії
+        var chainTitle = CatalogText.ChainTitle(Model.ChainName, Model.AllOfType.Count, Model.CitySlug, Model.CityName, culture, year);
+        ViewData["Title"] = SeoText.Fit(SeoText.TitleMax, $"{chainTitle} | TipMyMenu" + (Model.PageIndex > 1 ? $" ({Model.PageIndex})" : ""), chainTitle, $"{heading} | TipMyMenu");
+    }
     // canonical: сторінка без фільтрів (з номером сторінки, якщо фільтрів немає)
     ViewData["Canonical"] = siteUrl + (filtered ? pagePath : (Model.PageIndex > 1 ? $"{pagePath}?page={Model.PageIndex}" : pagePath));
 
