@@ -48,13 +48,15 @@
     var title = !Menus.Web.Helpers.SeoText.IsGeneric(customTitle) && customTitle.Length <= Menus.Web.Helpers.SeoText.TitleMax
         ? customTitle
         : null;
+    // російська назва на українській сторінці - українська з H1, якщо вона там є
+    var seoName = Menus.Web.Helpers.SeoText.TitleName(Model.Restaurant.Name, seo.Header?.Get(culture), culture);
     ViewData["Title"] = Menus.Web.Helpers.SeoText.Fit(Menus.Web.Helpers.SeoText.TitleMax,
         title,
-        string.Format(Localizer["SeoTitleMenuYear"].Value, Model.Restaurant.Name, seoCity, DateTime.Now.Year),
-        string.Format(Localizer["SeoTitleMenu"].Value, Model.Restaurant.Name, seoCity),
-        string.Format(Localizer["SeoTitleMenuShort"].Value, Model.Restaurant.Name),
-        $"{Model.Restaurant.Name} | TipMyMenu",
-        Model.Restaurant.Name);
+        string.Format(Localizer["SeoTitleMenuYear"].Value, seoName, seoCity, DateTime.Now.Year),
+        string.Format(Localizer["SeoTitleMenu"].Value, seoName, seoCity),
+        string.Format(Localizer["SeoTitleMenuShort"].Value, seoName),
+        $"{seoName} | TipMyMenu",
+        seoName);
     // og:image для соцмереж: фото ресторану замість загальної картинки
     if (Model.Photos != null && Model.Photos.Any()) { ViewData["MainImage"] = Img.Url(Model.Photos.First(), Quality.High); }
 
@@ -68,7 +70,7 @@
     {
         var seoParts = new List<string>
         {
-            string.Format(Localizer["SeoDescMenu"].Value, Model.Restaurant.Name, seoCity, seoDishCount,
+            string.Format(Localizer["SeoDescMenu"].Value, seoName, seoCity, seoDishCount,
                 Menus.Web.Helpers.SeoText.Plural(seoDishCount, Localizer["DishForms"].Value), seoTypical)
         };
         var seoCuisine = Model.RestaurantInfo.Cuisine.Get(culture);
@@ -96,7 +98,7 @@
     }
     else
     {
-        ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, Model.Restaurant.Name, seoCity);
+        ViewData["Description"] = string.Format(Localizer["MetaDescription"].Value, seoName, seoCity);
     }
 
     var currentDay = (int)DateTime.Now.DayOfWeek;

@@ -32,6 +32,25 @@ namespace Menus.Web.Helpers
             "відгуки клієнтів|отзывы клиентов|ТіпМайМеню|ТипМайМеню|електронне меню закладу|электронное меню заведения|\\?\uFE0F",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+        // російська назва закладу («Итальянская редакция №2») на українській сторінці: ознаки - ы/э/ъ/ё і закінчення -ая/-ое/-ый
+        private static readonly System.Text.RegularExpressions.Regex RussianName = new System.Text.RegularExpressions.Regex(
+            "[ыэъё]|\\w(ая|ое|ый)\\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        private static readonly System.Text.RegularExpressions.Regex UkrainianLetters = new System.Text.RegularExpressions.Regex("[іїєґ]",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        private static readonly System.Text.RegularExpressions.Regex MenuPrefix = new System.Text.RegularExpressions.Regex(
+            "^(меню|menu)\\s+((ресторану|кафе|бару|кав'ярні|піцерії|ресторана|бара|кофейни|пиццерии)\\s+)?",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // назва для title українською: якщо назва закладу російська, а H1 (seo.Header) - українська
+        // («Меню ресторану Італійська редакція №2»), береться назва з H1 - саме так її шукають («італійська редакція меню»)
+        public static string TitleName(string name, string header, string culture)
+        {
+            if (culture != "uk" || string.IsNullOrWhiteSpace(header) || !RussianName.IsMatch(name ?? "")) return name;
+            var fromHeader = MenuPrefix.Replace(header.Trim(), "").Trim();
+            return fromHeader.Length > 0 && fromHeader.Length <= 50 && UkrainianLetters.IsMatch(fromHeader) && !RussianName.IsMatch(fromHeader)
+                ? fromHeader : name;
+        }
+
         public static bool IsGeneric(string text) => string.IsNullOrWhiteSpace(text) || GenericSeo.IsMatch(text);
 
         public static string Truncate(string text, int max)

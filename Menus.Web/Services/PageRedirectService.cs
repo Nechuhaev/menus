@@ -18,6 +18,8 @@ namespace Menus.Web.Services
             // три статті про ресторан «Гага» (Київ) конкурували в Google - лишаємо ту, що має найбільше показів
             ("restoran-haha-v-kyievi-adresa-meniu-ta-atmosfera-zakladu", "restoran-gaga-u-kyievi-ohliad-meniu-tsin-ta-atmosfery-hruzynskoi-hosty"),
             ("restoran-haha-v-kyievi-adresa-meniu-ta-atmosfera-zakladu-1", "restoran-gaga-u-kyievi-ohliad-meniu-tsin-ta-atmosfery-hruzynskoi-hosty"),
+            // четверта стаття про «Гагу» («найкраща українська кухня») - теж дубль
+            ("restoran-haha-naykrashcha-ukrainska-kukhnia-u-kyievi", "restoran-gaga-u-kyievi-ohliad-meniu-tsin-ta-atmosfery-hruzynskoi-hosty"),
         };
 
         private static Dictionary<string, string> _cache;
