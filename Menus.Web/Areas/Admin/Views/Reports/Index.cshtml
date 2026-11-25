@@ -31,6 +31,14 @@
                 </p>
             }
 
+            @if (ViewData["ukNames"] is int ukNames && ukNames > 0)
+            {
+                <p>
+                    <a asp-action="UkNames"><strong>Українські назви: @ukNames</strong></a>
+                    - заклади з російською назвою на українській сторінці; підтвердіть або виправте назву.
+                </p>
+            }
+
             @if (aiCost != null)
             {
                 <p>

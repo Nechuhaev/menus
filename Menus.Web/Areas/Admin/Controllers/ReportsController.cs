@@ -14,17 +14,22 @@ namespace Menus.Web.Areas.Admin.Controllers
     {
         private readonly MenuSyncService _menuSync;
         private readonly MenuLinkProposalService _menuLinkProposals;
+        private readonly UkNameProposalService _ukNames;
+        private readonly Menus.Domain.Core _core;
 
-        public ReportsController(MenuSyncService menuSync, MenuLinkProposalService menuLinkProposals)
+        public ReportsController(MenuSyncService menuSync, MenuLinkProposalService menuLinkProposals, UkNameProposalService ukNames, Menus.Domain.Core core)
         {
             _menuSync = menuSync;
             _menuLinkProposals = menuLinkProposals;
+            _ukNames = ukNames;
+            _core = core;
         }
 
         public async Task<IActionResult> Index()
         {
             ViewData["aiCost"] = await _menuSync.GetAiCostTotals();
             ViewData["menuLinkRestaurants"] = await _menuLinkProposals.GetPendingRestaurantsCount();
+            ViewData["ukNames"] = await _ukNames.GetPendingCount();
             return View(await _menuSync.GetPendingSummary());
         }
 
@@ -78,6 +83,31 @@ namespace Menus.Web.Areas.Admin.Controllers
                 TempData["message"] = "Відхилено";
             }
             return RedirectToAction("MenuLinks");
+        }
+
+        // Українські назви закладів з російською назвою (content-bot/uk_names.py)
+        public async Task<IActionResult> UkNames()
+        {
+            var rows = await _ukNames.GetPending();
+            var cities = (await _core.Restaurants.GetCities()).ToDictionary(x => x.Id, x => x.Name.Get("en").ToLower());
+            foreach (var r in rows) r.CityEn = cities.TryGetValue(r.CityId ?? "", out var en) ? en : null;
+            return View(rows);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UkNameDecision(string id, string name, string decision)
+        {
+            if (decision == "approve")
+            {
+                TempData["message"] = await _ukNames.Approve(id, name) ? $"Назву «{name?.Trim()}» записано в українську сторінку" : "Не записано: порожня назва або немає SEO-запису закладу";
+            }
+            else
+            {
+                await _ukNames.Reject(id);
+                TempData["message"] = "Відхилено";
+            }
+            return RedirectToAction("UkNames");
         }
 
         [HttpPost]
