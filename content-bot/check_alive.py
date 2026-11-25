@@ -90,6 +90,9 @@ def fetch(url):
         return False, "домен на продаж / хостинг заблоковано"
     if r.status_code >= 500:
         return None, f"помилка сервера {r.status_code}"
+    if r.status_code in (401, 403, 429):
+        # сайт закрив доступ ботам (Cloudflare тощо) - ні «працює», ні «мертвий»
+        return None, f"доступ заборонено {r.status_code}"
     return True, f"{r.status_code}"
 
 
