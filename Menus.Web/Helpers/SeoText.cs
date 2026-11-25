@@ -35,8 +35,6 @@ namespace Menus.Web.Helpers
         // російська назва закладу («Итальянская редакция №2») на українській сторінці: ознаки - ы/э/ъ/ё і закінчення -ая/-ое/-ый
         private static readonly System.Text.RegularExpressions.Regex RussianName = new System.Text.RegularExpressions.Regex(
             "[ыэъё]|\\w(ая|ое|ый)\\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        private static readonly System.Text.RegularExpressions.Regex UkrainianLetters = new System.Text.RegularExpressions.Regex("[іїєґ]",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         private static readonly System.Text.RegularExpressions.Regex MenuPrefix = new System.Text.RegularExpressions.Regex(
             "^(меню|menu)\\s+((ресторану|кафе|бару|кав'ярні|піцерії|ресторана|бара|кофейни|пиццерии)\\s+)?",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -47,7 +45,10 @@ namespace Menus.Web.Helpers
         {
             if (culture != "uk" || string.IsNullOrWhiteSpace(header) || !RussianName.IsMatch(name ?? "")) return name;
             var fromHeader = MenuPrefix.Replace(header.Trim(), "").Trim();
-            return fromHeader.Length > 0 && fromHeader.Length <= 50 && UkrainianLetters.IsMatch(fromHeader) && !RussianName.IsMatch(fromHeader)
+            // H1 - назва, а не речення: не довша за назву більш ніж на 2 слова («Царське село», «Улюблений Дядько» з «Звітів»)
+            var words = fromHeader.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries).Length;
+            var nameWords = (name ?? "").Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries).Length;
+            return fromHeader.Length > 0 && fromHeader.Length <= 50 && words <= nameWords + 2 && !RussianName.IsMatch(fromHeader)
                 ? fromHeader : name;
         }
 

@@ -113,6 +113,7 @@ namespace Menus.Web
             services.AddScoped<SiteStatsService>();
             services.AddScoped<RestaurantMenuLinkService>();
             services.AddScoped<MenuLinkProposalService>();
+            services.AddScoped<UkNameProposalService>();
             services.AddScoped<SeoNoindexService>();
             services.AddScoped<DeletedRestaurantRedirectService>();
             services.AddScoped<MenuVerifiedService>();

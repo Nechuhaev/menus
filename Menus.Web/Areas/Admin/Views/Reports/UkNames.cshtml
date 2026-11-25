@@ -1,0 +1,68 @@
+@model List<Menus.Web.Services.UkNameProposal>
+
+@{
+    ViewData["Title"] = "Українські назви";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .ukName { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; border: 1px solid #ddd; border-radius: 6px; padding: 10px 12px; margin: 10px 0; }
+    .ukName .info { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+    .ukName .info small { color: #666; display: block; }
+    .ukName form { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 320px; min-width: 0; }
+    .ukName input[type=text] { flex: 1 1 200px; min-width: 0; padding: 6px 8px; box-sizing: border-box; }
+    .ukName button { padding: 6px 12px; cursor: pointer; }
+</style>
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li><a asp-action="Index">Звіти</a></li>
+                    <li>Українські назви</li>
+                </ul>
+            </div>
+
+            @if (TempData["message"] != null)
+            {
+                <p><strong>@TempData["message"]</strong></p>
+            }
+
+            <p>
+                Заклади, чия назва російською («Царское село»), - на українській сторінці так і показувалась у заголовку й у Google.
+                Підтверджена назва записується в українську версію заголовка сторінки (H1) і йде в title. Назва закладу в
+                картці й російська сторінка не змінюються. Назву можна виправити перед підтвердженням; бренд латиницею лишайте як є.
+                Спершу - заклади з більшою кількістю кліків з Google.
+            </p>
+
+            @if (!Model.Any())
+            {
+                <p>Нових пропозицій немає.</p>
+            }
+            @foreach (var item in Model)
+            {
+                <div class="ukName">
+                    <div class="info">
+                        @if (!string.IsNullOrEmpty(item.Slug) && !string.IsNullOrEmpty(item.CityEn))
+                        {
+                            <a href="/uk/@item.CityEn/restaurant/@item.Slug" target="_blank" rel="noopener"><strong>@item.Name</strong></a>
+                        }
+                        else
+                        {
+                            <strong>@item.Name</strong>
+                        }
+                        <small>@(string.IsNullOrEmpty(item.Proposed) ? "перекладу ще немає - впишіть назву" : "запропоновано: " + item.Source) · кліків з Google за 90 днів: @item.Clicks</small>
+                    </div>
+                    <form asp-action="UkNameDecision" method="post">
+                        <input type="hidden" name="id" value="@item.RestaurantId" />
+                        <input type="text" name="name" value="@item.Proposed" placeholder="Українська назва" maxlength="255" />
+                        <button type="submit" name="decision" value="approve">Підтвердити</button>
+                        <button type="submit" name="decision" value="reject" formnovalidate>Відхилити</button>
+                    </form>
+                </div>
+            }
+        </div>
+    </main>
+</div>
