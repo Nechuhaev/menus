@@ -13,7 +13,12 @@
 Без сайту й QR-меню перевіряти нічим - рядок не пишеться. Позначки адміна (кнопка в картці, Manual = 1) не чіпаються.
 Бот нічого не ховає з сайту - лише позначає для розсилки.
 
+Закриті заклади (--closed): ті, що закриті в адмінці (Restaurants.Status = 3) і мали покази в Google за 90 днів,
+перевіряються так само; результат - у ClosedRecheck (ручну позначку «закрито» не чіпає). Адмінка «Розсилка» ->
+фільтр «Закриті, але сайт працює» (спершу ті, що мали більше кліків) - адмін відкриває заклад кнопкою в картці.
+
 Запуск:  python3 check_alive.py --dry-run     # показати, нічого не записувати
+         python3 check_alive.py --closed      # закриті заклади з показами в Google
          python3 check_alive.py               # записати (cron раз на тиждень)
          python3 check_alive.py --all         # усі активні ресторани, не лише з контактами
 """
@@ -113,13 +118,66 @@ def check(r):
     return "doubt", reason  # нічого не відповіло, але й мертвим не є (тайм-аути, 5xx)
 
 
+CLOSED_TABLE_SQL = """CREATE TABLE IF NOT EXISTS ClosedRecheck (
+    RestaurantId VARCHAR(255) NOT NULL PRIMARY KEY,
+    Status VARCHAR(16) NOT NULL,
+    Reason TEXT NULL,
+    Clicks INT NOT NULL DEFAULT 0,
+    Impressions INT NOT NULL DEFAULT 0,
+    CheckedAt DATETIME NOT NULL
+) DEFAULT CHARSET=utf8mb4"""
+CLOSED_DAYS = 90
+
+
+def check_closed(db, dry_run):
+    """Закриті в адмінці заклади, що мали покази в Google: чи працює сайт / QR-меню."""
+    cur = db.cursor(dictionary=True)
+    cur.execute(CLOSED_TABLE_SQL)
+    cur.execute("""SELECT LOWER(SUBSTRING_INDEX(SUBSTRING_INDEX(Page, '/restaurant/', -1), '/', 1)) AS Slug,
+                          CAST(SUM(Clicks) AS SIGNED) AS Clicks, CAST(SUM(Impressions) AS SIGNED) AS Impressions
+                   FROM SeoPageDays WHERE Day >= CURDATE() - INTERVAL %s DAY AND Page LIKE '%%/restaurant/%%'
+                   GROUP BY 1""", (CLOSED_DAYS,))
+    google = {row["Slug"]: row for row in cur.fetchall()}
+    cur.execute("""SELECT CONCAT(r.Id, '') AS Id, r.Name, LOWER(rs.Url) AS Slug,
+                          (SELECT ri.Website FROM RestaurantInfo ri WHERE ri.RestaurantId = r.Id LIMIT 1) AS Website,
+                          (SELECT ml.Url FROM RestaurantMenuLinks ml WHERE ml.RestaurantId = r.Id LIMIT 1) AS MenuUrl
+                   FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id WHERE r.Status = 3""")
+    restaurants = [r for r in cur.fetchall() if (google.get(r["Slug"] or "") or {}).get("Impressions")]
+    with ThreadPoolExecutor(8) as pool:
+        results = list(pool.map(check, restaurants))
+
+    stats, rows = Counter(), []
+    for r, res in sorted(zip(restaurants, results), key=lambda x: -google[x[0]["Slug"]]["Clicks"]):
+        g = google[r["Slug"]]
+        status, reason = res if res else ("unknown", "немає сайту й QR-меню")
+        stats[status] += 1
+        rows.append((r["Id"], status, reason[:1000], g["Clicks"], g["Impressions"]))
+        if status == "ok":
+            print(f"працює? {r['Name'][:40]:<40} {g['Clicks']:>4} кл. {g['Impressions']:>6} пок.  {reason[:100]}")
+    print(f"\nзакритих з показами в Google за {CLOSED_DAYS} днів: {len(restaurants)}; {dict(stats)}")
+    if dry_run:
+        print("нічого не записано (--dry-run)")
+        return
+    write = db.cursor()
+    write.execute("DELETE FROM ClosedRecheck")
+    write.executemany("""INSERT INTO ClosedRecheck (RestaurantId, Status, Reason, Clicks, Impressions, CheckedAt)
+                         VALUES (%s, %s, %s, %s, %s, NOW())""", rows)
+    db.commit()
+    print(f"записано: {len(rows)} (адмінка «Розсилка» -> «Закриті, але сайт працює»)")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--all", action="store_true", help="усі активні ресторани, не лише з контактами")
+    parser.add_argument("--closed", action="store_true", help="закриті заклади з показами в Google - кандидати відкрити")
     args = parser.parse_args()
 
     db = get_db()
+    if args.closed:
+        check_closed(db, args.dry_run)
+        db.close()
+        return
     cur = db.cursor(dictionary=True)
     cur.execute(TABLE_SQL)
     only_contacts = "" if args.all else """ AND (r.Email LIKE '%@%' OR EXISTS

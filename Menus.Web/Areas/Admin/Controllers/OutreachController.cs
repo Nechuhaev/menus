@@ -42,6 +42,8 @@ namespace Menus.Web.Areas.Admin.Controllers
             switch (filter)
             {
                 case "closed": list = list.Where(x => x.Closed); break;
+                // закриті, але сайт чи QR-меню працює - спершу ті, що мали більше кліків з Google
+                case "reopen": list = list.Where(x => x.ReopenCandidate).OrderByDescending(x => x.RecheckClicks).ThenByDescending(x => x.RecheckImpressions); break;
                 case "doubt": list = list.Where(x => x.AliveStatus == "doubt"); break;
                 case "qrsuspended": list = list.Where(x => x.QrSuspended); break;
                 case "new": list = list.Where(x => x.Contacts.Any() && x.LastSent == null && !x.Closed); break;
