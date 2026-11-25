@@ -15,7 +15,7 @@
     var cityNames = cities.ToDictionary(x => x.Id, x => x.Name.Get("uk"));
     var filters = new[] { ("contacts", "З контактами"), ("new", "Ще не писали"), ("sent", "Уже писали"),
                           ("qr", "Меню оновлено з ChoiceQR/Expirenza"), ("noqr", "З контактами, меню не з QR"),
-                          ("doubt", "Перевірка: сумнівні"), ("closed", "ЗАКРИТО"), ("qrsuspended", "QR-меню призупинено"),
+                          ("doubt", "Перевірка: сумнівні"), ("closed", "ЗАКРИТО"), ("reopen", "Закриті, але сайт працює"), ("qrsuspended", "QR-меню призупинено"),
                           ("owners", "З власником"), ("telegram", "Підключили Telegram"), ("qrscans", "Скани QR за 28 днів"), ("all", "Усі ресторани") };
 }
 
@@ -116,6 +116,10 @@
                                     @if (r.Closed)
                                     {
                                         <span class="closed-badge">ЗАКРИТО</span>
+                                        @if (r.ReopenCandidate)
+                                        {
+                                            <div class="muted">працює? @r.RecheckReason · Google за 90 днів: @r.RecheckClicks кліків, @r.RecheckImpressions показів</div>
+                                        }
                                     }
                                     else if (r.QrSuspended)
                                     {

@@ -158,6 +158,12 @@ namespace Menus.Web.Services
         public int SiteStatus { get; set; }
         public bool Closed => AliveStatus == "closed" || SiteStatus == 3;
         public bool QrSuspended => AliveStatus == "qr_suspended";
+        // закритий на сайті, але сайт чи QR-меню працює (check_alive.py --closed): кліки й покази з Google за 90 днів
+        public string RecheckStatus { get; set; }
+        public string RecheckReason { get; set; }
+        public int RecheckClicks { get; set; }
+        public int RecheckImpressions { get; set; }
+        public bool ReopenCandidate => SiteStatus == 3 && RecheckStatus == "ok";
         public List<OutreachContact> Contacts { get; set; } = new List<OutreachContact>();
         public List<OutreachLogRow> Log { get; set; } = new List<OutreachLogRow>();
         public IEnumerable<string> Values(string kind) => Contacts.Where(x => x.Kind == kind).Select(x => x.Value);
@@ -231,6 +237,15 @@ namespace Menus.Web.Services
                 Status VARCHAR(16) NOT NULL,
                 Reason TEXT NULL,
                 Manual TINYINT(1) NOT NULL DEFAULT 0,
+                CheckedAt DATETIME NOT NULL
+            ) DEFAULT CHARSET=utf8mb4;
+            -- закриті заклади з показами в Google: чи працює сайт / QR-меню (check_alive.py --closed) - кандидати на «відкрити»
+            CREATE TABLE IF NOT EXISTS ClosedRecheck (
+                RestaurantId VARCHAR(255) NOT NULL PRIMARY KEY,
+                Status VARCHAR(16) NOT NULL,
+                Reason TEXT NULL,
+                Clicks INT NOT NULL DEFAULT 0,
+                Impressions INT NOT NULL DEFAULT 0,
                 CheckedAt DATETIME NOT NULL
             ) DEFAULT CHARSET=utf8mb4;
             -- одноразові дії (шаблони за замовчуванням), щоб видалене адміном не поверталось
@@ -434,9 +449,11 @@ https://tipmymenu.com
                        sl.Notes AS SyncNotes, sl.LastCheckedAt AS SyncCheckedAt,
                        (SELECT COUNT(*) FROM RestaurantRoles rr WHERE rr.RestaurantId = r.Id) AS Owners,
                        (SELECT MAX(v.LastSeenAt) FROM RestaurantRoles rr JOIN UserVisits v ON v.UserId = rr.UserId WHERE rr.RestaurantId = r.Id) AS OwnerLastSeen,
-                       a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt
+                       a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt,
+                       cr.Status AS RecheckStatus, cr.Reason AS RecheckReason, IFNULL(cr.Clicks, 0) AS RecheckClicks, IFNULL(cr.Impressions, 0) AS RecheckImpressions
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                 LEFT JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id
+                LEFT JOIN ClosedRecheck cr ON cr.RestaurantId = r.Id AND r.Status = 3
                 LEFT JOIN RestaurantSyncLog sl ON sl.RestaurantId = r.Id
                 WHERE r.Status IN (0, 3)")).ToDictionary(x => x.Id);
             await Fill(restaurants, null);
@@ -458,9 +475,11 @@ https://tipmymenu.com
                        sl.Notes AS SyncNotes, sl.LastCheckedAt AS SyncCheckedAt,
                        (SELECT COUNT(*) FROM RestaurantRoles rr WHERE rr.RestaurantId = r.Id) AS Owners,
                        (SELECT MAX(v.LastSeenAt) FROM RestaurantRoles rr JOIN UserVisits v ON v.UserId = rr.UserId WHERE rr.RestaurantId = r.Id) AS OwnerLastSeen,
-                       a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt
+                       a.Status AS AliveStatus, a.Reason AS AliveReason, IFNULL(a.Manual, 0) AS AliveManual, a.CheckedAt AS AliveCheckedAt,
+                       cr.Status AS RecheckStatus, cr.Reason AS RecheckReason, IFNULL(cr.Clicks, 0) AS RecheckClicks, IFNULL(cr.Impressions, 0) AS RecheckImpressions
                 FROM Restaurants r LEFT JOIN RestaurantSeo rs ON rs.ItemId = r.Id
                 LEFT JOIN RestaurantAliveCheck a ON a.RestaurantId = r.Id
+                LEFT JOIN ClosedRecheck cr ON cr.RestaurantId = r.Id AND r.Status = 3
                 LEFT JOIN RestaurantSyncLog sl ON sl.RestaurantId = r.Id
                 WHERE r.Id = @id", new { id });
             if (r == null) return null;
