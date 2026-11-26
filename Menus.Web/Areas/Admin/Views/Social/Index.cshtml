@@ -1,0 +1,192 @@
+@model List<Menus.Web.Services.SocialPost>
+@using Menus.Web.Services
+@{
+    ViewData["Title"] = "Соцмережі";
+    Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml";
+    var days = (int)ViewData["days"];
+    var network = ViewData["network"] as string;
+    var audience = ViewData["audience"] as string;
+    var sort = ViewData["sort"] as string ?? "date";
+    var last = ViewData["last"] as DateTime?;
+    var all = ViewData["all"] as List<SocialPost> ?? new List<SocialPost>();
+    var periods = new[] { (7, "7 днів"), (30, "30 днів"), (90, "90 днів"), (365, "рік") };
+    var sorts = new[] { ("date", "Нові спочатку"), ("views", "Найбільше переглядів"), ("er", "Найвища залученість") };
+    string Net(string k) => SocialStatsService.Networks.TryGetValue(k ?? "", out var n) ? n : k;
+    string Aud(string k) => SocialStatsService.Audiences.TryGetValue(k ?? "", out var n) ? n : "-";
+    string Er(int eng, int basis) => basis == 0 ? "-" : (100.0 * eng / basis).ToString("0.0") + "%";
+    var byNetwork = all.GroupBy(x => x.Network).OrderBy(g => g.Key).ToList();
+    var byRubric = all.Where(x => !string.IsNullOrEmpty(x.Rubric)).GroupBy(x => x.Rubric)
+        .OrderByDescending(g => g.Average(x => x.Views)).ToList();
+}
+
+<style>
+    .social .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+    .social .muted { color: #777; font-size: 12px; }
+    .social .table-wrap { overflow-x: auto; }
+    .social table td { vertical-align: top; overflow-wrap: anywhere; }
+    .social .text { max-width: 360px; }
+    .social .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin: 12px 0; }
+    .social .tile { border: 1px solid #e5e5e5; border-radius: 10px; padding: 10px 12px; background: #fff; }
+    .social .tile b { display: block; font-size: 22px; }
+    .social textarea { width: 100%; min-height: 140px; font-family: monospace; font-size: 12px; }
+    .social details { margin: 16px 0; }
+</style>
+
+<div class="site-content">
+    <main>
+        <div class="site-content-center social">
+            <div class="breadcrumbs">
+                <ul>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Index">Главная</a></li>
+                    <li>Соцмережі</li>
+                </ul>
+            </div>
+            <h2>Соцмережі</h2>
+            <p class="muted">
+                Пости Facebook, Instagram і TikTok: перегляди, охоплення, реакції. Залученість (ER) = (лайки + коментарі + поширення + збереження) / охоплення.
+                «Переходи на сайт» - з GA4 за UTM-мітками (utm_source=facebook|instagram|tiktok, utm_campaign=id поста).
+                Останнє оновлення: @(last?.ToString("dd.MM.yyyy HH:mm") ?? "даних ще немає").
+            </p>
+
+            @if (TempData["message"] != null)
+            {
+                <p><strong>@TempData["message"]</strong></p>
+            }
+
+            <form method="get" class="filters">
+                <select name="days">
+                    @foreach (var (key, title) in periods)
+                    {
+                        <option value="@key" selected="@(key == days)">@title</option>
+                    }
+                </select>
+                <select name="network">
+                    <option value="">Усі мережі</option>
+                    @foreach (var n in SocialStatsService.Networks)
+                    {
+                        <option value="@n.Key" selected="@(n.Key == network)">@n.Value</option>
+                    }
+                </select>
+                <select name="audience">
+                    <option value="">Уся аудиторія</option>
+                    @foreach (var a in SocialStatsService.Audiences)
+                    {
+                        <option value="@a.Key" selected="@(a.Key == audience)">@a.Value</option>
+                    }
+                </select>
+                <select name="sort">
+                    @foreach (var (key, title) in sorts)
+                    {
+                        <option value="@key" selected="@(key == sort)">@title</option>
+                    }
+                </select>
+                <button type="submit">Показати</button>
+            </form>
+
+            <div class="tiles">
+                <div class="tile"><b>@all.Count</b>постів</div>
+                <div class="tile"><b>@all.Sum(x => x.Views).ToString("N0")</b>переглядів</div>
+                <div class="tile"><b>@all.Sum(x => x.Reach).ToString("N0")</b>охоплення</div>
+                <div class="tile"><b>@all.Sum(x => x.Engagement).ToString("N0")</b>реакцій</div>
+                <div class="tile"><b>@Er(all.Sum(x => x.Engagement), all.Sum(x => x.Reach > 0 ? x.Reach : x.Views))</b>залученість</div>
+                <div class="tile"><b>@all.Sum(x => x.SiteClicks).ToString("N0")</b>переходів на сайт</div>
+            </div>
+
+            @if (byNetwork.Any())
+            {
+                <h3>По мережах</h3>
+                <div class="table-wrap">
+                    <table class="mainTable">
+                        <thead><tr><th>Мережа</th><th>Постів</th><th>Перегляди</th><th>Охоплення</th><th>Реакції</th><th>ER</th><th>Переходи</th><th>Переглядів на пост</th></tr></thead>
+                        <tbody>
+                            @foreach (var g in byNetwork)
+                            {
+                                <tr>
+                                    <td><a href="@Url.Action("Index", new { days, network = g.Key, audience, sort })">@Net(g.Key)</a></td>
+                                    <td>@g.Count()</td>
+                                    <td>@g.Sum(x => x.Views).ToString("N0")</td>
+                                    <td>@g.Sum(x => x.Reach).ToString("N0")</td>
+                                    <td>@g.Sum(x => x.Engagement).ToString("N0")</td>
+                                    <td>@Er(g.Sum(x => x.Engagement), g.Sum(x => x.Reach > 0 ? x.Reach : x.Views))</td>
+                                    <td>@g.Sum(x => x.SiteClicks)</td>
+                                    <td>@g.Average(x => x.Views).ToString("N0")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            @if (byRubric.Any())
+            {
+                <h3>Рубрики <span class="muted">від найкращої за переглядами на пост</span></h3>
+                <div class="table-wrap">
+                    <table class="mainTable">
+                        <thead><tr><th>Рубрика</th><th>Аудиторія</th><th>Постів</th><th>Переглядів на пост</th><th>ER</th><th>Переходи</th></tr></thead>
+                        <tbody>
+                            @foreach (var g in byRubric)
+                            {
+                                <tr>
+                                    <td>@g.Key</td>
+                                    <td>@string.Join(", ", g.Select(x => Aud(x.Audience)).Distinct())</td>
+                                    <td>@g.Count()</td>
+                                    <td>@g.Average(x => x.Views).ToString("N0")</td>
+                                    <td>@Er(g.Sum(x => x.Engagement), g.Sum(x => x.Reach > 0 ? x.Reach : x.Views))</td>
+                                    <td>@g.Sum(x => x.SiteClicks)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <h3>Пости</h3>
+            <div class="table-wrap">
+                <table class="mainTable">
+                    <thead><tr><th>Дата</th><th>Мережа</th><th>Пост</th><th>Рубрика / аудиторія</th><th>Перегляди</th><th>Охоплення</th><th>Лайки</th><th>Коментарі</th><th>Поширення</th><th>Збереження</th><th>ER</th><th>Переходи</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in Model)
+                        {
+                            var text = p.Text ?? "";
+                            <tr>
+                                <td>@p.PublishedAt.ToString("dd.MM.yy")</td>
+                                <td>@Net(p.Network)@(string.IsNullOrEmpty(p.Format) ? "" : " · " + p.Format)</td>
+                                <td class="text">
+                                    @if (!string.IsNullOrEmpty(p.Url))
+                                    {
+                                        <a href="@p.Url" target="_blank" rel="noopener">@(text.Length > 90 ? text.Substring(0, 90) + "…" : (text == "" ? "відкрити" : text))</a>
+                                    }
+                                    else
+                                    {
+                                        @(text.Length > 90 ? text.Substring(0, 90) + "…" : text)
+                                    }
+                                </td>
+                                <td>@p.Rubric <span class="muted">@Aud(p.Audience)</span></td>
+                                <td>@p.Views.ToString("N0")</td>
+                                <td>@p.Reach.ToString("N0")</td>
+                                <td>@p.Likes</td>
+                                <td>@p.Comments</td>
+                                <td>@p.Shares</td>
+                                <td>@p.Saves</td>
+                                <td>@(p.EngagementRate == 0 ? "-" : p.EngagementRate.ToString("0.0") + "%")</td>
+                                <td>@p.SiteClicks</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <details>
+                <summary>Імпорт цифр (JSON)</summary>
+                <p class="muted">
+                    Масив постів: network (facebook|instagram|tiktok), postId, url, publishedAt, format, audience (guests|venues), rubric, text,
+                    views, reach, likes, comments, shares, saves, siteClicks. Повторний імпорт оновлює цифри поста.
+                </p>
+                <form method="post" asp-action="Import">
+                    <textarea name="json" placeholder='[{"network":"instagram","postId":"178...","publishedAt":"2026-12-01T10:00:00","rubric":"Ціна страви","audience":"guests","views":1200,"reach":900,"likes":45}]'></textarea>
+                    <button type="submit">Імпортувати</button>
+                </form>
+            </details>
+        </div>
+    </main>
+</div>

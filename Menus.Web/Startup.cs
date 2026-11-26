@@ -122,6 +122,7 @@ namespace Menus.Web
             services.AddScoped<PopularRestaurantService>();
             services.AddScoped<SeoReportService>();
             services.AddScoped<SeoDailyService>();
+            services.AddScoped<SocialStatsService>();
             services.AddScoped<CustomerRequestService>();
             services.AddScoped<PageRedirectService>();
             services.AddScoped<CatalogService>();
