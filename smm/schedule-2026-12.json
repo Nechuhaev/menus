@@ -79,7 +79,7 @@
       "date": "2026-12-07",
       "audience": "guests",
       "rubric": "Що замовити в…",
-      "status": "draft",
+      "status": "approved",
       "type": "carousel",
       "media": [
         "w2-07-1.jpg",
@@ -100,7 +100,7 @@
       "date": "2026-12-08",
       "audience": "venues",
       "rubric": "Як зробити (заклади)",
-      "status": "draft",
+      "status": "approved",
       "type": "carousel",
       "media": [
         "w2-08-1.jpg",
@@ -120,7 +120,7 @@
       "date": "2026-12-09",
       "audience": "guests",
       "rubric": "Топ-5",
-      "status": "draft",
+      "status": "approved",
       "type": "reel",
       "media": [
         "reel-2026-12-09.mp4"
@@ -136,7 +136,7 @@
       "date": "2026-12-10",
       "audience": "venues",
       "rubric": "Цифра тижня (заклади)",
-      "status": "draft",
+      "status": "approved",
       "type": "image",
       "media": [
         "w2-10.jpg"
@@ -152,7 +152,7 @@
       "date": "2026-12-11",
       "audience": "guests",
       "rubric": "Скільки коштує",
-      "status": "draft",
+      "status": "approved",
       "type": "reel",
       "media": [
         "reel-2026-12-11.mp4"
