@@ -1,6 +1,6 @@
 {
   "_doc": "Погоджені пости. Щоденне заплановане завдання о 10:47 (Київ) публікує пости з date == сьогодні і status == approved, потім ставить status=published і записує id. media_base + файл = публічний URL.",
-  "media_base": "https://raw.githubusercontent.com/Nechuhaev/menus/ed294810103ee483be691104eb7f5a427a806ad7/smm/media/2026-12/",
+  "media_base": "https://raw.githubusercontent.com/Nechuhaev/menus/c2f8140cc07ef540b8b614dbe64131db50eae2bb/smm/media/2026-12/",
   "facebook_page_id": "1946389772141887",
   "instagram_user_id": "29918818687807990",
   "posts": [
@@ -352,6 +352,59 @@
       ],
       "caption_instagram": "З Різдвом! 🎄✨\nНехай на столі буде все, що любите, — і нехай не доведеться довго обирати 😉\n\nЯка страва для вас головна на святі? 👇\n\n#різдво #київ #tipmymenu",
       "caption_facebook": "З Різдвом! 🎄✨\nНехай на столі буде все, що любите, — і нехай не доведеться довго обирати 😉\n\nЯка страва для вас головна на святі? 👇\n\n#різдво #tipmymenu"
+    },
+    {
+      "date": "2026-12-28",
+      "audience": "guests",
+      "rubric": "Підсумки року",
+      "status": "draft",
+      "type": "reel",
+      "media": [
+        "reel-2026-12-28.mp4"
+      ],
+      "networks": [
+        "facebook",
+        "instagram"
+      ],
+      "caption_instagram": "Які страви Київ шукав у Google у 2026 — і знаходив на TipMyMenu 🏆\n\n1. Морозиво — зазвичай ~80 ₴\n2. Тартар — ~387 ₴\n3. Шашлик — ~260 ₴\n4. Каре — ~435 ₴\n5. Бургер — ~288 ₴\n\nТоп сторінок страв Києва за показами в Google з 1 січня по 23 листопада. Ціни — звичайні в меню закладів міста.\n\nЧого не вистачає в цьому списку? 👇\n\nУсі страви з цінами — посилання в біо\n#підсумкироку #київ #їжа #кудипіти #tipmymenu",
+      "caption_facebook": "Які страви Київ шукав у Google у 2026 — і знаходив на TipMyMenu 🏆\n\n1. Морозиво — зазвичай ~80 ₴\n2. Тартар — ~387 ₴\n3. Шашлик — ~260 ₴\n4. Каре — ~435 ₴\n5. Бургер — ~288 ₴\n\nТоп сторінок страв Києва за показами в Google з 1 січня по 23 листопада. Ціни — звичайні в меню закладів міста.\n\nЧого не вистачає в цьому списку? 👇\n\nУсі страви Києва з цінами: https://tipmymenu.com/uk/kyiv/dishes?utm_source=facebook&utm_medium=social&utm_campaign=2026-12-28"
+    },
+    {
+      "date": "2026-12-29",
+      "audience": "venues",
+      "rubric": "План (заклади)",
+      "status": "draft",
+      "type": "carousel",
+      "media": [
+        "w5-29-1.jpg",
+        "w5-29-2.jpg",
+        "w5-29-3.jpg",
+        "w5-29-4.jpg",
+        "w5-29-5.jpg",
+        "w5-29-6.jpg"
+      ],
+      "networks": [
+        "facebook",
+        "instagram"
+      ],
+      "caption_instagram": "Новий рік — нове меню? 📋\nПоки в залі тихіше, оновіть меню онлайн за один вечір:\n\n1. Перенесіть меню на TipMyMenu: вставте посилання на Expirenza, ChoiceQR, RestoApp чи ps.me — бот візьме страви, фото й ціни. Або додайте страви вручну.\n2. Додайте фото страв і перевірте ціни.\n3. Роздрукуйте QR-табличку A6 на столи і наліпку «Ми на TipMyMenu».\n4. Додайте посилання на меню в Google Maps.\n\nБезкоштовно. А щомісяця — звіт: покази в Google, переходи, скани QR, оцінки страв.\n\nПочати — посилання в біо\n#horeca #новийрік #ресторанийбізнес #qrменю",
+      "caption_facebook": "Новий рік — нове меню? 📋\nПоки в залі тихіше, оновіть меню онлайн за один вечір:\n\n1. Перенесіть меню на TipMyMenu: вставте посилання на Expirenza, ChoiceQR, RestoApp чи ps.me — бот візьме страви, фото й ціни. Або додайте страви вручну.\n2. Додайте фото страв і перевірте ціни.\n3. Роздрукуйте QR-табличку A6 на столи і наліпку «Ми на TipMyMenu».\n4. Додайте посилання на меню в Google Maps.\n\nБезкоштовно. А щомісяця — звіт: покази в Google, переходи, скани QR, оцінки страв.\n\nПочати: https://tipmymenu.com/uk/restaurants/about?utm_source=facebook&utm_medium=social&utm_campaign=2026-12-29\n#horeca #ресторанийбізнес"
+    },
+    {
+      "date": "2026-12-30",
+      "audience": "guests",
+      "rubric": "Подяка",
+      "status": "draft",
+      "type": "image",
+      "media": [
+        "w5-30.jpg"
+      ],
+      "networks": [
+        "facebook",
+        "instagram"
+      ],
+      "caption_instagram": "Дякуємо, що були з нами в грудні 💛\n\nУ січні — нові розбори страв і цін. Що розібрати першим? Пишіть у коментарях — найпопулярніше зробимо 👇\n\n#tipmymenu #новийрік #київ",
+      "caption_facebook": "Дякуємо, що були з нами в грудні 💛\n\nУ січні — нові розбори страв і цін. Що розібрати першим? Пишіть у коментарях — найпопулярніше зробимо 👇\n\nМеню закладів з цінами: https://tipmymenu.com/uk?utm_source=facebook&utm_medium=social&utm_campaign=2026-12-30"
     }
   ]
 }
