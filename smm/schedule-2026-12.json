@@ -264,7 +264,7 @@
       "date": "2026-12-21",
       "audience": "guests",
       "rubric": "Скільки коштує",
-      "status": "draft",
+      "status": "approved",
       "type": "reel",
       "media": [
         "reel-2026-12-21.mp4"
@@ -280,7 +280,7 @@
       "date": "2026-12-22",
       "audience": "venues",
       "rubric": "Чекліст (заклади)",
-      "status": "draft",
+      "status": "approved",
       "type": "carousel",
       "media": [
         "w4-22-1.jpg",
@@ -302,7 +302,7 @@
       "date": "2026-12-23",
       "audience": "guests",
       "rubric": "Сезонне",
-      "status": "draft",
+      "status": "approved",
       "type": "carousel",
       "media": [
         "w4-23-1.jpg",
@@ -323,7 +323,7 @@
       "date": "2026-12-24",
       "audience": "venues",
       "rubric": "Меню для сайту (заклади)",
-      "status": "draft",
+      "status": "approved",
       "type": "carousel",
       "media": [
         "w4-24-1.jpg",
@@ -341,7 +341,7 @@
       "date": "2026-12-25",
       "audience": "guests",
       "rubric": "Свята",
-      "status": "draft",
+      "status": "approved",
       "type": "image",
       "media": [
         "w4-25.jpg"
