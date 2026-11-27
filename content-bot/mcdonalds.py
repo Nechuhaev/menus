@@ -40,7 +40,7 @@ def overpass(query, label=""):
             host = url.split("/")[2]
             print(f"  OSM {label}: {host} (спроба {attempt + 1})...", flush=True)
             try:
-                r = requests.post(url, data={"data": query}, headers={"User-Agent": NOMINATIM_USER_AGENT}, timeout=(10, 60))
+                r = requests.post(url, data={"data": query}, headers={"User-Agent": NOMINATIM_USER_AGENT}, timeout=(10, 100))
                 if r.status_code == 200:
                     return r.json()
                 last = f"{host}: {r.status_code}"
@@ -104,11 +104,13 @@ def stores():
     """{точка OSM: ресторан} у наших містах; друге значення - скільки пропущено без адреси."""
     found, no_street = {}, 0
     for slug, (names, (lat, lon), radius) in CITIES.items():
-        # бренд або назва: частина точок в OSM без brand:wikidata
-        query = f"""[out:json][timeout:90];
-            (nwr["brand:wikidata"="Q38076"](around:{radius},{lat},{lon});
-             nwr["amenity"="fast_food"]["name"~"mcdonald|макдональдз|макдоналдс",i](around:{radius},{lat},{lon}););
-            out center tags;"""
+        # бренд або назва (частина точок без brand:wikidata); лише точні значення тегів у прямокутнику -
+        # вони йдуть через індекс (регулярний вираз по колу перебирав усе місто й не встигав)
+        dlat, dlon = radius / 111000, radius / (111000 * math.cos(math.radians(lat)))
+        bbox = f"{lat - dlat:.4f},{lon - dlon:.4f},{lat + dlat:.4f},{lon + dlon:.4f}"
+        filters = ['["brand:wikidata"="Q38076"]'] + [f'["{tag}"="{value}"]' for tag in ("brand", "name", "name:uk", "name:en")
+                                                    for value in ("McDonald's", "McDonald’s", "Макдональдз", "МакДональдз")]
+        query = "[out:json][timeout:90];(" + "".join(f"nwr{f}({bbox});" for f in filters) + ");out center tags;"
         elements = overpass(query, slug).get("elements") or []
         print(f"    {slug}: точок в OSM {len(elements)}", flush=True)
         for el in elements:
