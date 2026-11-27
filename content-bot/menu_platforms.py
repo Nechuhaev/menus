@@ -453,6 +453,70 @@ def read_poster(url):
     return parse_poster_menu(products, categories, spot, account)
 
 
+# McDonald's Україна: «mcdonalds://ua» у RestaurantMenuLinks - одне меню на всі філії (content-bot/mcdonalds.py).
+# Цін на сайті немає: назва, розділ, фото, вага й опис; ціни - окремим джерелом (доставка), коли буде.
+MCD_LINK = re.compile(r"^mcdonalds://ua", re.I)
+MCD_BASE = "https://www.mcdonalds.com/ua/uk-ua"
+MCD_PAGES = [("eat/fullmenu.html", None), ("eat/fullmenu/breakfast.html", "Сніданок")]
+MCD_SKIP_HEADINGS = re.compile(r"«МакДональдз»|мета і вплив|працюй з нами|прескімната", re.I)
+_MCD_CACHE = {}
+
+
+def mcd_get(url):
+    for attempt in range(3):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=30)
+            if r.status_code == 200:
+                return r.text
+        except requests.RequestException:
+            pass
+        time.sleep(2 * (attempt + 1))
+    return ""
+
+
+def mcd_product(product_id):
+    """Опис і вага зі сторінки страви (og:description, «212 г/g» / «250 мл/ml»)."""
+    page = mcd_get(f"{MCD_BASE}/product/{product_id}.html")
+    desc = re.search(r'<meta property="og:description" content="([^"]*)"', page)
+    weight = re.search(r"(\d+(?:[.,]\d+)?)\s*(г|мл)\s*/\s*(?:g|ml)", page)
+    return (html_lib.unescape(desc.group(1)).strip() if desc else ""), (f"{weight.group(1)} {weight.group(2)}" if weight else "")
+
+
+def parse_mcd_category_page(page, default_category):
+    """[(розділ, id, назва, картинка)] у порядку на сторінці: заголовок h2 - розділ, далі плитки страв."""
+    out, category = [], default_category
+    token = re.compile(r'<h2 class="cmp-title__text">\s*([^<]+?)\s*</h2>|<a href="[^"]*/product/(\d+)\.html"[^>]*cmp-category__item-link[^>]*>(.*?)</a>', re.S)
+    for m in token.finditer(page):
+        if m.group(1):
+            heading = html_lib.unescape(m.group(1)).strip()
+            category = None if MCD_SKIP_HEADINGS.search(heading) else heading
+            continue
+        if not category:
+            continue
+        inner = m.group(3)
+        name = re.search(r'cmp-category__item-name"[^>]*>\s*([^<]+?)\s*<', inner)
+        img = re.search(r'<img[^>]+src="(https://s7d1\.scene7\.com/is/image/mcdonalds/[^":?]+)', inner)
+        if name:
+            out.append((category, m.group(2), html_lib.unescape(name.group(1)).strip(), img.group(1) if img else None))
+    return out
+
+
+def read_mcdonalds(url):
+    if "items" in _MCD_CACHE:
+        return _MCD_CACHE["items"]
+    seen, items = set(), []
+    for path, default_category in MCD_PAGES:
+        for category, product_id, name, image in parse_mcd_category_page(mcd_get(f"{MCD_BASE}/{path}"), default_category):
+            if product_id in seen:
+                continue
+            seen.add(product_id)
+            description, weight = mcd_product(product_id)
+            time.sleep(0.3)
+            items.append(dish(name, category, None, weight, description, f"{image}?wid=800&fmt=jpg&bgc=255,255,255" if image else None))
+    _MCD_CACHE["items"] = items
+    return items
+
+
 def platform_menu(url):
     """Страви з QR-меню сервісу або None, якщо адреса не з підтримуваних сервісів."""
     if not url:
@@ -460,6 +524,8 @@ def platform_menu(url):
     host = urlparse(url).netloc.lower()
     if POSTER_LINK.match(url):
         reader = read_poster
+    elif MCD_LINK.match(url):
+        reader = read_mcdonalds
     elif EXPZ_ROOT.match(url):
         reader = read_expz
     elif host.endswith(".choiceqr.com") or is_choiceqr_domain(url):
