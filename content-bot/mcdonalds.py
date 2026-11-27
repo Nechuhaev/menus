@@ -27,7 +27,24 @@ import requests
 from dish_city_pages import slugify
 from sync_restaurants import NOMINATIM_USER_AGENT, get_db, get_localizable_value, normalize_name, osm_to_week
 
-OVERPASS = "https://overpass-api.de/api/interpreter"
+# публічні сервери Overpass: головний часто перевантажений (502/504/429) - повтор і дзеркала
+OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter",
+            "https://overpass.private.coffee/api/interpreter"]
+
+
+def overpass(query):
+    last = None
+    for attempt in range(3):
+        for url in OVERPASS:
+            try:
+                r = requests.post(url, data={"data": query}, headers={"User-Agent": NOMINATIM_USER_AGENT}, timeout=120)
+                if r.status_code == 200:
+                    return r.json()
+                last = f"{url}: {r.status_code}"
+            except (requests.RequestException, ValueError) as e:
+                last = f"{url}: {type(e).__name__}"
+        time.sleep(15 * (attempt + 1))
+    raise SystemExit(f"Overpass не відповідає ({last}) - спробуйте пізніше")
 NAME = "McDonald's"
 WEBSITE = "https://www.mcdonalds.com/ua/uk-ua.html"
 MENU_LINK = "mcdonalds://ua"
@@ -72,9 +89,7 @@ def stores():
         query = f"""[out:json][timeout:90];
             nwr["brand:wikidata"="Q38076"](around:{radius},{lat},{lon});
             out center tags;"""
-        r = requests.post(OVERPASS, data={"data": query}, headers={"User-Agent": NOMINATIM_USER_AGENT}, timeout=120)
-        r.raise_for_status()
-        for el in r.json().get("elements") or []:
+        for el in overpass(query).get("elements") or []:
             tags = el.get("tags") or {}
             city = (tags.get("addr:city") or "").strip().lower()
             if city and city not in names:
