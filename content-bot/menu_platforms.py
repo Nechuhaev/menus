@@ -7,6 +7,7 @@
 """
 import html as html_lib
 import json
+import os
 import re
 import time
 from urllib.parse import urlparse
@@ -454,32 +455,13 @@ def read_poster(url):
 
 
 # McDonald's Україна: «mcdonalds://ua» у RestaurantMenuLinks - одне меню на всі філії (content-bot/mcdonalds.py).
-# Цін на сайті немає: назва, розділ, фото, вага й опис; ціни - окремим джерелом (доставка), коли буде.
+# Сайт McDonald's закриває автоматичні запити, тож меню читається зі сторінок, які адмін зберіг у браузері
+# («Повне меню» і «Сніданок», Ctrl+S -> «лише HTML») у content-bot/mcdonalds/*.html: розділ, назва, фото.
+# Цін, ваги й описів там немає.
 MCD_LINK = re.compile(r"^mcdonalds://ua", re.I)
-MCD_BASE = "https://www.mcdonalds.com/ua/uk-ua"
-MCD_PAGES = [("eat/fullmenu.html", None), ("eat/fullmenu/breakfast.html", "Сніданок")]
+MCD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mcdonalds")
 MCD_SKIP_HEADINGS = re.compile(r"«МакДональдз»|мета і вплив|працюй з нами|прескімната", re.I)
 _MCD_CACHE = {}
-
-
-def mcd_get(url):
-    for attempt in range(3):
-        try:
-            r = requests.get(url, headers=HEADERS, timeout=30)
-            if r.status_code == 200:
-                return r.text
-        except requests.RequestException:
-            pass
-        time.sleep(2 * (attempt + 1))
-    return ""
-
-
-def mcd_product(product_id):
-    """Опис і вага зі сторінки страви (og:description, «212 г/g» / «250 мл/ml»)."""
-    page = mcd_get(f"{MCD_BASE}/product/{product_id}.html")
-    desc = re.search(r'<meta property="og:description" content="([^"]*)"', page)
-    weight = re.search(r"(\d+(?:[.,]\d+)?)\s*(г|мл)\s*/\s*(?:g|ml)", page)
-    return (html_lib.unescape(desc.group(1)).strip() if desc else ""), (f"{weight.group(1)} {weight.group(2)}" if weight else "")
 
 
 def parse_mcd_category_page(page, default_category):
@@ -504,15 +486,22 @@ def parse_mcd_category_page(page, default_category):
 def read_mcdonalds(url):
     if "items" in _MCD_CACHE:
         return _MCD_CACHE["items"]
+    files = sorted(f for f in os.listdir(MCD_DIR) if f.lower().endswith((".html", ".htm"))) if os.path.isdir(MCD_DIR) else []
+    if not files:
+        print(f"    McDonald's: немає збережених сторінок меню в {MCD_DIR}")
+        return []
     seen, items = set(), []
-    for path, default_category in MCD_PAGES:
-        for category, product_id, name, image in parse_mcd_category_page(mcd_get(f"{MCD_BASE}/{path}"), default_category):
+    for name in files:
+        with open(os.path.join(MCD_DIR, name), encoding="utf-8", errors="replace") as f:
+            page = f.read()
+        # сторінка «Сніданок»: страви до першого заголовка розділу - у «Сніданок» (за назвою файлу чи <title>)
+        title_tag = re.search(r"<title>([^<]*)", page)
+        default = "Сніданок" if re.search(r"breakfast|сніданок", name + " " + (title_tag.group(1) if title_tag else ""), re.I) else None
+        for category, product_id, title, image in parse_mcd_category_page(page, default):
             if product_id in seen:
                 continue
             seen.add(product_id)
-            description, weight = mcd_product(product_id)
-            time.sleep(0.3)
-            items.append(dish(name, category, None, weight, description, f"{image}?wid=800&fmt=jpg&bgc=255,255,255" if image else None))
+            items.append(dish(title, category, None, "", "", f"{image}?wid=800&fmt=jpg&bgc=255,255,255" if image else None))
     _MCD_CACHE["items"] = items
     return items
 
