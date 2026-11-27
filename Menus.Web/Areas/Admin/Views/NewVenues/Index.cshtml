@@ -17,8 +17,10 @@
     .nv .tabs a { flex: 0 0 auto; padding: 8px 14px; border: 1px solid #ddd; border-radius: 18px; white-space: nowrap; text-decoration: none; color: #333; }
     .nv .tabs a.on { background: #ffb80e; border-color: #ffb80e; font-weight: 600; }
     .nv .muted { color: #777; font-size: 12px; }
+    .nv .rename { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 6px; }
+    .nv .rename input[type=text] { flex: 1 1 160px; min-width: 0; font-size: 17px; font-weight: 700; padding: 4px 6px; border: 1px solid #ddd; border-radius: 6px; }
     /* картки замість таблиці: на телефоні в одну колонку, без горизонтальної прокрутки */
-    .nv .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+    .nv .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 12px; }
     @@media (max-width: 400px) { .nv .list { grid-template-columns: 1fr; } }
     .nv .card { border: 1px solid #e5e5e5; border-radius: 10px; padding: 12px; background: #fff; display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
     .nv .card h3 { margin: 0; font-size: 17px; }
@@ -76,7 +78,13 @@
                 @foreach (var v in Model)
                 {
                     <div class="card">
-                        <h3>@v.Name <span class="muted">@CityName(v.CityId)</span></h3>
+                        @* назву можна виправити (з QR-меню бот бере заголовок сторінки - буває «(ТРЦ Атмосфера)», «/ MENU») *@
+                        <form method="post" asp-action="Rename" class="rename">
+                            <input type="hidden" name="id" value="@v.Id" /><input type="hidden" name="returnStatus" value="@status" /><input type="hidden" name="cityId" value="@cityId" />
+                            <input type="text" name="name" id="venue-name-@v.Id" value="@v.Name" maxlength="255" aria-label="Назва закладу" />
+                            <button type="submit">Зберегти</button>
+                            <span class="muted">@CityName(v.CityId)</span>
+                        </form>
                         @* кандидат із відхиленого посилання на QR-меню («Звіти» -> «Посилання на меню»), а не з запитів конкурентів *@
                         @{ var fromMenu = (v.OsmKey ?? "").StartsWith("menu:"); }
                         @if (fromMenu)
@@ -145,7 +153,8 @@
                             <div class="actions">
                                 @if (v.Status != "approved")
                                 {
-                                    <form method="post" asp-action="SetStatus">
+                                    <form method="post" asp-action="SetStatus" onsubmit="this.newName.value = document.getElementById('venue-name-@v.Id').value;">
+                                        <input type="hidden" name="newName" value="" />
                                         <input type="hidden" name="id" value="@v.Id" /><input type="hidden" name="status" value="approved" />
                                         <input type="hidden" name="returnStatus" value="@status" /><input type="hidden" name="cityId" value="@cityId" />
                                         <button type="submit">Додати</button>

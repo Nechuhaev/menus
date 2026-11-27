@@ -33,11 +33,21 @@ namespace Menus.Web.Areas.Admin.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SetStatus(int id, string status, string note, string returnStatus, string cityId)
+        public async Task<IActionResult> SetStatus(int id, string status, string note, string returnStatus, string cityId, string newName = null)
         {
+            if (!string.IsNullOrWhiteSpace(newName)) await _venues.Rename(id, newName); // назву виправили в картці перед «Додати»
             await _venues.SetStatus(id, status, note);
             TempData["message"] = status == "approved" ? "Схвалено: бот створить заклад уночі (new_venues.py --create), меню підтягне наступної ночі"
                 : status == "rejected" ? "Позначено: не додавати" : status == "duplicate" ? "Позначено як дубль" : "Повернуто в нові";
+            return RedirectToAction("Index", new { status = returnStatus, cityId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Rename(int id, string name, string returnStatus, string cityId)
+        {
+            await _venues.Rename(id, name);
+            TempData["message"] = $"Назву змінено: {name?.Trim()}";
             return RedirectToAction("Index", new { status = returnStatus, cityId });
         }
 

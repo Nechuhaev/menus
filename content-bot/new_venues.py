@@ -369,10 +369,14 @@ MENU_SERVICE = re.compile(r"choiceqr|expirenza|expz|restoapp|доставка|de
 
 
 def menu_page_name(title, url):
-    """Назва закладу з заголовка сторінки QR-меню («Меню Кафе Ранок | ChoiceQR») або з піддомену."""
-    for part in re.split(r"\s+[-–—|]\s+|\|", title or ""):
-        part = MENU_TITLE_NOISE.sub("", part).strip(" «»\"'")
-        if len(part) >= 2 and not MENU_SERVICE.fullmatch(part.lower()) and not re.fullmatch(r"[\W\d]+", part):
+    """Назва закладу з заголовка сторінки QR-меню («Меню Кафе Ранок | ChoiceQR») або з піддомену.
+    Частини в дужках («(ТРЦ Атмосфера)» - місце, не назва) і службові («MENU», «/») не беруться."""
+    for part in re.split(r"\s*[|/]\s*|\s+[-–—]\s+", title or ""):
+        part = re.sub(r"\([^)]*\)?", " ", part)  # «Сільпо (ТРЦ Атмосфера)» -> «Сільпо»
+        part = MENU_TITLE_NOISE.sub("", part)
+        part = re.sub(r"\b(menu|меню)\b", " ", part, flags=re.I)
+        part = re.sub(r"\s+", " ", part).strip(" «»\"'.,:;-–—")
+        if len(re.sub(r"[\W\d_]", "", part)) >= 2 and not MENU_SERVICE.fullmatch(part.lower()):
             return part[:255]
     m = re.match(r"https?://([a-z0-9_-]+)\.(?:choiceqr\.com|restoapp\.eu)", url or "", re.I)
     return re.sub(r"[-_]+", " ", m.group(1)).title() if m else None

@@ -121,6 +121,18 @@ namespace Menus.Web.Services
                 WHERE Id = @id AND Status <> 'added'", new { id, status, note = string.IsNullOrWhiteSpace(note) ? null : note.Trim() });
         }
 
+        // назва кандидата (з QR-меню бере заголовок сторінки - буває «(ТРЦ Атмосфера)» чи «/ MENU»); якщо заклад уже
+        // створено - перейменовується й він (адреса сторінки лишається)
+        public async Task Rename(int id, string name)
+        {
+            name = (name ?? "").Trim();
+            if (name.Length == 0 || name.Length > 255) return;
+            await Ensure();
+            await _connection.ExecuteAsync(@"
+                UPDATE Restaurants r JOIN NewVenueCandidates c ON c.RestaurantId = r.Id SET r.Name = @name, r.UpdateDate = NOW() WHERE c.Id = @id;
+                UPDATE NewVenueCandidates SET Name = @name, UpdatedAt = UTC_TIMESTAMP() WHERE Id = @id;", new { id, name });
+        }
+
         // «Можливий дубль» -> дубль: кандидат у «Дублі»; якщо заклад уже створено - він закривається (зникає з сайту й каталогу)
         public async Task ConfirmDuplicate(int id)
         {
