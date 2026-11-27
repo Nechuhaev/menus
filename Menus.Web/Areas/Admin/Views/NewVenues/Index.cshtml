@@ -77,11 +77,20 @@
                 {
                     <div class="card">
                         <h3>@v.Name <span class="muted">@CityName(v.CityId)</span></h3>
-                        <div><span class="vol">@v.Volume.ToString("N0")</span> <span class="muted">запитів/міс · «@v.Keyword»</span></div>
+                        @* кандидат із відхиленого посилання на QR-меню («Звіти» -> «Посилання на меню»), а не з запитів конкурентів *@
+                        @{ var fromMenu = (v.OsmKey ?? "").StartsWith("menu:"); }
+                        @if (fromMenu)
+                        {
+                            <div><span class="muted">з QR-меню · @v.Keyword</span></div>
+                        }
+                        else
+                        {
+                            <div><span class="vol">@v.Volume.ToString("N0")</span> <span class="muted">запитів/міс · «@v.Keyword»</span></div>
+                        }
                         <div>@(string.IsNullOrWhiteSpace(v.Address) ? "адреса невідома" : v.Address)
                             @if (!string.IsNullOrEmpty(v.Lat))
                             {
-                                <a class="muted" href="https://www.openstreetmap.org/@v.OsmKey" target="_blank" rel="noopener">OSM ↗</a>
+                                <a class="muted" href="@(fromMenu ? $"https://www.openstreetmap.org/?mlat={v.Lat}&mlon={v.Lon}#map=18/{v.Lat}/{v.Lon}" : "https://www.openstreetmap.org/" + v.OsmKey)" target="_blank" rel="noopener">OSM ↗</a>
                             }
                         </div>
                         @if (!string.IsNullOrWhiteSpace(v.Website))
@@ -94,7 +103,7 @@
                         }
                         @if (Uri.TryCreate(v.SourceUrl ?? "", UriKind.Absolute, out var sourceUri))
                         {
-                            <div class="muted">у конкурента: <a href="@v.SourceUrl" target="_blank" rel="noopener nofollow">@sourceUri.Host ↗</a></div>
+                            <div class="muted">@(fromMenu ? "меню:" : "у конкурента:") <a href="@v.SourceUrl" target="_blank" rel="noopener nofollow">@sourceUri.Host ↗</a></div>
                         }
                         @if (!string.IsNullOrWhiteSpace(v.Note))
                         {
