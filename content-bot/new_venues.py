@@ -382,6 +382,21 @@ def menu_page_name(title, url):
     return re.sub(r"[-_]+", " ", m.group(1)).title() if m else None
 
 
+def qr_place(url):
+    """Адреса, координати, телефон, години (JSON perDay) і сайт зі сторінки QR-меню (sync_platform_contacts)."""
+    from sync_platform_contacts import platform_contacts
+    try:
+        c = platform_contacts(url) or {}
+    except Exception as e:  # сервіс не відповів - без контактів
+        print(f"  ! контакти {url}: {e}")
+        return {}
+    point = c.get("point") or (None, None)
+    return {"address": c.get("address"), "lat": str(point[0])[:32] if point[0] else None,
+            "lon": str(point[1])[:32] if point[1] else None, "phone": (c.get("phone") or "")[:100] or None,
+            "hours": json.dumps({"perDay": True, "data": c["hours"]}, ensure_ascii=False) if c.get("hours") else None,
+            "website": (c.get("website") or "")[:500] or None}
+
+
 def from_menu_links(db, args):
     """Відхилені посилання на QR-меню -> кандидати в нові заклади (див. п. 7 у описі)."""
     from menu_platforms import platform_menu
@@ -423,20 +438,25 @@ def from_menu_links(db, args):
             dead += 1
             continue
         address = lat = lon = website = phone = hours = cuisine = None
-        hits = [r for r in osm_search(name, city_name.get(p["CityId"]) or "")
+        # адреса, координати, телефон і години - спершу з самого QR-меню (його веде заклад), решту доповнює OSM
+        qr = qr_place(p["Url"])
+        if qr.get("address"):
+            address, lat, lon, phone, hours, website = (qr["address"], qr["lat"], qr["lon"], qr["phone"], qr["hours"], qr["website"])
+        hits = [] if address and lat else [r for r in osm_search(name, city_name.get(p["CityId"]) or "")
                 if (r.get("type") in FOOD_TYPES or r.get("category") == "amenity")
                 and similar(name, (r.get("namedetails") or {}).get("name") or r.get("name") or "")]
         if hits:
             r = hits[0]
             tags = r.get("extratags") or {}
-            address, lat, lon = address_of(r)[:500], str(r.get("lat") or "")[:32], str(r.get("lon") or "")[:32]
-            website = (tags.get("website") or tags.get("contact:website") or "")[:500] or None
-            phone = (tags.get("phone") or tags.get("contact:phone") or "")[:100] or None
-            hours = (tags.get("opening_hours") or "")[:500] or None
+            address = address or address_of(r)[:500]
+            lat, lon = lat or str(r.get("lat") or "")[:32], lon or str(r.get("lon") or "")[:32]
+            website = website or (tags.get("website") or tags.get("contact:website") or "")[:500] or None
+            phone = phone or (tags.get("phone") or tags.get("contact:phone") or "")[:100] or None
+            hours = hours or (tags.get("opening_hours") or "")[:500] or None
             cuisine = (tags.get("cuisine") or "")[:255] or None
         alike = next((n for n in ours[p["CityId"]] if similar(name, n)), None)
         note = f"QR-меню: {dishes} страв" + (f" · схоже на наш «{alike}» (інша філія?)" if alike else "")
-        print(f"  {name} ({city_name.get(p['CityId'])}) - {note}; {address or 'адреси в OSM немає'}; {p['Url']}")
+        print(f"  {name} ({city_name.get(p['CityId'])}) - {note}; {address or 'адреси немає ні в QR-меню, ні в OSM'}; {p['Url']}")
         added += 1
         if not args.dry_run:
             write.execute("""INSERT IGNORE INTO NewVenueCandidates (OsmKey, Keyword, Volume, Name, CityId, Address, Lat, Lon, Website,
@@ -445,7 +465,23 @@ def from_menu_links(db, args):
                           (key, note[:255], name, p["CityId"], address, lat, lon, website, phone, hours,
                            cuisine, p["Url"][:500], now, now))
             db.commit()
-    print(f"\nкандидатів: {added}; меню не відкривається або без страв: {dead}"
+    # кандидати, додані раніше без адреси - адреса з QR-меню
+    cur.execute("""SELECT Id, Name, SourceUrl FROM NewVenueCandidates
+                   WHERE OsmKey LIKE 'menu:%%' AND Status IN ('new', 'approved', 'suspect') AND (Address IS NULL OR Address = '')""")
+    filled = 0
+    for c in cur.fetchall():
+        qr = qr_place(c["SourceUrl"])
+        if not qr.get("address"):
+            continue
+        filled += 1
+        print(f"  адреса з QR-меню: {c['Name']} - {qr['address']}")
+        if not args.dry_run:
+            write.execute("""UPDATE NewVenueCandidates SET Address = %s, Lat = IFNULL(%s, Lat), Lon = IFNULL(%s, Lon),
+                                    Phone = IFNULL(Phone, %s), OpenHours = IFNULL(OpenHours, %s), Website = IFNULL(Website, %s),
+                                    UpdatedAt = UTC_TIMESTAMP() WHERE Id = %s""",
+                          (qr["address"], qr["lat"], qr["lon"], qr["phone"], qr["hours"], qr["website"], c["Id"]))
+            db.commit()
+    print(f"\nкандидатів: {added}; меню не відкривається або без страв: {dead}; адресу з QR-меню отримали раніше додані: {filled}"
           + (" (dry-run: нічого не записано)" if args.dry_run else ". Перевірка: «Ресторани» -> «Нові заклади»"))
 
 

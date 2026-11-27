@@ -99,6 +99,68 @@ def split_contacts(values):
     return phones, emails, sites
 
 
+ADDRESS_KEYS = ("address", "addressText", "fullAddress", "addressLine", "street")
+
+
+def find_address(obj, depth=0):
+    """Перша адреса в JSON QR-меню: рядок під ключем address / addressText / ... (у ChoiceQR, Expirenza, RestoApp - різні місця)."""
+    if depth > 6:
+        return None
+    if isinstance(obj, dict):
+        for key in ADDRESS_KEYS:
+            value = obj.get(key)
+            if isinstance(value, str) and len(value.strip()) >= 6 and re.search(r"\d|вул|просп|пл\.|бул", value, re.I):
+                return re.sub(r"\s+", " ", value).strip()[:500]
+            if isinstance(value, dict):
+                found = find_address(value, depth + 1)
+                if found:
+                    return found
+        for value in obj.values():
+            if isinstance(value, (dict, list)):
+                found = find_address(value, depth + 1)
+                if found:
+                    return found
+    elif isinstance(obj, list):
+        for value in obj[:20]:
+            found = find_address(value, depth + 1)
+            if found:
+                return found
+    return None
+
+
+def find_point(obj, depth=0):
+    """Координати (lat, lon) з JSON QR-меню: {lat, lng} / {latitude, longitude}."""
+    if depth > 6:
+        return None
+    if isinstance(obj, dict):
+        for la, lo in (("lat", "lng"), ("lat", "lon"), ("latitude", "longitude")):
+            try:
+                lat, lon = float(obj[la]), float(obj[lo])
+                if 44 <= lat <= 53 and 22 <= lon <= 41:  # Україна
+                    return lat, lon
+            except (KeyError, TypeError, ValueError):
+                pass
+        for value in obj.values():
+            if isinstance(value, (dict, list)):
+                found = find_point(value, depth + 1)
+                if found:
+                    return found
+    elif isinstance(obj, list):
+        for value in obj[:20]:
+            found = find_point(value, depth + 1)
+            if found:
+                return found
+    return None
+
+
+def with_place(result, data):
+    """Додати до контактів адресу й координати з того самого JSON."""
+    if result is not None:
+        result["address"] = find_address(data)
+        result["point"] = find_point(data)
+    return result
+
+
 def read_expz(url):
     info = json.loads(fetch(EXPZ_INFO.format(id=EXPZ_ROOT.match(url).group(1))))
     by_day, many = {}, False
@@ -111,8 +173,8 @@ def read_expz(url):
         f, t = clock(s.get("startTime")), clock(s.get("endTime"))
         by_day[day] = (f, t) if s.get("active") is not False and f and t else None
     phones, emails, sites = split_contacts(c.get("value") for c in info.get("contacts") or [])
-    return {"hours": None if many else week(by_day), "phone": phones[0] if phones else None,
-            "email": emails[0] if emails else None, "website": sites[0] if sites else None}
+    return with_place({"hours": None if many else week(by_day), "phone": phones[0] if phones else None,
+                       "email": emails[0] if emails else None, "website": sites[0] if sites else None}, info)
 
 
 def read_choiceqr(url):
@@ -134,10 +196,10 @@ def read_choiceqr(url):
         f, t = clock(w.get("from")), clock(w.get("till"))
         by_day[day] = (f, t) if w.get("active") is not False and f and t else None
     phones = [contact.get("phone")] + list(contact.get("additionalPhones") or [])
-    return {"hours": None if many else week(by_day),
-            "phone": next((p for p in phones if isinstance(p, str) and len(re.sub(r"\D", "", p)) >= 9), None),
-            "email": (contact.get("email") or "").strip() if EMAIL.match((contact.get("email") or "").strip()) else None,
-            "website": (contact.get("website") or "").strip() or None}
+    return with_place({"hours": None if many else week(by_day),
+                       "phone": next((p for p in phones if isinstance(p, str) and len(re.sub(r"\D", "", p)) >= 9), None),
+                       "email": (contact.get("email") or "").strip() if EMAIL.match((contact.get("email") or "").strip()) else None,
+                       "website": (contact.get("website") or "").strip() or None}, place)
 
 
 def read_restoapp(url):
@@ -155,7 +217,7 @@ def read_restoapp(url):
         f, t = clock(s.get("startTime")), clock(s.get("endTime"))
         by_day[day] = (f, t) if s.get("state", "active") == "active" and f and t else None
     phones, _, _ = split_contacts(spot.get("phones") or [])
-    return {"hours": None if many else week(by_day), "phone": phones[0] if phones else None, "email": None, "website": None}
+    return with_place({"hours": None if many else week(by_day), "phone": phones[0] if phones else None, "email": None, "website": None}, spot)
 
 
 def is_platform(url):
@@ -174,7 +236,8 @@ def read_psme_contacts(url):
         hours = week({i: ("00:00", "23:59") for i in range(7)})
     elif m:
         hours = week({i: (clock_text(m.group(1)), clock_text(m.group(2))) for i in range(7)})
-    return {"hours": hours, "phone": contacts.get("phone") or None, "email": contacts.get("email") or None, "website": None}
+    return with_place({"hours": hours, "phone": contacts.get("phone") or None, "email": contacts.get("email") or None, "website": None},
+                      contacts)
 
 
 def clock_text(value):
