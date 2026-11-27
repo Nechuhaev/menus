@@ -13,7 +13,14 @@
    Меню наповнить sync_restaurants.py (сайт / QR-меню), тип, кухні, район - venue_types.py; поки страв мало,
    thin_pages.py тримає сторінку в noindex.
 
+7. --menu-links: відхилені в «Звіти» -> «Посилання на меню» сторінки QR-меню (Expirenza, ChoiceQR, RestoApp) - це меню
+   закладів, яких у нас немає (інша назва, адреса, філія). Живі (меню відкривається, є страви) стають кандидатами
+   (OsmKey «menu:<посилання>»): назва - з заголовка сторінки, місто - того закладу, для якого шукали, адреса й
+   координати - з OSM, якщо знайдеться. Адмін підтверджує їх у «Нових закладах»; --create записує посилання на меню
+   в картку (RestaurantMenuLinks), і sync_restaurants.py бере страви, ціни й фото з QR-меню.
+
 Запуск:  python3 new_venues.py --dry-run          # знайти кандидатів і показати, нічого не писати
+         python3 new_venues.py --menu-links --dry-run  # кандидати з відхилених посилань на QR-меню
          python3 new_venues.py                    # записати нових кандидатів (раз на тиждень)
          python3 new_venues.py --create           # створити схвалені заклади (щоночі, перед sync_restaurants)
          python3 new_venues.py --duplicates --dry-run  # показати можливі дублі наявних закладів
@@ -357,6 +364,87 @@ def find(db, args):
           + ("" if not args.dry_run else " (dry-run: нічого не записано)"))
 
 
+MENU_TITLE_NOISE = re.compile(r"^\s*(меню|menu|онлайн[- ]меню|электронное меню|електронне меню)\s*[:\-–—]?\s*", re.I)
+MENU_SERVICE = re.compile(r"choiceqr|expirenza|expz|restoapp|доставка|delivery|з собою|навынос|takeaway|онлайн|online|меню|menu", re.I)
+
+
+def menu_page_name(title, url):
+    """Назва закладу з заголовка сторінки QR-меню («Меню Кафе Ранок | ChoiceQR») або з піддомену."""
+    for part in re.split(r"\s+[-–—|]\s+|\|", title or ""):
+        part = MENU_TITLE_NOISE.sub("", part).strip(" «»\"'")
+        if len(part) >= 2 and not MENU_SERVICE.fullmatch(part.lower()) and not re.fullmatch(r"[\W\d]+", part):
+            return part[:255]
+    m = re.match(r"https?://([a-z0-9_-]+)\.(?:choiceqr\.com|restoapp\.eu)", url or "", re.I)
+    return re.sub(r"[-_]+", " ", m.group(1)).title() if m else None
+
+
+def from_menu_links(db, args):
+    """Відхилені посилання на QR-меню -> кандидати в нові заклади (див. п. 7 у описі)."""
+    from menu_platforms import platform_menu
+    cur = db.cursor(dictionary=True)
+    cur.execute(CANDIDATES_SQL)
+    cur.execute("""SELECT p.Url, MAX(p.PageTitle) AS PageTitle, MAX(p.PageDescription) AS PageDescription,
+                          SUBSTRING_INDEX(GROUP_CONCAT(CONCAT(r.City, '') ORDER BY p.Id), ',', 1) AS CityId
+                   FROM MenuLinkProposals p JOIN Restaurants r ON r.Id = p.RestaurantId
+                   WHERE p.Status = 2
+                     AND p.Url NOT IN (SELECT Url FROM MenuLinkProposals WHERE Status = 1)
+                     AND p.Url NOT IN (SELECT Url FROM RestaurantMenuLinks)
+                   GROUP BY p.Url""")
+    rejected = cur.fetchall()
+    cur.execute("SELECT OsmKey FROM NewVenueCandidates WHERE OsmKey LIKE 'menu:%'")
+    known = {r["OsmKey"] for r in cur.fetchall()}
+    cur.execute("SELECT Id, Name FROM Cities")
+    city_name = {c["Id"]: get_localizable_value(c["Name"], "uk") for c in cur.fetchall()}
+    # наші заклади: схожа назва - підказка адміну (інша філія мережі чи той самий заклад)
+    cur.execute("SELECT r.Name, CONCAT(r.City, '') AS City FROM Restaurants r WHERE r.Status IN (0, 3)")
+    ours = defaultdict(list)
+    for r in cur.fetchall():
+        ours[r["City"]].append(r["Name"])
+    print(f"відхилених посилань на QR-меню: {len(rejected)}")
+    now, added, dead = datetime.now(), 0, 0
+    write = db.cursor()
+    for p in rejected:
+        key = ("menu:" + p["Url"])[:64] if len("menu:" + p["Url"]) <= 64 else "menu:" + uuid.uuid5(uuid.NAMESPACE_URL, p["Url"]).hex
+        if key in known:
+            continue
+        name = menu_page_name(p["PageTitle"], p["Url"])
+        if not name:
+            continue
+        try:
+            dishes = len(platform_menu(p["Url"]) or [])
+        except Exception as e:  # сервіс не відповів - наступного разу
+            print(f"  ! {p['Url']}: {e}")
+            continue
+        if dishes == 0:
+            dead += 1
+            continue
+        address = lat = lon = website = phone = hours = cuisine = None
+        hits = [r for r in osm_search(name, city_name.get(p["CityId"]) or "")
+                if (r.get("type") in FOOD_TYPES or r.get("category") == "amenity")
+                and similar(name, (r.get("namedetails") or {}).get("name") or r.get("name") or "")]
+        if hits:
+            r = hits[0]
+            tags = r.get("extratags") or {}
+            address, lat, lon = address_of(r)[:500], str(r.get("lat") or "")[:32], str(r.get("lon") or "")[:32]
+            website = (tags.get("website") or tags.get("contact:website") or "")[:500] or None
+            phone = (tags.get("phone") or tags.get("contact:phone") or "")[:100] or None
+            hours = (tags.get("opening_hours") or "")[:500] or None
+            cuisine = (tags.get("cuisine") or "")[:255] or None
+        alike = next((n for n in ours[p["CityId"]] if similar(name, n)), None)
+        note = f"QR-меню: {dishes} страв" + (f" · схоже на наш «{alike}» (інша філія?)" if alike else "")
+        print(f"  {name} ({city_name.get(p['CityId'])}) - {note}; {address or 'адреси в OSM немає'}; {p['Url']}")
+        added += 1
+        if not args.dry_run:
+            write.execute("""INSERT IGNORE INTO NewVenueCandidates (OsmKey, Keyword, Volume, Name, CityId, Address, Lat, Lon, Website,
+                                                                    Phone, OpenHours, Cuisine, SourceUrl, Status, CreatedAt, UpdatedAt)
+                             VALUES (%s, %s, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'new', %s, %s)""",
+                          (key, note[:255], name, p["CityId"], address, lat, lon, website, phone, hours,
+                           cuisine, p["Url"][:500], now, now))
+            db.commit()
+    print(f"\nкандидатів: {added}; меню не відкривається або без страв: {dead}"
+          + (" (dry-run: нічого не записано)" if args.dry_run else ". Перевірка: «Ресторани» -> «Нові заклади»"))
+
+
 def localizable(value):
     return json.dumps({"Values": [{"Locale": "uk", "Value": value}]}, ensure_ascii=False) if value else json.dumps({"Values": []})
 
@@ -394,6 +482,10 @@ def create(db, args):
         cur.execute("""INSERT INTO RestaurantSeo (Id, ItemId, Url, Header, Title, Description, Keywords, SearchTerms, SeoText, Tags)
                        VALUES (%s, %s, %s, %s, %s, %s, '', '', '', '')""",
                     (str(uuid.uuid4()), rid, slug, empty, empty, empty))
+        if (row["OsmKey"] or "").startswith("menu:") and row["SourceUrl"]:
+            # кандидат із QR-меню: посилання на меню - у картку, страви й ціни бере sync_restaurants.py
+            cur.execute("""INSERT INTO RestaurantMenuLinks (RestaurantId, Url, UpdatedAt) VALUES (%s, %s, NOW())
+                           ON DUPLICATE KEY UPDATE Url = VALUES(Url), UpdatedAt = NOW()""", (rid, row["SourceUrl"]))
         cur.execute("UPDATE NewVenueCandidates SET Status = 'added', RestaurantId = %s, UpdatedAt = UTC_TIMESTAMP() WHERE Id = %s",
                     (rid, row["Id"]))
         print(f"  {row['Name']} -> /{city_slug.get(row['CityId'])}/restaurant/{slug}")
@@ -410,11 +502,15 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--create", action="store_true", help="створити схвалені в адмінці заклади")
     ap.add_argument("--duplicates", action="store_true", help="позначити кандидатів, схожих на наявні заклади")
+    ap.add_argument("--menu-links", action="store_true", help="кандидати з відхилених посилань на QR-меню («Звіти»)")
     ap.add_argument("--pages", type=int, default=2, help="сторінок по 1000 запитів на конкурента (кредити Serpstat)")
     ap.add_argument("--limit", type=int, default=150, help="не більше N найчастіших назв (0 - усі; ~1-5 с на назву)")
     args = ap.parse_args()
     db = get_db()
-    if args.duplicates:
+    if args.menu_links:
+        from_menu_links(db, args)
+        duplicates(db, args.dry_run)  # схожі на наявні заклади - у вкладку «Можливі дублі»
+    elif args.duplicates:
         duplicates(db, args.dry_run)
     elif args.create:
         create(db, args)
