@@ -72,7 +72,21 @@ STREET_WORDS = re.compile(r"\b(вулиця|вул|проспект|просп|�
 
 def page_slug(address):
     """«вулиця Софіївська, 1/2» -> «mcdonalds-sofiivska-1-2»."""
-    return "mcdonalds-" + slugify(normalize_name(STREET_WORDS.sub(" ", address or ""))).strip("-")[:50].strip("-")
+    slug = slugify(normalize_name(STREET_WORDS.sub(" ", (address or "").replace("ʼ", "").replace("'", "").replace("’", ""))))
+    return "mcdonalds-" + re.sub(r"-+", "-", re.sub(r"[^a-z0-9-]", "", slug)).strip("-")[:50].strip("-")
+
+
+def reverse_address(lat, lon):
+    """Вулиця, номер і місто за координатами (Nominatim, OSM) - для точок без адреси в тегах."""
+    try:
+        r = requests.get("https://nominatim.openstreetmap.org/reverse", timeout=30, headers={"User-Agent": NOMINATIM_USER_AGENT},
+                         params={"lat": lat, "lon": lon, "format": "jsonv2", "zoom": 18, "addressdetails": 1, "accept-language": "uk"})
+        time.sleep(1.1)  # правила Nominatim: не частіше 1 запиту на секунду
+        a = (r.json() or {}).get("address") or {} if r.status_code == 200 else {}
+    except (requests.RequestException, ValueError):
+        return None, None, None
+    street = a.get("road") or a.get("pedestrian") or a.get("square")
+    return street, a.get("house_number"), (a.get("city") or a.get("town") or a.get("village") or "").lower()
 
 
 def meters(lat1, lon1, lat2, lon2):
@@ -86,8 +100,10 @@ def stores():
     """{точка OSM: ресторан} у наших містах; друге значення - скільки пропущено без адреси."""
     found, no_street = {}, 0
     for slug, (names, (lat, lon), radius) in CITIES.items():
+        # бренд або назва: частина точок в OSM без brand:wikidata
         query = f"""[out:json][timeout:90];
-            nwr["brand:wikidata"="Q38076"](around:{radius},{lat},{lon});
+            (nwr["brand:wikidata"="Q38076"](around:{radius},{lat},{lon});
+             nwr["amenity"="fast_food"]["name"~"mcdonald|макдональдз|макдоналдс",i](around:{radius},{lat},{lon}););
             out center tags;"""
         for el in overpass(query).get("elements") or []:
             tags = el.get("tags") or {}
@@ -96,13 +112,19 @@ def stores():
                 continue  # передмістя (Бровари, Вишневе) - не наше місто
             street = (tags.get("addr:street:uk") or tags.get("addr:street") or "").strip()
             house = (tags.get("addr:housenumber") or "").strip()
-            if not street:
-                no_street += 1
-                continue
             point = el if "lat" in el else (el.get("center") or {})
             key = f"{el.get('type')}/{el.get('id')}"
-            if key in found:
+            if key in found or point.get("lat") is None:
                 continue
+            if not street:
+                # адреса за координатами; місто звідти ж - передмістя відсіюються
+                street, house, rev_city = reverse_address(point["lat"], point["lon"])
+                if rev_city and rev_city not in names:
+                    continue
+                street, house = (street or "").strip(), (house or "").strip()
+                if not street:
+                    no_street += 1
+                    continue
             found[key] = {"id": key, "city": slug, "address": f"{street}, {house}" if house else street,
                           "phone": (tags.get("phone") or tags.get("contact:phone") or "").strip(),
                           "lat": point.get("lat"), "lon": point.get("lon"),
