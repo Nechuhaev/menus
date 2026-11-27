@@ -357,7 +357,7 @@
       "date": "2026-12-28",
       "audience": "guests",
       "rubric": "Підсумки року",
-      "status": "draft",
+      "status": "approved",
       "type": "reel",
       "media": [
         "reel-2026-12-28.mp4"
@@ -373,7 +373,7 @@
       "date": "2026-12-29",
       "audience": "venues",
       "rubric": "План (заклади)",
-      "status": "draft",
+      "status": "approved",
       "type": "carousel",
       "media": [
         "w5-29-1.jpg",
@@ -394,7 +394,7 @@
       "date": "2026-12-30",
       "audience": "guests",
       "rubric": "Подяка",
-      "status": "draft",
+      "status": "approved",
       "type": "image",
       "media": [
         "w5-30.jpg"
