@@ -1,15 +1,15 @@
-"""McDonald's Україна: усі ресторани в наших містах - сторінки закладів з меню. Кодом, без AI.
+"""McDonald's Україна: ресторани в наших містах - сторінки закладів з меню. Кодом, без AI.
 
-1. Ресторани - з публічного API пошуку ресторанів McDonald's (адреса, координати, телефон, години по днях);
-   лише відкриті (openstatus OPEN) і лише в наших містах (addressLine3 = Київ, Львів, Одеса, Харків, Дніпро).
-2. Наявні на сайті McDonald's (схожа назва до 150 м) не створюються вдруге - лише прив'язуються до ресторану API.
-3. Новий заклад: Restaurants, RestaurantInfo (години, телефон, координати), RestaurantSeo
-   (адреса сторінки mcdonalds-<вулиця>), посилання на меню «mcdonalds://ua» у RestaurantMenuLinks.
-4. Меню - menu_platforms.read_mcdonalds (одне на всі філії, без цін - на сайті McDonald's їх немає):
-   sync_restaurants.py пропонує страви в «Звіти», адмін підтверджує один раз «разом із філіями».
-   Мережу (сторінка /merezha/...) складе venue_types.py - однакова назва в місті.
-5. Таблиця McdStores (ресторан API -> наш заклад): повторний запуск додає лише нові, а ресторани, яких більше немає
-   в API, показує (не закриває сам - рішення за адміном).
+1. Ресторани - з OpenStreetMap (Overpass, відкриті дані): бренд McDonald's (brand:wikidata=Q38076) навколо центру
+   наших міст (Київ, Львів, Одеса, Харків, Дніпро); якщо в OSM указано місто (addr:city) - лише наше. Адреса, координати,
+   години (opening_hours), телефон. Без вулиці в OSM заклад пропускається (видно в звіті).
+2. Наявні на сайті McDonald's (до 150 м) не створюються вдруге - лише прив'язуються до точки OSM.
+3. Новий заклад: Restaurants, RestaurantInfo, RestaurantSeo (сторінка mcdonalds-<вулиця-номер>),
+   посилання на меню «mcdonalds://ua» у RestaurantMenuLinks.
+4. Меню - menu_platforms.read_mcdonalds зі збережених адміном сторінок сайту McDonald's (content-bot/mcdonalds/*.html;
+   сайт закриває автоматичні запити): sync_restaurants.py пропонує страви в «Звіти», адмін підтверджує один раз
+   «разом із філіями» (філії - за однаковим сайтом). Мережу (/merezha/...) складе venue_types.py.
+5. McdStores (точка OSM -> наш заклад): повторний запуск додає лише нові, а зниклі з OSM показує (не закриває сам).
 
 Запуск:  python3 mcdonalds.py --dry-run   # показати, нічого не записувати
          python3 mcdonalds.py             # створити нові заклади
@@ -18,31 +18,29 @@ import argparse
 import json
 import math
 import re
+import time
 import uuid
 from datetime import datetime
 
 import requests
 
 from dish_city_pages import slugify
-from sync_restaurants import get_db, get_localizable_value, normalize_name, osm_to_week
+from sync_restaurants import NOMINATIM_USER_AGENT, get_db, get_localizable_value, normalize_name, osm_to_week
 
-API = "https://www.mcdonalds.com/googleappsv2/geolocation"
-HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; TipMyMenuBot/1.0)", "Accept-Language": "uk"}
+OVERPASS = "https://overpass-api.de/api/interpreter"
 NAME = "McDonald's"
 WEBSITE = "https://www.mcdonalds.com/ua/uk-ua.html"
 MENU_LINK = "mcdonalds://ua"
 CUISINE = "Американська кухня, фастфуд"
-# наші міста: slug -> (назва в API, точки пошуку - API віддає ~50 найближчих, тож Київ - кількома точками)
+# наші міста: slug -> (назви для addr:city, центр, радіус пошуку в метрах - межі міста без передмість)
 CITIES = {
-    "kyiv": ("Київ", [(50.45, 30.52), (50.50, 30.60), (50.40, 30.40), (50.40, 30.65), (50.52, 30.45)]),
-    "lviv": ("Львів", [(49.84, 24.03)]),
-    "odesa": ("Одеса", [(46.48, 30.72)]),
-    "kharkiv": ("Харків", [(49.99, 36.23)]),
-    "dnipro": ("Дніпро", [(48.46, 35.05)]),
+    "kyiv": ({"київ", "киев", "kyiv", "kiev"}, (50.45, 30.52), 17000),
+    "lviv": ({"львів", "львов", "lviv"}, (49.84, 24.03), 9000),
+    "odesa": ({"одеса", "одесса", "odesa", "odessa"}, (46.46, 30.72), 12000),
+    "kharkiv": ({"харків", "харьков", "kharkiv"}, (49.99, 36.25), 12000),
+    "dnipro": ({"дніпро", "днепр", "dnipro"}, (48.46, 35.03), 13000),
 }
 SAME_PLACE_METERS = 150
-DAYS = [("hoursMonday", "Mo"), ("hoursTuesday", "Tu"), ("hoursWednesday", "We"), ("hoursThursday", "Th"),
-        ("hoursFriday", "Fr"), ("hoursSaturday", "Sa"), ("hoursSunday", "Su")]
 
 TABLE_SQL = """CREATE TABLE IF NOT EXISTS McdStores (
     StoreId VARCHAR(64) NOT NULL PRIMARY KEY,
@@ -68,37 +66,34 @@ def meters(lat1, lon1, lat2, lon2):
 
 
 def stores():
-    """{store_id: ресторан API} у наших містах."""
-    found = {}
-    for slug, (city, points) in CITIES.items():
-        for lat, lon in points:
-            r = requests.get(API, params={"latitude": lat, "longitude": lon, "radius": 50, "maxResults": 200,
-                                          "country": "ua", "language": "uk-ua"}, headers=HEADERS, timeout=30)
-            r.raise_for_status()
-            for f in r.json().get("features") or []:
-                p = f.get("properties") or {}
-                if (p.get("addressLine3") or "").strip() != city or p.get("openstatus") != "OPEN":
-                    continue
-                store_id = p.get("identifierValue") or (p.get("id") or "").split(":")[0]
-                lon_, lat_ = (f.get("geometry") or {}).get("coordinates") or [None, None]
-                found[store_id] = {"id": store_id, "city": slug, "address": (p.get("name") or p.get("addressLine1") or "").strip(),
-                                   "phone": (p.get("telephone") or "").strip(), "lat": lat_, "lon": lon_,
-                                   "hours": p.get("restauranthours") or {}}
-    return found
-
-
-def osm_hours(hours):
-    """{"hoursMonday": "06:00 - 22:00", ...} -> «Mo 06:00-22:00; Tu ...» (формат osm_to_week)."""
-    parts = []
-    for key, day in DAYS:
-        value = (hours.get(key) or "").replace(" ", "")
-        if not value:
-            return None
-        if value.lower() in ("closed", "зачинено"):
-            parts.append(f"{day} off")
-        else:
-            parts.append(f"{day} {value}")
-    return "; ".join(parts)
+    """{точка OSM: ресторан} у наших містах; друге значення - скільки пропущено без адреси."""
+    found, no_street = {}, 0
+    for slug, (names, (lat, lon), radius) in CITIES.items():
+        query = f"""[out:json][timeout:90];
+            nwr["brand:wikidata"="Q38076"](around:{radius},{lat},{lon});
+            out center tags;"""
+        r = requests.post(OVERPASS, data={"data": query}, headers={"User-Agent": NOMINATIM_USER_AGENT}, timeout=120)
+        r.raise_for_status()
+        for el in r.json().get("elements") or []:
+            tags = el.get("tags") or {}
+            city = (tags.get("addr:city") or "").strip().lower()
+            if city and city not in names:
+                continue  # передмістя (Бровари, Вишневе) - не наше місто
+            street = (tags.get("addr:street:uk") or tags.get("addr:street") or "").strip()
+            house = (tags.get("addr:housenumber") or "").strip()
+            if not street:
+                no_street += 1
+                continue
+            point = el if "lat" in el else (el.get("center") or {})
+            key = f"{el.get('type')}/{el.get('id')}"
+            if key in found:
+                continue
+            found[key] = {"id": key, "city": slug, "address": f"{street}, {house}" if house else street,
+                          "phone": (tags.get("phone") or tags.get("contact:phone") or "").strip(),
+                          "lat": point.get("lat"), "lon": point.get("lon"),
+                          "hours": (tags.get("opening_hours") or "").strip()}
+        time.sleep(2)  # Overpass: не частіше
+    return found, no_street
 
 
 def main():
@@ -106,7 +101,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    found = stores()
+    found, no_street = stores()
     db = get_db()
     cur = db.cursor(dictionary=True)
     cur.execute(TABLE_SQL)
@@ -155,7 +150,7 @@ def main():
             base += store["id"]
         slug = next(s for s in (base, f"{base}-{store['city']}", f"{base}-{rid[:4]}") if s not in slugs)
         slugs.add(slug)
-        week = osm_to_week(osm_hours(store["hours"]) or "")
+        week = osm_to_week(store["hours"]) if store["hours"] else None
         hours = json.dumps({"perDay": True, "data": week}, ensure_ascii=False) if week else ""
         address = json.dumps({"Values": [{"Locale": "uk", "Value": store["address"]}]}, ensure_ascii=False)
         cuisine = json.dumps({"Values": [{"Locale": "uk", "Value": CUISINE}]}, ensure_ascii=False)
@@ -184,14 +179,15 @@ def main():
     if not args.dry_run:
         write.executemany("UPDATE McdStores SET SeenAt = NOW() WHERE StoreId = %s", [(s,) for s in found if s in known])
         db.commit()
-    print(f"\nресторанів McDonald's у наших містах: {len(found)} {by_city}; нових: {created}; уже були на сайті: {linked}")
+    print(f"\nресторанів McDonald's у наших містах (OSM): {len(found)} {by_city}; нових: {created}; уже були на сайті: {linked}; "
+          f"без вулиці в OSM (пропущено): {no_street}")
     if gone:
-        print(f"зникли з API (можливо, закрились - перевірте в адмінці): {len(gone)}")
+        print(f"зникли з OSM (можливо, закрились - перевірте в адмінці): {len(gone)}")
         cur.execute("SELECT m.StoreId, m.Address FROM McdStores m WHERE m.StoreId IN (" + ",".join(["%s"] * len(gone)) + ")", gone)
         for r in cur.fetchall():
             print(f"  - {r['Address']}")
     print("нічого не записано (--dry-run)" if args.dry_run else
-          "далі: sync_restaurants.py запропонує меню -> «Звіти», підтвердіть «разом із філіями»; venue_types.py складе мережу")
+          "далі: збережіть сторінки меню McDonald's у content-bot/mcdonalds/, sync_restaurants.py запропонує меню -> «Звіти», підтвердіть «разом із філіями»; venue_types.py складе мережу")
     db.close()
 
 
