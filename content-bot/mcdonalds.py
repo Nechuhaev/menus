@@ -32,17 +32,21 @@ OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.sy
             "https://overpass.private.coffee/api/interpreter"]
 
 
-def overpass(query):
+def overpass(query, label=""):
+    """Відповідь Overpass; кожна спроба - в журнал (публічні сервери бувають повільні, щоб не здавалось, що зависло)."""
     last = None
     for attempt in range(3):
         for url in OVERPASS:
+            host = url.split("/")[2]
+            print(f"  OSM {label}: {host} (спроба {attempt + 1})...", flush=True)
             try:
-                r = requests.post(url, data={"data": query}, headers={"User-Agent": NOMINATIM_USER_AGENT}, timeout=120)
+                r = requests.post(url, data={"data": query}, headers={"User-Agent": NOMINATIM_USER_AGENT}, timeout=(10, 60))
                 if r.status_code == 200:
                     return r.json()
-                last = f"{url}: {r.status_code}"
+                last = f"{host}: {r.status_code}"
             except (requests.RequestException, ValueError) as e:
-                last = f"{url}: {type(e).__name__}"
+                last = f"{host}: {type(e).__name__}"
+            print(f"    не вийшло ({last})", flush=True)
         time.sleep(15 * (attempt + 1))
     raise SystemExit(f"Overpass не відповідає ({last}) - спробуйте пізніше")
 NAME = "McDonald's"
@@ -105,7 +109,9 @@ def stores():
             (nwr["brand:wikidata"="Q38076"](around:{radius},{lat},{lon});
              nwr["amenity"="fast_food"]["name"~"mcdonald|макдональдз|макдоналдс",i](around:{radius},{lat},{lon}););
             out center tags;"""
-        for el in overpass(query).get("elements") or []:
+        elements = overpass(query, slug).get("elements") or []
+        print(f"    {slug}: точок в OSM {len(elements)}", flush=True)
+        for el in elements:
             tags = el.get("tags") or {}
             city = (tags.get("addr:city") or "").strip().lower()
             if city and city not in names:
@@ -118,6 +124,7 @@ def stores():
                 continue
             if not street:
                 # адреса за координатами; місто звідти ж - передмістя відсіюються
+                print(f"    адреса за координатами {point['lat']:.5f},{point['lon']:.5f}...", flush=True)
                 street, house, rev_city = reverse_address(point["lat"], point["lon"])
                 if rev_city and rev_city not in names:
                     continue
